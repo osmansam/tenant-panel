@@ -44,7 +44,7 @@ type Props<T> = {
   submitFunction?: () => void;
   additionalSubmitFunction?: () => void;
   additionalCancelFunction?: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   constantValues?: { [key: string]: any };
   isCancelConfirmationDialogExist?: boolean;
   isCreateConfirmationDialogExist?: boolean;
@@ -204,7 +204,6 @@ const GenericAddEditPanel = <T,>({
 
   // Validation function
   const validateFieldValue = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (input: GenericInputType, value: any) => {
       const fieldType =
         formKeys.find((fk) => fk.key === input.formKey)?.type || "string";
@@ -483,7 +482,6 @@ const GenericAddEditPanel = <T,>({
           formElements={formElements}
           setFormElements={setFormElements}
           inputs={inputs}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setForm={setForm as any}
         />
       );
@@ -814,7 +812,6 @@ const GenericAddEditPanel = <T,>({
                           invalidateKeys={input.invalidateKeys}
                           requiredField={input.required}
                           setFormElements={setFormElements}
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           setForm={setForm as any}
                           formElements={formElements}
                           isTopFlexRow={input.isTopFlexRow ?? false}
