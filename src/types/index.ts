@@ -1,9 +1,132 @@
+// Enums matching backend
+export enum MembershipStatus {
+  INVITED = "invited",
+  ACTIVE = "active",
+  DISABLED = "disabled",
+}
+
+export enum RoleScope {
+  TENANT = "tenant",
+  PROJECT = "project",
+}
+
+export enum InviteScope {
+  TENANT = "tenant",
+  PROJECT = "project",
+}
+
+// Tenant role constants
+export const TenantRoles = {
+  OWNER: "tenant_owner",
+  ADMIN: "tenant_admin",
+  BILLING: "tenant_billing",
+  AUDITOR: "tenant_auditor",
+} as const;
+
+// Project role constants
+export const ProjectRoles = {
+  ADMIN: "project_admin",
+  DEVELOPER: "project_developer",
+  EDITOR: "project_editor",
+  VIEWER: "project_viewer",
+  SUPPORT: "project_support",
+} as const;
+
+// Core types matching backend models
 export type User = {
-  _id: string;
+  id: string;
   email: string;
-  role: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  name?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // Frontend-specific fields for auth context
+  _id?: string; // For backward compatibility
+  role?: string; // Current primary role for display
+  tenantId?: string;
+  tenantName?: string;
+  tenantSlug?: string;
+  roles?: string[];
+  allTenants?: Tenant[];
   [key: string]: any;
+};
+
+export type Tenant = {
+  id: string;
+  name: string;
+  slug: string;
+  ownerUserId: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Project = {
+  id: string;
+  tenantId: string;
+  tenantSlug: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Role = {
+  id: string;
+  scope: RoleScope;
+  key: string;
+  displayName: string;
+  description?: string;
+  tenantId?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TenantMembership = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  roles: string[];
+  status: MembershipStatus;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProjectMembership = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  userId: string;
+  roles: string[];
+  status: MembershipStatus;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Invite = {
+  id: string;
+  scope: InviteScope;
+  tenantId: string;
+  projectId?: string;
+  email: string;
+  rolesToAssign: string[];
+  status: MembershipStatus;
+  expiresAt: string;
+  createdBy: string;
+  acceptedBy?: string;
+  acceptedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ContainerScope = {
+  tenantId: string;
+  projectId: string;
 };
 
 export enum RowPerPageEnum {

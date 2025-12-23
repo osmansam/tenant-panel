@@ -8,15 +8,15 @@ function toCamelCase(obj: any): any {
   if (isArray(obj)) {
     return obj.map((item) => toCamelCase(item));
   }
-  
+
   if (isPlainObject(obj)) {
     return transform(obj, (result: any, value: any, key: string) => {
       // Preserve _id as-is (don't convert to id)
-      const camelKey = key === '_id' ? '_id' : camelCase(key);
+      const camelKey = key === "_id" ? "_id" : camelCase(key);
       result[camelKey] = toCamelCase(value);
     });
   }
-  
+
   return obj;
 }
 
@@ -52,10 +52,47 @@ axiosClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    if (error?.response?.data?.statusCode === 401) {
-      Cookies.remove(ACCESS_TOKEN);
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error?.response?.data?.statusCode === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = Cookies.get("refreshToken");
+
+      if (refreshToken) {
+        try {
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_URL}/tenant/auth/refresh`,
+            {
+              refreshToken,
+            }
+          );
+
+          const { data } = response.data;
+          const newAccessToken = data.accessToken;
+          Cookies.set("jwt", newAccessToken);
+          localStorage.setItem("jwt", newAccessToken);
+
+          // Update the authorization header and retry the original request
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return axiosClient(originalRequest);
+        } catch (refreshError) {
+          // Refresh failed, clear tokens and redirect to login
+          Cookies.remove("jwt");
+          Cookies.remove("refreshToken");
+          localStorage.clear();
+          window.location.href = "/login";
+          return Promise.reject(refreshError);
+        }
+      } else {
+        // No refresh token, clear everything and redirect
+        Cookies.remove("jwt");
+        localStorage.clear();
+        window.location.href = "/login";
+      }
     }
+
     return Promise.reject(error);
   }
 );
