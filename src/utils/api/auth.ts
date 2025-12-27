@@ -121,7 +121,7 @@ export function useLogout(onError?: (error: unknown) => void) {
       localStorage.setItem("loggedOut", "true");
       setTimeout(() => localStorage.removeItem("loggedOut"), 500);
       Cookies.remove("jwt");
-      setUser(null);
+      setUser(undefined);
       queryClient.clear();
       navigate("/login");
     },
@@ -166,10 +166,14 @@ export function useTenantLogin(
 
       if (user) {
         // Create extended user object with tenant info
-        const extendedUser = {
+        const extendedUser: User = {
+          id: user.id,
           _id: user.id,
           email: user.email,
           name: user.name,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           role: roles[0] || "user",
           tenantId: tenant.id,
           tenantName: tenant.name,
@@ -225,10 +229,14 @@ export function useTenantRegister(
 
       if (user) {
         // Create extended user object with tenant info
-        const extendedUser = {
+        const extendedUser: User = {
+          id: user.id,
           _id: user.id,
           email: user.email,
           name: user.name,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           role: roles[0] || "user",
           tenantId: tenant.id,
           tenantName: tenant.name,
@@ -310,10 +318,14 @@ export function useGoogleCallback(
 
       if (user) {
         // Create extended user object with tenant info
-        const extendedUser = {
+        const extendedUser: User = {
+          id: user.id,
           _id: user.id,
           email: user.email,
           name: user.name,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           role: roles[0] || "user",
           tenantId: tenant.id,
           tenantName: tenant.name,
@@ -354,7 +366,7 @@ export function useTenantLogout(onError?: (error: unknown) => void) {
       setTimeout(() => localStorage.removeItem("loggedOut"), 500);
       Cookies.remove("jwt");
       Cookies.remove("refreshToken");
-      setUser(null);
+      setUser(undefined);
       queryClient.clear();
       navigate("/login");
     },
@@ -394,7 +406,7 @@ export function useRefreshToken(onError?: (error: unknown) => void) {
       localStorage.clear();
       Cookies.remove("jwt");
       Cookies.remove("refreshToken");
-      setUser(null);
+      setUser(undefined);
       window.location.href = "/login";
       if (onError) onError(error);
     },

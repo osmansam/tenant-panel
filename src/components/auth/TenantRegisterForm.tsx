@@ -120,6 +120,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           disabled={isLoading}
           error={errors.email}
           onClear={() => handleInputChange("email")("")}
+          isOnClearActive={false}
         />
 
         <TextInput
@@ -131,6 +132,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           requiredField={true}
           disabled={isLoading}
           error={errors.password}
+          isOnClearActive={false}
         />
 
         <TextInput
@@ -143,6 +145,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           disabled={isLoading}
           error={errors.name}
           onClear={() => handleInputChange("name")("")}
+          isOnClearActive={false}
         />
 
         <TextInput
@@ -155,6 +158,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           disabled={isLoading}
           error={errors.tenantName}
           onClear={() => handleInputChange("tenantName")("")}
+          isOnClearActive={false}
         />
 
         <TextInput
@@ -167,6 +171,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           disabled={isLoading}
           error={errors.tenantSlug}
           onClear={() => handleInputChange("tenantSlug")("")}
+          isOnClearActive={false}
         />
 
         <GenericButton type="submit" disabled={isLoading} className="w-full">
@@ -213,21 +218,6 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
             {t("Continue with Google")}
           </div>
         </GenericButton>
-      </div>
-
-      <div className="mt-4 text-center">
-        <p className="text-sm text-gray-600">
-          {t("Already have an account?")}{" "}
-          <button
-            type="button"
-            className="font-medium text-blue-600 hover:text-blue-500"
-            onClick={() => {
-              /* Navigate to login */
-            }}
-          >
-            {t("Sign in")}
-          </button>
-        </p>
       </div>
     </div>
   );

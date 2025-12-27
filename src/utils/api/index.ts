@@ -75,3 +75,6 @@ export * from "./page";
 
 // Export audit logs API
 export * from "./auditLogs";
+
+// Export project API
+export * from "./project";

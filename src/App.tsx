@@ -1,55 +1,66 @@
-import { useState } from "react";
-import "./App.css";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useIsMutating,
+} from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
+import { Slide, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import Loading from "./common/Loading";
+import { Sidebar } from "./common/Sidebar";
+import { GeneralContextProvider } from "./context/General.context";
+import { UserContextProvider } from "./context/User.context";
+import { useWebSocket } from "./hooks/useWebSocket";
+import { PublicRoutes } from "./navigation/constants";
+import RouterContainer from "./navigation/routes";
+import { ACCESS_TOKEN } from "./utils/api/axiosClient";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const isMutating = useIsMutating();
+  const location = useLocation();
+  useWebSocket();
+
+  // Don't show sidebar on public pages or if user is not authenticated
+  const token = localStorage.getItem(ACCESS_TOKEN);
+  const isPublicRoute = Object.values(PublicRoutes).includes(
+    location.pathname as any
+  );
+  const showSidebar = !isPublicRoute && !!token;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
-      <div className="flex gap-8 mb-8">
-        <a
-          href="https://vite.dev"
-          target="_blank"
-          className="hover:opacity-75 transition-opacity"
-        >
-          <img src={viteLogo} className="h-24 w-24" alt="Vite logo" />
-        </a>
-        <a
-          href="https://react.dev"
-          target="_blank"
-          className="hover:opacity-75 transition-opacity"
-        >
-          <img
-            src={reactLogo}
-            className="h-24 w-24 animate-spin"
-            alt="React logo"
+    <div className="App">
+      <UserContextProvider>
+        <GeneralContextProvider>
+          {isMutating ? <Loading /> : null}
+          <div className="flex h-screen">
+            {showSidebar && <Sidebar />}
+            <main className="flex-1 overflow-auto">
+              <RouterContainer />
+            </main>
+          </div>
+          <ToastContainer
+            autoClose={2000}
+            hideProgressBar={true}
+            transition={Slide}
+            closeButton={false}
+            position="bottom-right"
           />
-        </a>
-      </div>
-      <h1 className="text-4xl font-bold text-gray-800 mb-8">Vite + React</h1>
-      <div className="bg-white p-8 rounded-lg shadow-lg">
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors mb-4"
-        >
-          count is {count}
-        </button>
-        <p className="text-gray-600">
-          Edit{" "}
-          <code className="bg-gray-100 px-2 py-1 rounded text-sm">
-            src/App.tsx
-          </code>{" "}
-          and save to test HMR
-        </p>
-      </div>
-      <p className="mt-8 text-gray-500 text-center max-w-md">
-        Click on the Vite and React logos to learn more. Tailwind CSS is now
-        configured!
-      </p>
+        </GeneralContextProvider>
+      </UserContextProvider>
     </div>
   );
 }
 
-export default App;
+// Create QueryClient once outside component to prevent recreation
+const queryClient = new QueryClient();
+
+// We are wrapping the App component to be able to use isMutating hooks in it
+function Wrapper() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  );
+}
+
+export default Wrapper;

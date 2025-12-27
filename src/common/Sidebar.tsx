@@ -6,7 +6,7 @@ import { FiChevronDown, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { IoIosLogOut } from "react-icons/io";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGeneralContext } from "../context/General.context";
-import { useFilteredRoutes } from "../hooks/useFilteredRoutes";
+import { systemRoutes } from "../navigation/constants";
 import { getIconByName, getMenuIcon } from "../utils/menuIcons";
 import SidebarTooltip from "./SidebarTooltip";
 
@@ -17,26 +17,18 @@ export const Sidebar = () => {
   const queryClient = useQueryClient();
   const { isSidebarOpen, setIsSidebarOpen, resetGeneralContext } =
     useGeneralContext();
-  // const { setUser } = useUserContext();
-  // const user = useGetUser();
   const currentRoute = location.pathname;
   const [openGroups, setOpenGroups] = useState<{ [group: string]: boolean }>(
     {}
   );
 
-  const routes = useFilteredRoutes();
-
-  // Commented out since permission filtering is disabled
-  // const pages = useGetPanelControlPages();
+  const routes = systemRoutes;
 
   const toggleGroup = (groupName: string) => {
     setOpenGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
   };
 
-  if (
-    // !user ||
-    routes.length === 0
-  ) {
+  if (routes.length === 0) {
     return null;
   }
 
@@ -52,18 +44,26 @@ export const Sidebar = () => {
 
   return (
     <>
+      {/* Mobile overlay */}
       {isSidebarOpen && (
         <div
-          className="hidden lg:block fixed inset-0 bg-black/20 transition-opacity duration-300 z-40"
+          className="md:hidden fixed inset-0 bg-black/50 transition-opacity duration-300 z-40"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <aside
         className={`
-          hidden lg:block fixed top-0 left-0 h-screen border-r border-gray-200
-          transition-all duration-300 ease-in-out shadow-lg z-50
+          flex-shrink-0 flex flex-col border-r border-gray-200 bg-white
+          transition-all duration-300 ease-in-out shadow-lg
           ${isSidebarOpen ? "w-64" : "w-16"}
+          md:relative md:translate-x-0
+          ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }
+          fixed md:static top-0 left-0 h-full z-50
         `}
       >
         <div
@@ -93,23 +93,11 @@ export const Sidebar = () => {
         <div className="flex flex-col h-[calc(100%-4rem)] py-3 px-2 bg-white overflow-y-auto">
           <div className="flex-1 space-y-1">
             {routes.map((route) => {
-              // Commented out permission role filtering - showing all routes
-              const filteredRouteChildren = route?.children;
-              /* 
-              const filteredRouteChildren = route?.children?.filter(
-                (child) =>
-                  child?.exceptionalRoles?.includes((user?.role as Role)._id) ||
-                  pages?.some(
-                    (page) =>
-                      page.name === child.name &&
-                      page.permissionRoles?.includes((user?.role as Role)._id)
-                  )
-              );
-              */
+              // Our routes don't have children structure, they are flat
+              const routeChildren = route?.children;
 
-              if (filteredRouteChildren && filteredRouteChildren?.length > 1) {
-                // If route.icon exists and looks like an icon name (starts with 2+ capital letters like "MdCard", "FaHeart"), use getIconByName
-                // Otherwise, use getMenuIcon with the route name
+              if (routeChildren && routeChildren.length > 1) {
+                // Handle routes with multiple children
                 const IconComponent =
                   route.icon && /^[A-Z][a-z]+[A-Z]/.test(route.icon)
                     ? getIconByName(route.icon)
@@ -148,7 +136,7 @@ export const Sidebar = () => {
 
                     {isSidebarOpen &&
                       openGroups[route.name] &&
-                      filteredRouteChildren
+                      routeChildren
                         .filter((child) => child.isOnSidebar)
                         .map((child) => (
                           <button
@@ -161,17 +149,8 @@ export const Sidebar = () => {
                                 ? "bg-blue-50 text-blue-600 font-medium"
                                 : "text-gray-600 hover:bg-gray-50"
                             }
-                            ${
-                              child.link
-                                ? "text-blue-600 hover:text-blue-700"
-                                : ""
-                            }
                           `}
                             onClick={() => {
-                              if (child.link) {
-                                window.location.href = child.link;
-                                return;
-                              }
                               if (child.path) {
                                 resetGeneralContext();
                                 navigate(child.path);
@@ -187,68 +166,54 @@ export const Sidebar = () => {
                 );
               }
 
-              if (
-                filteredRouteChildren &&
-                filteredRouteChildren?.length === 1
-              ) {
-                if (!filteredRouteChildren[0].isOnSidebar) return null;
-                const child = filteredRouteChildren[0];
-                // If child.icon exists and looks like an icon name, use getIconByName
+              if (routeChildren && routeChildren.length === 1) {
+                // Handle routes with single child
+                if (!routeChildren[0].isOnSidebar) return null;
+                const child = routeChildren[0];
                 const IconComponent =
                   child.icon && /^[A-Z][a-z]+[A-Z]/.test(child.icon)
                     ? getIconByName(child.icon)
                     : getMenuIcon(child.icon || child.name);
                 return (
                   <SidebarTooltip
-                    key={filteredRouteChildren[0].name}
-                    content={t(filteredRouteChildren[0].name)}
+                    key={routeChildren[0].name}
+                    content={t(routeChildren[0].name)}
                   >
                     <button
                       className={`
                       w-full flex items-center gap-2.5 px-2 py-2 rounded-lg
                       text-sm transition-colors
                       ${
-                        filteredRouteChildren[0].path === currentRoute
+                        routeChildren[0].path === currentRoute
                           ? "bg-blue-50 text-blue-600 font-medium"
                           : "text-gray-700 hover:bg-gray-100"
                       }
-                      ${
-                        filteredRouteChildren[0].link
-                          ? "text-blue-600 hover:text-blue-700"
-                          : ""
-                      }
                     `}
                       onClick={() => {
-                        if (filteredRouteChildren[0].link) {
-                          window.location.href = filteredRouteChildren[0].link;
-                          return;
-                        }
-                        if (filteredRouteChildren[0].path) {
+                        if (routeChildren[0].path) {
                           resetGeneralContext();
-                          navigate(filteredRouteChildren[0].path);
+                          navigate(routeChildren[0].path);
                           window.scrollTo(0, 0);
                         }
                       }}
                     >
                       <div
                         className={`flex items-center justify-center flex-shrink-0 ${
-                          filteredRouteChildren[0].path === currentRoute
+                          routeChildren[0].path === currentRoute
                             ? "text-blue-600"
                             : "text-gray-700"
                         }`}
                       >
                         <IconComponent className="text-xl" />
                       </div>
-                      {isSidebarOpen && (
-                        <span>{t(filteredRouteChildren[0].name)}</span>
-                      )}
+                      {isSidebarOpen && <span>{t(routeChildren[0].name)}</span>}
                     </button>
                   </SidebarTooltip>
                 );
               }
 
+              // Handle direct routes (no children)
               if (!route.isOnSidebar) return null;
-              // If route.icon exists and looks like an icon name, use getIconByName
               const IconComponent =
                 route.icon && /^[A-Z][a-z]+[A-Z]/.test(route.icon)
                   ? getIconByName(route.icon)
@@ -264,13 +229,8 @@ export const Sidebar = () => {
                         ? "bg-blue-50 text-blue-600 font-medium"
                         : "text-gray-700 hover:bg-gray-100"
                     }
-                    ${route.link ? "text-blue-600 hover:text-blue-700" : ""}
                   `}
                     onClick={() => {
-                      if (route.link) {
-                        window.location.href = route.link;
-                        return;
-                      }
                       if (route.path) {
                         resetGeneralContext();
                         navigate(route.path);

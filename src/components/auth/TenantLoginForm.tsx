@@ -89,6 +89,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
           disabled={isLoading}
           error={errors.email}
           onClear={() => handleInputChange("email")("")}
+          isOnClearActive={false}
         />
 
         <TextInput
@@ -100,6 +101,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
           requiredField={true}
           disabled={isLoading}
           error={errors.password}
+          isOnClearActive={false}
         />
 
         <GenericButton

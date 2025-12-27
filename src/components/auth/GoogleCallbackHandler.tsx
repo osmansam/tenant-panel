@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { Loading } from "../../common/Loading";
+
+import Loading from "../../common/Loading";
 import { useGoogleCallback } from "../../utils/api/auth";
 
 interface GoogleCallbackHandlerProps {
