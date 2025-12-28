@@ -46,7 +46,11 @@ export type User = {
   tenantId?: string;
   tenantName?: string;
   tenantSlug?: string;
+  projectId?: string;
+  projectName?: string;
+  projectSlug?: string;
   roles?: string[];
+  roleScope?: "tenant" | "project";
   allTenants?: Tenant[];
   [key: string]: any;
 };

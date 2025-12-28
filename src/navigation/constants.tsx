@@ -14,6 +14,7 @@ export enum Routes {
   Dashboard = "/dashboard",
   AuditLogs = "/audit-logs",
   Projects = "/projects",
+  ProjectManagement = "/project-management",
   Settings = "/settings",
   Users = "/users",
   Profile = "/profile",
@@ -50,6 +51,18 @@ export const systemRoutes: RouteConfig[] = [
     path: Routes.Projects,
     isOnSidebar: true,
     icon: "📁",
+  },
+  {
+    name: "Project Management",
+    path: Routes.ProjectManagement,
+    isOnSidebar: true,
+    icon: "🔧",
+    requiredRoles: [
+      "project_admin",
+      "project_developer",
+      "project_editor",
+      "project_viewer",
+    ],
   },
   {
     name: "Users",

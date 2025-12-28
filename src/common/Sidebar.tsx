@@ -4,9 +4,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { IoIosLogOut } from "react-icons/io";
+import { MdArrowBack, MdBusinessCenter } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGeneralContext } from "../context/General.context";
+import { useUserContext } from "../context/User.context";
+import { useCurrentProject } from "../hooks/useCurrentProject";
 import { systemRoutes } from "../navigation/constants";
+import { useSwitchBackToTenant } from "../utils/api/auth";
 import { getIconByName, getMenuIcon } from "../utils/menuIcons";
 import SidebarTooltip from "./SidebarTooltip";
 
@@ -15,6 +19,10 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { user, setUser } = useUserContext();
+  const { currentProject, clearCurrentProject, isInProject } =
+    useCurrentProject();
+  const { switchBackToTenant } = useSwitchBackToTenant();
   const { isSidebarOpen, setIsSidebarOpen, resetGeneralContext } =
     useGeneralContext();
   const currentRoute = location.pathname;
@@ -28,7 +36,41 @@ export const Sidebar = () => {
     setOpenGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
   };
 
-  if (routes.length === 0) {
+  // Filter routes based on current context (tenant vs project)
+  const getVisibleRoutes = () => {
+    return routes.filter((route) => {
+      // Always show dashboard
+      if (route.path === "/dashboard") return true;
+
+      // In project context
+      if (isInProject) {
+        // Show project management and hide projects list
+        if (route.path === "/project-management") return true;
+        if (route.path === "/projects") return false;
+
+        // Show other routes based on roles
+        if (route.requiredRoles) {
+          const userRoles = user?.roles || [];
+          return route.requiredRoles.some((role) => userRoles.includes(role));
+        }
+        return true;
+      } else {
+        // In tenant context - hide project management
+        if (route.path === "/project-management") return false;
+
+        // Show other routes based on roles
+        if (route.requiredRoles) {
+          const userRoles = user?.roles || [];
+          return route.requiredRoles.some((role) => userRoles.includes(role));
+        }
+        return true;
+      }
+    });
+  };
+
+  const visibleRoutes = getVisibleRoutes();
+
+  if (visibleRoutes.length === 0) {
     return null;
   }
 
@@ -37,9 +79,28 @@ export const Sidebar = () => {
     localStorage.setItem("loggedOut", "true");
     setTimeout(() => localStorage.removeItem("loggedOut"), 500);
     Cookies.remove("jwt");
-    // setUser(undefined);
+    Cookies.remove("refreshToken");
+    setUser(undefined);
     queryClient.clear();
     navigate("/login");
+  };
+
+  const handleSwitchBackToTenant = () => {
+    // Clear project context locally first for immediate UI feedback
+    clearCurrentProject();
+    if (user) {
+      const updatedUser = {
+        ...user,
+        projectId: undefined,
+        projectName: undefined,
+        projectSlug: undefined,
+        roleScope: "tenant" as const,
+      };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    }
+    // Use the API hook to handle the token refresh and navigation
+    switchBackToTenant();
   };
 
   return (
@@ -91,8 +152,47 @@ export const Sidebar = () => {
         </div>
 
         <div className="flex flex-col h-[calc(100%-4rem)] py-3 px-2 bg-white overflow-y-auto">
+          {/* Project Context Section */}
+          {isInProject && currentProject && (
+            <div className="mb-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
+              {isSidebarOpen ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MdBusinessCenter className="text-blue-600 text-lg" />
+                    <span className="text-sm font-semibold text-blue-900">
+                      {t("Current Project")}
+                    </span>
+                  </div>
+                  <div className="text-sm text-blue-800 mb-2">
+                    {currentProject.name}
+                  </div>
+                  <button
+                    onClick={handleSwitchBackToTenant}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    <MdArrowBack className="text-sm" />
+                    {t("Back to Tenant")}
+                  </button>
+                </div>
+              ) : (
+                <SidebarTooltip
+                  content={`${t("Current Project")}: ${
+                    currentProject.name
+                  } - ${t("Click to go back to tenant")}`}
+                >
+                  <button
+                    onClick={handleSwitchBackToTenant}
+                    className="w-full flex items-center justify-center p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    <MdBusinessCenter className="text-lg" />
+                  </button>
+                </SidebarTooltip>
+              )}
+            </div>
+          )}
+
           <div className="flex-1 space-y-1">
-            {routes.map((route) => {
+            {visibleRoutes.map((route) => {
               // Our routes don't have children structure, they are flat
               const routeChildren = route?.children;
 

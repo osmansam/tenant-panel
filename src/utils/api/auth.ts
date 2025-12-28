@@ -414,3 +414,177 @@ export function useRefreshToken(onError?: (error: unknown) => void) {
 
   return { refreshToken };
 }
+
+// Switch to project functionality
+export interface SwitchToProjectRequest {
+  projectId: string;
+}
+
+export interface SwitchToProjectResponse {
+  status: number;
+  message: string;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    project: {
+      id: string;
+      tenantId: string;
+      tenantSlug: string;
+      name: string;
+      slug: string;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+    roles: string[];
+  };
+}
+
+async function switchToProjectMethod(payload: SwitchToProjectRequest) {
+  return post<SwitchToProjectRequest, SwitchToProjectResponse>({
+    path: "/tenant/auth/switch-project",
+    payload,
+  });
+}
+
+export function useSwitchToProject(onError?: (error: unknown) => void) {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { setUser } = useUserContext();
+  const { mutate: switchToProject, isPending: isSwitching } = useMutation<
+    SwitchToProjectResponse,
+    LoginError,
+    SwitchToProjectRequest
+  >({
+    mutationFn: switchToProjectMethod,
+    onSuccess: async (response: SwitchToProjectResponse) => {
+      const { data } = response;
+      const { accessToken, refreshToken, project, roles } = data;
+
+      // Update tokens
+      Cookies.set("jwt", accessToken);
+      Cookies.set("refreshToken", refreshToken);
+      localStorage.setItem("jwt", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      // Update user context with project information
+      const currentUserData = localStorage.getItem("user");
+      if (currentUserData) {
+        const currentUser = JSON.parse(currentUserData);
+        const updatedUser = {
+          ...currentUser,
+          projectId: project.id,
+          projectName: project.name,
+          projectSlug: project.slug,
+          roles,
+          roleScope: "project" as const,
+        };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        localStorage.setItem("currentProject", JSON.stringify(project));
+        setUser(updatedUser);
+      }
+
+      toast.success(t("Switched to project successfully"));
+
+      // Navigate to project management page after switching
+      navigate("/project-management");
+    },
+    onError,
+  });
+
+  return { switchToProject, isSwitching };
+}
+
+// Switch back to tenant context
+export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { setUser } = useUserContext();
+
+  const switchBackToTenant = () => {
+    // Get the current user and tenant data to reconstruct tenant context
+    const currentUserData = localStorage.getItem("user");
+    const currentTenantData = localStorage.getItem("currentTenant");
+
+    if (currentUserData && currentTenantData) {
+      try {
+        const currentUser = JSON.parse(currentUserData);
+        const currentTenant = JSON.parse(currentTenantData);
+
+        // Use refresh token to get a new token (should be tenant-scoped after clearing project context)
+        const refreshToken = Cookies.get("refreshToken");
+        if (refreshToken) {
+          refreshTokenMethod()
+            .then((response) => {
+              const { data } = response;
+              Cookies.set("jwt", data.accessToken);
+              localStorage.setItem("jwt", data.accessToken);
+
+              // Update user context to remove project information and restore tenant context
+              const updatedUser = {
+                id: currentUser.id || currentUser._id,
+                _id: currentUser.id || currentUser._id,
+                email: currentUser.email,
+                name: currentUser.name,
+                isActive: true,
+                createdAt: currentUser.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                role: currentUser.role || "user",
+                tenantId: currentTenant.id,
+                tenantName: currentTenant.name,
+                tenantSlug: currentTenant.slug,
+                projectId: undefined,
+                projectName: undefined,
+                projectSlug: undefined,
+                roles: currentUser.roles || [],
+                roleScope: "tenant" as const,
+                allTenants: currentUser.allTenants || [],
+              };
+
+              localStorage.setItem("user", JSON.stringify(updatedUser));
+              localStorage.removeItem("currentProject");
+              setUser(updatedUser);
+
+              toast.success(t("Switched back to tenant context"));
+              navigate("/projects");
+            })
+            .catch((refreshError) => {
+              console.error("Refresh token failed:", refreshError);
+              toast.error(t("Failed to switch back to tenant context"));
+              // Force logout as last resort
+              localStorage.clear();
+              Cookies.remove("jwt");
+              Cookies.remove("refreshToken");
+              setUser(undefined);
+              navigate("/login");
+              if (onError) onError(refreshError);
+            });
+        } else {
+          // If no refresh token, force logout
+          localStorage.clear();
+          Cookies.remove("jwt");
+          Cookies.remove("refreshToken");
+          setUser(undefined);
+          navigate("/login");
+        }
+      } catch (parseError) {
+        console.error("Error parsing user/tenant data:", parseError);
+        // Force logout if data is corrupted
+        localStorage.clear();
+        Cookies.remove("jwt");
+        Cookies.remove("refreshToken");
+        setUser(undefined);
+        navigate("/login");
+      }
+    } else {
+      // If no user or tenant data, force logout
+      localStorage.clear();
+      Cookies.remove("jwt");
+      Cookies.remove("refreshToken");
+      setUser(undefined);
+      navigate("/login");
+    }
+  };
+
+  return { switchBackToTenant };
+}

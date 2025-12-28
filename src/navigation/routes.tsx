@@ -1,6 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { GoogleCallbackHandler } from "../components/auth";
-import { Dashboard, LoginPage, RegisterPage } from "../pages";
+import {
+  Dashboard,
+  LoginPage,
+  ProjectManagementPage,
+  RegisterPage,
+} from "../pages";
 import ProjectsPage from "../pages/ProjectsPage";
 import { PrivateRoutes } from "./PrivateRoutes";
 import { Routes as ProtectedRoutes, PublicRoutes } from "./constants";
@@ -41,6 +46,10 @@ const RouterContainer = () => {
         {/* TODO: Add other protected routes */}
         {/* <Route path={ProtectedRoutes.AuditLogs} element={<AuditLogsPage />} /> */}
         <Route path={ProtectedRoutes.Projects} element={<ProjectsPage />} />
+        <Route
+          path={ProtectedRoutes.ProjectManagement}
+          element={<ProjectManagementPage />}
+        />
         {/* <Route path={ProtectedRoutes.Users} element={<UsersPage />} /> */}
         {/* <Route path={ProtectedRoutes.Settings} element={<SettingsPage />} /> */}
         {/* <Route path={ProtectedRoutes.Profile} element={<ProfilePage />} /> */}

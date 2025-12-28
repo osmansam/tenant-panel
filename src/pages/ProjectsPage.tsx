@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import TextInput from "../components/panelComponents/FormElements/TextInput";
 import { H1, H2 } from "../components/panelComponents/Typography";
+import { useSwitchToProject } from "../utils/api/auth";
 import {
   CreateProjectPayload,
   getProjectStatusDisplay,
@@ -23,6 +24,7 @@ const ProjectsPage: React.FC = () => {
   const projectsData = useProjects(true);
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const { createProject, isCreating } = useCreateProject();
+  const { switchToProject, isSwitching } = useSwitchToProject();
 
   // Since useProjects returns data directly from factory, we need to handle loading state differently
   const isLoading = !projectsData;
@@ -45,6 +47,10 @@ const ProjectsPage: React.FC = () => {
     createProject({ name: createForm.name, slug });
     setIsCreateModalOpen(false);
     setCreateForm({ name: "", slug: "" });
+  };
+
+  const handleSwitchToProject = (projectId: string) => {
+    switchToProject({ projectId });
   };
 
   return (
@@ -105,7 +111,7 @@ const ProjectsPage: React.FC = () => {
                       </p>
                     )}
 
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                           statusDisplay.color === "green"
@@ -120,6 +126,22 @@ const ProjectsPage: React.FC = () => {
                       <span className="text-xs text-gray-500">
                         {new Date(project.createdAt).toLocaleDateString()}
                       </span>
+                    </div>
+
+                    {/* Switch to Project Button */}
+                    <div className="flex justify-end">
+                      <GenericButton
+                        onClick={() =>
+                          handleSwitchToProject(project.id || project._id)
+                        }
+                        disabled={isSwitching || !project.isActive}
+                        variant={project.isActive ? "primary" : "outline"}
+                        className="text-sm px-4 py-2"
+                      >
+                        {isSwitching
+                          ? t("Switching...")
+                          : t("Switch to Project")}
+                      </GenericButton>
                     </div>
                   </div>
                 );
