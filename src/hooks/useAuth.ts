@@ -4,6 +4,7 @@ import { useUserContext } from "../context/User.context";
 import { PublicRoutes } from "../navigation/constants";
 import { Tenant } from "../types";
 import { ACCESS_TOKEN } from "../utils/api/axiosClient";
+import { isAuthenticated } from "../utils/auth";
 
 const useAuth = () => {
   const { user, setUser } = useUserContext();
@@ -14,11 +15,8 @@ const useAuth = () => {
     const getUser = async (): Promise<void> => {
       if (user) return;
 
-      const token = localStorage.getItem(ACCESS_TOKEN);
-      const refreshToken = localStorage.getItem("refreshToken");
-      const storedUser = localStorage.getItem("user");
-
-      if (!token && !refreshToken) {
+      // Use centralized authentication check
+      if (!isAuthenticated()) {
         // No tokens available, redirect to login
         navigate(PublicRoutes.Login, {
           replace: true,
@@ -27,6 +25,9 @@ const useAuth = () => {
         return;
       }
 
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      const storedUser = localStorage.getItem("user");
+
       if (storedUser && token) {
         try {
           // Set user from localStorage if available
@@ -34,12 +35,8 @@ const useAuth = () => {
           setUser(parsedUser);
         } catch (e) {
           console.error("Failed to parse stored user:", e);
-          // Clear invalid user data
-          localStorage.removeItem("user");
-          navigate(PublicRoutes.Login, {
-            replace: true,
-            state: { from: location },
-          });
+          // Clear invalid user data and logout
+          logout();
         }
       } else if (token) {
         // Token exists but no user data, could fetch user info here

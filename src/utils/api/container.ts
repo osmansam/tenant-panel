@@ -245,6 +245,131 @@ export interface UpdatePipelinesPayload {
   pipelines: PipelineStage[];
 }
 
+// Raw payload types matching Go backend struct tags (PascalCase)
+export interface CreateContainerRawPayload {
+  SchemaName: string;
+  Fields: any[]; // Empty array initially
+  Routes: {
+    CreateDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    GetAllDynamicModelItems: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    CreateMultipleDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    GetAllDynamicModelItemsWithPagination: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    GetPipeline: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    TestPipeline: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    HandleSearchDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    HandleFilterDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    DeleteDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    UpdateDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    UpdateMultipleDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    GetDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    DeleteMultipleDynamicModelItem: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    ExportDynamicModelItems: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+    GetItemsForSelection: {
+      IsAuthenticated: boolean;
+      IsAuthorized: boolean;
+      AuthorizeRole: string[];
+      IsActive: boolean;
+      Method: string;
+    };
+  };
+  Redis: {
+    IsRedisCached: boolean;
+    CacheTime: number;
+    TriggeredRedisCaches: string[];
+  };
+  Pipelines: any[];
+  DynamicFunctions: any[];
+  DynamicApis: any[];
+  IsAuthContainer: boolean;
+  PopulatedRoutes: string[];
+  Indexes: any;
+  RowAccess: any;
+}
+
 // Helper function to build container API paths
 function buildContainerPath(
   tenantSlug: string,
@@ -272,9 +397,6 @@ function useContainerContext() {
   return { tenantSlug, projectSlug };
 }
 
-// Constants
-const QUERY_KEY = ["containers"];
-
 // Sort function for containers (by creation date, newest first)
 const containerSortFunction = (
   a: Partial<ContainerModel>,
@@ -288,46 +410,78 @@ const containerSortFunction = (
 // React Query hooks
 export function useContainers(enabled: boolean = true) {
   const { tenantSlug, projectSlug } = useContainerContext();
-  const basePath = buildContainerPath(tenantSlug, projectSlug, "/tenant");
+  const basePath = buildContainerPath(tenantSlug, projectSlug);
+  const projectSpecificQueryKey = ["containers", tenantSlug, projectSlug];
 
-  const response = useGet<{
-    status: number;
-    message: string;
-    data: ContainerModel[] | { containers: ContainerModel[] };
-  }>(basePath, QUERY_KEY, enabled);
+  const response = useGet<ContainerModel[]>(
+    basePath,
+    projectSpecificQueryKey,
+    enabled
+  );
 
-  // Handle both array and nested object response formats
-  const containers = Array.isArray(response?.data)
-    ? response.data
-    : (response?.data as any)?.containers || [];
+  // The API returns an array of containers directly
+  // Handle the response which might be PascalCase from Go backend
+  const containers = response || [];
 
-  return containers.map((container: ContainerModel) => ({
-    ...container,
-    _id: container.id,
+  return containers.map((container: any) => ({
+    id: container.ID || container.id,
+    _id: container.ID || container.id,
+    schemaName: container.SchemaName || container.schemaName,
+    fields: container.Fields || container.fields || [],
+    routes: container.Routes || container.routes,
+    redis: container.Redis || container.redis,
+    pipelines: container.Pipelines || container.pipelines || [],
+    dynamicFunctions:
+      container.DynamicFunctions || container.dynamicFunctions || [],
+    dynamicApis: container.DynamicApis || container.dynamicApis || [],
+    isAuthContainer:
+      container.IsAuthContainer ?? container.isAuthContainer ?? false,
+    populatedRoutes:
+      container.PopulatedRoutes || container.populatedRoutes || [],
+    indexes: container.Indexes || container.indexes,
+    rowAccess: container.RowAccess || container.rowAccess,
+    collectionName: container.CollectionName || container.collectionName,
+    createdAt: container.CreatedAt || container.createdAt,
+    updatedAt: container.UpdatedAt || container.updatedAt,
   }));
 }
 
 export function useContainer(id: string, enabled: boolean = true) {
   const { tenantSlug, projectSlug } = useContainerContext();
   const path = buildContainerPath(tenantSlug, projectSlug, `/${id}`);
+  const projectSpecificQueryKey = ["container", tenantSlug, projectSlug, id];
 
-  return useGet<ContainerModel>(path, ["container", id], enabled && !!id);
+  return useGet<ContainerModel>(path, projectSpecificQueryKey, enabled && !!id);
 }
 
 export function useContainerTypes(enabled: boolean = true) {
   const { tenantSlug, projectSlug } = useContainerContext();
   const path = buildContainerPath(tenantSlug, projectSlug, "/types");
+  const projectSpecificQueryKey = ["containerTypes", tenantSlug, projectSlug];
 
-  return useGet<ContainerTypes[]>(path, ["containerTypes"], enabled);
+  return useGet<ContainerTypes[]>(path, projectSpecificQueryKey, enabled);
 }
 // Container CRUD operations
 export function useCreateContainer() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const { tenantSlug, projectSlug } = useContainerContext();
+  const { currentTenant } = useTenant();
+  const { currentProject } = useCurrentProject();
 
   const createMutation = useMutation({
-    mutationFn: async (payload: CreateContainerPayload) => {
+    mutationFn: async (
+      payload: CreateContainerPayload | CreateContainerRawPayload
+    ) => {
+      // Build path manually since useContainerContext might throw
+      const tenantSlug = currentTenant?.slug;
+      const projectSlug = currentProject?.slug;
+
+      if (!tenantSlug || !projectSlug) {
+        throw new Error(
+          "Container operations require both tenant and project context"
+        );
+      }
+
       const path = buildContainerPath(tenantSlug, projectSlug);
       console.log("Creating container with payload:", payload);
       const response = await axiosClient.post(path, payload);
@@ -336,8 +490,17 @@ export function useCreateContainer() {
     },
     onSuccess: (response) => {
       console.log("Container creation successful:", response);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["containerTypes"] });
+      const tenantSlug = currentTenant?.slug;
+      const projectSlug = currentProject?.slug;
+
+      if (tenantSlug && projectSlug) {
+        queryClient.invalidateQueries({
+          queryKey: ["containers", tenantSlug, projectSlug],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["containerTypes", tenantSlug, projectSlug],
+        });
+      }
 
       const message = response?.message || "Container created successfully";
       toast.success(t(message));
@@ -353,7 +516,9 @@ export function useCreateContainer() {
   });
 
   return {
-    createContainer: (payload: CreateContainerPayload) => {
+    createContainer: (
+      payload: CreateContainerPayload | CreateContainerRawPayload
+    ) => {
       createMutation.mutate(payload);
     },
     isCreating: createMutation.isPending,
@@ -378,9 +543,15 @@ export function useUpdateContainer() {
       return response.data;
     },
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["container", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["containerTypes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["container", tenantSlug, projectSlug, variables.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["containerTypes", tenantSlug, projectSlug],
+      });
 
       const message = response?.message || "Container updated successfully";
       toast.success(t(message));
@@ -418,8 +589,12 @@ export function useDeleteContainer() {
       return response.data;
     },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["containerTypes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["containerTypes", tenantSlug, projectSlug],
+      });
 
       const message = response?.message || "Container deleted successfully";
       toast.success(t(message));
@@ -465,8 +640,12 @@ export function useUpdateDynamicFunctions() {
       return response.data;
     },
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["container", variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["container", tenantSlug, projectSlug, variables.id],
+      });
 
       const message =
         response?.message || "Dynamic functions updated successfully";
@@ -516,8 +695,12 @@ export function useUpdatePipelines() {
       return response.data;
     },
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["container", variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["container", tenantSlug, projectSlug, variables.id],
+      });
 
       const message = response?.message || "Pipelines updated successfully";
       toast.success(t(message));

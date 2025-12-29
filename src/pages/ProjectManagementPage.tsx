@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import { H1, H2 } from "../components/panelComponents/Typography";
+import { ContainersSection } from "../components/panelComponents/common/ContainersSection";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 
@@ -155,6 +156,11 @@ const ProjectManagementPage: React.FC = () => {
               {t("View Team")}
             </GenericButton>
           </div>
+        </div>
+
+        {/* Containers Management */}
+        <div className="md:col-span-2 lg:col-span-3">
+          <ContainersSection />
         </div>
 
         {/* Data Management */}

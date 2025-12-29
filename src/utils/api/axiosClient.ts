@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders } from "axios";
 import Cookies from "js-cookie";
 import { camelCase, isArray, isPlainObject, transform } from "lodash";
+import { logout } from "../auth";
 
 // Recursively convert all keys in an object from PascalCase to camelCase
 // Special handling: preserve _id fields (don't convert to id)
@@ -55,7 +56,35 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error?.response?.data?.statusCode === 401 && !originalRequest._retry) {
+    // Check for 401 in both standard HTTP status and custom statusCode
+    const is401 =
+      error?.response?.status === 401 ||
+      error?.response?.data?.statusCode === 401;
+
+    // Also check for 403 (forbidden) which might indicate expired/invalid tokens
+    const is403 = error?.response?.status === 403;
+
+    // Check for authentication-related error messages
+    const authErrorMessages = [
+      "unauthorized",
+      "token expired",
+      "invalid token",
+      "authentication failed",
+    ];
+    const hasAuthErrorMessage =
+      error?.response?.data?.message &&
+      authErrorMessages.some((msg) =>
+        error.response.data.message.toLowerCase().includes(msg)
+      );
+
+    if ((is401 || is403 || hasAuthErrorMessage) && !originalRequest._retry) {
+      console.log("Authentication error detected:", {
+        status: error?.response?.status,
+        statusCode: error?.response?.data?.statusCode,
+        message: error?.response?.data?.message,
+        url: originalRequest?.url,
+      });
+
       originalRequest._retry = true;
 
       const refreshToken = Cookies.get("refreshToken");
@@ -79,17 +108,14 @@ axiosClient.interceptors.response.use(
           return axiosClient(originalRequest);
         } catch (refreshError) {
           // Refresh failed, clear tokens and redirect to login
-          Cookies.remove("jwt");
-          Cookies.remove("refreshToken");
-          localStorage.clear();
-          window.location.href = "/login";
+          console.error("Token refresh failed:", refreshError);
+          logout(true); // Show toast message
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token, clear everything and redirect
-        Cookies.remove("jwt");
-        localStorage.clear();
-        window.location.href = "/login";
+        console.log("No refresh token available, redirecting to login");
+        logout(true); // Show toast message
       }
     }
 
