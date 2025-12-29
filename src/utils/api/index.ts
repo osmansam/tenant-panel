@@ -78,3 +78,6 @@ export * from "./auditLogs";
 
 // Export project API
 export * from "./project";
+
+// Export container API
+export * from "./container";

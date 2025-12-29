@@ -1,6 +1,9 @@
 // Shared helper functions for GenericPaginatedPage and GenericUnpaginatedPage
-import { FormKeyTypeEnum, InputTypes } from "../components/panelComponents/shared/types";
-import { ContainerModel, Field, Types } from "./api/container";
+import {
+  FormKeyTypeEnum,
+  InputTypes,
+} from "../components/panelComponents/shared/types";
+import { ContainerModel, Field, Frontend, Types } from "./api/container";
 
 type GenericItem = Record<string, unknown> & { _id: string };
 
@@ -54,10 +57,7 @@ export type RawField = {
       condition: string;
       className: string;
     }[];
-    invalidateKeys?: {
-      key: string;
-      defaultValue: string | boolean | number | undefined | string[] | number[];
-    }[];
+    invalidateKeys?: string[];
   };
   Frontend?: {
     DisplayName?: string;
@@ -69,10 +69,7 @@ export type RawField = {
       Condition: string;
       ClassName: string;
     }[];
-    invalidateKeys?: {
-      key: string;
-      defaultValue: string | boolean | number | undefined | string[] | number[];
-    }[];
+    invalidateKeys?: string[];
     linkTemplate?: string;
     linkLabelField?: string;
     linkType?: string;
@@ -80,7 +77,7 @@ export type RawField = {
   populationSettings?: RawPopulationSettings;
   PopulationSettings?: RawPopulationSettings;
   equation?: string;
- 
+
   Equation?: string;
 };
 
@@ -113,10 +110,7 @@ export type RawContainer = {
       condition: string;
       className: string;
     }[];
-    invalidateKeys?: {
-      key: string;
-      defaultValue: string | boolean | number | undefined | string[] | number[];
-    }[];
+    invalidateKeys?: string[];
   };
   Frontend?: {
     DisplayName?: string;
@@ -124,10 +118,7 @@ export type RawContainer = {
       Condition: string;
       ClassName: string;
     }[];
-    invalidateKeys?: {
-      key: string;
-      defaultValue: string | boolean | number | undefined | string[] | number[];
-    }[];
+    invalidateKeys?: string[];
   };
 };
 
@@ -171,7 +162,7 @@ export const normalizeField = (f: RawField): Field => {
     frontend:
       f.frontend ??
       (f.Frontend
-        ? {
+        ? ({
             displayName: f.Frontend.DisplayName,
             rowClassName: f.Frontend.RowClassName?.map((rc) => ({
               condition: rc.Condition,
@@ -181,22 +172,33 @@ export const normalizeField = (f: RawField): Field => {
               condition: rc.Condition,
               className: rc.ClassName,
             })),
-            invalidateKeys: f.Frontend.invalidateKeys?.map((key) => ({
-              key:String(key),
-              defaultValue: undefined,
-            })) ?? [],
+            invalidateKeys: f.Frontend.invalidateKeys || [],
             linkTemplate: f.Frontend.linkTemplate,
             linkLabelField: f.Frontend.linkLabelField,
-            linkType: f.Frontend.linkType as "external" | "internal" | "email" | "phone" | "file" | undefined,
-          }
+            linkType: f.Frontend.linkType as
+              | "external"
+              | "internal"
+              | "email"
+              | "phone"
+              | "file"
+              | undefined,
+          } as Frontend)
         : undefined),
     populationSettings: rawPopSettings
       ? {
           fieldName: rawPopSettings.fieldName ?? rawPopSettings.FieldName ?? "",
-          populatedFields: rawPopSettings.populatedFields ?? rawPopSettings.PopulatedFields ?? [],
-          displayFields: rawPopSettings.displayFields ?? rawPopSettings.DisplayFields ?? [],
-          inputSelectionField: rawPopSettings.inputSelectionField ?? rawPopSettings.InputSelectionField ?? "",
-          displayLabel: rawPopSettings.displayLabel ?? rawPopSettings.DisplayLabel ?? "",
+          populatedFields:
+            rawPopSettings.populatedFields ??
+            rawPopSettings.PopulatedFields ??
+            [],
+          displayFields:
+            rawPopSettings.displayFields ?? rawPopSettings.DisplayFields ?? [],
+          inputSelectionField:
+            rawPopSettings.inputSelectionField ??
+            rawPopSettings.InputSelectionField ??
+            "",
+          displayLabel:
+            rawPopSettings.displayLabel ?? rawPopSettings.DisplayLabel ?? "",
         }
       : undefined,
     equation: f.equation ?? f.Equation,
@@ -209,6 +211,7 @@ export const normalizeField = (f: RawField): Field => {
  * Normalize a container from raw API response to standard ContainerModel type
  */
 export const normalizeContainer = (c: RawContainer): ContainerModel => ({
+  id: c._id ?? c.ID ?? "", // Add required id field
   _id: c._id ?? c.ID,
   schemaName: c.schemaName ?? c.SchemaName ?? "",
   fields: (c.fields ?? c.Fields ?? []).map((f: RawField) => normalizeField(f)),
@@ -233,13 +236,14 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
   frontend:
     c.frontend ??
     (c.Frontend
-      ? {
+      ? ({
           displayName: c.Frontend.DisplayName,
           rowClassName: c.Frontend.RowClassName?.map((rc) => ({
             condition: rc.Condition,
             className: rc.ClassName,
           })),
-        }
+          invalidateKeys: c.Frontend.invalidateKeys || [],
+        } as Frontend)
       : undefined),
 });
 
@@ -248,41 +252,89 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
  */
 export const tailwindBgToStyle = (className: string): React.CSSProperties => {
   const bgColorMap: Record<string, string> = {
-    'bg-red-50': '#fef2f2', 'bg-red-100': '#fee2e2', 'bg-red-200': '#fecaca',
-    'bg-red-300': '#fca5a5', 'bg-red-400': '#f87171', 'bg-red-500': '#ef4444',
-    'bg-red-600': '#dc2626', 'bg-red-700': '#b91c1c', 'bg-red-800': '#991b1b',
-    'bg-red-900': '#7f1d1d',
-    'bg-blue-50': '#eff6ff', 'bg-blue-100': '#dbeafe', 'bg-blue-200': '#bfdbfe',
-    'bg-blue-300': '#93c5fd', 'bg-blue-400': '#60a5fa', 'bg-blue-500': '#3b82f6',
-    'bg-blue-600': '#2563eb', 'bg-blue-700': '#1d4ed8', 'bg-blue-800': '#1e40af',
-    'bg-blue-900': '#1e3a8a',
-    'bg-green-50': '#f0fdf4', 'bg-green-100': '#dcfce7', 'bg-green-200': '#bbf7d0',
-    'bg-green-300': '#86efac', 'bg-green-400': '#4ade80', 'bg-green-500': '#22c55e',
-    'bg-green-600': '#16a34a', 'bg-green-700': '#15803d', 'bg-green-800': '#166534',
-    'bg-green-900': '#14532d',
-    'bg-yellow-50': '#fefce8', 'bg-yellow-100': '#fef9c3', 'bg-yellow-200': '#fef08a',
-    'bg-yellow-300': '#fde047', 'bg-yellow-400': '#facc15', 'bg-yellow-500': '#eab308',
-    'bg-yellow-600': '#ca8a04', 'bg-yellow-700': '#a16207', 'bg-yellow-800': '#854d0e',
-    'bg-yellow-900': '#713f12',
-    'bg-purple-50': '#faf5ff', 'bg-purple-100': '#f3e8ff', 'bg-purple-200': '#e9d5ff',
-    'bg-purple-300': '#d8b4fe', 'bg-purple-400': '#c084fc', 'bg-purple-500': '#a855f7',
-    'bg-purple-600': '#9333ea', 'bg-purple-700': '#7e22ce', 'bg-purple-800': '#6b21a8',
-    'bg-purple-900': '#581c87',
-    'bg-pink-50': '#fdf2f8', 'bg-pink-100': '#fce7f3', 'bg-pink-200': '#fbcfe8',
-    'bg-pink-300': '#f9a8d4', 'bg-pink-400': '#f472b6', 'bg-pink-500': '#ec4899',
-    'bg-pink-600': '#db2777', 'bg-pink-700': '#be185d', 'bg-pink-800': '#9d174d',
-    'bg-pink-900': '#831843',
-    'bg-gray-50': '#f9fafb', 'bg-gray-100': '#f3f4f6', 'bg-gray-200': '#e5e7eb',
-    'bg-gray-300': '#d1d5db', 'bg-gray-400': '#9ca3af', 'bg-gray-500': '#6b7280',
-    'bg-gray-600': '#4b5563', 'bg-gray-700': '#374151', 'bg-gray-800': '#1f2937',
-    'bg-gray-900': '#111827',
-    'bg-orange-50': '#fff7ed', 'bg-orange-100': '#ffedd5', 'bg-orange-200': '#fed7aa',
-    'bg-orange-300': '#fdba74', 'bg-orange-400': '#fb923c', 'bg-orange-500': '#f97316',
-    'bg-orange-600': '#ea580c', 'bg-orange-700': '#c2410c', 'bg-orange-800': '#9a3412',
-    'bg-orange-900': '#7c2d12',
+    "bg-red-50": "#fef2f2",
+    "bg-red-100": "#fee2e2",
+    "bg-red-200": "#fecaca",
+    "bg-red-300": "#fca5a5",
+    "bg-red-400": "#f87171",
+    "bg-red-500": "#ef4444",
+    "bg-red-600": "#dc2626",
+    "bg-red-700": "#b91c1c",
+    "bg-red-800": "#991b1b",
+    "bg-red-900": "#7f1d1d",
+    "bg-blue-50": "#eff6ff",
+    "bg-blue-100": "#dbeafe",
+    "bg-blue-200": "#bfdbfe",
+    "bg-blue-300": "#93c5fd",
+    "bg-blue-400": "#60a5fa",
+    "bg-blue-500": "#3b82f6",
+    "bg-blue-600": "#2563eb",
+    "bg-blue-700": "#1d4ed8",
+    "bg-blue-800": "#1e40af",
+    "bg-blue-900": "#1e3a8a",
+    "bg-green-50": "#f0fdf4",
+    "bg-green-100": "#dcfce7",
+    "bg-green-200": "#bbf7d0",
+    "bg-green-300": "#86efac",
+    "bg-green-400": "#4ade80",
+    "bg-green-500": "#22c55e",
+    "bg-green-600": "#16a34a",
+    "bg-green-700": "#15803d",
+    "bg-green-800": "#166534",
+    "bg-green-900": "#14532d",
+    "bg-yellow-50": "#fefce8",
+    "bg-yellow-100": "#fef9c3",
+    "bg-yellow-200": "#fef08a",
+    "bg-yellow-300": "#fde047",
+    "bg-yellow-400": "#facc15",
+    "bg-yellow-500": "#eab308",
+    "bg-yellow-600": "#ca8a04",
+    "bg-yellow-700": "#a16207",
+    "bg-yellow-800": "#854d0e",
+    "bg-yellow-900": "#713f12",
+    "bg-purple-50": "#faf5ff",
+    "bg-purple-100": "#f3e8ff",
+    "bg-purple-200": "#e9d5ff",
+    "bg-purple-300": "#d8b4fe",
+    "bg-purple-400": "#c084fc",
+    "bg-purple-500": "#a855f7",
+    "bg-purple-600": "#9333ea",
+    "bg-purple-700": "#7e22ce",
+    "bg-purple-800": "#6b21a8",
+    "bg-purple-900": "#581c87",
+    "bg-pink-50": "#fdf2f8",
+    "bg-pink-100": "#fce7f3",
+    "bg-pink-200": "#fbcfe8",
+    "bg-pink-300": "#f9a8d4",
+    "bg-pink-400": "#f472b6",
+    "bg-pink-500": "#ec4899",
+    "bg-pink-600": "#db2777",
+    "bg-pink-700": "#be185d",
+    "bg-pink-800": "#9d174d",
+    "bg-pink-900": "#831843",
+    "bg-gray-50": "#f9fafb",
+    "bg-gray-100": "#f3f4f6",
+    "bg-gray-200": "#e5e7eb",
+    "bg-gray-300": "#d1d5db",
+    "bg-gray-400": "#9ca3af",
+    "bg-gray-500": "#6b7280",
+    "bg-gray-600": "#4b5563",
+    "bg-gray-700": "#374151",
+    "bg-gray-800": "#1f2937",
+    "bg-gray-900": "#111827",
+    "bg-orange-50": "#fff7ed",
+    "bg-orange-100": "#ffedd5",
+    "bg-orange-200": "#fed7aa",
+    "bg-orange-300": "#fdba74",
+    "bg-orange-400": "#fb923c",
+    "bg-orange-500": "#f97316",
+    "bg-orange-600": "#ea580c",
+    "bg-orange-700": "#c2410c",
+    "bg-orange-800": "#9a3412",
+    "bg-orange-900": "#7c2d12",
   };
 
-  const classes = className.split(' ');
+  const classes = className.split(" ");
   const style: React.CSSProperties = {};
 
   classes.forEach((cls) => {
@@ -334,7 +386,10 @@ export const parseValue = (row: GenericItem, value: string): any => {
 /**
  * Evaluate a row condition (e.g., "field > 5", "status = active")
  */
-export const evaluateRowCondition = (row: GenericItem, condition: string): boolean => {
+export const evaluateRowCondition = (
+  row: GenericItem,
+  condition: string
+): boolean => {
   if (!condition) return false;
 
   // Handle inequality (!=)
@@ -501,7 +556,7 @@ export function fieldToInput(field: Field) {
       inputType: InputTypes.DATE as const,
       formKeyType: FormKeyTypeEnum.DATE as const,
     };
-  
+
   // Check if field is hashed (password field)
   if (field.isHashed) {
     return {
@@ -509,7 +564,7 @@ export function fieldToInput(field: Field) {
       formKeyType: FormKeyTypeEnum.STRING as const,
     };
   }
-  
+
   return {
     inputType: InputTypes.TEXT as const,
     formKeyType: FormKeyTypeEnum.STRING as const,

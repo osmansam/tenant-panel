@@ -2,12 +2,12 @@ import { TextField } from "@mui/material";
 import { tr } from "date-fns/locale";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { FaRegCalendar } from "react-icons/fa";
 import { IoIosArrowBack, IoIosArrowForward, IoIosClose } from "react-icons/io";
-import InputMask from "react-input-mask";
+import ReactInputMask from "react-input-mask";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
 dayjs.extend(customParseFormat);
@@ -46,6 +46,7 @@ export default function DateInput({
   const [inputText, setInputText] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [month, setMonth] = useState(new Date());
+  const [hasError, setHasError] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -180,28 +181,31 @@ export default function DateInput({
           )}
 
           <div className="relative flex items-center gap-2 w-full">
-            <InputMask
-              mask="99/99/9999"
-              maskChar=""
-              value={inputText}
-              onChange={handleChange}
-              onFocus={() => setShowCalendar(true)}
-              disabled={disabled}
-            >
-              {(maskProps: React.InputHTMLAttributes<HTMLInputElement>) => {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { size, color, ...filteredProps } = maskProps;
-                return (
-                  <TextField
-                    {...filteredProps}
-                    fullWidth
-                    placeholder={placeholder}
-                    InputProps={{ readOnly: isReadOnly }}
-                    inputRef={inputRef}
-                  />
-                );
-              }}
-            </InputMask>
+            {React.createElement(ReactInputMask as any, {
+              mask: "99/99/9999",
+              maskChar: "",
+              value: inputText,
+              onChange: handleChange,
+              onFocus: () => setShowCalendar(true),
+              disabled: disabled,
+              children: (inputProps: any) => (
+                <TextField
+                  {...inputProps}
+                  placeholder="dd/mm/yyyy"
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  error={hasError}
+                  InputProps={{
+                    readOnly: isReadOnly,
+                    style: {
+                      fontSize: "14px",
+                      backgroundColor: disabled ? "#f5f5f5" : "white",
+                    },
+                  }}
+                />
+              ),
+            })}
 
             <FaRegCalendar
               className="absolute right-3 cursor-pointer text-gray-500"
