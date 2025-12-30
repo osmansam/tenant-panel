@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiInfo, FiPlus } from "react-icons/fi";
+import { FiCheck, FiCopy, FiEdit2, FiInfo, FiPlus, FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { useUserContext } from "../../../context/User.context";
 import {
   PageModel,
@@ -23,6 +24,8 @@ export const PagesSection: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
   const { updatePage } = useUpdatePage();
 
   // Get pages for the current project with error handling
@@ -47,12 +50,38 @@ export const PagesSection: React.FC = () => {
 
   const handleViewPage = (page: PageModel) => {
     setSelectedPage(page);
+    setEditedName(page.name);
+    setIsEditingName(false);
     setIsDetailsModalOpen(true);
   };
 
   const handleCloseDetailsModal = () => {
     setIsDetailsModalOpen(false);
+    setIsEditingName(false);
     setSelectedPage(null);
+  };
+
+  const handleSavePageName = () => {
+    if (!selectedPage || !editedName.trim()) return;
+
+    updatePage({
+      id: selectedPage._id || selectedPage.id!,
+      payload: {
+        name: editedName.trim(),
+        icon: selectedPage.icon,
+        slug: selectedPage.slug,
+        parentPageId: selectedPage.parentPageId,
+        order: selectedPage.order,
+        isGroupOnly: selectedPage.isGroupOnly,
+        isAuthenticated: selectedPage.isAuthenticated,
+        isAuthorized: selectedPage.isAuthorized,
+        authorizeRole: selectedPage.authorizeRole,
+        sections: selectedPage.sections,
+      },
+    });
+
+    setSelectedPage({ ...selectedPage, name: editedName.trim() });
+    setIsEditingName(false);
   };
 
   const handleEditPage = (page: PageModel) => {
@@ -405,12 +434,58 @@ export const PagesSection: React.FC = () => {
                       </p>
                     </div>
                     <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("Name")}
-                      </span>
-                      <p className="text-sm text-gray-900 mt-1">
-                        {selectedPage.name}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">
+                          {t("Name")}
+                        </span>
+                        {!isEditingName ? (
+                          <button
+                            onClick={() => setIsEditingName(true)}
+                            className="text-blue-600 hover:text-blue-700 text-xs flex items-center gap-1"
+                          >
+                            <FiEdit2 size={12} />
+                            {t("Edit")}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleSavePageName}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <FiCheck size={14} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsEditingName(false);
+                                setEditedName(selectedPage.name);
+                              }}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <FiX size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {isEditingName ? (
+                        <input
+                          type="text"
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSavePageName();
+                            if (e.key === "Escape") {
+                              setIsEditingName(false);
+                              setEditedName(selectedPage.name);
+                            }
+                          }}
+                          className="w-full text-sm text-gray-900 mt-1 px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900 mt-1">
+                          {selectedPage.name}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <span className="text-xs font-medium text-gray-500">
@@ -478,8 +553,23 @@ export const PagesSection: React.FC = () => {
                 <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
                   {t("Page Structure (JSON)")}
                 </h3>
-                <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                  <pre className="text-xs text-green-400 font-mono">
+                <div className="relative">
+                  <div className="absolute top-2 right-2">
+                    <GenericButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          JSON.stringify(selectedPage, null, 2)
+                        );
+                        toast.success(t("Copied to clipboard"));
+                      }}
+                      iconLeft={<FiCopy size={12} />}
+                    >
+                      {t("Copy")}
+                    </GenericButton>
+                  </div>
+                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">
                     {JSON.stringify(selectedPage, null, 2)}
                   </pre>
                 </div>
