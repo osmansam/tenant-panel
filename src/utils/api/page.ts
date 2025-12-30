@@ -1,115 +1,335 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
-import { PageModel } from "../../types/page";
+import { useCurrentProject } from "../../hooks/useCurrentProject";
+import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
-import { useGet } from "./factory";
+import { useGet, useGetList } from "./factory";
 
-const BASE = "/page";
-const PAGE_QUERY_KEY = ["page", "all"] as const;
+// Type definitions based on Go models
+export type BindingKind = "schema" | "pipeline" | "api" | "function";
 
-// Get all pages
+export interface DataBinding {
+  kind: BindingKind;
+  schemaName?: string;
+  pipelineName?: string;
+  apiName?: string;
+  functionName?: string;
+  params?: Record<string, any>;
+}
+
+export interface GroupBy {
+  groupByObjectId?: string;
+  groupByField?: string;
+}
+
+export type ComponentType =
+  | "table"
+  | "tabPanel"
+  | "form"
+  | "text"
+  | "custom"
+  | "barChart"
+  | "lineChart"
+  | "pieChart"
+  | "areaChart"
+  | "radarChart"
+  | "heatmapChart"
+  | "scatterChart"
+  | "funnelChart"
+  | "sankeyChart"
+  | "sunburstChart"
+  | "treemapChart"
+  | "calendarChart"
+  | "bumpChart"
+  | "streamChart"
+  | "waffleChart"
+  | "circlePackingChart";
+
+export interface TabPanelTab {
+  title: string;
+  icon?: string;
+  components: ComponentBlock[];
+}
+
+export interface ComponentBlock {
+  id: string;
+  type: ComponentType;
+  title?: string;
+  order?: number;
+  dataBinding?: DataBinding;
+  groupBy?: GroupBy;
+  isAuthorized?: boolean;
+  authorizeRole?: string[];
+  props?: Record<string, any>;
+  tabs?: TabPanelTab[];
+}
+
+export interface GridCell {
+  id: string;
+  row: number;
+  column: number;
+  rowSpan?: number;
+  colSpan?: number;
+  components: ComponentBlock[];
+}
+
+export interface GridSection {
+  columns: number;
+  gap?: number;
+  cells: GridCell[];
+}
+
+export interface Tab {
+  id: string;
+  label: string;
+  icon?: string;
+  order: number;
+  sections: Section[];
+}
+
+export interface TabsSection {
+  tabs: Tab[];
+}
+
+export type SectionType = "grid" | "component" | "tabs";
+
+export interface Section {
+  id?: string;
+  type?: SectionType;
+  order?: number;
+  // Nested structure (preferred)
+  grid?: GridSection;
+  tabs?: TabsSection;
+  component?: ComponentBlock;
+  // Flat structure (for backward compatibility)
+  columns?: number;
+  gap?: number;
+  cells?: GridCell[];
+}
+
+export interface PageModel {
+  id?: string;
+  _id?: string; // For factory compatibility
+  name: string;
+  icon?: string;
+  slug?: string;
+  parentPageId?: string;
+  order?: number;
+  isGroupOnly?: boolean;
+  isAuthenticated?: boolean;
+  isAuthorized?: boolean;
+  authorizeRole?: string[];
+  sections?: Section[];
+  subPage?: PageModel;
+}
+
+export interface CreatePagePayload {
+  name: string;
+  icon?: string;
+  slug?: string;
+  parentPageId?: string;
+  order?: number;
+  isGroupOnly?: boolean;
+  isAuthenticated?: boolean;
+  isAuthorized?: boolean;
+  authorizeRole?: string[];
+  sections?: Section[];
+  subPage?: PageModel;
+}
+
+export interface UpdatePagePayload {
+  name?: string;
+  icon?: string;
+  slug?: string;
+  parentPageId?: string;
+  order?: number;
+  isGroupOnly?: boolean;
+  isAuthenticated?: boolean;
+  isAuthorized?: boolean;
+  authorizeRole?: string[];
+  sections?: Section[];
+  subPage?: PageModel;
+}
+
+// Context hook for tenant and project
+function usePageContext() {
+  const { currentTenant } = useTenant();
+  const { currentProject } = useCurrentProject();
+
+  const tenantSlug = currentTenant?.slug;
+  const projectSlug = currentProject?.slug;
+
+  if (!tenantSlug || !projectSlug) {
+    throw new Error("Page operations require tenant and project context");
+  }
+
+  return { tenantSlug, projectSlug };
+}
+
+// Build page API path
+function buildPagePath(tenantSlug: string, projectSlug: string, suffix = "") {
+  return `/${tenantSlug}/${projectSlug}/page${suffix}`;
+}
+
+// Get all pages (public access)
 export function useGetAllPages() {
-  return useGet<PageModel[]>(BASE, PAGE_QUERY_KEY);
+  const { tenantSlug, projectSlug } = usePageContext();
+  const path = buildPagePath(tenantSlug, projectSlug);
+  const queryKey = ["pages", tenantSlug, projectSlug];
+
+  return useGetList<PageModel>(path, queryKey);
 }
 
-// Get single page by ID
+// Get all pages (tenant access)
+export function useGetTenantPages() {
+  const { tenantSlug, projectSlug } = usePageContext();
+  const path = buildPagePath(tenantSlug, projectSlug, "/tenant");
+  const queryKey = ["tenantPages", tenantSlug, projectSlug];
+
+  return useGetList<PageModel>(path, queryKey);
+}
+
+// Get single page
 export function useGetPage(id: string) {
-  const queryKey = ["page", id] as const;
-  return useGet<PageModel>(`${BASE}/${id}`, queryKey);
+  const { tenantSlug, projectSlug } = usePageContext();
+  const path = buildPagePath(tenantSlug, projectSlug, `/${id}`);
+  const queryKey = ["page", tenantSlug, projectSlug, id];
+
+  return useGet<PageModel>(path, queryKey);
 }
 
-// CRUD operations
-export function usePageCrud() {
+// Create page mutation
+export function useCreatePage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = usePageContext();
 
-  // Create page
   const createMutation = useMutation({
-    mutationFn: async (payload: Partial<PageModel>) => {
-      const response = await axiosClient.post<PageModel>(BASE, payload);
+    mutationFn: async (payload: CreatePagePayload) => {
+      const path = buildPagePath(tenantSlug, projectSlug);
+      const response = await axiosClient.post(path, payload);
       return response.data;
     },
-    onMutate: async (newPage: Partial<PageModel>) => {
-      await queryClient.cancelQueries({ queryKey: PAGE_QUERY_KEY });
-      const previousPages =
-        queryClient.getQueryData<PageModel[]>(PAGE_QUERY_KEY) || [];
-      queryClient.setQueryData(PAGE_QUERY_KEY, [...previousPages, newPage]);
-      return { previousPages };
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: ["pages", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tenantPages", tenantSlug, projectSlug],
+      });
+
+      const message = response?.message || "Page created successfully";
+      toast.success(t(message));
     },
-    onError: (_err: Error, _newPage, context) => {
-      if (context?.previousPages) {
-        queryClient.setQueryData<PageModel[]>(
-          PAGE_QUERY_KEY,
-          context.previousPages
-        );
-      }
+    onError: (error: any) => {
+      console.error("Page creation failed:", error);
       const errorMessage =
-        (_err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "An unexpected error occurred";
-      setTimeout(() => toast.error(t(errorMessage)), 200);
-    },
-    onSettled: async () => {
-      queryClient.invalidateQueries({ queryKey: PAGE_QUERY_KEY });
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to create page";
+      toast.error(t(errorMessage));
     },
   });
 
-  // Update page
+  return {
+    createPage: (payload: CreatePagePayload) => {
+      createMutation.mutate(payload);
+    },
+    isCreating: createMutation.isPending,
+  };
+}
+
+// Update page mutation
+export function useUpdatePage() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = usePageContext();
+
   const updateMutation = useMutation({
     mutationFn: async ({
       id,
-      updates,
+      payload,
     }: {
       id: string;
-      updates: Partial<PageModel>;
+      payload: UpdatePagePayload;
     }) => {
-      const response = await axiosClient.patch<PageModel>(
-        `${BASE}/${id}`,
-        updates
-      );
+      const path = buildPagePath(tenantSlug, projectSlug, `/${id}`);
+      const response = await axiosClient.patch(path, payload);
       return response.data;
     },
-    onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: PAGE_QUERY_KEY });
-      const previousPages =
-        queryClient.getQueryData<PageModel[]>(PAGE_QUERY_KEY) || [];
-      const updatedPages = previousPages.map((page) =>
-        page.id === id ? { ...page, ...updates } : page
-      );
-      queryClient.setQueryData(PAGE_QUERY_KEY, updatedPages);
-      return { previousPages };
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["pages", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tenantPages", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["page", tenantSlug, projectSlug, variables.id],
+      });
+
+      const message = response?.message || "Page updated successfully";
+      toast.success(t(message));
     },
-    onError: (_err: Error, _vars, context) => {
-      if (context?.previousPages) {
-        queryClient.setQueryData<PageModel[]>(
-          PAGE_QUERY_KEY,
-          context.previousPages
-        );
-      }
+    onError: (error: any) => {
+      console.error("Page update failed:", error);
       const errorMessage =
-        (_err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "An unexpected error occurred";
-      setTimeout(() => toast.error(t(errorMessage)), 200);
-    },
-    onSettled: async () => {
-      queryClient.invalidateQueries({ queryKey: PAGE_QUERY_KEY });
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update page";
+      toast.error(t(errorMessage));
     },
   });
 
-  // Delete page - Note: This requires the backend to use 'id' field
-  // If backend uses '_id', you'll need to transform the data
-  const deletePage = async (id: string) => {
-    const response = await axiosClient.delete(`${BASE}/${id}`);
-    await queryClient.invalidateQueries({ queryKey: PAGE_QUERY_KEY });
-    return response.data;
+  return {
+    updatePage: (params: { id: string; payload: UpdatePagePayload }) => {
+      updateMutation.mutate(params);
+    },
+    isUpdating: updateMutation.isPending,
   };
+}
+
+// Delete page mutation
+export function useDeletePage() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = usePageContext();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const path = buildPagePath(tenantSlug, projectSlug, `/${id}`);
+      const response = await axiosClient.delete(path);
+      return response.data;
+    },
+    onSuccess: (response, id) => {
+      queryClient.invalidateQueries({
+        queryKey: ["pages", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tenantPages", tenantSlug, projectSlug],
+      });
+      queryClient.removeQueries({
+        queryKey: ["page", tenantSlug, projectSlug, id],
+      });
+
+      const message = response?.message || "Page deleted successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      console.error("Page deletion failed:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to delete page";
+      toast.error(t(errorMessage));
+    },
+  });
 
   return {
-    createPage: (payload: Partial<PageModel>) => createMutation.mutate(payload),
-    updatePage: (id: string, updates: Partial<PageModel>) =>
-      updateMutation.mutate({ id, updates }),
-    deletePage,
-    createMutation,
-    updateMutation,
+    deletePage: (id: string) => {
+      deleteMutation.mutate(id);
+    },
+    isDeleting: deleteMutation.isPending,
   };
 }
