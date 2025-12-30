@@ -815,3 +815,8 @@ export const Types = {
   NumberArray: "numberarray",
   IntArray: "intarray",
 } as const;
+
+// Add field to container interface
+export interface AddFieldPayload {
+  field: Field;
+}

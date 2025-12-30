@@ -154,6 +154,7 @@ const SelectInput = ({
     menu: (base: any) => ({
       ...base,
       overflowY: "auto",
+      zIndex: 9999, // Ensure dropdown appears above modal content
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     option: (base: any, state: any) => ({
@@ -310,7 +311,7 @@ const SelectInput = ({
               isDisabled={isReadOnly}
               menuShouldScrollIntoView={true}
               menuPlacement={isMobile ? "bottom" : "auto"}
-              menuPosition={isMobile ? "absolute" : "fixed"}
+              menuPosition="absolute"
             />
           ) : (
             <Select
@@ -336,7 +337,7 @@ const SelectInput = ({
               isDisabled={isReadOnly}
               menuShouldScrollIntoView={true}
               menuPlacement={isMobile ? "bottom" : "auto"}
-              menuPosition={isMobile ? "absolute" : "fixed"}
+              menuPosition="absolute"
               isClearable={false}
               backspaceRemovesValue={true}
             />
