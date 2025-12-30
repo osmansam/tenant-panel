@@ -43,8 +43,12 @@ export type ComponentType =
 
 export interface TabContent {
   title: string;
+  icon?: string;
   components: ComponentBlock[];
 }
+
+// Alias for backend compatibility
+export type TabPanelTab = TabContent;
 
 export interface ComponentBlock {
   id: string;

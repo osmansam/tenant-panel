@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
-import { useGet, useGetList } from "./factory";
+import { useGet } from "./factory";
 
 // If you prefer using mongodb's ObjectId type, import it and replace string with ObjectId
 // import { ObjectId } from "mongodb";
@@ -761,9 +761,15 @@ export function useResetRedis() {
   };
 }
 
-// Legacy hook for backward compatibility (non-scoped)
+// Legacy hook for backward compatibility - now uses project-scoped containers
 export function useGetContainers() {
-  return useGetList<ContainerModel>("/container");
+  try {
+    return useContainers();
+  } catch (error) {
+    // If no tenant/project context, return empty array
+    console.warn("useGetContainers: No tenant/project context available");
+    return [];
+  }
 }
 
 // Utility functions
