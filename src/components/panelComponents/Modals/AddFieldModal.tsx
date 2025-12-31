@@ -103,7 +103,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
   const [enumValues, setEnumValues] = useState<string>("");
   const [childFields, setChildFields] = useState<Field[]>([]);
-  
+
   // Population settings state
   const [populationFieldName, setPopulationFieldName] = useState<string>("");
   const [populatedFields, setPopulatedFields] = useState<string[]>([]);
@@ -113,10 +113,12 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   // Get container options for objectSchemaName selection
   const containerOptions = useMemo(() => {
-    return containers?.map((c: any) => ({
-      value: c.schemaName,
-      label: c.schemaName,
-    })) || [];
+    return (
+      containers?.map((c: any) => ({
+        value: c.schemaName,
+        label: c.schemaName,
+      })) || []
+    );
   }, [containers]);
 
   // Get fields from selected container for population settings
@@ -126,10 +128,12 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       (c: any) => c.schemaName === fieldData.objectSchemaName
     );
     if (!selectedContainer) return [];
-    return selectedContainer.fields?.map((f: Field) => ({
-      value: f.name,
-      label: f.name,
-    })) || [];
+    return (
+      selectedContainer.fields?.map((f: Field) => ({
+        value: f.name,
+        label: f.name,
+      })) || []
+    );
   }, [fieldData.objectSchemaName, containers]);
 
   const handleFieldChange = (field: string, value: any) => {
@@ -216,8 +220,16 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
     // Build population settings if applicable
     let populationSettings = undefined;
-    if ((fieldData.type === "objectId" || fieldData.type === "objectIdArray") && populationFieldName) {
-      if (populatedFields.length > 0 && displayFields.length > 0 && inputSelectionField && displayLabel) {
+    if (
+      (fieldData.type === "objectId" || fieldData.type === "objectIdArray") &&
+      populationFieldName
+    ) {
+      if (
+        populatedFields.length > 0 &&
+        displayFields.length > 0 &&
+        inputSelectionField &&
+        displayLabel
+      ) {
         populationSettings = {
           fieldName: populationFieldName,
           populatedFields: populatedFields,
@@ -339,7 +351,9 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             </div>
 
             {/* Object Schema Name (for object/objectId/objectIdArray types) */}
-            {(fieldData.type === "object" || fieldData.type === "objectId" || fieldData.type === "objectIdArray") && (
+            {(fieldData.type === "object" ||
+              fieldData.type === "objectId" ||
+              fieldData.type === "objectIdArray") && (
               <SelectInput
                 label={t("Object Schema Name")}
                 value={
@@ -352,7 +366,10 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     value: string;
                     label: string;
                   } | null;
-                  handleFieldChange("objectSchemaName", selectedValue?.value || "");
+                  handleFieldChange(
+                    "objectSchemaName",
+                    selectedValue?.value || ""
+                  );
                   // Set field name to match object schema name
                   if (selectedValue?.value) {
                     setPopulationFieldName(selectedValue.value);
@@ -440,82 +457,89 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             </div>
 
             {/* Population Settings (for objectId/objectIdArray types) */}
-            {(fieldData.type === "objectId" || fieldData.type === "objectIdArray") && fieldData.objectSchemaName && (
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">
-                  {t("Population Settings")}
-                </h4>
-                <div className="space-y-4">
-                  <TextInput
-                    label={t("Field Name (Auto-populated from Object Schema Name)")}
-                    type="text"
-                    value={populationFieldName}
-                    onChange={setPopulationFieldName}
-                    placeholder="e.g., category"
-                    isReadOnly={true}
-                  />
-                  <SelectInput
-                    label={t("Populated Fields")}
-                    value={selectedContainerFields.filter((field: { value: string; label: string }) =>
-                      populatedFields.includes(field.value)
-                    )}
-                    onChange={(value) => {
-                      if (Array.isArray(value)) {
-                        setPopulatedFields(value.map((v: any) => v.value));
-                      } else {
-                        setPopulatedFields([]);
+            {(fieldData.type === "objectId" ||
+              fieldData.type === "objectIdArray") &&
+              fieldData.objectSchemaName && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">
+                    {t("Population Settings")}
+                  </h4>
+                  <div className="space-y-4">
+                    <TextInput
+                      label={t(
+                        "Field Name (Auto-populated from Object Schema Name)"
+                      )}
+                      type="text"
+                      value={populationFieldName}
+                      onChange={setPopulationFieldName}
+                      placeholder="e.g., category"
+                      isReadOnly={true}
+                    />
+                    <SelectInput
+                      label={t("Populated Fields")}
+                      value={selectedContainerFields.filter(
+                        (field: { value: string; label: string }) =>
+                          populatedFields.includes(field.value)
+                      )}
+                      onChange={(value) => {
+                        if (Array.isArray(value)) {
+                          setPopulatedFields(value.map((v: any) => v.value));
+                        } else {
+                          setPopulatedFields([]);
+                        }
+                      }}
+                      options={selectedContainerFields}
+                      placeholder={t("Select fields to populate")}
+                      isMultiple={true}
+                      customControlBackgroundColor="white"
+                    />
+                    <SelectInput
+                      label={t("Display Fields")}
+                      value={selectedContainerFields.filter(
+                        (field: { value: string; label: string }) =>
+                          displayFields.includes(field.value)
+                      )}
+                      onChange={(value) => {
+                        if (Array.isArray(value)) {
+                          setDisplayFields(value.map((v: any) => v.value));
+                        } else {
+                          setDisplayFields([]);
+                        }
+                      }}
+                      options={selectedContainerFields}
+                      placeholder={t("Select fields to display")}
+                      isMultiple={true}
+                      customControlBackgroundColor="white"
+                    />
+                    <SelectInput
+                      label={t("Input Selection Field")}
+                      value={
+                        selectedContainerFields.find(
+                          (field: { value: string; label: string }) =>
+                            field.value === inputSelectionField
+                        ) || null
                       }
-                    }}
-                    options={selectedContainerFields}
-                    placeholder={t("Select fields to populate")}
-                    isMultiple={true}
-                    customControlBackgroundColor="white"
-                  />
-                  <SelectInput
-                    label={t("Display Fields")}
-                    value={selectedContainerFields.filter((field: { value: string; label: string }) =>
-                      displayFields.includes(field.value)
-                    )}
-                    onChange={(value) => {
-                      if (Array.isArray(value)) {
-                        setDisplayFields(value.map((v: any) => v.value));
-                      } else {
-                        setDisplayFields([]);
-                      }
-                    }}
-                    options={selectedContainerFields}
-                    placeholder={t("Select fields to display")}
-                    isMultiple={true}
-                    customControlBackgroundColor="white"
-                  />
-                  <SelectInput
-                    label={t("Input Selection Field")}
-                    value={
-                      selectedContainerFields.find(
-                        (field: { value: string; label: string }) => field.value === inputSelectionField
-                      ) || null
-                    }
-                    onChange={(value) => {
-                      const selectedValue = value as {
-                        value: string;
-                        label: string;
-                      } | null;
-                      setInputSelectionField(selectedValue?.value || "");
-                    }}
-                    options={selectedContainerFields}
-                    placeholder={t("Select input selection field")}
-                    customControlBackgroundColor="white"
-                  />
-                  <TextInput
-                    label={t("Display Label")}
-                    type="text"
-                    value={displayLabel}
-                    onChange={setDisplayLabel}
-                    placeholder="e.g., Category Quantity"
-                  />
+                      onChange={(value) => {
+                        const selectedValue = value as {
+                          value: string;
+                          label: string;
+                        } | null;
+                        setInputSelectionField(selectedValue?.value || "");
+                      }}
+                      options={selectedContainerFields}
+                      placeholder={t("Select input selection field")}
+                      customControlBackgroundColor="white"
+                    />
+                    <TextInput
+                      label={t("Display Label")}
+                      type="text"
+                      value={displayLabel}
+                      onChange={setDisplayLabel}
+                      placeholder="e.g., Category Quantity"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Validation Rules */}
             <div className="border-t pt-4">
