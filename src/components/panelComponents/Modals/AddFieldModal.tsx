@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlus, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -13,6 +13,7 @@ interface AddFieldModalProps {
   onClose: () => void;
   onAddField: (field: Field) => void;
   containerFields?: Field[];
+  editField?: Field | null;
 }
 
 interface ValidationRule {
@@ -84,6 +85,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   onClose,
   onAddField,
   containerFields = [],
+  editField = null,
 }) => {
   const { t } = useTranslation();
   const containers = useGetContainers();
@@ -110,6 +112,82 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const [displayFields, setDisplayFields] = useState<string[]>([]);
   const [inputSelectionField, setInputSelectionField] = useState<string>("");
   const [displayLabel, setDisplayLabel] = useState<string>("");
+
+  // Pre-populate form when editing a field
+  useEffect(() => {
+    if (editField) {
+      setFieldData({
+        name: editField.name,
+        type: editField.type,
+        tag: editField.tag,
+        unique: editField.unique,
+        isSearchable: editField.isSearchable,
+        isLoginCredential: editField.isLoginCredential,
+        isHashed: editField.isHashed,
+        isForceDelete: editField.isForceDelete,
+        objectSchemaName: editField.objectSchemaName,
+        enumList: editField.enumList,
+      });
+
+      // Parse enum values
+      if (editField.enumList && editField.enumList.length > 0) {
+        setEnumValues(editField.enumList.join("|"));
+      }
+
+      // Parse tag for validation rules (this is a simplified parse)
+      // You might want to improve this parsing logic
+      if (editField.tag) {
+        // Basic parsing - this could be enhanced
+        const rules: ValidationRule[] = [];
+        const tagParts = editField.tag.split(",");
+        tagParts.forEach((part) => {
+          const [key, ...valueParts] = part.split("=");
+          const value = valueParts.join("=").replace(/"/g, "");
+          if (key && !key.includes("Message")) {
+            rules.push({ type: key, value: value || true });
+          }
+        });
+        setValidationRules(rules);
+      }
+
+      // Parse population settings
+      if (editField.populationSettings) {
+        setPopulationFieldName(editField.populationSettings.fieldName || "");
+        setPopulatedFields(editField.populationSettings.populatedFields || []);
+        setDisplayFields(editField.populationSettings.displayFields || []);
+        setInputSelectionField(
+          editField.populationSettings.inputSelectionField || ""
+        );
+        setDisplayLabel(editField.populationSettings.displayLabel || "");
+      }
+
+      // Set child fields if any
+      if (editField.children) {
+        setChildFields(editField.children);
+      }
+    } else {
+      // Reset to default when not editing
+      setFieldData({
+        name: "",
+        type: "string",
+        tag: "",
+        unique: false,
+        isSearchable: true,
+        isLoginCredential: false,
+        isHashed: false,
+        isForceDelete: false,
+        enumList: [],
+      });
+      setValidationRules([]);
+      setEnumValues("");
+      setChildFields([]);
+      setPopulationFieldName("");
+      setPopulatedFields([]);
+      setDisplayFields([]);
+      setInputSelectionField("");
+      setDisplayLabel("");
+    }
+  }, [editField, isOpen]);
 
   // Get container options for objectSchemaName selection
   const containerOptions = useMemo(() => {
@@ -203,10 +281,21 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       return;
     }
 
-    // Check for duplicate field names
-    if (containerFields.some((field) => field.name === fieldData.name)) {
+    // Check for duplicate field names (skip check if editing the same field)
+    if (
+      !editField &&
+      containerFields.some((field) => field.name === fieldData.name)
+    ) {
       toast.error(t("Field name already exists"));
       return;
+    }
+
+    // If editing, check if name changed and conflicts with another field
+    if (editField && fieldData.name !== editField.name) {
+      if (containerFields.some((field) => field.name === fieldData.name)) {
+        toast.error(t("Field name already exists"));
+        return;
+      }
     }
 
     // Process enum values
@@ -309,7 +398,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900">
-              {t("Add New Field")}
+              {editField ? t("Edit Field") : t("Add New Field")}
             </h3>
             <button
               onClick={handleClose}
@@ -675,7 +764,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
               {t("Cancel")}
             </GenericButton>
             <GenericButton onClick={handleSubmit}>
-              {t("Add Field")}
+              {editField ? t("Update Field") : t("Add Field")}
             </GenericButton>
           </div>
         </div>

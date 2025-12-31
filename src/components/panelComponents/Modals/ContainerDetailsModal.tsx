@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiCopy, FiList, FiPlus, FiTrash2, FiX } from "react-icons/fi";
+import {
+  FiCode,
+  FiCopy,
+  FiEdit,
+  FiList,
+  FiPlus,
+  FiTrash2,
+  FiX,
+} from "react-icons/fi";
 import { toast } from "react-toastify";
 import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import {
@@ -26,6 +34,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   const [viewMode, setViewMode] = useState<"structured" | "json">("structured");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<Field | null>(null);
 
   const { updateContainer, isUpdating } = useUpdateContainer();
 
@@ -53,7 +62,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
   const handleAddField = (field: Field) => {
     if (container?.id) {
-      const updatedFields = [...(container.fields || []), field];
+      let updatedFields: Field[];
+
+      if (editingField) {
+        // Update existing field
+        updatedFields = (container.fields || []).map((f) =>
+          f.name === editingField.name ? field : f
+        );
+      } else {
+        // Add new field
+        updatedFields = [...(container.fields || []), field];
+      }
+
       updateContainer({
         id: container.id,
         payload: {
@@ -67,7 +87,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         },
       });
       setIsAddFieldModalOpen(false);
+      setEditingField(null);
     }
+  };
+
+  const handleEditField = (field: Field) => {
+    setEditingField(field);
+    setIsAddFieldModalOpen(true);
   };
 
   const handleDeleteField = (fieldName: string) => {
@@ -279,6 +305,15 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           <GenericButton
                             variant="outline"
                             size="sm"
+                            onClick={() => handleEditField(field)}
+                            iconLeft={<FiEdit size={10} />}
+                            disabled={isUpdating}
+                          >
+                            {t("Edit")}
+                          </GenericButton>
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleDeleteField(field.name)}
                             iconLeft={<FiTrash2 size={10} />}
                             disabled={isUpdating}
@@ -409,9 +444,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       {/* Add Field Modal */}
       <AddFieldModal
         isOpen={isAddFieldModalOpen}
-        onClose={() => setIsAddFieldModalOpen(false)}
+        onClose={() => {
+          setIsAddFieldModalOpen(false);
+          setEditingField(null);
+        }}
         onAddField={handleAddField}
         containerFields={container?.fields || []}
+        editField={editingField}
       />
 
       {/* Delete Field Confirmation */}
