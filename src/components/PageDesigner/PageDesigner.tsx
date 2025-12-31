@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { FiGrid, FiLayout, FiPlus, FiTrash2 } from "react-icons/fi";
+import React, { useEffect, useState } from "react";
+import { FiEdit2, FiGrid, FiLayout, FiPlus, FiTrash2 } from "react-icons/fi";
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
@@ -145,6 +145,27 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     updateSection(sectionIndex, { cells });
   };
 
+  // Update component in cell
+  const updateComponent = (
+    sectionIndex: number,
+    cellId: string,
+    componentId: string,
+    updatedComponent: ComponentBlock
+  ) => {
+    const section = sections[sectionIndex];
+    const cells = section.cells.map((cell) =>
+      cell.id === cellId
+        ? {
+            ...cell,
+            components: cell.components.map((c) =>
+              c.id === componentId ? updatedComponent : c
+            ),
+          }
+        : cell
+    );
+    updateSection(sectionIndex, { cells });
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar - Sections List */}
@@ -222,6 +243,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             onDeleteComponent={(cellId, componentId) =>
               deleteComponent(selectedSection, cellId, componentId)
             }
+            onUpdateComponent={(cellId, componentId, component) =>
+              updateComponent(selectedSection, cellId, componentId, component)
+            }
             selectedCell={selectedCell}
             setSelectedCell={setSelectedCell}
           />
@@ -250,6 +274,11 @@ interface SectionEditorProps {
   onDeleteCell: (cellId: string) => void;
   onAddComponent: (cellId: string, component: ComponentBlock) => void;
   onDeleteComponent: (cellId: string, componentId: string) => void;
+  onUpdateComponent: (
+    cellId: string,
+    componentId: string,
+    component: ComponentBlock
+  ) => void;
   selectedCell: string | null;
   setSelectedCell: (cellId: string | null) => void;
 }
@@ -265,14 +294,18 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onDeleteCell,
   onAddComponent,
   onDeleteComponent,
+  onUpdateComponent,
   selectedCell,
   setSelectedCell,
 }) => {
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [currentCellId, setCurrentCellId] = useState<string | null>(null);
+  const [editingComponent, setEditingComponent] =
+    useState<ComponentBlock | null>(null);
 
-  const openComponentModal = (cellId: string) => {
+  const openComponentModal = (cellId: string, component?: ComponentBlock) => {
     setCurrentCellId(cellId);
+    setEditingComponent(component || null);
     setShowComponentModal(true);
   };
 
@@ -348,6 +381,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               onDeleteComponent={(componentId) =>
                 onDeleteComponent(cell.id, componentId)
               }
+              onEditComponent={(component) =>
+                openComponentModal(cell.id, component)
+              }
             />
           ))}
         </div>
@@ -358,10 +394,21 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         <ComponentModal
           schemas={schemas}
           containerOptions={containerOptions}
-          onClose={() => setShowComponentModal(false)}
-          onAdd={(component) => {
-            onAddComponent(currentCellId, component);
+          editingComponent={editingComponent}
+          onClose={() => {
             setShowComponentModal(false);
+            setEditingComponent(null);
+          }}
+          onAdd={(component) => {
+            if (editingComponent) {
+              // Update existing component
+              onUpdateComponent(currentCellId, editingComponent.id, component);
+            } else {
+              // Add new component
+              onAddComponent(currentCellId, component);
+            }
+            setShowComponentModal(false);
+            setEditingComponent(null);
           }}
         />
       )}
@@ -379,6 +426,7 @@ interface CellEditorProps {
   onDelete: () => void;
   onAddComponent: () => void;
   onDeleteComponent: (componentId: string) => void;
+  onEditComponent: (component: ComponentBlock) => void;
 }
 
 const CellEditor: React.FC<CellEditorProps> = ({
@@ -390,6 +438,7 @@ const CellEditor: React.FC<CellEditorProps> = ({
   onDelete,
   onAddComponent,
   onDeleteComponent,
+  onEditComponent,
 }) => {
   return (
     <div
@@ -489,23 +538,85 @@ const CellEditor: React.FC<CellEditorProps> = ({
         {cell.components.map((component) => (
           <div
             key={component.id}
-            className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded"
+            className="p-3 bg-white border border-gray-200 rounded hover:border-blue-400 transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2">
-              {component.type === "table" && <MdTableChart />}
-              {component.type === "tabPanel" && <MdTab />}
-              {CHART_TYPES.find((c) => c.value === component.type) && (
-                <MdBarChart />
-              )}
-              <span className="text-sm">{component.type}</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {component.type === "table" && (
+                  <MdTableChart className="text-blue-600" />
+                )}
+                {component.type === "tabPanel" && (
+                  <MdTab className="text-purple-600" />
+                )}
+                {CHART_TYPES.find((c) => c.value === component.type) && (
+                  <MdBarChart className="text-green-600" />
+                )}
+                <span className="text-sm font-medium text-gray-800">
+                  {component.type}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onEditComponent(component)}
+                  className="text-blue-500 hover:text-blue-700"
+                  title="Edit Component"
+                >
+                  <FiEdit2 size={14} />
+                </button>
+                <button
+                  onClick={() => onDeleteComponent(component.id)}
+                  className="text-red-500 hover:text-red-700"
+                  title="Delete Component"
+                >
+                  <FiTrash2 size={14} />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => onDeleteComponent(component.id)}
-              className="text-red-500 hover:text-red-700"
-            >
-              <FiTrash2 size={14} />
-            </button>
+
+            {/* Component Details */}
+            <div className="text-xs space-y-1 ml-6">
+              {component.title && (
+                <div className="text-gray-600">
+                  <span className="font-medium">Title:</span> {component.title}
+                </div>
+              )}
+
+              {component.dataBinding && (
+                <div className="text-gray-600">
+                  <span className="font-medium">Binding:</span>{" "}
+                  {component.dataBinding.kind === "schema" && (
+                    <>
+                      Schema:{" "}
+                      <span className="font-mono text-blue-600">
+                        {component.dataBinding.schemaName}
+                      </span>
+                    </>
+                  )}
+                  {component.dataBinding.kind === "pipeline" && (
+                    <>
+                      Pipeline:{" "}
+                      <span className="font-mono text-green-600">
+                        {component.dataBinding.pipelineName}
+                      </span>{" "}
+                      in{" "}
+                      <span className="font-mono text-blue-600">
+                        {component.dataBinding.schemaName}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {component.tabs && component.tabs.length > 0 && (
+                <div className="text-gray-600">
+                  <span className="font-medium">Tabs:</span>{" "}
+                  {component.tabs.length} tab
+                  {component.tabs.length > 1 ? "s" : ""} (
+                  {component.tabs.map((t) => t.title).join(", ")})
+                </div>
+              )}
+            </div>
           </div>
         ))}
         {cell.components.length === 0 && (
@@ -522,6 +633,7 @@ const CellEditor: React.FC<CellEditorProps> = ({
 interface ComponentModalProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
+  editingComponent: ComponentBlock | null;
   onClose: () => void;
   onAdd: (component: ComponentBlock) => void;
 }
@@ -529,6 +641,7 @@ interface ComponentModalProps {
 const ComponentModal: React.FC<ComponentModalProps> = ({
   schemas,
   containerOptions,
+  editingComponent,
   onClose,
   onAdd,
 }) => {
@@ -538,12 +651,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [title, setTitle] = useState<string>("");
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
 
+  // Initialize form with editingComponent data
+  useEffect(() => {
+    if (editingComponent) {
+      setComponentType(editingComponent.type);
+      setTitle(editingComponent.title || "");
+
+      if (editingComponent.dataBinding) {
+        setSchemaName(editingComponent.dataBinding.schemaName || "");
+        setPipelineName(editingComponent.dataBinding.pipelineName || "");
+      }
+
+      if (editingComponent.tabs) {
+        setTabs(editingComponent.tabs);
+      }
+    }
+  }, [editingComponent]);
+
   const handleAdd = () => {
     const component: ComponentBlock = {
-      id: `comp-${Date.now()}`,
+      id: editingComponent?.id || `comp-${Date.now()}`,
       type: componentType as any,
       title,
-      order: 1,
+      order: editingComponent?.order || 1,
     };
 
     if (componentType === "table") {
@@ -588,10 +718,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTabs(updatedTabs);
   };
 
+  const removeTab = (tabIndex: number) => {
+    setTabs(tabs.filter((_, i) => i !== tabIndex));
+  };
+
+  const removeTableFromTab = (tabIndex: number, componentId: string) => {
+    const updatedTabs = [...tabs];
+    updatedTabs[tabIndex].components = updatedTabs[tabIndex].components.filter(
+      (comp) => comp.id !== componentId
+    );
+    setTabs(updatedTabs);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-        <h3 className="text-xl font-semibold mb-4">Add Component</h3>
+        <h3 className="text-xl font-semibold mb-4">
+          {editingComponent ? "Edit Component" : "Add Component"}
+        </h3>
 
         <div className="space-y-4">
           <div>
@@ -678,17 +822,26 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               </div>
               {tabs.map((tab, index) => (
                 <div key={index} className="border rounded p-3 space-y-2">
-                  <input
-                    type="text"
-                    value={tab.title}
-                    onChange={(e) => {
-                      const updated = [...tabs];
-                      updated[index].title = e.target.value;
-                      setTabs(updated);
-                    }}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                    placeholder="Tab title"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={tab.title}
+                      onChange={(e) => {
+                        const updated = [...tabs];
+                        updated[index].title = e.target.value;
+                        setTabs(updated);
+                      }}
+                      className="flex-1 px-2 py-1 border rounded text-sm"
+                      placeholder="Tab title"
+                    />
+                    <button
+                      onClick={() => removeTab(index)}
+                      className="text-red-500 hover:text-red-700"
+                      title="Remove tab"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </div>
                   <div className="space-y-1">
                     <select
                       onChange={(e) => {
@@ -709,9 +862,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     {tab.components.map((comp) => (
                       <div
                         key={comp.id}
-                        className="text-sm px-2 py-1 bg-gray-100 rounded"
+                        className="flex items-center justify-between text-sm px-2 py-1 bg-gray-100 rounded"
                       >
-                        Table: {comp.dataBinding?.schemaName}
+                        <span>Table: {comp.dataBinding?.schemaName}</span>
+                        <button
+                          onClick={() => removeTableFromTab(index, comp.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Remove table"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -726,7 +886,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             onClick={handleAdd}
             className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
           >
-            Add Component
+            {editingComponent ? "Save Changes" : "Add Component"}
           </button>
           <button
             onClick={onClose}
