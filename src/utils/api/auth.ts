@@ -157,12 +157,14 @@ export function useTenantLogin(
       const { accessToken, refreshToken, user, tenant, allTenants, roles } =
         data;
 
+      // Store tenant token separately
       Cookies.set("jwt", accessToken);
       Cookies.set("refreshToken", refreshToken);
-      toast.success(t("Logged in successfully"));
       localStorage.setItem("jwt", accessToken);
+      localStorage.setItem("tenantToken", accessToken); // Store tenant token separately
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("loggedIn", "true");
+      toast.success(t("Logged in successfully"));
 
       if (user) {
         // Create extended user object with tenant info
@@ -461,10 +463,11 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
       const { data } = response;
       const { accessToken, refreshToken, project, roles } = data;
 
-      // Update tokens
+      // Store project token separately and set as active
       Cookies.set("jwt", accessToken);
       Cookies.set("refreshToken", refreshToken);
       localStorage.setItem("jwt", accessToken);
+      localStorage.setItem("projectToken", accessToken); // Store project token separately
       localStorage.setItem("refreshToken", refreshToken);
 
       // Update user context with project information
@@ -501,7 +504,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
   const { t } = useTranslation();
   const { setUser } = useUserContext();
 
-  const switchBackToTenant = () => {
+  const switchBackToTenant = async () => {
     // Get the current user and tenant data to reconstruct tenant context
     const currentUserData = localStorage.getItem("user");
     const currentTenantData = localStorage.getItem("currentTenant");
@@ -511,73 +514,71 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         const currentUser = JSON.parse(currentUserData);
         const currentTenant = JSON.parse(currentTenantData);
 
-        // Use refresh token to get a new token (should be tenant-scoped after clearing project context)
-        const refreshToken = Cookies.get("refreshToken");
-        if (refreshToken) {
-          refreshTokenMethod()
-            .then((response) => {
-              const { data } = response;
-              Cookies.set("jwt", data.accessToken);
-              localStorage.setItem("jwt", data.accessToken);
+        // Update user context to remove project information and restore tenant context
+        const updatedUser = {
+          id: currentUser.id || currentUser._id,
+          _id: currentUser.id || currentUser._id,
+          email: currentUser.email,
+          name: currentUser.name,
+          isActive: true,
+          createdAt: currentUser.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          role: currentUser.role || "user",
+          tenantId: currentTenant.id,
+          tenantName: currentTenant.name,
+          tenantSlug: currentTenant.slug,
+          projectId: undefined,
+          projectName: undefined,
+          projectSlug: undefined,
+          roles: currentUser.roles || [],
+          roleScope: "tenant" as const,
+          allTenants: currentUser.allTenants || [],
+        };
 
-              // Update user context to remove project information and restore tenant context
-              const updatedUser = {
-                id: currentUser.id || currentUser._id,
-                _id: currentUser.id || currentUser._id,
-                email: currentUser.email,
-                name: currentUser.name,
-                isActive: true,
-                createdAt: currentUser.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                role: currentUser.role || "user",
-                tenantId: currentTenant.id,
-                tenantName: currentTenant.name,
-                tenantSlug: currentTenant.slug,
-                projectId: undefined,
-                projectName: undefined,
-                projectSlug: undefined,
-                roles: currentUser.roles || [],
-                roleScope: "tenant" as const,
-                allTenants: currentUser.allTenants || [],
-              };
+        // Update localStorage and user context first
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        localStorage.removeItem("currentProject");
+        setUser(updatedUser);
 
-              localStorage.setItem("user", JSON.stringify(updatedUser));
-              localStorage.removeItem("currentProject");
-              setUser(updatedUser);
-
-              toast.success(t("Switched back to tenant context"));
-              navigate("/projects");
-            })
-            .catch((refreshError) => {
-              console.error("Refresh token failed:", refreshError);
-              toast.error(t("Failed to switch back to tenant context"));
-              // Force logout as last resort
-              localStorage.clear();
-              Cookies.remove("jwt");
-              Cookies.remove("refreshToken");
-              setUser(undefined);
-              navigate("/login");
-              if (onError) onError(refreshError);
-            });
+        // Switch to tenant token if available, otherwise refresh
+        const tenantToken = localStorage.getItem("tenantToken");
+        if (tenantToken) {
+          console.log("Switching to cached tenant token");
+          Cookies.set("jwt", tenantToken);
+          localStorage.setItem("jwt", tenantToken);
         } else {
-          // If no refresh token, force logout
-          localStorage.clear();
-          Cookies.remove("jwt");
-          Cookies.remove("refreshToken");
-          setUser(undefined);
-          navigate("/login");
+          // No tenant token cached, refresh to get one
+          const refreshToken = Cookies.get("refreshToken");
+          if (refreshToken) {
+            try {
+              console.log("Refreshing token for tenant scope...");
+              const response = await refreshTokenMethod();
+              const { data } = response;
+              const newTenantToken = data.accessToken;
+              Cookies.set("jwt", newTenantToken);
+              localStorage.setItem("jwt", newTenantToken);
+              localStorage.setItem("tenantToken", newTenantToken);
+              console.log("Token refreshed successfully for tenant scope");
+            } catch (refreshError) {
+              console.warn(
+                "Token refresh failed when switching to tenant:",
+                refreshError
+              );
+              // Continue anyway - the interceptor will handle it on next API call
+            }
+          }
         }
+
+        toast.success(t("Switched back to tenant context"));
+        navigate("/projects");
       } catch (parseError) {
         console.error("Error parsing user/tenant data:", parseError);
-        // Force logout if data is corrupted
-        localStorage.clear();
-        Cookies.remove("jwt");
-        Cookies.remove("refreshToken");
-        setUser(undefined);
-        navigate("/login");
+        toast.error(t("Failed to switch back to tenant context"));
+        if (onError) onError(parseError);
       }
     } else {
-      // If no user or tenant data, force logout
+      // If no user or tenant data, something is wrong - redirect to login
+      console.warn("Missing user or tenant data when switching back");
       localStorage.clear();
       Cookies.remove("jwt");
       Cookies.remove("refreshToken");

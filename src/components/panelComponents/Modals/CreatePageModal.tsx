@@ -3,9 +3,7 @@ import { useTranslation } from "react-i18next";
 import { IoClose } from "react-icons/io5";
 import { useCreatePage } from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
-import { GenericButton } from "../FormElements/GenericButton";
 import TextInput from "../FormElements/TextInput";
-import { H2 } from "../Typography";
 
 interface CreatePageModalProps {
   isOpen: boolean;
@@ -73,71 +71,92 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
   const SelectedIconComponent = getIconByName(selectedIcon);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <H2 className="text-xl font-semibold text-gray-900">
-            {t("Create New Page")}
-          </H2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+          <div>
+            <h2 className="text-base font-semibold text-neutral-900">
+              {t("Create New Page")}
+            </h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {t("Set up a new page for your project")}
+            </p>
+          </div>
           <button
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 active:scale-95"
           >
-            <IoClose size={24} />
+            <IoClose size={20} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Page Name Input */}
-          <div>
-            <TextInput
-              label={t("Page Name")}
-              value={pageName}
-              onChange={(value) => setPageName(value)}
-              placeholder={t("Enter page name")}
-              type="text"
-              requiredField
-            />
-          </div>
-
-          {/* Icon Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t("Icon")}
-            </label>
-            <select
-              value={selectedIcon}
-              onChange={(e) => setSelectedIcon(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {ICON_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Icon Preview */}
-          <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl text-gray-700">
-              <SelectedIconComponent />
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Preview Section - Moved to Top */}
+          <div className="flex items-center gap-4 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
+            <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border border-neutral-200 text-neutral-700">
+              <SelectedIconComponent size={24} />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-neutral-500 mb-0.5">
                 {t("Preview")}
               </p>
-              <p className="text-xs text-gray-500">
-                {pageName || t("Page Name")}
+              <p className="text-sm font-semibold text-neutral-900 truncate">
+                {pageName || t("test")}
               </p>
+            </div>
+          </div>
+
+          {/* Page Name and Icon - Side by Side */}
+          <div className="grid grid-cols-[1fr,auto] gap-4">
+            {/* Page Name Input */}
+            <div>
+              <TextInput
+                label={t("Page Name")}
+                value={pageName}
+                onChange={(value) => setPageName(value)}
+                placeholder={t("Enter page name")}
+                type="text"
+                requiredField
+              />
+            </div>
+
+            {/* Icon Selection */}
+            <div className="w-48">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                {t("Icon")}
+              </label>
+              <select
+                value={selectedIcon}
+                onChange={(e) => setSelectedIcon(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+              >
+                {ICON_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
+          <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <svg
+              className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-xs text-blue-900 leading-relaxed">
               {t(
                 "The page will be created with an empty structure. You can add sections and components later."
               )}
@@ -145,22 +164,22 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4">
-            <GenericButton
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
               type="button"
-              variant="outline"
               onClick={handleCancel}
               disabled={isCreating}
+              className="px-4 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {t("Cancel")}
-            </GenericButton>
-            <GenericButton
+            </button>
+            <button
               type="submit"
               disabled={!pageName.trim() || isCreating}
-              isLoading={isCreating}
+              className="px-4 py-2.5 text-sm font-medium text-white bg-neutral-900 rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-900"
             >
-              {t("Create Page")}
-            </GenericButton>
+              {isCreating ? t("Creating...") : t("Create Page")}
+            </button>
           </div>
         </form>
       </div>

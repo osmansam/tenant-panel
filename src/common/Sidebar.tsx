@@ -108,15 +108,15 @@ export const Sidebar = () => {
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 transition-opacity duration-300 z-40"
+          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 z-40"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <aside
         className={`
-          flex-shrink-0 flex flex-col border-r border-gray-200 bg-white
-          transition-all duration-300 ease-in-out shadow-lg
+          flex-shrink-0 flex flex-col border-r border-neutral-200 bg-white
+          transition-all duration-300 ease-in-out
           ${isSidebarOpen ? "w-64" : "w-16"}
           md:relative md:translate-x-0
           ${
@@ -127,48 +127,79 @@ export const Sidebar = () => {
           fixed md:static top-0 left-0 h-full z-50
         `}
       >
-        <div
-          className={`h-16 bg-gray-800 flex items-center border-b border-gray-700 transition-all duration-200 ${
-            isSidebarOpen ? "justify-end pr-4" : "justify-center"
-          }`}
-        >
-          <button
-            onClick={() => {
-              if (isSidebarOpen) {
-                setOpenGroups({});
-              }
-              setIsSidebarOpen(!isSidebarOpen);
-            }}
-            className="flex items-center justify-center w-10 h-10 rounded-lg 
-              text-white hover:bg-gray-700 transition-all duration-200"
-            aria-label="Toggle Sidebar"
-          >
-            {isSidebarOpen ? (
-              <FiChevronLeft className="text-2xl" />
-            ) : (
-              <FiChevronRight className="text-2xl" />
-            )}
-          </button>
+        {/* Header */}
+        <div className="h-16 flex items-center border-b border-neutral-200 bg-white">
+          {isSidebarOpen ? (
+            <div className="flex items-center justify-between w-full px-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-sm">
+                  <svg
+                    className="w-5 h-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-sm font-semibold text-neutral-900 tracking-tight">
+                    Tenant Panel
+                  </h1>
+                  <p className="text-xs text-neutral-500">
+                    {user?.email?.split("@")[0] || "User"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setOpenGroups({});
+                  setIsSidebarOpen(false);
+                }}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all active:scale-95"
+                aria-label="Collapse Sidebar"
+              >
+                <FiChevronLeft className="text-lg" strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="flex items-center justify-center w-10 h-10 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all active:scale-95"
+                aria-label="Expand Sidebar"
+              >
+                <FiChevronRight className="text-lg" strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col h-[calc(100%-4rem)] py-3 px-2 bg-white overflow-y-auto">
+        <div className="flex flex-col h-[calc(100%-4rem)] py-4 px-3 bg-white overflow-y-auto">
           {/* Project Context Section */}
           {isInProject && currentProject && (
-            <div className="mb-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-4 p-3 bg-violet-50 rounded-xl border border-violet-200">
               {isSidebarOpen ? (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <MdBusinessCenter className="text-blue-600 text-lg" />
-                    <span className="text-sm font-semibold text-blue-900">
+                    <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center">
+                      <MdBusinessCenter className="text-violet-600 text-sm" />
+                    </div>
+                    <span className="text-xs font-semibold text-violet-900">
                       {t("Current Project")}
                     </span>
                   </div>
-                  <div className="text-sm text-blue-800 mb-2">
+                  <div className="text-sm font-medium text-violet-800 mb-2.5 truncate">
                     {currentProject.name}
                   </div>
                   <button
                     onClick={handleSwitchBackToTenant}
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-violet-700 bg-white border border-violet-200 rounded-lg hover:bg-violet-50 transition-all active:scale-95 w-full justify-center"
                   >
                     <MdArrowBack className="text-sm" />
                     {t("Back to Tenant")}
@@ -182,7 +213,7 @@ export const Sidebar = () => {
                 >
                   <button
                     onClick={handleSwitchBackToTenant}
-                    className="w-full flex items-center justify-center p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                    className="w-full flex items-center justify-center p-2 text-violet-600 hover:text-violet-800 hover:bg-violet-100 rounded-lg transition-all active:scale-95"
                   >
                     <MdBusinessCenter className="text-lg" />
                   </button>
@@ -216,20 +247,27 @@ export const Sidebar = () => {
                             toggleGroup(route.name);
                           }
                         }}
-                        className="w-full flex items-center justify-between px-2 py-2 rounded-lg
-                        text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-all active:scale-[0.98]"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex items-center justify-center text-gray-700 flex-shrink-0">
-                            <IconComponent className="text-xl" />
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center text-neutral-600 flex-shrink-0">
+                            <IconComponent className="text-[18px]" />
                           </div>
-                          {isSidebarOpen && <span>{t(route.name)}</span>}
+                          {isSidebarOpen && (
+                            <span className="text-sm">{t(route.name)}</span>
+                          )}
                         </div>
                         {isSidebarOpen &&
                           (openGroups[route.name] ? (
-                            <FiChevronDown className="text-sm" />
+                            <FiChevronDown
+                              className="text-sm text-neutral-400"
+                              strokeWidth={2.5}
+                            />
                           ) : (
-                            <FiChevronRight className="text-sm" />
+                            <FiChevronRight
+                              className="text-sm text-neutral-400"
+                              strokeWidth={2.5}
+                            />
                           ))}
                       </button>
                     </SidebarTooltip>
@@ -242,12 +280,12 @@ export const Sidebar = () => {
                           <button
                             key={child.name}
                             className={`
-                            w-full flex items-center pl-8 pr-3 py-2 rounded-lg mt-1
-                            text-sm transition-colors
+                            w-full flex items-center pl-10 pr-3 py-2 rounded-lg mt-0.5
+                            text-sm transition-all active:scale-[0.98]
                             ${
                               child.path === currentRoute
-                                ? "bg-blue-50 text-blue-600 font-medium"
-                                : "text-gray-600 hover:bg-gray-50"
+                                ? "bg-violet-50 text-violet-700 font-medium"
+                                : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
                             }
                           `}
                             onClick={() => {
@@ -281,12 +319,12 @@ export const Sidebar = () => {
                   >
                     <button
                       className={`
-                      w-full flex items-center gap-2.5 px-2 py-2 rounded-lg
-                      text-sm transition-colors
+                      w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
+                      text-sm transition-all active:scale-[0.98]
                       ${
                         routeChildren[0].path === currentRoute
-                          ? "bg-blue-50 text-blue-600 font-medium"
-                          : "text-gray-700 hover:bg-gray-100"
+                          ? "bg-violet-50 text-violet-700 font-medium"
+                          : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
                       }
                     `}
                       onClick={() => {
@@ -300,11 +338,11 @@ export const Sidebar = () => {
                       <div
                         className={`flex items-center justify-center flex-shrink-0 ${
                           routeChildren[0].path === currentRoute
-                            ? "text-blue-600"
-                            : "text-gray-700"
+                            ? "text-violet-600"
+                            : "text-neutral-600"
                         }`}
                       >
-                        <IconComponent className="text-xl" />
+                        <IconComponent className="text-[18px]" />
                       </div>
                       {isSidebarOpen && <span>{t(routeChildren[0].name)}</span>}
                     </button>
@@ -322,12 +360,12 @@ export const Sidebar = () => {
                 <SidebarTooltip key={route.name} content={t(route.name)}>
                   <button
                     className={`
-                    w-full flex items-center gap-2.5 px-2 py-2 rounded-lg
-                    text-sm transition-colors
+                    w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
+                    text-sm transition-all active:scale-[0.98]
                     ${
                       route.path === currentRoute
-                        ? "bg-blue-50 text-blue-600 font-medium"
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-violet-50 text-violet-700 font-medium"
+                        : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
                     }
                   `}
                     onClick={() => {
@@ -341,11 +379,11 @@ export const Sidebar = () => {
                     <div
                       className={`flex items-center justify-center flex-shrink-0 ${
                         route.path === currentRoute
-                          ? "text-blue-600"
-                          : "text-gray-700"
+                          ? "text-violet-600"
+                          : "text-neutral-600"
                       }`}
                     >
-                      <IconComponent className="text-xl" />
+                      <IconComponent className="text-[18px]" />
                     </div>
                     {isSidebarOpen && <span>{t(route.name)}</span>}
                   </button>
@@ -354,15 +392,14 @@ export const Sidebar = () => {
             })}
           </div>
 
-          <div className="border-t border-gray-200 pt-3 mt-3">
+          <div className="border-t border-neutral-200 pt-3 mt-3">
             <SidebarTooltip content={t("Logout")}>
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg
-                text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center justify-center text-red-600 flex-shrink-0">
-                  <IoIosLogOut className="text-xl" />
+                  <IoIosLogOut className="text-[18px]" />
                 </div>
                 {isSidebarOpen && <span>{t("Logout")}</span>}
               </button>
