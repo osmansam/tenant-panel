@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlus, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
-import { Field } from "../../../utils/api/container";
+import { Field, useGetContainers } from "../../../utils/api/container";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -86,6 +86,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   containerFields = [],
 }) => {
   const { t } = useTranslation();
+  const containers = useGetContainers();
 
   const [fieldData, setFieldData] = useState<Partial<Field>>({
     name: "",
@@ -102,6 +103,34 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
   const [enumValues, setEnumValues] = useState<string>("");
   const [childFields, setChildFields] = useState<Field[]>([]);
+  
+  // Population settings state
+  const [populationFieldName, setPopulationFieldName] = useState<string>("");
+  const [populatedFields, setPopulatedFields] = useState<string[]>([]);
+  const [displayFields, setDisplayFields] = useState<string[]>([]);
+  const [inputSelectionField, setInputSelectionField] = useState<string>("");
+  const [displayLabel, setDisplayLabel] = useState<string>("");
+
+  // Get container options for objectSchemaName selection
+  const containerOptions = useMemo(() => {
+    return containers?.map((c: any) => ({
+      value: c.schemaName,
+      label: c.schemaName,
+    })) || [];
+  }, [containers]);
+
+  // Get fields from selected container for population settings
+  const selectedContainerFields = useMemo(() => {
+    if (!fieldData.objectSchemaName || !containers) return [];
+    const selectedContainer = containers.find(
+      (c: any) => c.schemaName === fieldData.objectSchemaName
+    );
+    if (!selectedContainer) return [];
+    return selectedContainer.fields?.map((f: Field) => ({
+      value: f.name,
+      label: f.name,
+    })) || [];
+  }, [fieldData.objectSchemaName, containers]);
 
   const handleFieldChange = (field: string, value: any) => {
     setFieldData((prev) => ({ ...prev, [field]: value }));
@@ -185,6 +214,20 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
         .filter((v) => v.length > 0);
     }
 
+    // Build population settings if applicable
+    let populationSettings = undefined;
+    if ((fieldData.type === "objectId" || fieldData.type === "objectIdArray") && populationFieldName) {
+      if (populatedFields.length > 0 && displayFields.length > 0 && inputSelectionField && displayLabel) {
+        populationSettings = {
+          fieldName: populationFieldName,
+          populatedFields: populatedFields,
+          displayFields: displayFields,
+          inputSelectionField: inputSelectionField,
+          displayLabel: displayLabel,
+        };
+      }
+    }
+
     // Build the field object
     const newField: Field = {
       name: fieldData.name!,
@@ -198,6 +241,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       enumList: processedEnumList.length > 0 ? processedEnumList : undefined,
       children: childFields.length > 0 ? childFields : undefined,
       objectSchemaName: fieldData.objectSchemaName,
+      populationSettings: populationSettings,
     };
 
     onAddField(newField);
@@ -220,6 +264,11 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     setValidationRules([]);
     setEnumValues("");
     setChildFields([]);
+    setPopulationFieldName("");
+    setPopulatedFields([]);
+    setDisplayFields([]);
+    setInputSelectionField("");
+    setDisplayLabel("");
     onClose();
   };
 
@@ -289,16 +338,33 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
               />
             </div>
 
-            {/* Object Schema Name (for object/objectId types) */}
-            {(fieldData.type === "object" || fieldData.type === "objectId") && (
-              <TextInput
+            {/* Object Schema Name (for object/objectId/objectIdArray types) */}
+            {(fieldData.type === "object" || fieldData.type === "objectId" || fieldData.type === "objectIdArray") && (
+              <SelectInput
                 label={t("Object Schema Name")}
-                type="text"
-                value={fieldData.objectSchemaName || ""}
-                onChange={(value: string) =>
-                  handleFieldChange("objectSchemaName", value)
+                value={
+                  containerOptions.find(
+                    (opt) => opt.value === fieldData.objectSchemaName
+                  ) || null
                 }
-                placeholder="e.g., User"
+                onChange={(value) => {
+                  const selectedValue = value as {
+                    value: string;
+                    label: string;
+                  } | null;
+                  handleFieldChange("objectSchemaName", selectedValue?.value || "");
+                  // Set field name to match object schema name
+                  if (selectedValue?.value) {
+                    setPopulationFieldName(selectedValue.value);
+                  }
+                  // Reset population fields when schema changes
+                  setPopulatedFields([]);
+                  setDisplayFields([]);
+                  setInputSelectionField("");
+                }}
+                options={containerOptions}
+                placeholder={t("Select container schema")}
+                customControlBackgroundColor="white"
               />
             )}
 
@@ -372,6 +438,84 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Population Settings (for objectId/objectIdArray types) */}
+            {(fieldData.type === "objectId" || fieldData.type === "objectIdArray") && fieldData.objectSchemaName && (
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">
+                  {t("Population Settings")}
+                </h4>
+                <div className="space-y-4">
+                  <TextInput
+                    label={t("Field Name (Auto-populated from Object Schema Name)")}
+                    type="text"
+                    value={populationFieldName}
+                    onChange={setPopulationFieldName}
+                    placeholder="e.g., category"
+                    isReadOnly={true}
+                  />
+                  <SelectInput
+                    label={t("Populated Fields")}
+                    value={selectedContainerFields.filter((field: { value: string; label: string }) =>
+                      populatedFields.includes(field.value)
+                    )}
+                    onChange={(value) => {
+                      if (Array.isArray(value)) {
+                        setPopulatedFields(value.map((v: any) => v.value));
+                      } else {
+                        setPopulatedFields([]);
+                      }
+                    }}
+                    options={selectedContainerFields}
+                    placeholder={t("Select fields to populate")}
+                    isMultiple={true}
+                    customControlBackgroundColor="white"
+                  />
+                  <SelectInput
+                    label={t("Display Fields")}
+                    value={selectedContainerFields.filter((field: { value: string; label: string }) =>
+                      displayFields.includes(field.value)
+                    )}
+                    onChange={(value) => {
+                      if (Array.isArray(value)) {
+                        setDisplayFields(value.map((v: any) => v.value));
+                      } else {
+                        setDisplayFields([]);
+                      }
+                    }}
+                    options={selectedContainerFields}
+                    placeholder={t("Select fields to display")}
+                    isMultiple={true}
+                    customControlBackgroundColor="white"
+                  />
+                  <SelectInput
+                    label={t("Input Selection Field")}
+                    value={
+                      selectedContainerFields.find(
+                        (field: { value: string; label: string }) => field.value === inputSelectionField
+                      ) || null
+                    }
+                    onChange={(value) => {
+                      const selectedValue = value as {
+                        value: string;
+                        label: string;
+                      } | null;
+                      setInputSelectionField(selectedValue?.value || "");
+                    }}
+                    options={selectedContainerFields}
+                    placeholder={t("Select input selection field")}
+                    customControlBackgroundColor="white"
+                  />
+                  <TextInput
+                    label={t("Display Label")}
+                    type="text"
+                    value={displayLabel}
+                    onChange={setDisplayLabel}
+                    placeholder="e.g., Category Quantity"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Validation Rules */}
             <div className="border-t pt-4">
