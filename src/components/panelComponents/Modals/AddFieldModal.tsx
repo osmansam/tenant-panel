@@ -28,7 +28,7 @@ const FIELD_TYPES = [
   { value: "int", label: "Integer" },
   { value: "float", label: "Float" },
   { value: "decimal", label: "Decimal" },
-  { value: "bool", label: "Boolean" },
+  { value: "boolean", label: "Boolean" },
   { value: "date", label: "Date" },
   { value: "object", label: "Object" },
   { value: "array", label: "Array" },
@@ -64,7 +64,7 @@ const VALIDATION_RULES = {
   int: ["required", "min", "max", "positive", "negative"],
   float: ["required", "min", "max", "positive", "negative"],
   decimal: ["required", "min", "max", "positive", "negative"],
-  bool: ["required"],
+  boolean: ["required"],
   date: ["required", "minDate", "maxDate"],
   stringArray: ["required", "minlength", "maxlength"],
   numberArray: ["required", "minlength", "maxlength"],
@@ -104,6 +104,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
   const [enumValues, setEnumValues] = useState<string>("");
+  const [equation, setEquation] = useState<string>("");
   const [childFields, setChildFields] = useState<Field[]>([]);
 
   // Population settings state
@@ -132,6 +133,11 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       // Parse enum values
       if (editField.enumList && editField.enumList.length > 0) {
         setEnumValues(editField.enumList.join("|"));
+      }
+
+      // Parse equation
+      if (editField.equation) {
+        setEquation(editField.equation);
       }
 
       // Parse tag for validation rules (this is a simplified parse)
@@ -180,6 +186,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       });
       setValidationRules([]);
       setEnumValues("");
+      setEquation("");
       setChildFields([]);
       setPopulationFieldName("");
       setPopulatedFields([]);
@@ -340,6 +347,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       isHashed: fieldData.isHashed || false,
       isForceDelete: fieldData.isForceDelete || false,
       enumList: processedEnumList.length > 0 ? processedEnumList : undefined,
+      equation: equation?.trim() ? equation.trim() : undefined,
       children: childFields.length > 0 ? childFields : undefined,
       objectSchemaName: fieldData.objectSchemaName,
       populationSettings: populationSettings,
@@ -364,6 +372,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     });
     setValidationRules([]);
     setEnumValues("");
+    setEquation("");
     setChildFields([]);
     setPopulationFieldName("");
     setPopulatedFields([]);
@@ -486,6 +495,29 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   onChange={setEnumValues}
                   placeholder="red|green|blue|yellow"
                 />
+              </div>
+            )}
+
+            {/* Equation (for int type) */}
+            {fieldData.type === "int" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("Equation")}{" "}
+                  <span className="text-xs text-gray-500">
+                    {t("(Optional)")}
+                  </span>
+                </label>
+                <TextInput
+                  type="text"
+                  value={equation}
+                  onChange={setEquation}
+                  placeholder="e.g., quantity * price"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {t(
+                    "Define a formula to auto-calculate this field's value using other field names"
+                  )}
+                </p>
               </div>
             )}
 

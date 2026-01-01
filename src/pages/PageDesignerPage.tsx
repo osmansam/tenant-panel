@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
 import { PageDesigner } from "../components/PageDesigner/PageDesigner";
-import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import { GridSection } from "../types/page";
 
 export const PageDesignerPage: React.FC = () => {
@@ -55,17 +54,17 @@ export const PageDesignerPage: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-neutral-50">
       {/* Modern Header - Fixed with blur */}
-      <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 border-b border-neutral-200 bg-white/95 backdrop-blur-xl shadow-sm">
         <div className="px-8 lg:px-12">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 via-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
                 <svg
-                  className="w-4 h-4 text-white"
+                  className="w-5 h-5 text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                 >
                   <path
                     strokeLinecap="round"
@@ -75,59 +74,51 @@ export const PageDesignerPage: React.FC = () => {
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-neutral-900 tracking-tight">
+                <h1 className="text-base font-semibold text-neutral-900 tracking-tight">
                   Page Designer
                 </h1>
+                <p className="text-xs text-neutral-500">
+                  Build your page structure
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <GenericButton
+              <button
                 onClick={() => setShowJson(!showJson)}
-                variant="ghost"
-                size="md"
-                iconLeft={
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                    />
-                  </svg>
-                }
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95"
               >
-                {showJson ? "Hide" : "Show"} JSON
-              </GenericButton>
-
-              <label>
-                <GenericButton
-                  variant="ghost"
-                  size="md"
-                  iconLeft={
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                  }
-                  as="span"
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
                 >
-                  Import
-                </GenericButton>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                  />
+                </svg>
+                <span>{showJson ? "Hide" : "Show"} JSON</span>
+              </button>
+
+              <label className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95 cursor-pointer">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+                <span>Import</span>
                 <input
                   type="file"
                   accept=".json"
@@ -136,53 +127,47 @@ export const PageDesignerPage: React.FC = () => {
                 />
               </label>
 
-              <GenericButton
+              <button
                 onClick={handleExport}
-                variant="ghost"
-                size="md"
-                iconLeft={
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                    />
-                  </svg>
-                }
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95"
               >
-                Export
-              </GenericButton>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                  />
+                </svg>
+                <span>Export</span>
+              </button>
 
               <div className="w-px h-6 bg-neutral-200 mx-1" />
 
-              <GenericButton
+              <button
                 onClick={handleSave}
-                variant="primary"
-                size="md"
-                iconLeft={
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                }
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-500 hover:bg-violet-600 rounded-lg transition-all active:scale-95 shadow-sm"
               >
-                Save Page
-              </GenericButton>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Save Page</span>
+              </button>
             </div>
           </div>
         </div>
@@ -190,12 +175,27 @@ export const PageDesignerPage: React.FC = () => {
 
       {/* JSON Preview */}
       {showJson && (
-        <div className="border-b border-neutral-200 bg-neutral-900 animate-slide-in">
-          <div className="px-8 lg:px-12 py-4">
+        <div className="border-b border-neutral-200 bg-neutral-900 shadow-lg animate-slide-in">
+          <div className="px-8 lg:px-12 py-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-neutral-100">
-                Page Structure JSON
-              </h3>
+              <div className="flex items-center gap-2">
+                <svg
+                  className="w-4 h-4 text-emerald-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                  />
+                </svg>
+                <h3 className="text-sm font-semibold text-neutral-100">
+                  Page Structure JSON
+                </h3>
+              </div>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(
@@ -203,12 +203,25 @@ export const PageDesignerPage: React.FC = () => {
                   );
                   toast.success("Copied to clipboard!");
                 }}
-                className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-all active:scale-95"
               >
-                Copy to clipboard
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>Copy to clipboard</span>
               </button>
             </div>
-            <pre className="text-xs text-neutral-300 overflow-auto max-h-64 bg-neutral-950 rounded-lg p-4 border border-neutral-800 font-mono">
+            <pre className="text-xs text-emerald-300 overflow-auto max-h-64 bg-neutral-950 rounded-xl p-4 border border-neutral-800 font-mono shadow-inner">
               {JSON.stringify(sections, null, 2)}
             </pre>
           </div>
