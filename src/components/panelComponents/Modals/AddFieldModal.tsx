@@ -116,6 +116,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   // Pre-populate form when editing a field
   useEffect(() => {
+    if (!isOpen) return; // Only run when modal is open
+
     if (editField) {
       setFieldData({
         name: editField.name,
