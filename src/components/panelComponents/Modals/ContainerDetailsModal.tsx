@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FiChevronDown,
+  FiChevronUp,
   FiCode,
   FiCopy,
   FiEdit,
@@ -14,6 +16,7 @@ import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import {
   ContainerModel,
   Field,
+  useContainer,
   useUpdateContainer,
 } from "../../../utils/api/container";
 import { GenericButton } from "../FormElements/GenericButton";
@@ -119,6 +122,66 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       });
       setFieldToDelete(null);
     }
+  };
+
+  const handleMoveFieldUp = (index: number) => {
+    if (!container?.id || index <= 0) return;
+
+    const fields = [...(container.fields || [])];
+    const currentField = fields[index];
+    const previousField = fields[index - 1];
+
+    // Swap order values
+    const tempOrder = currentField.order ?? index;
+    currentField.order = previousField.order ?? index - 1;
+    previousField.order = tempOrder;
+
+    // Swap positions in array
+    fields[index] = previousField;
+    fields[index - 1] = currentField;
+
+    updateContainer({
+      id: container.id,
+      payload: {
+        schemaName: container.schemaName,
+        fields,
+        routes: container.routes,
+        redis: container.redis,
+        populatedRoutes: container.populatedRoutes || [],
+        indexes: container.indexes,
+        rowAccess: container.rowAccess,
+      },
+    });
+  };
+
+  const handleMoveFieldDown = (index: number) => {
+    if (!container?.id || index >= (container.fields || []).length - 1) return;
+
+    const fields = [...(container.fields || [])];
+    const currentField = fields[index];
+    const nextField = fields[index + 1];
+
+    // Swap order values
+    const tempOrder = currentField.order ?? index;
+    currentField.order = nextField.order ?? index + 1;
+    nextField.order = tempOrder;
+
+    // Swap positions in array
+    fields[index] = nextField;
+    fields[index + 1] = currentField;
+
+    updateContainer({
+      id: container.id,
+      payload: {
+        schemaName: container.schemaName,
+        fields,
+        routes: container.routes,
+        redis: container.redis,
+        populatedRoutes: container.populatedRoutes || [],
+        indexes: container.indexes,
+        rowAccess: container.rowAccess,
+      },
+    });
   };
 
   const containerJson = JSON.stringify(container, null, 2);
@@ -302,6 +365,22 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           )}
                         </div>
                         <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => handleMoveFieldUp(index)}
+                            disabled={index === 0 || isUpdating}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title={t("Move Up")}
+                          >
+                            <FiChevronUp size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleMoveFieldDown(index)}
+                            disabled={index === (container.fields || []).length - 1 || isUpdating}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title={t("Move Down")}
+                          >
+                            <FiChevronDown size={16} />
+                          </button>
                           <GenericButton
                             variant="outline"
                             size="sm"

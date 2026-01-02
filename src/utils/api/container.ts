@@ -54,6 +54,7 @@ export interface Field {
   equation?: string;
   authorizeRole?: string[];
   isAuthorized?: boolean;
+  order?: number;
 }
 
 /** Per-route auth/availability spec */
