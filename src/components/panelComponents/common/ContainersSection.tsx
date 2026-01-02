@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiInfo, FiPlus } from "react-icons/fi";
 import { useUserContext } from "../../../context/User.context";
@@ -29,6 +29,18 @@ export const ContainersSection: React.FC = () => {
     console.log("Containers not available:", err);
     error = err;
   }
+
+  // Update selectedContainer when containers data changes
+  useEffect(() => {
+    if (selectedContainer && containers.length > 0) {
+      const updatedContainer = containers.find(
+        (c: ContainerModel) => c.id === selectedContainer.id
+      );
+      if (updatedContainer) {
+        setSelectedContainer(updatedContainer);
+      }
+    }
+  }, [containers]);
 
   // Check if user can create containers (project admin or developer)
   const userRoles = user?.roles || [];
