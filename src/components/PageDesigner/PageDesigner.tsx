@@ -78,11 +78,31 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   // Add cell to section
   const addCell = (sectionIndex: number) => {
     const section = sections[sectionIndex];
-    const maxRow = Math.max(0, ...section.cells.map((c) => c.row));
+    const maxRow =
+      section.cells.length > 0
+        ? Math.max(...section.cells.map((c) => c.row))
+        : 0;
+
+    // Count cells in the current max row
+    const cellsInMaxRow = section.cells.filter((c) => c.row === maxRow);
+
+    // Determine row and column for new cell
+    let newRow = maxRow;
+    let newColumn = cellsInMaxRow.length + 1;
+
+    // If this is the first cell or current row is full, handle accordingly
+    if (section.cells.length === 0) {
+      newRow = 1;
+      newColumn = 1;
+    } else if (cellsInMaxRow.length >= section.columns) {
+      newRow = maxRow + 1;
+      newColumn = 1;
+    }
+
     const newCell: GridCell = {
       id: `cell-${Date.now()}`,
-      row: maxRow + 1,
-      column: 1,
+      row: newRow,
+      column: newColumn,
       components: [],
     };
     updateSection(sectionIndex, {
