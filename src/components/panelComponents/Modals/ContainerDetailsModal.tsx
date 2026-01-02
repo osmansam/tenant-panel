@@ -16,7 +16,6 @@ import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import {
   ContainerModel,
   Field,
-  useContainer,
   useUpdateContainer,
 } from "../../../utils/api/container";
 import { GenericButton } from "../FormElements/GenericButton";
@@ -375,7 +374,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           </button>
                           <button
                             onClick={() => handleMoveFieldDown(index)}
-                            disabled={index === (container.fields || []).length - 1 || isUpdating}
+                            disabled={
+                              index === (container.fields || []).length - 1 ||
+                              isUpdating
+                            }
                             className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title={t("Move Down")}
                           >
