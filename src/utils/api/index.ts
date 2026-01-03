@@ -81,3 +81,6 @@ export * from "./project";
 
 // Export container API
 export * from "./container";
+
+// Export role schema API
+export * from "./roleInfo";
