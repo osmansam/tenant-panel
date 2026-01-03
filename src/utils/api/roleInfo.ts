@@ -2,82 +2,82 @@ import { useQuery } from "@tanstack/react-query";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
-import type { ContainerModel, Field } from "./container";
 
 /**
- * Response structure for role schema endpoints
+ * Response structure for role items endpoints
  */
-export interface RoleSchemaResponse {
+export interface RoleItemsResponse {
   status: number;
   message: string;
   data: {
-    schema?: ContainerModel;
+    items?: any[];
   };
 }
 
-export interface RoleSchemaFieldsResponse {
+export interface RoleItemResponse {
   status: number;
   message: string;
   data: {
-    fields?: Field[];
+    item?: any;
   };
 }
 
 /**
- * Fetch full role schema/container information
- * Endpoint: GET /:tenantSlug/:projectSlug/role-schema
+ * Fetch all role items from the role schema collection
+ * Endpoint: GET /:tenantSlug/:projectSlug/roles
  * Requires: admin or developer role
  */
-export async function getRoleSchemaInfo(
+export async function getRoleItems(
   tenantSlug: string,
   projectSlug: string
-): Promise<ContainerModel> {
-  const { data } = await axiosClient.get<RoleSchemaResponse>(
-    `/${tenantSlug}/${projectSlug}/role-schema`
+): Promise<any[]> {
+  const { data } = await axiosClient.get<RoleItemsResponse>(
+    `/${tenantSlug}/${projectSlug}/roles`
   );
 
-  if (!data.data.schema) {
-    throw new Error("Role schema not found");
+  if (!data.data.items) {
+    throw new Error("Role items not found");
   }
 
-  return data.data.schema;
+  return data.data.items;
 }
 
 /**
- * Fetch only the fields for role schema
- * Endpoint: GET /api/v1/:tenantSlug/:projectSlug/role-schema/fields
+ * Fetch a single role item by ID
+ * Endpoint: GET /:tenantSlug/:projectSlug/roles/:id
  * Requires: admin or developer role
  */
-export async function getRoleSchemaFields(
+export async function getRoleItemById(
   tenantSlug: string,
-  projectSlug: string
-): Promise<Field[]> {
-  const { data } = await axiosClient.get<RoleSchemaFieldsResponse>(
-    `/api/v1/${tenantSlug}/${projectSlug}/role-schema/fields`
+  projectSlug: string,
+  id: string
+): Promise<any> {
+  const { data } = await axiosClient.get<RoleItemResponse>(
+    `/${tenantSlug}/${projectSlug}/roles/${id}`
   );
 
-  if (!data.data.fields) {
-    throw new Error("Role schema fields not found");
+  if (!data.data.item) {
+    throw new Error("Role item not found");
   }
 
-  return data.data.fields;
+  return data.data.item;
 }
 
 /**
- * React Query hook to fetch role schema information
+ * React Query hook to fetch all role items
  * Automatically uses current tenant and project context
  */
-export function useRoleSchema(enabled: boolean = true) {
+export function useRoleItems(enabled: boolean = true) {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
 
   return useQuery({
-    queryKey: ["roleSchema", currentTenant?.slug, currentProject?.slug],
+    queryKey: ["roleItems", currentTenant?.slug, currentProject?.slug],
     queryFn: () => {
       if (!currentTenant?.slug || !currentProject?.slug) {
         throw new Error("Tenant and project context required");
       }
-      return getRoleSchemaInfo(currentTenant.slug, currentProject.slug);
+      return getRoleItems(currentTenant.slug, currentProject.slug);
     },
     enabled: enabled && !!currentTenant?.slug && !!currentProject?.slug,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -85,22 +85,22 @@ export function useRoleSchema(enabled: boolean = true) {
 }
 
 /**
- * React Query hook to fetch role schema fields
+ * React Query hook to fetch a single role item by ID
  * Automatically uses current tenant and project context
  */
-export function useRoleSchemaFields(enabled: boolean = true) {
+export function useRoleItem(id: string, enabled: boolean = true) {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
 
   return useQuery({
-    queryKey: ["roleSchemaFields", currentTenant?.slug, currentProject?.slug],
+    queryKey: ["roleItem", currentTenant?.slug, currentProject?.slug, id],
     queryFn: () => {
       if (!currentTenant?.slug || !currentProject?.slug) {
         throw new Error("Tenant and project context required");
       }
-      return getRoleSchemaFields(currentTenant.slug, currentProject.slug);
+      return getRoleItemById(currentTenant.slug, currentProject.slug, id);
     },
-    enabled: enabled && !!currentTenant?.slug && !!currentProject?.slug,
+    enabled: enabled && !!currentTenant?.slug && !!currentProject?.slug && !!id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
