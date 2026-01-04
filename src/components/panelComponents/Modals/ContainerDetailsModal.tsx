@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiChevronDown,
@@ -8,6 +8,7 @@ import {
   FiEdit,
   FiList,
   FiPlus,
+  FiShield,
   FiTrash2,
   FiX,
 } from "react-icons/fi";
@@ -18,6 +19,7 @@ import {
   Field,
   useUpdateContainer,
 } from "../../../utils/api/container";
+import FieldPermissions from "../../FieldPermissions";
 import { GenericButton } from "../FormElements/GenericButton";
 import { AddFieldModal } from "./AddFieldModal";
 
@@ -33,21 +35,24 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   container,
 }) => {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<"structured" | "json">("structured");
+  const [viewMode, setViewMode] = useState<
+    "structured" | "json" | "permissions"
+  >("structured");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
 
   const { updateContainer, isUpdating } = useUpdateContainer();
 
-  if (!isOpen || !container) return null;
+  const copyToClipboard = useCallback(
+    (text: string) => {
+      navigator.clipboard.writeText(text);
+      toast.success(t("Copied to clipboard"));
+    },
+    [t]
+  );
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(t("Copied to clipboard"));
-  };
-
-  const getFieldTypeColor = (type: string) => {
+  const getFieldTypeColor = useCallback((type: string) => {
     const colors = {
       string: "bg-blue-100 text-blue-800",
       int: "bg-green-100 text-green-800",
@@ -60,49 +65,52 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       colors[type.toLowerCase() as keyof typeof colors] ||
       "bg-gray-100 text-gray-800"
     );
-  };
+  }, []);
 
-  const handleAddField = (field: Field) => {
-    if (container?.id) {
-      let updatedFields: Field[];
+  const handleAddField = useCallback(
+    (field: Field) => {
+      if (container?.id) {
+        let updatedFields: Field[];
 
-      if (editingField) {
-        // Update existing field
-        updatedFields = (container.fields || []).map((f) =>
-          f.name === editingField.name ? field : f
-        );
-      } else {
-        // Add new field
-        updatedFields = [...(container.fields || []), field];
+        if (editingField) {
+          // Update existing field
+          updatedFields = (container.fields || []).map((f) =>
+            f.name === editingField.name ? field : f
+          );
+        } else {
+          // Add new field
+          updatedFields = [...(container.fields || []), field];
+        }
+
+        updateContainer({
+          id: container.id,
+          payload: {
+            schemaName: container.schemaName,
+            fields: updatedFields,
+            routes: container.routes,
+            redis: container.redis,
+            populatedRoutes: container.populatedRoutes || [],
+            indexes: container.indexes,
+            rowAccess: container.rowAccess,
+          },
+        });
+        setIsAddFieldModalOpen(false);
+        setEditingField(null);
       }
+    },
+    [container, editingField, updateContainer]
+  );
 
-      updateContainer({
-        id: container.id,
-        payload: {
-          schemaName: container.schemaName,
-          fields: updatedFields,
-          routes: container.routes,
-          redis: container.redis,
-          populatedRoutes: container.populatedRoutes || [],
-          indexes: container.indexes,
-          rowAccess: container.rowAccess,
-        },
-      });
-      setIsAddFieldModalOpen(false);
-      setEditingField(null);
-    }
-  };
-
-  const handleEditField = (field: Field) => {
+  const handleEditField = useCallback((field: Field) => {
     setEditingField(field);
     setIsAddFieldModalOpen(true);
-  };
+  }, []);
 
-  const handleDeleteField = (fieldName: string) => {
+  const handleDeleteField = useCallback((fieldName: string) => {
     setFieldToDelete(fieldName);
-  };
+  }, []);
 
-  const confirmDeleteField = () => {
+  const confirmDeleteField = useCallback(() => {
     if (container?.id && fieldToDelete) {
       const updatedFields = (container.fields || []).filter(
         (field) => field.name !== fieldToDelete
@@ -121,69 +129,81 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       });
       setFieldToDelete(null);
     }
-  };
+  }, [container, fieldToDelete, updateContainer]);
 
-  const handleMoveFieldUp = (index: number) => {
-    if (!container?.id || index <= 0) return;
+  const handleMoveFieldUp = useCallback(
+    (index: number) => {
+      if (!container?.id || index <= 0) return;
 
-    const fields = [...(container.fields || [])];
-    const currentField = fields[index];
-    const previousField = fields[index - 1];
+      const fields = [...(container.fields || [])];
+      const currentField = fields[index];
+      const previousField = fields[index - 1];
 
-    // Swap order values
-    const tempOrder = currentField.order ?? index;
-    currentField.order = previousField.order ?? index - 1;
-    previousField.order = tempOrder;
+      // Swap order values
+      const tempOrder = currentField.order ?? index;
+      currentField.order = previousField.order ?? index - 1;
+      previousField.order = tempOrder;
 
-    // Swap positions in array
-    fields[index] = previousField;
-    fields[index - 1] = currentField;
+      // Swap positions in array
+      fields[index] = previousField;
+      fields[index - 1] = currentField;
 
-    updateContainer({
-      id: container.id,
-      payload: {
-        schemaName: container.schemaName,
-        fields,
-        routes: container.routes,
-        redis: container.redis,
-        populatedRoutes: container.populatedRoutes || [],
-        indexes: container.indexes,
-        rowAccess: container.rowAccess,
-      },
-    });
-  };
+      updateContainer({
+        id: container.id,
+        payload: {
+          schemaName: container.schemaName,
+          fields,
+          routes: container.routes,
+          redis: container.redis,
+          populatedRoutes: container.populatedRoutes || [],
+          indexes: container.indexes,
+          rowAccess: container.rowAccess,
+        },
+      });
+    },
+    [container, updateContainer]
+  );
 
-  const handleMoveFieldDown = (index: number) => {
-    if (!container?.id || index >= (container.fields || []).length - 1) return;
+  const handleMoveFieldDown = useCallback(
+    (index: number) => {
+      if (!container?.id || index >= (container.fields || []).length - 1)
+        return;
 
-    const fields = [...(container.fields || [])];
-    const currentField = fields[index];
-    const nextField = fields[index + 1];
+      const fields = [...(container.fields || [])];
+      const currentField = fields[index];
+      const nextField = fields[index + 1];
 
-    // Swap order values
-    const tempOrder = currentField.order ?? index;
-    currentField.order = nextField.order ?? index + 1;
-    nextField.order = tempOrder;
+      // Swap order values
+      const tempOrder = currentField.order ?? index;
+      currentField.order = nextField.order ?? index + 1;
+      nextField.order = tempOrder;
 
-    // Swap positions in array
-    fields[index] = nextField;
-    fields[index + 1] = currentField;
+      // Swap positions in array
+      fields[index] = nextField;
+      fields[index + 1] = currentField;
 
-    updateContainer({
-      id: container.id,
-      payload: {
-        schemaName: container.schemaName,
-        fields,
-        routes: container.routes,
-        redis: container.redis,
-        populatedRoutes: container.populatedRoutes || [],
-        indexes: container.indexes,
-        rowAccess: container.rowAccess,
-      },
-    });
-  };
+      updateContainer({
+        id: container.id,
+        payload: {
+          schemaName: container.schemaName,
+          fields,
+          routes: container.routes,
+          redis: container.redis,
+          populatedRoutes: container.populatedRoutes || [],
+          indexes: container.indexes,
+          rowAccess: container.rowAccess,
+        },
+      });
+    },
+    [container, updateContainer]
+  );
 
-  const containerJson = JSON.stringify(container, null, 2);
+  const containerJson = useMemo(
+    () => JSON.stringify(container, null, 2),
+    [container]
+  );
+
+  if (!isOpen || !container) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -195,7 +215,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         />
 
         {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
+        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-7xl sm:p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -228,6 +248,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   <span>{t("Structured")}</span>
                 </button>
                 <button
+                  onClick={() => setViewMode("permissions")}
+                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
+                    viewMode === "permissions"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <FiShield size={12} />
+                  <span>{t("Permissions")}</span>
+                </button>
+                <button
                   onClick={() => setViewMode("json")}
                   className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
                     viewMode === "json"
@@ -249,8 +280,16 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="max-h-96 overflow-y-auto">
-            {viewMode === "structured" ? (
+          <div
+            className={
+              viewMode === "permissions"
+                ? "h-[70vh]"
+                : "max-h-[70vh] overflow-y-auto"
+            }
+          >
+            {viewMode === "permissions" ? (
+              <FieldPermissions containerId={container.id} />
+            ) : viewMode === "structured" ? (
               <div className="space-y-6">
                 {/* Basic Information */}
                 <div className="bg-gray-50 rounded-lg p-4">

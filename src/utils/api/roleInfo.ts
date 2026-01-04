@@ -4,13 +4,22 @@ import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
 
 /**
+ * Role item structure
+ */
+export interface RoleItem {
+  _id: string;
+  name: string;
+  [key: string]: any; // Allow additional properties
+}
+
+/**
  * Response structure for role items endpoints
  */
 export interface RoleItemsResponse {
   status: number;
   message: string;
   data: {
-    items?: any[];
+    items?: RoleItem[];
   };
 }
 
@@ -18,7 +27,7 @@ export interface RoleItemResponse {
   status: number;
   message: string;
   data: {
-    item?: any;
+    item?: RoleItem;
   };
 }
 
@@ -30,7 +39,7 @@ export interface RoleItemResponse {
 export async function getRoleItems(
   tenantSlug: string,
   projectSlug: string
-): Promise<any[]> {
+): Promise<RoleItem[]> {
   const { data } = await axiosClient.get<RoleItemsResponse>(
     `/${tenantSlug}/${projectSlug}/roles`
   );
@@ -51,7 +60,7 @@ export async function getRoleItemById(
   tenantSlug: string,
   projectSlug: string,
   id: string
-): Promise<any> {
+): Promise<RoleItem> {
   const { data } = await axiosClient.get<RoleItemResponse>(
     `/${tenantSlug}/${projectSlug}/roles/${id}`
   );

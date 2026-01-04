@@ -452,7 +452,76 @@ export function useContainer(id: string, enabled: boolean = true) {
   const path = buildContainerPath(tenantSlug, projectSlug, `/${id}`);
   const projectSpecificQueryKey = ["container", tenantSlug, projectSlug, id];
 
-  return useGet<ContainerModel>(path, projectSpecificQueryKey, enabled && !!id);
+  const response = useGet<any>(path, projectSpecificQueryKey, enabled && !!id);
+
+  console.log("useContainer raw response:", { id, response, path });
+
+  // Extract the actual data from the nested structure
+  // The API returns: { data: { data: {...}, message: "...", status: 200 } }
+  const actualData = response?.data?.data || response?.data || response;
+
+  // Normalize the response from PascalCase (Go backend) to camelCase
+  if (!actualData) return undefined;
+
+  // Helper function to normalize field objects recursively
+  const normalizeField = (field: any): any => {
+    if (!field) return field;
+
+    const normalized: any = {
+      name: field.Name || field.name,
+      type: field.Type || field.type,
+      tag: field.Tag || field.tag,
+      objectSchemaName: field.ObjectSchemaName || field.objectSchemaName,
+      enumList: field.EnumList || field.enumList,
+      isForceDelete: field.IsForceDelete ?? field.isForceDelete ?? false,
+      unique: field.Unique ?? field.unique ?? false,
+      isHashed: field.IsHashed ?? field.isHashed ?? false,
+      isLoginCredential:
+        field.IsLoginCredential ?? field.isLoginCredential ?? false,
+      isSearchable: field.IsSearchable ?? field.isSearchable ?? false,
+      frontend: field.Frontend || field.frontend,
+      populationSettings: field.PopulationSettings || field.populationSettings,
+      equation: field.Equation || field.equation,
+      authorizeRole: field.AuthorizeRole || field.authorizeRole || [],
+      isAuthorized: field.IsAuthorized ?? field.isAuthorized ?? false,
+      order: field.Order ?? field.order,
+    };
+
+    // Recursively normalize children
+    if (field.Children || field.children) {
+      normalized.children = (field.Children || field.children).map(
+        normalizeField
+      );
+    }
+
+    return normalized;
+  };
+
+  const container: any = actualData;
+  const normalized = {
+    id: container.ID || container.id,
+    _id: container.ID || container.id,
+    schemaName: container.SchemaName || container.schemaName,
+    fields: (container.Fields || container.fields || []).map(normalizeField),
+    routes: container.Routes || container.routes,
+    redis: container.Redis || container.redis,
+    pipelines: container.Pipelines || container.pipelines || [],
+    dynamicFunctions:
+      container.DynamicFunctions || container.dynamicFunctions || [],
+    dynamicApis: container.DynamicApis || container.dynamicApis || [],
+    isAuthContainer:
+      container.IsAuthContainer ?? container.isAuthContainer ?? false,
+    populatedRoutes:
+      container.PopulatedRoutes || container.populatedRoutes || [],
+    indexes: container.Indexes || container.indexes,
+    rowAccess: container.RowAccess || container.rowAccess,
+    collectionName: container.CollectionName || container.collectionName,
+    createdAt: container.CreatedAt || container.createdAt,
+    updatedAt: container.UpdatedAt || container.updatedAt,
+  } as ContainerModel;
+
+  console.log("useContainer normalized:", normalized);
+  return normalized;
 }
 
 export function useContainerTypes(enabled: boolean = true) {

@@ -36,11 +36,14 @@ export const ContainersSection: React.FC = () => {
       const updatedContainer = containers.find(
         (c: ContainerModel) => c.id === selectedContainer.id
       );
-      if (updatedContainer) {
+      if (
+        updatedContainer &&
+        JSON.stringify(updatedContainer) !== JSON.stringify(selectedContainer)
+      ) {
         setSelectedContainer(updatedContainer);
       }
     }
-  }, [containers]);
+  }, [containers, selectedContainer]);
 
   // Check if user can create containers (project admin or developer)
   const userRoles = user?.roles || [];
