@@ -20,6 +20,7 @@ import {
   useUpdateContainer,
 } from "../../../utils/api/container";
 import FieldPermissions from "../../FieldPermissions";
+import RoutePermissions from "../../RoutePermissions";
 import { GenericButton } from "../FormElements/GenericButton";
 import { AddFieldModal } from "./AddFieldModal";
 
@@ -36,7 +37,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<
-    "structured" | "json" | "permissions"
+    "structured" | "json" | "permissions" | "routes"
   >("structured");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
@@ -259,6 +260,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   <span>{t("Permissions")}</span>
                 </button>
                 <button
+                  onClick={() => setViewMode("routes")}
+                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
+                    viewMode === "routes"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <FiCode size={12} />
+                  <span>{t("Routes")}</span>
+                </button>
+                <button
                   onClick={() => setViewMode("json")}
                   className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
                     viewMode === "json"
@@ -282,13 +294,15 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           {/* Content */}
           <div
             className={
-              viewMode === "permissions"
+              viewMode === "permissions" || viewMode === "routes"
                 ? "h-[70vh]"
                 : "max-h-[70vh] overflow-y-auto"
             }
           >
             {viewMode === "permissions" ? (
               <FieldPermissions containerId={container.id} />
+            ) : viewMode === "routes" ? (
+              <RoutePermissions containerId={container.id} />
             ) : viewMode === "structured" ? (
               <div className="space-y-6">
                 {/* Basic Information */}
