@@ -13,6 +13,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
+import { CheckSwitch } from "../../../common/CheckSwitch";
 import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import {
   ContainerModel,
@@ -131,6 +132,24 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       setFieldToDelete(null);
     }
   }, [container, fieldToDelete, updateContainer]);
+
+  const handleToggleRegisterActive = useCallback(() => {
+    if (!container?.id || !container.isAuthContainer) return;
+
+    updateContainer({
+      id: container.id,
+      payload: {
+        schemaName: container.schemaName,
+        fields: container.fields,
+        routes: container.routes,
+        redis: container.redis,
+        populatedRoutes: container.populatedRoutes || [],
+        indexes: container.indexes,
+        rowAccess: container.rowAccess,
+        isRegisterActive: !container.isRegisterActive,
+      },
+    });
+  }, [container, updateContainer]);
 
   const handleMoveFieldUp = useCallback(
     (index: number) => {
@@ -341,6 +360,19 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         {container.isAuthContainer ? t("Yes") : t("No")}
                       </span>
                     </div>
+                    {container.isAuthContainer && (
+                      <div>
+                        <span className="text-gray-500">
+                          {t("Registration Active")}:
+                        </span>
+                        <span className="ml-2">
+                          <CheckSwitch
+                            checked={container.isRegisterActive || false}
+                            onChange={handleToggleRegisterActive}
+                          />
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-gray-500">
                         {t("Total Fields")}:

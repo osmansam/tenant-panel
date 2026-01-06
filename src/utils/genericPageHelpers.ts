@@ -100,6 +100,8 @@ export type RawContainer = {
   DynamicApis?: unknown[];
   isAuthContainer?: boolean;
   IsAuthContainer?: boolean;
+  isRegisterActive?: boolean;
+  IsRegisterActive?: boolean;
   populationArray?: unknown[];
   PopulationArray?: unknown[];
   populatedRoutes?: string[];
@@ -229,6 +231,7 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
     c.DynamicApis ??
     []) as ContainerModel["dynamicApis"],
   isAuthContainer: c.isAuthContainer ?? c.IsAuthContainer ?? false,
+  isRegisterActive: c.isRegisterActive ?? c.IsRegisterActive ?? false,
   populationArray: (c.populationArray ??
     c.PopulationArray ??
     []) as ContainerModel["populationArray"],

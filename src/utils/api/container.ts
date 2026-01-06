@@ -182,6 +182,7 @@ export interface ContainerModel {
   dynamicFunctions: DynamicFunction[];
   dynamicApis: DynamicApiModel[];
   isAuthContainer?: boolean;
+  isRegisterActive?: boolean;
   populationArray?: Population[];
   populatedRoutes: string[];
   indexes?: Index[]; // MongoDB indexes for performance
@@ -223,6 +224,7 @@ export interface CreateContainerPayload {
   dynamicFunctions?: DynamicFunction[];
   dynamicApis?: DynamicApiModel[];
   isAuthContainer?: boolean;
+  isRegisterActive?: boolean;
   populatedRoutes?: string[];
   indexes?: Index[];
   rowAccess?: RowAccessRule;
@@ -236,6 +238,7 @@ export interface UpdateContainerPayload {
   populatedRoutes?: string[];
   indexes?: Index[];
   rowAccess?: RowAccessRule;
+  isRegisterActive?: boolean;
 }
 
 export interface UpdateDynamicFunctionsPayload {
@@ -366,6 +369,7 @@ export interface CreateContainerRawPayload {
   DynamicFunctions: any[];
   DynamicApis: any[];
   IsAuthContainer: boolean;
+  IsRegisterActive?: boolean;
   PopulatedRoutes: string[];
   Indexes: any;
   RowAccess: any;
@@ -437,6 +441,8 @@ export function useContainers(enabled: boolean = true) {
     dynamicApis: container.DynamicApis || container.dynamicApis || [],
     isAuthContainer:
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
+    isRegisterActive:
+      container.IsRegisterActive ?? container.isRegisterActive ?? false,
     populatedRoutes:
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,
@@ -511,6 +517,8 @@ export function useContainer(id: string, enabled: boolean = true) {
     dynamicApis: container.DynamicApis || container.dynamicApis || [],
     isAuthContainer:
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
+    isRegisterActive:
+      container.IsRegisterActive ?? container.isRegisterActive ?? false,
     populatedRoutes:
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,

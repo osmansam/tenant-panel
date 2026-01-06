@@ -149,6 +149,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
       DynamicFunctions: [],
       DynamicApis: [],
       IsAuthContainer: false,
+      IsRegisterActive: false,
       PopulatedRoutes: [],
       Indexes: null,
       RowAccess: null,
