@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiCheck, FiCopy, FiEdit2, FiInfo, FiPlus, FiX } from "react-icons/fi";
+import { FiInfo, FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 import { useUserContext } from "../../../context/User.context";
 import {
   PageModel,
@@ -13,6 +12,7 @@ import { getIconByName } from "../../../utils/menuIcons";
 import { PageDesigner } from "../../PageDesigner/PageDesigner";
 import { GenericButton } from "../FormElements/GenericButton";
 import { CreatePageModal } from "../Modals/CreatePageModal";
+import { PageDetailsModal } from "../Modals/PageDetailsModal";
 import { H2 } from "../Typography";
 
 export const PagesSection: React.FC = () => {
@@ -24,8 +24,6 @@ export const PagesSection: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState("");
   const { updatePage } = useUpdatePage();
 
   // Get pages for the current project with error handling
@@ -36,9 +34,7 @@ export const PagesSection: React.FC = () => {
   try {
     const pageData = useGetTenantPages();
     pages = pageData || [];
-    console.log("Pages loaded:", pages);
   } catch (err) {
-    console.log("Pages not available:", err);
     error = err;
   }
 
@@ -50,38 +46,12 @@ export const PagesSection: React.FC = () => {
 
   const handleViewPage = (page: PageModel) => {
     setSelectedPage(page);
-    setEditedName(page.name);
-    setIsEditingName(false);
     setIsDetailsModalOpen(true);
   };
 
   const handleCloseDetailsModal = () => {
     setIsDetailsModalOpen(false);
-    setIsEditingName(false);
     setSelectedPage(null);
-  };
-
-  const handleSavePageName = () => {
-    if (!selectedPage || !editedName.trim()) return;
-
-    updatePage({
-      id: selectedPage._id || selectedPage.id!,
-      payload: {
-        name: editedName.trim(),
-        icon: selectedPage.icon,
-        slug: selectedPage.slug,
-        parentPageId: selectedPage.parentPageId,
-        order: selectedPage.order,
-        isGroupOnly: selectedPage.isGroupOnly,
-        isAuthenticated: selectedPage.isAuthenticated,
-        isAuthorized: selectedPage.isAuthorized,
-        authorizeRole: selectedPage.authorizeRole,
-        sections: selectedPage.sections,
-      },
-    });
-
-    setSelectedPage({ ...selectedPage, name: editedName.trim() });
-    setIsEditingName(false);
   };
 
   const handleEditPage = (page: PageModel) => {
@@ -374,228 +344,12 @@ export const PagesSection: React.FC = () => {
       )}
 
       {/* Page Details Modal */}
-      {isDetailsModalOpen && selectedPage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                {selectedPage.icon && (
-                  <div className="text-2xl text-gray-700">
-                    {React.createElement(getIconByName(selectedPage.icon))}
-                  </div>
-                )}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {selectedPage.name}
-                  </h2>
-                  {selectedPage.slug && (
-                    <p className="text-sm text-gray-500 font-mono mt-1">
-                      /{selectedPage.slug}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={handleCloseDetailsModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Page Info Section */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                  {t("Page Information")}
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("ID")}
-                      </span>
-                      <p className="text-sm font-mono text-gray-900 mt-1">
-                        {selectedPage.id || selectedPage._id}
-                      </p>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">
-                          {t("Name")}
-                        </span>
-                        {!isEditingName ? (
-                          <button
-                            onClick={() => setIsEditingName(true)}
-                            className="text-blue-600 hover:text-blue-700 text-xs flex items-center gap-1"
-                          >
-                            <FiEdit2 size={12} />
-                            {t("Edit")}
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={handleSavePageName}
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <FiCheck size={14} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setIsEditingName(false);
-                                setEditedName(selectedPage.name);
-                              }}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <FiX size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {isEditingName ? (
-                        <input
-                          type="text"
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSavePageName();
-                            if (e.key === "Escape") {
-                              setIsEditingName(false);
-                              setEditedName(selectedPage.name);
-                            }
-                          }}
-                          className="w-full text-sm text-gray-900 mt-1 px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-900 mt-1">
-                          {selectedPage.name}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("Icon")}
-                      </span>
-                      <p className="text-sm font-mono text-gray-900 mt-1">
-                        {selectedPage.icon || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("Slug")}
-                      </span>
-                      <p className="text-sm font-mono text-gray-900 mt-1">
-                        {selectedPage.slug || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("Order")}
-                      </span>
-                      <p className="text-sm text-gray-900 mt-1">
-                        {selectedPage.order ?? "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {t("Type")}
-                      </span>
-                      <p className="text-sm mt-1">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPageTypeColor(
-                            selectedPage
-                          )}`}
-                        >
-                          {getPageTypeLabel(selectedPage)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {selectedPage.authorizeRole &&
-                    selectedPage.authorizeRole.length > 0 && (
-                      <div>
-                        <span className="text-xs font-medium text-gray-500">
-                          {t("Authorized Roles")}
-                        </span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedPage.authorizeRole.map((role, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800"
-                            >
-                              {role}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </div>
-
-              {/* Page Structure (JSON) */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                  {t("Page Structure (JSON)")}
-                </h3>
-                <div className="relative">
-                  <div className="absolute top-2 right-2">
-                    <GenericButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          JSON.stringify(selectedPage, null, 2)
-                        );
-                        toast.success(t("Copied to clipboard"));
-                      }}
-                      iconLeft={<FiCopy size={12} />}
-                    >
-                      {t("Copy")}
-                    </GenericButton>
-                  </div>
-                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">
-                    {JSON.stringify(selectedPage, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
-              <GenericButton
-                variant="outline"
-                onClick={handleCloseDetailsModal}
-              >
-                {t("Close")}
-              </GenericButton>
-              <GenericButton
-                onClick={() => {
-                  handleCloseDetailsModal();
-                  handleEditPage(selectedPage);
-                }}
-              >
-                {t("Edit Page")}
-              </GenericButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <PageDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        page={selectedPage}
+        onEdit={handleEditPage}
+      />
     </div>
   );
 };

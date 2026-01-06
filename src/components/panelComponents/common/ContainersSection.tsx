@@ -18,15 +18,12 @@ export const ContainersSection: React.FC = () => {
 
   // Get containers for the current project with error handling
   let containers: any[] = [];
-  let isLoading = false;
   let error = null;
 
   try {
     const containerData = useContainers();
     containers = containerData || [];
-    console.log("Containers loaded:", containers);
   } catch (err) {
-    console.log("Containers not available:", err);
     error = err;
   }
 

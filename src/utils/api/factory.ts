@@ -180,8 +180,6 @@ export function useMutationApi<T extends { _id: number | string }>({
 
         // Snapshot the previous value
         const previousItems = queryClient.getQueryData<T[]>(queryKey) || [];
-
-        console.log("previousItems", previousItems);
         const updatedItems = [...previousItems];
 
         for (let i = 0; i < updatedItems.length; i++) {
@@ -196,7 +194,6 @@ export function useMutationApi<T extends { _id: number | string }>({
 
         // Optimistically update to the new value
         queryClient.setQueryData(queryKey, updatedItems);
-        console.log("updatedItems", updatedItems);
 
         // Return a context object with the snapshotted value
         return { previousItems };

@@ -184,8 +184,8 @@ export function useGetAllPages() {
 // Get all pages (tenant access)
 export function useGetTenantPages() {
   const { tenantSlug, projectSlug } = usePageContext();
-  const path = buildPagePath(tenantSlug, projectSlug, "/tenant");
-  const queryKey = ["tenantPages", tenantSlug, projectSlug];
+  const path = buildPagePath(tenantSlug, projectSlug);
+  const queryKey = ["pages", tenantSlug, projectSlug];
 
   return useGetList<PageModel>(path, queryKey);
 }

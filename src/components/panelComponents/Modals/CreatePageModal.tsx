@@ -52,6 +52,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
       name: pageName.trim(),
       icon: selectedIcon,
       sections: [], // Empty sections as requested
+      isAuthenticated: true, // Default to authenticated
     });
 
     // Reset form and close modal

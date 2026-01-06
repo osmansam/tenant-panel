@@ -81,13 +81,10 @@ export function useCreateProject() {
 
   const createMutation = useMutation({
     mutationFn: async (payload: CreateProjectPayload) => {
-      console.log("Creating project with payload:", payload);
       const response = await axiosClient.post(`${BASE_QUERY}`, payload);
-      console.log("Create project response:", response.data);
       return response.data;
     },
     onSuccess: (response) => {
-      console.log("Project creation successful:", response);
       // Invalidate the projects query to refetch the list
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
@@ -119,7 +116,6 @@ export function useCreateProjectFactory() {
 
   return {
     createProject: (payload: CreateProjectPayload) => {
-      console.log("Creating project with factory:", payload);
       createItem(payload as Partial<Project>);
     },
     isCreating: createMutation.isPending,

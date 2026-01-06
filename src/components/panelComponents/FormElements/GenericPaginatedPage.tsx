@@ -122,10 +122,6 @@ export default function GenericPaginatedPage({
     []
   );
 
-  const exportDynamicItems = useCallback((payload: unknown) => {
-    console.log("Preview mode: Export items", payload);
-  }, []);
-
   const [filterPanelFormElements, setFilterPanelFormElements] =
     useState<FormElementsState>({
       search: "",
