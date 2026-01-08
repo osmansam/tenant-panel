@@ -904,3 +904,94 @@ export const Types = {
 export interface AddFieldPayload {
   field: Field;
 }
+
+// Excel upload types and hook
+export interface UploadExcelPayload {
+  file: File;
+  schemaName?: string; // Optional custom schema name
+}
+
+export interface UploadExcelResponse {
+  containerId: string;
+  tableName: string;
+  rowsInserted: number;
+  fields: Array<{
+    name: string;
+    type: string;
+    unique: boolean;
+  }>;
+  message?: string;
+}
+
+/**
+ * Hook for uploading Excel files to create containers
+ * The backend will:
+ * 1. Analyze Excel headers and data to detect field types
+ * 2. Create a container/schema from the Excel structure
+ * 3. Import all data rows into the container
+ */
+export function useUploadExcel() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { currentTenant } = useTenant();
+  const { currentProject } = useCurrentProject();
+
+  const tenantSlug = currentTenant?.slug;
+  const projectSlug = currentProject?.slug;
+
+  const uploadMutation = useMutation({
+    mutationFn: async (payload: UploadExcelPayload) => {
+      if (!tenantSlug || !projectSlug) {
+        throw new Error("Tenant and project context required");
+      }
+
+      const path = `/${tenantSlug}/${projectSlug}/excel/upload`;
+
+      const formData = new FormData();
+      formData.append("file", payload.file);
+
+      if (payload.schemaName) {
+        formData.append("schemaName", payload.schemaName);
+      }
+
+      const response = await axiosClient.post<{ data: UploadExcelResponse }>(
+        path,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data.data;
+    },
+    onSuccess: (response) => {
+      // Invalidate containers list to show the new container
+      if (tenantSlug && projectSlug) {
+        queryClient.invalidateQueries({
+          queryKey: ["containers", tenantSlug, projectSlug],
+        });
+      }
+
+      const message =
+        response.message ||
+        "Excel file uploaded and container created successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to upload Excel file";
+      toast.error(t(errorMessage));
+    },
+  });
+
+  return {
+    uploadExcel: (payload: UploadExcelPayload) => {
+      uploadMutation.mutate(payload);
+    },
+    isUploading: uploadMutation.isPending,
+    uploadResult: uploadMutation.data,
+  };
+}

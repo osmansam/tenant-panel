@@ -22,6 +22,9 @@ export interface GroupBy {
 export type ComponentType =
   | "table"
   | "tabPanel"
+  | "form"
+  | "text"
+  | "custom"
   // Chart types
   | "barChart"
   | "lineChart"
@@ -39,9 +42,9 @@ export type ComponentType =
   | "streamChart"
   | "waffleChart"
   | "circlePackingChart";
-// Future types: "form" | "text" | "custom"
 
 export interface TabContent {
+  id?: string; // Tab identifier for operations like Excel upload
   title: string;
   icon?: string;
   components: ComponentBlock[];
@@ -54,7 +57,7 @@ export interface ComponentBlock {
   id: string;
   type: ComponentType;
   title?: string;
-  order: number;
+  order?: number;
   dataBinding?: DataBinding;
   groupBy?: GroupBy; // Grouping configuration for table components
   isAuthorized?: boolean;

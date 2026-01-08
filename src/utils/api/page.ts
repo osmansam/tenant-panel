@@ -317,7 +317,6 @@ export function useDeletePage() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Page deletion failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||

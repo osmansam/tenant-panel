@@ -31,7 +31,7 @@ import {
   isFieldRequired,
   parseValidationRules,
 } from "../../../utils/validationHelper";
-import { LinkCell } from "../../LinkCell";
+import LinkCell from "../../LinkCell";
 import SwitchButton from "../common/SwitchButton";
 import { FormKeyTypeEnum, InputTypes } from "../shared/types";
 import GenericTable from "../Tables/GenericTable";

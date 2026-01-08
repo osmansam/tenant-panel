@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiInfo, FiPlus } from "react-icons/fi";
+import { FiInfo, FiPlus, FiUpload } from "react-icons/fi";
 import { useUserContext } from "../../../context/User.context";
 import { ContainerModel, useContainers } from "../../../utils/api/container";
+import { ExcelUploadModal } from "../../PageDesigner/ExcelUploadModal";
 import { GenericButton } from "../FormElements/GenericButton";
 import { ContainerDetailsModal } from "../Modals/ContainerDetailsModal";
 import { CreateContainerModal } from "../Modals/CreateContainerModal";
@@ -15,6 +16,7 @@ export const ContainersSection: React.FC = () => {
   const [selectedContainer, setSelectedContainer] =
     useState<ContainerModel | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
 
   // Get containers for the current project with error handling
   let containers: any[] = [];
@@ -68,13 +70,23 @@ export const ContainersSection: React.FC = () => {
           </H2>
         </div>
         {canCreateContainers && (
-          <GenericButton
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            iconLeft={<FiPlus size={16} />}
-          >
-            {t("Create Container")}
-          </GenericButton>
+          <div className="flex gap-2">
+            <GenericButton
+              size="sm"
+              variant="outline"
+              onClick={() => setIsExcelUploadOpen(true)}
+              iconLeft={<FiUpload size={16} />}
+            >
+              {t("Upload Excel")}
+            </GenericButton>
+            <GenericButton
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              iconLeft={<FiPlus size={16} />}
+            >
+              {t("Create Container")}
+            </GenericButton>
+          </div>
         )}
       </div>
 
@@ -209,6 +221,16 @@ export const ContainersSection: React.FC = () => {
         isOpen={isDetailsModalOpen}
         onClose={handleCloseDetailsModal}
         container={selectedContainer}
+      />
+
+      {/* Excel Upload Modal */}
+      <ExcelUploadModal
+        isOpen={isExcelUploadOpen}
+        onClose={() => setIsExcelUploadOpen(false)}
+        onUploadSuccess={() => {
+          setIsExcelUploadOpen(false);
+          // Containers list will auto-refresh due to query invalidation
+        }}
       />
     </div>
   );

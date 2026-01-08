@@ -328,7 +328,7 @@ export default function DynamicChart({ config }: DynamicChartProps) {
             </div>
           }
         >
-          <ChartComponent data={data as any} {...(finalConfig as any)} />
+          <ChartComponent {...({ data, ...finalConfig } as any)} />
         </Suspense>
       </div>
     </div>

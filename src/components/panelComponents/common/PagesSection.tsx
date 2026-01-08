@@ -309,7 +309,7 @@ export const PagesSection: React.FC = () => {
             <div className="flex-1 overflow-hidden">
               <PageDesigner
                 sections={
-                  editingPage.sections
+                  (editingPage.sections
                     ?.map((s) => {
                       // Handle nested structure (type: "grid", grid: {...})
                       if (s.type === "grid" && s.grid) {
@@ -325,7 +325,7 @@ export const PagesSection: React.FC = () => {
                       }
                       return null;
                     })
-                    .filter((g) => g !== null) || []
+                    .filter((g) => g !== null) || []) as any
                 }
                 onChange={(gridSections) => {
                   // Use flat structure for compatibility

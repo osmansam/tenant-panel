@@ -159,7 +159,9 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 // Render a grid cell
 const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
   const { row, column, rowSpan = 1, colSpan = 1, components } = cell;
-  const sortedComponents = [...components].sort((a, b) => a.order - b.order);
+  const sortedComponents = [...components].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0)
+  );
 
   return (
     <div

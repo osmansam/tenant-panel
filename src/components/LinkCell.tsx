@@ -11,10 +11,10 @@ interface LinkCellProps {
  * Renders a table cell that can be a clickable link based on field configuration
  * Supports multiple link types: external, internal, email, phone, file
  */
-export function LinkCell({ field, row }: LinkCellProps) {
+export default function LinkCell({ field, row }: LinkCellProps) {
   const navigate = useNavigate();
   const fieldValue = row?.[field.name];
-  
+
   // Confirmed available user info:
   // console.log("LinkCell User Access:", user);
   const { frontend } = field;
@@ -68,19 +68,8 @@ export function LinkCell({ field, row }: LinkCellProps) {
 
   // Handle email, phone, and file links
   return (
-    <a
-      href={url}
-      className="text-blue-500 hover:text-blue-800 "
-    >
+    <a href={url} className="text-blue-500 hover:text-blue-800 ">
       {label}
     </a>
   );
-}
-
-/**
- * Main render function for table cells
- * Determines whether to render a link or plain value based on field configuration
- */
-export function renderCell(field: Field, row: any): React.ReactNode {
-  return <LinkCell field={field} row={row} />;
 }

@@ -76,19 +76,10 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
 
       const { id, _id, ...pageData } = currentPage;
 
-      console.log("=== isAuthenticated Toggle Debug ===");
-      console.log("Page Row Data:", page);
-      console.log("Current Page from DB:", currentPage);
-      console.log("PageData after destructuring:", pageData);
-      console.log("Current isAuthenticated:", currentPage.isAuthenticated);
-      console.log("New isAuthenticated:", !currentPage.isAuthenticated);
       const finalPayload = {
         ...pageData,
         isAuthenticated: !currentPage.isAuthenticated,
       };
-      console.log("Final Payload to send:", finalPayload);
-
-      console.log("Final Payload to send:", finalPayload);
 
       updatePage({
         id: page.pageId,

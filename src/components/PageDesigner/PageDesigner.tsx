@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { FiEdit2, FiGrid, FiLayout, FiPlus, FiTrash2 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import {
+  FiEdit2,
+  FiGrid,
+  FiLayout,
+  FiPlus,
+  FiTrash2,
+  FiUpload,
+} from "react-icons/fi";
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
@@ -8,6 +16,7 @@ import {
   TabPanelTab,
 } from "../../types/page";
 import { useGetContainers } from "../../utils/api/container";
+import { CellExcelUploadModal } from "./CellExcelUploadModal";
 
 interface PageDesignerProps {
   sections: GridSection[];
@@ -42,6 +51,10 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [editingComponent, setEditingComponent] =
     useState<ComponentBlock | null>(null);
+  const [showExcelUploadModal, setShowExcelUploadModal] = useState(false);
+  const [excelTargetSectionIndex, setExcelTargetSectionIndex] = useState<
+    number | null
+  >(null);
 
   const containers = useGetContainers();
   const schemas = containers?.map((c: any) => c.schemaName || c.name) || [];
@@ -108,6 +121,52 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     updateSection(sectionIndex, {
       cells: [...section.cells, newCell],
     });
+  };
+
+  // Add cell with Excel upload option
+  const openCellExcelUpload = (sectionIndex: number) => {
+    setExcelTargetSectionIndex(sectionIndex);
+    setShowExcelUploadModal(true);
+  };
+
+  // Handle Excel upload success for cells
+  const handleCellExcelUploadSuccess = (
+    schemaName: string,
+    component: ComponentBlock
+  ) => {
+    if (excelTargetSectionIndex === null) return;
+
+    const section = sections[excelTargetSectionIndex];
+    const maxRow =
+      section.cells.length > 0
+        ? Math.max(...section.cells.map((c) => c.row))
+        : 0;
+
+    const cellsInMaxRow = section.cells.filter((c) => c.row === maxRow);
+
+    let newRow = maxRow;
+    let newColumn = cellsInMaxRow.length + 1;
+
+    if (section.cells.length === 0) {
+      newRow = 1;
+      newColumn = 1;
+    } else if (cellsInMaxRow.length >= section.columns) {
+      newRow = maxRow + 1;
+      newColumn = 1;
+    }
+
+    const newCell: GridCell = {
+      id: `cell-${Date.now()}`,
+      row: newRow,
+      column: newColumn,
+      components: [component],
+    };
+
+    updateSection(excelTargetSectionIndex, {
+      cells: [...section.cells, newCell],
+    });
+
+    setExcelTargetSectionIndex(null);
   };
 
   // Update cell
@@ -279,6 +338,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
               updateSection(selectedSection, updates)
             }
             onAddCell={() => addCell(selectedSection)}
+            onAddCellWithExcel={() => openCellExcelUpload(selectedSection)}
             onUpdateCell={(cellId, updates) =>
               updateCell(selectedSection, cellId, updates)
             }
@@ -312,6 +372,14 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
           </div>
         )}
       </div>
+
+      {/* Excel Upload Modal for Cells */}
+      <CellExcelUploadModal
+        isOpen={showExcelUploadModal}
+        onClose={() => setShowExcelUploadModal(false)}
+        onSuccess={handleCellExcelUploadSuccess}
+        mode="cell"
+      />
     </div>
   );
 };
@@ -324,6 +392,7 @@ interface SectionEditorProps {
   containerOptions: { value: string; label: string }[];
   onUpdateSection: (updates: Partial<GridSection>) => void;
   onAddCell: () => void;
+  onAddCellWithExcel: () => void;
   onUpdateCell: (cellId: string, updates: Partial<GridCell>) => void;
   onDeleteCell: (cellId: string) => void;
   onAddComponent: (cellId: string, component: ComponentBlock) => void;
@@ -344,6 +413,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   containerOptions,
   onUpdateSection,
   onAddCell,
+  onAddCellWithExcel,
   onUpdateCell,
   onDeleteCell,
   onAddComponent,
@@ -418,13 +488,23 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               Design your page structure with cells and components
             </p>
           </div>
-          <button
-            onClick={onAddCell}
-            className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm"
-          >
-            <FiPlus size={16} strokeWidth={2.5} />
-            <span>Add Cell</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onAddCell}
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm"
+            >
+              <FiPlus size={16} strokeWidth={2.5} />
+              <span>Add Cell</span>
+            </button>
+            <button
+              onClick={onAddCellWithExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm"
+              title="Upload Excel and create cell with table"
+            >
+              <FiUpload size={16} strokeWidth={2.5} />
+              <span>Excel</span>
+            </button>
+          </div>
         </div>
 
         <div
@@ -775,11 +855,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   onClose,
   onAdd,
 }) => {
+  const { t } = useTranslation();
   const [componentType, setComponentType] = useState<string>("table");
   const [schemaName, setSchemaName] = useState<string>("");
   const [pipelineName, setPipelineName] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
+  const [showTabExcelModal, setShowTabExcelModal] = useState(false);
 
   // Initialize form with editingComponent data
   useEffect(() => {
@@ -825,11 +907,34 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const addTab = () => {
+    const newTabId = `tab-${Date.now()}`;
     setTabs([
       ...tabs,
       {
+        id: newTabId,
         title: `Tab ${tabs.length + 1}`,
         components: [],
+      },
+    ]);
+  };
+
+  // Open Excel upload for tab
+  const openTabExcelUpload = () => {
+    setShowTabExcelModal(true);
+  };
+
+  // Handle Excel upload success for tabs
+  const handleTabExcelUploadSuccess = (
+    schemaName: string,
+    component: ComponentBlock
+  ) => {
+    const newTabId = `tab-${Date.now()}`;
+    setTabs([
+      ...tabs,
+      {
+        id: newTabId,
+        title: schemaName,
+        components: [component],
       },
     ]);
   };
@@ -988,13 +1093,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   <label className="block text-sm font-medium text-neutral-700">
                     Tabs Configuration
                   </label>
-                  <button
-                    onClick={addTab}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 active:scale-95 transition-all shadow-sm"
-                  >
-                    <FiPlus size={14} strokeWidth={2.5} />
-                    <span>Add Tab</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={addTab}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 active:scale-95 transition-all shadow-sm"
+                    >
+                      <FiPlus size={14} strokeWidth={2.5} />
+                      <span>Add Tab</span>
+                    </button>
+                    <button
+                      onClick={openTabExcelUpload}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 active:scale-95 transition-all shadow-sm"
+                      title="Upload Excel as new tab with table"
+                    >
+                      <FiUpload size={14} strokeWidth={2.5} />
+                      <span>Excel</span>
+                    </button>
+                  </div>
                 </div>
 
                 {tabs.length === 0 ? (
@@ -1139,6 +1254,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Excel Upload Modal for Tabs */}
+      <CellExcelUploadModal
+        isOpen={showTabExcelModal}
+        onClose={() => setShowTabExcelModal(false)}
+        onSuccess={handleTabExcelUploadSuccess}
+        mode="tab"
+      />
     </div>
   );
 };
