@@ -250,6 +250,15 @@ export default function DynamicChart({ config }: DynamicChartProps) {
   const pipelineName = dataBinding?.pipelineName || directPipelineName || "";
   const params = dataBinding?.params || additionalParams;
 
+  console.log("📊 DynamicChart config:", {
+    type,
+    schemaName,
+    pipelineName,
+    params,
+    dataBinding,
+    chartOptions,
+  });
+
   // Generate mock data based on chart type for preview mode
   const data = useMemo(() => generateMockChartData(type), [type]);
 
@@ -259,7 +268,9 @@ export default function DynamicChart({ config }: DynamicChartProps) {
   // Merge default config with custom options
   const finalConfig = useMemo(() => {
     const defaultConfig = getDefaultConfig(type);
-    let config = { ...defaultConfig, ...chartOptions };
+    let config = { ...defaultConfig, ...chartOptions, ...params };
+
+    console.log("🔧 Final chart config:", config);
 
     // Special handling for calendar chart - extract date range from data
     if (type === "calendar" && data && Array.isArray(data) && data.length > 0) {
@@ -281,7 +292,7 @@ export default function DynamicChart({ config }: DynamicChartProps) {
     }
 
     return config;
-  }, [type, chartOptions, data]);
+  }, [type, chartOptions, data, params]);
 
   if (!data || (Array.isArray(data) && data.length === 0)) {
     return (

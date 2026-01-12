@@ -862,6 +862,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [title, setTitle] = useState<string>("");
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
   const [showTabExcelModal, setShowTabExcelModal] = useState(false);
+  const [params, setParams] = useState<string>(""); // JSON string for params
 
   // Initialize form with editingComponent data
   useEffect(() => {
@@ -872,6 +873,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       if (editingComponent.dataBinding) {
         setSchemaName(editingComponent.dataBinding.schemaName || "");
         setPipelineName(editingComponent.dataBinding.pipelineName || "");
+        setParams(
+          editingComponent.dataBinding.params
+            ? JSON.stringify(editingComponent.dataBinding.params, null, 2)
+            : ""
+        );
       }
 
       if (editingComponent.tabs) {
@@ -896,11 +902,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     } else if (componentType === "tabPanel") {
       component.tabs = tabs;
     } else if (CHART_TYPES.find((c) => c.value === componentType)) {
+      let parsedParams = undefined;
+      if (params.trim()) {
+        try {
+          parsedParams = JSON.parse(params);
+          console.log("✅ Parsed params:", parsedParams);
+        } catch (e) {
+          console.error("Invalid params JSON:", e);
+        }
+      }
+
       component.dataBinding = {
         kind: "pipeline",
         schemaName,
         pipelineName,
+        ...(parsedParams && { params: parsedParams }),
       };
+
+      console.log("📊 Chart component created:", component);
     }
 
     onAdd(component);
@@ -1069,19 +1088,39 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                 {/* Pipeline Name (for charts) */}
                 {CHART_TYPES.find((c) => c.value === componentType) && (
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Pipeline Name
-                      <span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={pipelineName}
-                      onChange={(e) => setPipelineName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                      placeholder="Enter pipeline name"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Pipeline Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={pipelineName}
+                        onChange={(e) => setPipelineName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                        placeholder="Enter pipeline name"
+                      />
+                    </div>
+
+                    {/* Pipeline Params */}
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Pipeline Parameters (JSON)
+                      </label>
+                      <textarea
+                        value={params}
+                        onChange={(e) => setParams(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                        placeholder='{"key": "value", "filter": "active"}'
+                        rows={4}
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Optional parameters to pass to the pipeline (JSON
+                        format)
+                      </p>
+                    </div>
+                  </>
                 )}
               </>
             )}

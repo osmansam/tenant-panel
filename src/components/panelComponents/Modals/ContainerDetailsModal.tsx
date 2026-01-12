@@ -6,6 +6,7 @@ import {
   FiCode,
   FiCopy,
   FiEdit,
+  FiGitBranch,
   FiList,
   FiPlus,
   FiShield,
@@ -18,12 +19,15 @@ import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import {
   ContainerModel,
   Field,
+  PipelineStage,
   useUpdateContainer,
+  useUpdatePipelines,
 } from "../../../utils/api/container";
 import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
 import { GenericButton } from "../FormElements/GenericButton";
 import { AddFieldModal } from "./AddFieldModal";
+import { AddPipelineModal } from "./AddPipelineModal";
 
 interface ContainerDetailsModalProps {
   isOpen: boolean;
@@ -38,13 +42,22 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<
-    "structured" | "json" | "permissions" | "routes"
+    "structured" | "json" | "permissions" | "routes" | "pipelines"
   >("structured");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
 
+  // Pipeline management state
+  const [isAddPipelineModalOpen, setIsAddPipelineModalOpen] = useState(false);
+  const [editingPipeline, setEditingPipeline] = useState<PipelineStage | null>(
+    null
+  );
+  const [pipelineToDelete, setPipelineToDelete] = useState<string | null>(null);
+
   const { updateContainer, isUpdating } = useUpdateContainer();
+  const { updatePipelines, isUpdating: isPipelinesUpdating } =
+    useUpdatePipelines();
 
   const copyToClipboard = useCallback(
     (text: string) => {
@@ -218,6 +231,55 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     [container, updateContainer]
   );
 
+  // Pipeline management handlers
+  const handleAddPipeline = useCallback(
+    (pipeline: PipelineStage) => {
+      if (container?.id) {
+        let updatedPipelines: PipelineStage[];
+
+        if (editingPipeline) {
+          // Update existing pipeline
+          updatedPipelines = (container.pipelines || []).map((p) =>
+            p.name === editingPipeline.name ? pipeline : p
+          );
+        } else {
+          // Add new pipeline
+          updatedPipelines = [...(container.pipelines || []), pipeline];
+        }
+
+        updatePipelines({
+          id: container.id,
+          payload: { pipelines: updatedPipelines },
+        });
+        setIsAddPipelineModalOpen(false);
+        setEditingPipeline(null);
+      }
+    },
+    [container, editingPipeline, updatePipelines]
+  );
+
+  const handleEditPipeline = useCallback((pipeline: PipelineStage) => {
+    setEditingPipeline(pipeline);
+    setIsAddPipelineModalOpen(true);
+  }, []);
+
+  const handleDeletePipeline = useCallback((pipelineName: string) => {
+    setPipelineToDelete(pipelineName);
+  }, []);
+
+  const confirmDeletePipeline = useCallback(() => {
+    if (container?.id && pipelineToDelete) {
+      const updatedPipelines = (container.pipelines || []).filter(
+        (pipeline) => pipeline.name !== pipelineToDelete
+      );
+      updatePipelines({
+        id: container.id,
+        payload: { pipelines: updatedPipelines },
+      });
+      setPipelineToDelete(null);
+    }
+  }, [container, pipelineToDelete, updatePipelines]);
+
   const containerJson = useMemo(
     () => JSON.stringify(container, null, 2),
     [container]
@@ -268,6 +330,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   <span>{t("Structured")}</span>
                 </button>
                 <button
+                  onClick={() => setViewMode("pipelines")}
+                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
+                    viewMode === "pipelines"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <FiGitBranch size={12} />
+                  <span>{t("Pipelines")}</span>
+                </button>
+                <button
                   onClick={() => setViewMode("permissions")}
                   className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
                     viewMode === "permissions"
@@ -313,7 +386,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           {/* Content */}
           <div
             className={
-              viewMode === "permissions" || viewMode === "routes"
+              viewMode === "permissions" ||
+              viewMode === "routes" ||
+              viewMode === "pipelines"
                 ? "h-[70vh]"
                 : "max-h-[70vh] overflow-y-auto"
             }
@@ -322,6 +397,145 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               <FieldPermissions containerId={container.id} />
             ) : viewMode === "routes" ? (
               <RoutePermissions containerId={container.id} />
+            ) : viewMode === "pipelines" ? (
+              <div className="space-y-4 h-full overflow-y-auto">
+                {/* Pipelines Header */}
+                <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {t("Pipelines")} ({(container.pipelines || []).length})
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {t(
+                        "Manage MongoDB aggregation pipelines for this container"
+                      )}
+                    </p>
+                  </div>
+                  <GenericButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddPipelineModalOpen(true)}
+                    iconLeft={<FiPlus size={12} />}
+                    disabled={isPipelinesUpdating}
+                  >
+                    {t("Add Pipeline")}
+                  </GenericButton>
+                </div>
+
+                {/* Pipelines List */}
+                <div className="space-y-3">
+                  {(container.pipelines || []).map((pipeline, index) => (
+                    <div
+                      key={pipeline.name || index}
+                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="font-medium text-gray-900">
+                              {pipeline.name}
+                            </span>
+                            {pipeline.isActive ? (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">
+                                {t("Active")}
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">
+                                {t("Inactive")}
+                              </span>
+                            )}
+                            {pipeline.isRedisCached && (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
+                                {t("Cached")} ({pipeline.cacheTime}s)
+                              </span>
+                            )}
+                            {pipeline.isAuthenticated && (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                                {t("Auth Required")}
+                              </span>
+                            )}
+                            {pipeline.isAuthorized && (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">
+                                {t("Role Check")}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Pipeline JSON Preview */}
+                          <div className="mt-2">
+                            <details className="text-xs">
+                              <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium">
+                                {t("View Pipeline JSON")}
+                              </summary>
+                              <pre className="mt-2 p-3 bg-gray-900 text-green-400 rounded overflow-x-auto text-xs">
+                                {pipeline.pipelineJson}
+                              </pre>
+                            </details>
+                          </div>
+
+                          {/* Roles */}
+                          {pipeline.isAuthorized &&
+                            pipeline.authorizeRole &&
+                            pipeline.authorizeRole.length > 0 && (
+                              <div className="mt-2">
+                                <span className="text-xs text-gray-500">
+                                  {t("Allowed Roles")}:{" "}
+                                </span>
+                                <span className="text-xs text-gray-700">
+                                  {pipeline.authorizeRole.join(", ")}
+                                </span>
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2 ml-4">
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditPipeline(pipeline)}
+                            iconLeft={<FiEdit size={10} />}
+                            disabled={isPipelinesUpdating}
+                          >
+                            {t("Edit")}
+                          </GenericButton>
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeletePipeline(pipeline.name)}
+                            iconLeft={<FiTrash2 size={10} />}
+                            disabled={isPipelinesUpdating}
+                          >
+                            {t("Delete")}
+                          </GenericButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!container.pipelines ||
+                    container.pipelines.length === 0) && (
+                    <div className="text-center py-12 text-gray-500">
+                      <FiGitBranch
+                        size={48}
+                        className="mx-auto mb-4 text-gray-300"
+                      />
+                      <p className="mb-2">
+                        {t("No pipelines defined for this container")}
+                      </p>
+                      <GenericButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddPipelineModalOpen(true)}
+                        iconLeft={<FiPlus size={12} />}
+                        className="mt-2"
+                      >
+                        {t("Add Your First Pipeline")}
+                      </GenericButton>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : viewMode === "structured" ? (
               <div className="space-y-6">
                 {/* Basic Information */}
@@ -619,6 +833,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         editField={editingField}
       />
 
+      {/* Add/Edit Pipeline Modal */}
+      <AddPipelineModal
+        isOpen={isAddPipelineModalOpen}
+        onClose={() => {
+          setIsAddPipelineModalOpen(false);
+          setEditingPipeline(null);
+        }}
+        onAddPipeline={handleAddPipeline}
+        editPipeline={editingPipeline}
+      />
+
       {/* Delete Field Confirmation */}
       <ConfirmationDialog
         isOpen={!!fieldToDelete}
@@ -627,6 +852,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         title={t("Delete Field")}
         text={t(
           "Are you sure you want to delete this field? This action cannot be undone."
+        )}
+      />
+
+      {/* Delete Pipeline Confirmation */}
+      <ConfirmationDialog
+        isOpen={!!pipelineToDelete}
+        close={() => setPipelineToDelete(null)}
+        confirm={confirmDeletePipeline}
+        title={t("Delete Pipeline")}
+        text={t(
+          "Are you sure you want to delete this pipeline? This action cannot be undone."
         )}
       />
     </div>
