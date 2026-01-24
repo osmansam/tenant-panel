@@ -32,7 +32,7 @@ import {
   isFieldRequired,
   parseValidationRules,
 } from "../../../utils/validationHelper";
-import LinkCell from "../../LinkCell";
+import { LinkCell } from "../../LinkCell";
 import SwitchButton from "../common/SwitchButton";
 import { FormKeyTypeEnum, InputTypes } from "../shared/types";
 import GenericTable from "../Tables/GenericTable";
@@ -74,11 +74,11 @@ export default function GenericPaginatedPage({
   const container: ContainerModel | undefined = useMemo(() => {
     if (!rawContainers) return undefined;
     const normalized = rawContainers.map((c: RawContainer) =>
-      normalizeContainer(c)
+      normalizeContainer(c),
     );
     return normalized.find(
       (c: ContainerModel) =>
-        (c.schemaName || "").toLowerCase() === schemaName.toLowerCase()
+        (c.schemaName || "").toLowerCase() === schemaName.toLowerCase(),
     );
   }, [rawContainers, schemaName]);
 
@@ -101,7 +101,7 @@ export default function GenericPaginatedPage({
     (id: string | number, updates: Partial<GenericItem>) => {
       console.log("Preview mode: Update item", id, updates);
     },
-    []
+    [],
   );
 
   const deleteDynamicItem = useCallback((id: string | number) => {
@@ -112,14 +112,14 @@ export default function GenericPaginatedPage({
     (items: { _id: string | number }[]) => {
       console.log("Preview mode: Delete multiple items", items);
     },
-    []
+    [],
   );
 
   const updateMultipleDynamicItem = useCallback(
     (items: { _id: string | number; updates: Partial<GenericItem> }[]) => {
       console.log("Preview mode: Update multiple items", items);
     },
-    []
+    [],
   );
 
   const [filterPanelFormElements, setFilterPanelFormElements] =
@@ -151,7 +151,7 @@ export default function GenericPaginatedPage({
         f.name &&
         !["_id", "id"].includes(f.name) &&
         !uniq.has(f.name) &&
-        (uniq.add(f.name), true)
+        (uniq.add(f.name), true),
     );
 
     // Filter by authorizeRole if isAuthorized is true
@@ -266,7 +266,7 @@ export default function GenericPaginatedPage({
               const valueObj = value as Record<string, unknown>;
               const displayValues = f
                 .populationSettings!.displayFields.map(
-                  (fieldName) => valueObj[fieldName]
+                  (fieldName) => valueObj[fieldName],
                 )
                 .filter(Boolean)
                 .map(String);
@@ -297,7 +297,7 @@ export default function GenericPaginatedPage({
                   const itemObj = item as Record<string, unknown>;
                   const displayValues = f
                     .populationSettings!.displayFields.map(
-                      (fieldName) => itemObj[fieldName]
+                      (fieldName) => itemObj[fieldName],
                     )
                     .filter(Boolean)
                     .map(String);
@@ -306,12 +306,12 @@ export default function GenericPaginatedPage({
                   // Handle ID strings by looking up in selectionDataMap
                   const selectionOptions = selectionDataMap.get(f.name) || [];
                   const foundOption = selectionOptions.find(
-                    (opt) => opt._id === item
+                    (opt) => opt._id === item,
                   );
                   if (foundOption) {
                     return String(
                       foundOption[f.populationSettings!.inputSelectionField] ||
-                        item
+                        item,
                     );
                   }
                   return item;
@@ -394,7 +394,7 @@ export default function GenericPaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
             invalidateKeys:
@@ -499,7 +499,7 @@ export default function GenericPaginatedPage({
 
   const outsideSort = useMemo(
     () => ({ filterPanelFormElements, setFilterPanelFormElements }),
-    [filterPanelFormElements]
+    [filterPanelFormElements],
   );
 
   const pagination = useMemo(
@@ -510,12 +510,12 @@ export default function GenericPaginatedPage({
             totalRows: itemsPayload.totalItems,
           }
         : null,
-    [itemsPayload]
+    [itemsPayload],
   );
 
   const outsideSearchProps = useMemo(
     () => ({ t, filterPanelFormElements, setFilterPanelFormElements }),
-    [t, filterPanelFormElements]
+    [t, filterPanelFormElements],
   );
 
   const rowStyleFunction = useCallback(
@@ -544,7 +544,7 @@ export default function GenericPaginatedPage({
 
       return styles;
     },
-    [container]
+    [container],
   );
 
   useEffect(() => {
@@ -569,13 +569,13 @@ export default function GenericPaginatedPage({
         const filteredUpdates = constantFilter
           ? Object.fromEntries(
               Object.entries(updates).filter(
-                ([key]) => !constantFilterKeys.includes(key)
-              )
+                ([key]) => !constantFilterKeys.includes(key),
+              ),
             )
           : updates;
         updateDynamicItem(
           item.id as string | number,
-          filteredUpdates as Partial<GenericItem>
+          filteredUpdates as Partial<GenericItem>,
         );
       } else {
         // Create operation - merge constantFilter into new item
@@ -585,7 +585,7 @@ export default function GenericPaginatedPage({
         createDynamicItem(mergedItem as GenericItem);
       }
     },
-    [updateDynamicItem, createDynamicItem, constantFilter, constantFilterKeys]
+    [updateDynamicItem, createDynamicItem, constantFilter, constantFilterKeys],
   );
 
   const addButton = useMemo(
@@ -616,7 +616,7 @@ export default function GenericPaginatedPage({
       icon: null,
       className: "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
     }),
-    [t, isAddOpen, inputs, formKeys, handleSubmitItem, constantFilter]
+    [t, isAddOpen, inputs, formKeys, handleSubmitItem, constantFilter],
   );
 
   const actions = useMemo(() => {
@@ -680,7 +680,7 @@ export default function GenericPaginatedPage({
                     Record<string, unknown>
                   >;
                   normalizedUpdates[f.name] = populatedArray.map((item) =>
-                    item && typeof item === "object" ? item._id : item
+                    item && typeof item === "object" ? item._id : item,
                   );
                 }
               });
@@ -740,7 +740,7 @@ export default function GenericPaginatedPage({
           value: f.name,
           label: t(getFieldLabel(f)),
         })),
-    [displayFields, t]
+    [displayFields, t],
   );
 
   const bulkFormKeys = useMemo(() => {
@@ -803,7 +803,7 @@ export default function GenericPaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
           };
@@ -923,7 +923,7 @@ export default function GenericPaginatedPage({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             value = value.map((item) =>
-              typeof item === "string" ? parseInt(item, 10) : item
+              typeof item === "string" ? parseInt(item, 10) : item,
             );
           } else {
             value = [];
@@ -939,7 +939,7 @@ export default function GenericPaginatedPage({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             value = value.map((item) =>
-              typeof item === "string" ? parseFloat(item) : item
+              typeof item === "string" ? parseFloat(item) : item,
             );
           } else {
             value = [];
@@ -1014,7 +1014,7 @@ export default function GenericPaginatedPage({
 
   const handleBulkDeleteConfirm = useCallback(() => {
     deleteMultipleDynamicItem(
-      selectedRows.map((r) => ({ _id: (r as GenericItem)._id }))
+      selectedRows.map((r) => ({ _id: (r as GenericItem)._id })),
     );
     setSelectedRows([]);
     setIsSelectionActive(false);
@@ -1069,7 +1069,7 @@ export default function GenericPaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
           };
@@ -1151,7 +1151,7 @@ export default function GenericPaginatedPage({
         ),
       },
     ],
-    [t, showFilters]
+    [t, showFilters],
   );
 
   const filterPanel = useMemo(
@@ -1163,7 +1163,7 @@ export default function GenericPaginatedPage({
       closeFilters: () => setShowFilters(false),
       isApplyButtonActive: true,
     }),
-    [showFilters, filterPanelInputs, filterPanelFormElements]
+    [showFilters, filterPanelInputs, filterPanelFormElements],
   );
 
   const selectionActions = useMemo(
@@ -1239,7 +1239,7 @@ export default function GenericPaginatedPage({
       isBulkStepTwo,
       handleBulkEditSubmit,
       handleBulkEditBackOrForward,
-    ]
+    ],
   );
 
   return (

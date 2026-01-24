@@ -11,7 +11,7 @@ interface LinkCellProps {
  * Renders a table cell that can be a clickable link based on field configuration
  * Supports multiple link types: external, internal, email, phone, file
  */
-export default function LinkCell({ field, row }: LinkCellProps) {
+export function LinkCell({ field, row }: LinkCellProps) {
   const navigate = useNavigate();
   const fieldValue = row?.[field.name];
 

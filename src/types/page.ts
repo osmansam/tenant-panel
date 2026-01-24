@@ -22,6 +22,9 @@ export interface GroupBy {
 export type ComponentType =
   | "table"
   | "tabPanel"
+  | "form"
+  | "text"
+  | "custom"
   // Chart types
   | "barChart"
   | "lineChart"

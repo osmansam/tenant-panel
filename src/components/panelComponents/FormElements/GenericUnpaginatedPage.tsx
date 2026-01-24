@@ -31,7 +31,7 @@ import {
   isFieldRequired,
   parseValidationRules,
 } from "../../../utils/validationHelper";
-import LinkCell from "../../LinkCell";
+import { LinkCell } from "../../LinkCell";
 import SwitchButton from "../common/SwitchButton";
 import { FormKeyTypeEnum, InputTypes } from "../shared/types";
 import GenericTable from "../Tables/GenericTable";
@@ -72,11 +72,11 @@ export default function GenericUnpaginatedPage({
   const container: ContainerModel | undefined = useMemo(() => {
     if (!rawContainers) return undefined;
     const normalized = rawContainers.map((c: RawContainer) =>
-      normalizeContainer(c)
+      normalizeContainer(c),
     );
     return normalized.find(
       (c: ContainerModel) =>
-        (c.schemaName || "").toLowerCase() === schemaName.toLowerCase()
+        (c.schemaName || "").toLowerCase() === schemaName.toLowerCase(),
     );
   }, [rawContainers, schemaName]);
 
@@ -106,7 +106,7 @@ export default function GenericUnpaginatedPage({
 
       return styles;
     },
-    [container]
+    [container],
   );
 
   // Generate mock data based on container fields (10 items)
@@ -128,7 +128,7 @@ export default function GenericUnpaginatedPage({
     (id: string | number, updates: Partial<GenericItem>) => {
       console.log("Preview mode: Update item", id, updates);
     },
-    []
+    [],
   );
 
   const deleteDynamicItem = useCallback((id: string | number) => {
@@ -139,14 +139,14 @@ export default function GenericUnpaginatedPage({
     (items: { _id: string | number }[]) => {
       console.log("Preview mode: Delete multiple items", items);
     },
-    []
+    [],
   );
 
   const updateMultipleDynamicItem = useCallback(
     (items: { _id: string | number; updates: Partial<GenericItem> }[]) => {
       console.log("Preview mode: Update multiple items", items);
     },
-    []
+    [],
   );
 
   const displayFields: Field[] = useMemo(() => {
@@ -274,7 +274,7 @@ export default function GenericUnpaginatedPage({
               const valueObj = value as Record<string, unknown>;
               const displayValues = f
                 .populationSettings!.displayFields.map(
-                  (fieldName) => valueObj[fieldName]
+                  (fieldName) => valueObj[fieldName],
                 )
                 .filter(Boolean)
                 .map(String);
@@ -305,7 +305,7 @@ export default function GenericUnpaginatedPage({
                   const itemObj = item as Record<string, unknown>;
                   const displayValues = f
                     .populationSettings!.displayFields.map(
-                      (fieldName) => itemObj[fieldName]
+                      (fieldName) => itemObj[fieldName],
                     )
                     .filter(Boolean)
                     .map(String);
@@ -314,12 +314,12 @@ export default function GenericUnpaginatedPage({
                   // Handle ID strings by looking up in selectionDataMap
                   const selectionOptions = selectionDataMap.get(f.name) || [];
                   const foundOption = selectionOptions.find(
-                    (opt) => opt._id === item
+                    (opt) => opt._id === item,
                   );
                   if (foundOption) {
                     return String(
                       foundOption[f.populationSettings!.inputSelectionField] ||
-                        item
+                        item,
                     );
                   }
                   return item;
@@ -343,7 +343,7 @@ export default function GenericUnpaginatedPage({
 
         return rowKey;
       }),
-    [displayFields, updateDynamicItem, selectionDataMap, t]
+    [displayFields, updateDynamicItem, selectionDataMap, t],
   );
 
   const columns = useMemo(() => {
@@ -395,7 +395,7 @@ export default function GenericUnpaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
             invalidateKeys:
@@ -484,13 +484,13 @@ export default function GenericUnpaginatedPage({
       if ("id" in item && "updates" in item) {
         updateDynamicItem(
           item.id as string | number,
-          item.updates as Partial<GenericItem>
+          item.updates as Partial<GenericItem>,
         );
       } else {
         createDynamicItem(item as GenericItem);
       }
     },
-    [updateDynamicItem, createDynamicItem]
+    [updateDynamicItem, createDynamicItem],
   );
 
   const addButton = useMemo(() => {
@@ -576,7 +576,7 @@ export default function GenericUnpaginatedPage({
                     Record<string, unknown>
                   >;
                   normalizedUpdates[f.name] = populatedArray.map((item) =>
-                    item && typeof item === "object" ? item._id : item
+                    item && typeof item === "object" ? item._id : item,
                   );
                 }
               });
@@ -636,7 +636,7 @@ export default function GenericUnpaginatedPage({
           value: f.name,
           label: t(getFieldLabel(f)),
         })),
-    [displayFields, t]
+    [displayFields, t],
   );
 
   const bulkFormKeys = useMemo(() => {
@@ -699,7 +699,7 @@ export default function GenericUnpaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
           };
@@ -812,7 +812,7 @@ export default function GenericUnpaginatedPage({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             value = value.map((item) =>
-              typeof item === "string" ? parseInt(item, 10) : item
+              typeof item === "string" ? parseInt(item, 10) : item,
             );
           } else {
             value = [];
@@ -828,7 +828,7 @@ export default function GenericUnpaginatedPage({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             value = value.map((item) =>
-              typeof item === "string" ? parseFloat(item) : item
+              typeof item === "string" ? parseFloat(item) : item,
             );
           } else {
             value = [];
@@ -903,7 +903,7 @@ export default function GenericUnpaginatedPage({
 
   const handleBulkDeleteConfirm = useCallback(() => {
     deleteMultipleDynamicItem(
-      selectedRows.map((r) => ({ _id: (r as GenericItem)._id }))
+      selectedRows.map((r) => ({ _id: (r as GenericItem)._id })),
     );
     setSelectedRows([]);
     setIsSelectionActive(false);
@@ -954,7 +954,7 @@ export default function GenericUnpaginatedPage({
               label: String(
                 item[f.populationSettings!.inputSelectionField] ||
                   item._id ||
-                  ""
+                  "",
               ),
             })),
           };
@@ -998,7 +998,7 @@ export default function GenericUnpaginatedPage({
         ),
       },
     ],
-    [t, showFilters]
+    [t, showFilters],
   );
 
   const filterPanel = useMemo(
@@ -1010,7 +1010,7 @@ export default function GenericUnpaginatedPage({
       closeFilters: () => setShowFilters(false),
       isApplyButtonActive: true,
     }),
-    [showFilters, filterPanelInputs, filterFormElements]
+    [showFilters, filterPanelInputs, filterFormElements],
   );
 
   const selectionActions = useMemo(
@@ -1086,7 +1086,7 @@ export default function GenericUnpaginatedPage({
       isBulkStepTwo,
       handleBulkEditSubmit,
       handleBulkEditBackOrForward,
-    ]
+    ],
   );
 
   const rows = useMemo(() => items || [], [items]);

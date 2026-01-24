@@ -3346,6 +3346,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dayjs@npm:^1.11.19":
+  version: 1.11.19
+  resolution: "dayjs@npm:1.11.19"
+  checksum: 10c0/7d8a6074a343f821f81ea284d700bd34ea6c7abbe8d93bce7aba818948957c1b7f56131702e5e890a5622cdfc05dcebe8aed0b8313bdc6838a594d7846b0b000
+  languageName: node
+  linkType: hard
+
 "deasync@npm:^0.1.9":
   version: 0.1.31
   resolution: "deasync@npm:0.1.31"
@@ -6356,6 +6363,7 @@ __metadata:
     autoprefixer: "npm:^10.4.19"
     axios: "npm:^1.11.0"
     date-fns: "npm:^3.6.0"
+    dayjs: "npm:^1.11.19"
     eslint: "npm:^8.57.0"
     eslint-plugin-react-hooks: "npm:^4.6.2"
     eslint-plugin-react-refresh: "npm:^0.4.7"

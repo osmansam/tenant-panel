@@ -49,109 +49,109 @@ const getChartComponent = (type: ChartType) => {
       return lazy(() =>
         import("@nivo/bar").then((mod) => ({
           default: mod.ResponsiveBar,
-        }))
+        })),
       );
     case "line":
       return lazy(() =>
         import("@nivo/line").then((mod) => ({
           default: mod.ResponsiveLine,
-        }))
+        })),
       );
     case "pie":
       return lazy(() =>
         import("@nivo/pie").then((mod) => ({
           default: mod.ResponsivePie,
-        }))
+        })),
       );
     case "area":
       return lazy(() =>
         import("@nivo/bump").then((mod) => ({
           default: mod.ResponsiveAreaBump,
-        }))
+        })),
       );
     case "radar":
       return lazy(() =>
         import("@nivo/radar").then((mod) => ({
           default: mod.ResponsiveRadar,
-        }))
+        })),
       );
     case "heatmap":
       return lazy(() =>
         import("@nivo/heatmap").then((mod) => ({
           default: mod.ResponsiveHeatMap,
-        }))
+        })),
       );
     case "scatter":
       return lazy(() =>
         import("@nivo/scatterplot").then((mod) => ({
           default: mod.ResponsiveScatterPlot,
-        }))
+        })),
       );
     case "funnel":
       return lazy(() =>
         import("@nivo/funnel").then((mod) => ({
           default: mod.ResponsiveFunnel,
-        }))
+        })),
       );
     case "sankey":
       return lazy(() =>
         import("@nivo/sankey").then((mod) => ({
           default: mod.ResponsiveSankey,
-        }))
+        })),
       );
     case "sunburst":
       return lazy(() =>
         import("@nivo/sunburst").then((mod) => ({
           default: mod.ResponsiveSunburst,
-        }))
+        })),
       );
     case "treemap":
       return lazy(() =>
         import("@nivo/treemap").then((mod) => ({
           default: mod.ResponsiveTreeMap,
-        }))
+        })),
       );
     case "calendar":
       return lazy(() =>
         import("@nivo/calendar").then((mod) => ({
           default: mod.ResponsiveCalendar,
-        }))
+        })),
       );
     case "chord":
       return lazy(() =>
         import("@nivo/chord").then((mod) => ({
           default: mod.ResponsiveChord,
-        }))
+        })),
       );
     case "network":
       return lazy(() =>
         import("@nivo/network").then((mod) => ({
           default: mod.ResponsiveNetwork,
-        }))
+        })),
       );
     case "stream":
       return lazy(() =>
         import("@nivo/stream").then((mod) => ({
           default: mod.ResponsiveStream,
-        }))
+        })),
       );
     case "waffle":
       return lazy(() =>
         import("@nivo/waffle").then((mod) => ({
           default: mod.ResponsiveWaffle,
-        }))
+        })),
       );
     case "bump":
       return lazy(() =>
         import("@nivo/bump").then((mod) => ({
           default: mod.ResponsiveBump,
-        }))
+        })),
       );
     case "circle-packing":
       return lazy(() =>
         import("@nivo/circle-packing").then((mod) => ({
           default: mod.ResponsiveCirclePacking,
-        }))
+        })),
       );
     default:
       return null;
