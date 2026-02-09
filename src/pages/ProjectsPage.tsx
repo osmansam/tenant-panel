@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
+import { useTenant } from "../hooks/useTenant";
 import { useSwitchToProject } from "../utils/api/auth";
 import {
   CreateProjectPayload,
@@ -24,6 +25,7 @@ const ProjectsPage: React.FC = () => {
   const projects = Array.isArray(projectsData) ? projectsData : [];
   const { createProject, isCreating } = useCreateProject();
   const { switchToProject, isSwitching } = useSwitchToProject();
+  const { currentTenant } = useTenant();
 
   // Since useProjects returns data directly from factory, we need to handle loading state differently
   const isLoading = !projectsData;
@@ -50,6 +52,19 @@ const ProjectsPage: React.FC = () => {
 
   const handleSwitchToProject = (projectId: string) => {
     switchToProject({ projectId });
+  };
+
+  const handleRedirectToProject = (
+    projectSlug: string,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (!currentTenant?.slug) {
+      toast.error(t("Tenant information not found"));
+      return;
+    }
+    const url = `https://panel.autoapi.org/t/${currentTenant.slug}/p/${projectSlug}/login`;
+    window.open(url, "_blank");
   };
 
   // Generate gradient for project icon
@@ -134,7 +149,7 @@ const ProjectsPage: React.FC = () => {
             </h3>
             <p className="text-sm text-neutral-500 mb-8 max-w-md text-center leading-relaxed">
               {t(
-                "Get started by creating your first project to organize your work and collaborate with your team"
+                "Get started by creating your first project to organize your work and collaborate with your team",
               )}
             </p>
             <GenericButton
@@ -165,7 +180,7 @@ const ProjectsPage: React.FC = () => {
             {projects.map((project, index) => {
               const statusDisplay = getProjectStatusDisplay(
                 project.isActive ? "active" : "inactive",
-                t
+                t,
               );
               const isActive = project.isActive;
               const projectId = project.id || project._id || `project-${index}`;
@@ -182,7 +197,7 @@ const ProjectsPage: React.FC = () => {
                   {/* Hover gradient overlay */}
                   <div
                     className={`absolute inset-0 bg-gradient-to-br ${getGradient(
-                      index
+                      index,
                     )} opacity-0 group-hover:opacity-[0.02] transition-opacity duration-300 pointer-events-none`}
                   />
 
@@ -197,7 +212,7 @@ const ProjectsPage: React.FC = () => {
                     <div className="flex items-start justify-between mb-4">
                       <div
                         className={`w-11 h-11 rounded-xl bg-gradient-to-br ${getGradient(
-                          index
+                          index,
                         )} flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow duration-200`}
                       >
                         <span className="text-white font-bold text-sm tracking-wide">
@@ -233,31 +248,57 @@ const ProjectsPage: React.FC = () => {
 
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-3.5 border-t border-neutral-100">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md ${
-                          isActive
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-neutral-100 text-neutral-600"
-                        }`}
-                      >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md ${
+                            isActive
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-neutral-100 text-neutral-600"
+                          }`}
+                        >
+                          {isActive && (
+                            <svg
+                              className="w-2.5 h-2.5"
+                              fill="currentColor"
+                              viewBox="0 0 8 8"
+                            >
+                              <circle cx="4" cy="4" r="3" />
+                            </svg>
+                          )}
+                          {statusDisplay.label}
+                        </span>
                         {isActive && (
-                          <svg
-                            className="w-2.5 h-2.5"
-                            fill="currentColor"
-                            viewBox="0 0 8 8"
+                          <button
+                            onClick={(e) =>
+                              handleRedirectToProject(project.slug, e)
+                            }
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                            title={t("Open Project Panel")}
                           >
-                            <circle cx="4" cy="4" r="3" />
-                          </svg>
+                            <svg
+                              className="w-2.5 h-2.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                              />
+                            </svg>
+                            {t("Open")}
+                          </button>
                         )}
-                        {statusDisplay.label}
-                      </span>
+                      </div>
                       <span className="text-[11px] text-neutral-400 font-medium">
                         {new Date(project.createdAt).toLocaleDateString(
                           undefined,
                           {
                             month: "short",
                             day: "numeric",
-                          }
+                          },
                         )}
                       </span>
                     </div>
@@ -266,7 +307,7 @@ const ProjectsPage: React.FC = () => {
                   {/* Bottom border accent on hover */}
                   <div
                     className={`absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r ${getGradient(
-                      index
+                      index,
                     )} transform origin-left transition-transform duration-300 ${
                       isHovered && isActive ? "scale-x-100" : "scale-x-0"
                     }`}
@@ -377,7 +418,7 @@ const ProjectsPage: React.FC = () => {
                   </svg>
                   <p className="text-xs text-blue-900 leading-relaxed">
                     {t(
-                      "The project slug will be used in URLs and API endpoints. If not provided, it will be automatically generated from the project name."
+                      "The project slug will be used in URLs and API endpoints. If not provided, it will be automatically generated from the project name.",
                     )}
                   </p>
                 </div>
