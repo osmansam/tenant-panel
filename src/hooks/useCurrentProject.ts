@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Project } from "../types";
 
+const CONTEXT_CHANGED_EVENT = "autotable-context-changed";
+
 export function useCurrentProject() {
   const [currentProject, setCurrentProject] = useState<Project | null>(() => {
     const project = localStorage.getItem("currentProject");
@@ -24,6 +26,7 @@ export function useCurrentProject() {
   const clearCurrentProject = () => {
     localStorage.removeItem("currentProject");
     setCurrentProject(null);
+    window.dispatchEvent(new Event(CONTEXT_CHANGED_EVENT));
   };
 
   return {

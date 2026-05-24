@@ -7,6 +7,12 @@ import { useUserContext } from "../../context/User.context";
 // import { Routes } from "../../navigation/constants";
 import { get, post } from "./index";
 
+const CONTEXT_CHANGED_EVENT = "autotable-context-changed";
+
+function notifyContextChanged() {
+  window.dispatchEvent(new Event(CONTEXT_CHANGED_EVENT));
+}
+
 interface LoginError {
   response: {
     data: {
@@ -186,6 +192,7 @@ export function useTenantLogin(
         localStorage.setItem("user", JSON.stringify(extendedUser));
         localStorage.setItem("currentTenant", JSON.stringify(tenant));
         setUser(extendedUser);
+        notifyContextChanged();
       }
 
       const target = location ? `${location.pathname}${location.search}` : "/";
@@ -249,6 +256,7 @@ export function useTenantRegister(
         localStorage.setItem("user", JSON.stringify(extendedUser));
         localStorage.setItem("currentTenant", JSON.stringify(tenant));
         setUser(extendedUser);
+        notifyContextChanged();
       }
 
       const target = location ? `${location.pathname}${location.search}` : "/";
@@ -338,6 +346,7 @@ export function useGoogleCallback(
         localStorage.setItem("user", JSON.stringify(extendedUser));
         localStorage.setItem("currentTenant", JSON.stringify(tenant));
         setUser(extendedUser);
+        notifyContextChanged();
       }
 
       const target = location ? `${location.pathname}${location.search}` : "/";
@@ -485,6 +494,7 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.setItem("currentProject", JSON.stringify(project));
         setUser(updatedUser);
+        notifyContextChanged();
       }
 
       toast.success(t("Switched to project successfully"));
@@ -539,6 +549,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.removeItem("currentProject");
         setUser(updatedUser);
+        notifyContextChanged();
 
         // Switch to tenant token if available, otherwise refresh
         const tenantToken = localStorage.getItem("tenantToken");
