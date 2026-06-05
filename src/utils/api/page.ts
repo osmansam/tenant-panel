@@ -114,7 +114,7 @@ export interface PageModel {
   name: string;
   icon?: string;
   slug?: string;
-  parentPageId?: string;
+  parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
   isAuthenticated?: boolean;
@@ -128,7 +128,7 @@ export interface CreatePagePayload {
   name: string;
   icon?: string;
   slug?: string;
-  parentPageId?: string;
+  parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
   isAuthenticated?: boolean;
@@ -142,7 +142,7 @@ export interface UpdatePagePayload {
   name?: string;
   icon?: string;
   slug?: string;
-  parentPageId?: string;
+  parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
   isAuthenticated?: boolean;

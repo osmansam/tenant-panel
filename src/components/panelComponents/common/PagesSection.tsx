@@ -27,7 +27,7 @@ export const PagesSection: React.FC = () => {
   const { updatePage } = useUpdatePage();
 
   // Get pages for the current project with error handling
-  let pages: any[] = [];
+  let pages: PageModel[] = [];
   let isLoading = false;
   let error = null;
 
@@ -59,6 +59,56 @@ export const PagesSection: React.FC = () => {
     setShowDesigner(true);
   };
 
+  const getPageId = (page: PageModel) => page._id || page.id || "";
+
+  const getPageById = (pageId?: string | null) => {
+    if (!pageId) return undefined;
+    return pages.find((page) => getPageId(page) === pageId);
+  };
+
+  const isDescendantPage = (candidateParentId: string, pageId: string) => {
+    let current = getPageById(candidateParentId);
+
+    while (current?.parentPageId) {
+      if (current.parentPageId === pageId) return true;
+      current = getPageById(current.parentPageId);
+    }
+
+    return false;
+  };
+
+  const getParentPageOptions = (page: PageModel) => {
+    const pageId = getPageId(page);
+
+    return pages.filter((candidate) => {
+      const candidateId = getPageId(candidate);
+      if (!candidateId || candidateId === pageId) return false;
+      return !isDescendantPage(candidateId, pageId);
+    });
+  };
+
+  const handleParentPageChange = (page: PageModel, parentPageId: string) => {
+    const pageId = getPageId(page);
+    if (!pageId) return;
+
+    updatePage({
+      id: pageId,
+      payload: {
+        name: page.name,
+        icon: page.icon,
+        slug: page.slug,
+        parentPageId: parentPageId || "",
+        order: page.order,
+        isGroupOnly: page.isGroupOnly,
+        isAuthenticated: page.isAuthenticated,
+        isAuthorized: page.isAuthorized,
+        authorizeRole: page.authorizeRole,
+        sections: page.sections,
+        subPage: page.subPage,
+      },
+    });
+  };
+
   const handleSavePageStructure = async (gridSections: any[]) => {
     if (!editingPage) return;
 
@@ -72,7 +122,7 @@ export const PagesSection: React.FC = () => {
           name: editingPage.name,
           icon: editingPage.icon,
           slug: editingPage.slug,
-          parentPageId: editingPage.parentPageId,
+          parentPageId: editingPage.parentPageId || undefined,
           order: editingPage.order,
           isGroupOnly: editingPage.isGroupOnly,
           isAuthenticated: editingPage.isAuthenticated,
@@ -139,10 +189,13 @@ export const PagesSection: React.FC = () => {
         ) : pages && pages.length > 0 ? (
           pages.map((page) => {
             const IconComponent = page.icon ? getIconByName(page.icon) : null;
+            const pageId = getPageId(page);
+            const parentPage = getPageById(page.parentPageId);
+            const parentPageOptions = getParentPageOptions(page);
 
             return (
               <div
-                key={page.id}
+                key={pageId}
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => handleViewPage(page)}
               >
@@ -177,6 +230,11 @@ export const PagesSection: React.FC = () => {
                           ? ` ${page.authorizeRole.join(", ")}`
                           : ` ${t("No role restrictions")}`}
                       </p>
+                      {parentPage && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {t("Parent")}: {parentPage.name}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -184,6 +242,23 @@ export const PagesSection: React.FC = () => {
                   className="flex items-center space-x-2"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <select
+                    value={page.parentPageId || ""}
+                    onChange={(e) =>
+                      handleParentPageChange(page, e.target.value)
+                    }
+                    className="w-44 px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">{t("No parent")}</option>
+                    {parentPageOptions.map((parentOption) => {
+                      const parentOptionId = getPageId(parentOption);
+                      return (
+                        <option key={parentOptionId} value={parentOptionId}>
+                          {parentOption.name}
+                        </option>
+                      );
+                    })}
+                  </select>
                   <GenericButton
                     variant="outline"
                     size="sm"

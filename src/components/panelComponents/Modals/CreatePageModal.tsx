@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoClose } from "react-icons/io5";
-import { useCreatePage } from "../../../utils/api/page";
+import {
+  PageModel,
+  useCreatePage,
+  useGetTenantPages,
+} from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
 import TextInput from "../FormElements/TextInput";
 
@@ -41,7 +45,12 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
   const { t } = useTranslation();
   const [pageName, setPageName] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("MdSpaceDashboard");
+  const [parentPageId, setParentPageId] = useState("");
   const { createPage, isCreating } = useCreatePage();
+  const pages = useGetTenantPages() || [];
+
+  const getPageId = (page: PageModel) => page._id || page.id || "";
+  const parentOptions = pages.filter((page) => getPageId(page));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +60,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     createPage({
       name: pageName.trim(),
       icon: selectedIcon,
+      parentPageId: parentPageId || undefined,
       sections: [], // Empty sections as requested
       isAuthenticated: true, // Default to authenticated
     });
@@ -58,12 +68,14 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     // Reset form and close modal
     setPageName("");
     setSelectedIcon("MdSpaceDashboard");
+    setParentPageId("");
     onClose();
   };
 
   const handleCancel = () => {
     setPageName("");
     setSelectedIcon("MdSpaceDashboard");
+    setParentPageId("");
     onClose();
   };
 
@@ -140,6 +152,29 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Parent Page Selection */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              {t("Parent Page")}
+            </label>
+            <select
+              value={parentPageId}
+              onChange={(e) => setParentPageId(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+            >
+              <option value="">{t("No parent page")}</option>
+              {parentOptions.map((page) => {
+                const pageId = getPageId(page);
+                return (
+                  <option key={pageId} value={pageId}>
+                    {page.name}
+                    {page.slug ? ` /${page.slug}` : ""}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* Info Box */}
