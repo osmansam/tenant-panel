@@ -463,6 +463,7 @@ export function useContainers(enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
+    workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: container.DynamicApis || container.dynamicApis || [],
@@ -539,6 +540,7 @@ export function useContainer(id: string, enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
+    workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: container.DynamicApis || container.dynamicApis || [],

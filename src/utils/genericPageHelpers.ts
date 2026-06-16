@@ -172,6 +172,8 @@ export type RawContainer = {
   Redis?: unknown;
   pipelines?: unknown[];
   Pipelines?: unknown[];
+  workflows?: unknown[];
+  Workflows?: unknown[];
   dynamicFunctions?: unknown[];
   DynamicFunctions?: unknown[];
   dynamicApis?: unknown[];
@@ -338,6 +340,7 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
     (c.redis as ContainerModel["redis"]) ??
     (c.Redis as ContainerModel["redis"]),
   pipelines: (c.pipelines ?? c.Pipelines ?? []) as ContainerModel["pipelines"],
+  workflows: (c.workflows ?? c.Workflows ?? []) as ContainerModel["workflows"],
   dynamicFunctions: (c.dynamicFunctions ??
     c.DynamicFunctions ??
     []) as ContainerModel["dynamicFunctions"],

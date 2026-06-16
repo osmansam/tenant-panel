@@ -20,7 +20,6 @@ import {
   TableActionFormKeyType,
   TableActionInputType,
   TableActionOptionsSource,
-  TableActionKind,
   TableActionModalType,
   TableColumnConfig,
   TableComponentConfig,
@@ -68,12 +67,6 @@ const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: "phone", label: "Phone" },
 ];
 
-const ACTION_KINDS: { value: TableActionKind; label: string }[] = [
-  { value: "edit", label: "Edit" },
-  { value: "delete", label: "Delete" },
-  { value: "update", label: "Update" },
-  { value: "link", label: "Link" },
-];
 
 const ACTION_MODAL_TYPES: { value: TableActionModalType; label: string }[] = [
   { value: "none", label: "None" },
@@ -565,8 +558,13 @@ const cleanTableActions = (
         ...(action.confirmText?.trim()
           ? { confirmText: action.confirmText.trim() }
           : {}),
-        ...(action.linkTemplate?.trim()
-          ? { linkTemplate: action.linkTemplate.trim() }
+        ...(action.submit?.workflowName?.trim() && action.submit?.workflowSchema?.trim()
+          ? {
+              submit: {
+                workflowName: action.submit.workflowName.trim(),
+                workflowSchema: action.submit.workflowSchema.trim(),
+              },
+            }
           : {}),
         ...(action.linkType ? { linkType: action.linkType } : {}),
         ...(action.className?.trim() ? { className: action.className.trim() } : {}),
@@ -1487,6 +1485,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ),
     [selectedContainer?.pipelines, selectedFields],
   );
+  const projectWorkflowOptions = useMemo(
+    () =>
+      containers.flatMap((container) =>
+        (container.workflows || [])
+          .filter((workflow) => workflow.isActive !== false)
+          .map((workflow) => ({
+            schemaName: container.schemaName,
+            workflow,
+          })),
+      ),
+    [containers],
+  );
+
   const workflowOptions = useMemo(
     () =>
       (selectedContainer?.workflows || [])
@@ -2601,7 +2612,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       key={action.id || actionIndex}
                                       className="space-y-4 border border-neutral-200 rounded-xl p-4"
                                     >
-                                      <div className="grid grid-cols-[1fr_150px_110px_110px_auto] gap-3">
+                                      <div className="grid grid-cols-[1fr_110px_110px_auto] gap-3">
                                         <div>
                                           <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                             Label
@@ -2616,30 +2627,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           />
-                                        </div>
-                                        <div>
-                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                            Kind
-                                          </label>
-                                          <select
-                                            value={action.kind}
-                                            onChange={(e) =>
-                                              updateTableAction(actionIndex, {
-                                                kind: e.target
-                                                  .value as TableActionKind,
-                                              })
-                                            }
-                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          >
-                                            {ACTION_KINDS.map((kind) => (
-                                              <option
-                                                key={kind.value}
-                                                value={kind.value}
-                                              >
-                                                {kind.label}
-                                              </option>
-                                            ))}
-                                          </select>
                                         </div>
                                         <div>
                                           <label className="block text-[11px] font-medium text-neutral-600 mb-1">
@@ -2797,17 +2784,35 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           placeholder='{"status":"approved"}'
                                         />
                                         <div className="space-y-3">
-                                          <input
-                                            type="text"
-                                            value={action.linkTemplate || ""}
-                                            onChange={(e) =>
-                                              updateTableAction(actionIndex, {
-                                                linkTemplate: e.target.value,
-                                              })
+                                          <select
+                                            value={
+                                              action.submit?.workflowSchema &&
+                                              action.submit?.workflowName
+                                                ? `${action.submit.workflowSchema}::${action.submit.workflowName}`
+                                                : ""
                                             }
-                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            placeholder="/orders/{{_id}}"
-                                          />
+                                            onChange={(e) => {
+                                              const [workflowSchema, workflowName] =
+                                                e.target.value.split("::");
+                                              updateTableAction(actionIndex, {
+                                                submit:
+                                                  workflowSchema && workflowName
+                                                    ? { workflowSchema, workflowName }
+                                                    : undefined,
+                                              });
+                                            }}
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          >
+                                            <option value="">Select workflow...</option>
+                                            {projectWorkflowOptions.map(({ schemaName, workflow }) => (
+                                              <option
+                                                key={`${schemaName}::${workflow.name}`}
+                                                value={`${schemaName}::${workflow.name}`}
+                                              >
+                                                {schemaName} / {workflow.name}
+                                              </option>
+                                            ))}
+                                          </select>
                                           <input
                                             type="text"
                                             value={action.confirmText || ""}
@@ -3070,63 +3075,75 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         ),
                                                       )}
                                                     </select>
-                                                    <input
-                                                      type="text"
-                                                      value={
-                                                        field.sourceSchemaName ||
-                                                        ""
-                                                      }
+                                                    <select
+                                                      value={field.sourceSchemaName || ""}
                                                       onChange={(e) =>
                                                         updateActionFormField(
                                                           actionIndex,
                                                           fieldIndex,
                                                           {
-                                                            sourceSchemaName:
-                                                              e.target.value,
+                                                            sourceSchemaName: e.target.value,
+                                                            sourceValueField: "_id",
+                                                            sourceLabelField: "",
                                                           },
                                                         )
                                                       }
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                      placeholder="source schema"
-                                                    />
-                                                    <input
-                                                      type="text"
-                                                      value={
-                                                        field.sourceValueField ||
-                                                        "_id"
-                                                      }
+                                                      disabled={field.optionsSource !== "schema"}
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                    >
+                                                      <option value="">Source schema...</option>
+                                                      {containers.map((container) => (
+                                                        <option
+                                                          key={container.schemaName}
+                                                          value={container.schemaName}
+                                                        >
+                                                          {container.schemaName}
+                                                        </option>
+                                                      ))}
+                                                    </select>
+                                                    <select
+                                                      value={field.sourceValueField || "_id"}
                                                       onChange={(e) =>
                                                         updateActionFormField(
                                                           actionIndex,
                                                           fieldIndex,
                                                           {
-                                                            sourceValueField:
-                                                              e.target.value,
+                                                            sourceValueField: e.target.value,
                                                           },
                                                         )
                                                       }
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                      placeholder="value field"
-                                                    />
-                                                    <input
-                                                      type="text"
-                                                      value={
-                                                        field.sourceLabelField ||
-                                                        ""
-                                                      }
+                                                      disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                    >
+                                                      <option value="_id">_id</option>
+                                                      {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
+                                                        <option key={sourceField.name} value={sourceField.name}>
+                                                          {sourceField.name}
+                                                        </option>
+                                                      ))}
+                                                    </select>
+                                                    <select
+                                                      value={field.sourceLabelField || ""}
                                                       onChange={(e) =>
                                                         updateActionFormField(
                                                           actionIndex,
                                                           fieldIndex,
                                                           {
-                                                            sourceLabelField:
-                                                              e.target.value,
+                                                            sourceLabelField: e.target.value,
                                                           },
                                                         )
                                                       }
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                      placeholder="label field"
-                                                    />
+                                                      disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                    >
+                                                      <option value="">Label field...</option>
+                                                      <option value="_id">_id</option>
+                                                      {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
+                                                        <option key={sourceField.name} value={sourceField.name}>
+                                                          {sourceField.name}
+                                                        </option>
+                                                      ))}
+                                                    </select>
                                                   </div>
                                                   <input
                                                     type="text"

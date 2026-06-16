@@ -117,6 +117,11 @@ export interface TableActionFormFieldConfig {
   validationMessage?: string;
 }
 
+export interface TableActionSubmitConfig {
+  workflowName?: string;
+  workflowSchema?: string;
+}
+
 export interface TableActionConfig {
   id?: string;
   kind: TableActionKind;
@@ -136,6 +141,7 @@ export interface TableActionConfig {
   requiredCondition?: string;
   confirmTitle?: string;
   confirmText?: string;
+  submit?: TableActionSubmitConfig;
   linkTemplate?: string;
   linkType?: LinkType;
   className?: string;
