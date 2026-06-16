@@ -532,16 +532,7 @@ const cleanTableActions = (
                 })),
             }
           : {}),
-        ...(action.fields?.filter((field) => field.trim()).length
-          ? { fields: action.fields.map((field) => field.trim()).filter(Boolean) }
-          : {}),
-        ...(action.excludeFields?.filter((field) => field.trim()).length
-          ? {
-              excludeFields: action.excludeFields
-                .map((field) => field.trim())
-                .filter(Boolean),
-            }
-          : {}),
+
         ...(action.fieldOverrides?.filter((override) => override.field.trim())
           .length
           ? {
@@ -1854,8 +1845,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             order: nextOrder,
             enabled: true,
             modalType: "none",
-            fields: [],
-            excludeFields: [],
             fieldOverrides: [],
             constantValuesJson: "{}",
           },
@@ -1885,18 +1874,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
-  const updateActionFieldList = (
-    actionIndex: number,
-    key: "fields" | "excludeFields",
-    value: string,
-  ) => {
-    updateTableAction(actionIndex, {
-      [key]: value
-        .split(",")
-        .map((field) => field.trim())
-        .filter(Boolean),
-    });
-  };
 
   const addActionFieldOverride = (actionIndex: number) => {
     setTableConfig((current) => ({
@@ -2728,7 +2705,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         </div>
                                       </div>
 
-                                      <div className="grid grid-cols-3 gap-3">
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                         <div>
                                           <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                             Icon
@@ -2761,44 +2738,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               ))}
                                             </select>
                                           </div>
-                                        </div>
-                                        <div>
-                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                            Include Fields
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={(action.fields || []).join(", ")}
-                                            onChange={(e) =>
-                                              updateActionFieldList(
-                                                actionIndex,
-                                                "fields",
-                                                e.target.value,
-                                              )
-                                            }
-                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            placeholder="name, status"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                            Exclude Fields
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={(action.excludeFields || []).join(
-                                              ", ",
-                                            )}
-                                            onChange={(e) =>
-                                              updateActionFieldList(
-                                                actionIndex,
-                                                "excludeFields",
-                                                e.target.value,
-                                              )
-                                            }
-                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            placeholder="createdAt"
-                                          />
                                         </div>
                                       </div>
 

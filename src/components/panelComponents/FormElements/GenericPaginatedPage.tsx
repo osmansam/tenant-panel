@@ -680,7 +680,7 @@ export default function GenericPaginatedPage({
 
   const getActionInputs = useCallback(
     (action: TableActionConfig, actionId: string, row: GenericItem | null) => {
-      if (action.formFields?.length) {
+      if (action.formFields !== undefined) {
         return buildActionFormInputs(
           action,
           actionId,
@@ -720,7 +720,7 @@ export default function GenericPaginatedPage({
 
   const getActionFormKeys = useCallback(
     (action: TableActionConfig, actionInputs: GenericInputType[]) => {
-      if (action.formFields?.length) return buildActionFormKeys(action);
+      if (action.formFields !== undefined) return buildActionFormKeys(action);
 
       const fieldNames = new Set(actionInputs.map((input) => input.formKey));
       return formKeys.filter((formKey) => fieldNames.has(formKey.key));

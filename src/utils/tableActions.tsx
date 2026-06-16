@@ -81,17 +81,8 @@ export const getActionIconElement = (
 
 export const filterActionFields = (
   fields: Field[],
-  action: TableActionConfig,
-): Field[] => {
-  const included = action.fields?.filter(Boolean);
-  const excluded = new Set(action.excludeFields?.filter(Boolean) || []);
-
-  return fields.filter((field) => {
-    if (included?.length && !included.includes(field.name)) return false;
-    if (excluded.has(field.name)) return false;
-    return true;
-  });
-};
+  _action: TableActionConfig,
+): Field[] => fields;
 
 export const useActionFormSelectionData = (
   actions: TableActionConfig[] = [],
