@@ -10,11 +10,13 @@
  */
 export interface DataBinding {
   /** Type of data source */
-  kind: "schema" | "pipeline" | "api";
+  kind: "schema" | "pipeline" | "workflow" | "api";
   /** Name of the schema (when kind="schema") */
   schemaName?: string;
   /** Name of the pipeline (when kind="pipeline") */
   pipelineName?: string;
+  /** Name of the workflow (when kind="workflow") */
+  workflowName?: string;
   /** API endpoint (when kind="api") */
   apiEndpoint?: string;
   /** Additional parameters for the data source */

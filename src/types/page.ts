@@ -2,12 +2,18 @@
  * Types matching the Go backend PageModel structure
  */
 
-export type BindingKind = "schema" | "pipeline" | "api" | "function";
+export type BindingKind =
+  | "schema"
+  | "pipeline"
+  | "workflow"
+  | "api"
+  | "function";
 
 export interface DataBinding {
   kind: BindingKind;
   schemaName?: string;
   pipelineName?: string;
+  workflowName?: string;
   apiName?: string;
   functionName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

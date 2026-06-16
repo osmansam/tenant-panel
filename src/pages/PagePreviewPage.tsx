@@ -52,19 +52,24 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 
   switch (type) {
     case "table":
-      if (dataBinding?.kind === "schema" && dataBinding.schemaName) {
+      if (
+        dataBinding?.schemaName &&
+        ["schema", "pipeline", "workflow"].includes(dataBinding.kind)
+      ) {
         return (
           <GenericPaginatedPage
             schemaName={dataBinding.schemaName}
             isHeader={false}
             tableConfig={tableConfig}
+            dataBinding={dataBinding}
+            actionsEnabled={dataBinding.kind === "schema"}
           />
         );
       }
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
           <p className="text-yellow-800 text-sm">
-            Table component requires schema binding
+            Table component requires schema, pipeline, or workflow binding
           </p>
         </div>
       );

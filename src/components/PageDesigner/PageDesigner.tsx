@@ -21,7 +21,10 @@ import {
 } from "../../types/page";
 import {
   ContainerModel,
+  DynamicWorkflow,
   Field,
+  PipelineStage,
+  WorkflowStep,
   useGetContainers,
 } from "../../utils/api/container";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -86,32 +89,203 @@ const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
         : undefined,
     }));
 
+const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
+  fields
+    .map((field) => field.trim())
+    .filter((field, index, all) => field && !["_id", "id"].includes(field) && all.indexOf(field) === index)
+    .map((field) => ({ field, displayName: "" }));
+
+const normalizeOutputFields = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item, index, all) => item && all.indexOf(item) === index);
+};
+
+const pipelineJson = (pipeline: PipelineStage): string =>
+  (pipeline as any).pipelineJson || (pipeline as any).PipelineJSON || "";
+
+const inferFieldsFromProjectStage = (stage: Record<string, any>): string[] => {
+  const project = stage.$project || stage.project;
+  if (!project || typeof project !== "object" || Array.isArray(project)) {
+    return [];
+  }
+
+  return Object.entries(project)
+    .filter(([field, value]) => {
+      if (field === "_id") return false;
+      if (value === 0 || value === false) return false;
+      return true;
+    })
+    .map(([field]) => field);
+};
+
+const inferFieldsFromPipelineStage = (stage: Record<string, any>): string[] => {
+  const projected = inferFieldsFromProjectStage(stage);
+  if (projected.length > 0) return projected;
+
+  if (typeof stage.$count === "string" && stage.$count.trim()) {
+    return [stage.$count.trim()];
+  }
+
+  const group = stage.$group || stage.group;
+  if (group && typeof group === "object" && !Array.isArray(group)) {
+    return Object.keys(group).filter((field) => field !== "_id");
+  }
+
+  return [];
+};
+
+const inferPipelineOutputFields = (
+  pipeline: PipelineStage,
+  fallbackFields: Field[],
+): string[] => {
+  const explicit = normalizeOutputFields((pipeline as any).outputFields);
+  if (explicit.length > 0) return explicit;
+
+  try {
+    const parsed = JSON.parse(pipelineJson(pipeline));
+    if (Array.isArray(parsed)) {
+      const lastStage = parsed[parsed.length - 1];
+      if (lastStage?.$out || lastStage?.$merge) {
+        return [];
+      }
+      for (let index = parsed.length - 1; index >= 0; index -= 1) {
+        const stage = parsed[index];
+        if (stage && typeof stage === "object" && !Array.isArray(stage)) {
+          const projected = inferFieldsFromPipelineStage(stage);
+          if (projected.length > 0) return projected;
+        }
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return fallbackFields.map((field) => field.name).filter(Boolean);
+};
+
+const flattenWorkflowSteps = (steps: WorkflowStep[] = []): WorkflowStep[] =>
+  steps.flatMap((step) => [
+    step,
+    ...flattenWorkflowSteps(step.steps || []),
+    ...flattenWorkflowSteps(step.elseSteps || []),
+    ...((step.branches || []).flatMap((branch) =>
+      flattenWorkflowSteps(branch.steps || []),
+    )),
+  ]);
+
+const workflowStepId = (step: WorkflowStep): string => step.name || (step as any).id || "";
+
+const configOutputFields = (config: Record<string, any> | undefined): string[] =>
+  normalizeOutputFields(
+    config?.outputFields || config?.returnFields || config?.fields,
+  );
+
+const schemaFieldNames = (
+  containers: ContainerModel[],
+  schemaName: string | undefined,
+): string[] =>
+  (containers.find((container) => container.schemaName === schemaName)?.fields || [])
+    .map((field) => field.name)
+    .filter(Boolean);
+
+const inferWorkflowStepFields = (
+  step: WorkflowStep | undefined,
+  containers: ContainerModel[],
+  fallbackSchemaName: string,
+): string[] => {
+  if (!step) return [];
+  const explicit = configOutputFields(step.config);
+  if (explicit.length > 0) return explicit;
+
+  if (step.config?.projection && typeof step.config.projection === "object") {
+    const projected = inferFieldsFromProjectStage({ $project: step.config.projection });
+    if (projected.length > 0) return projected;
+  }
+
+  if (Array.isArray(step.config?.pipeline)) {
+    for (let index = step.config.pipeline.length - 1; index >= 0; index -= 1) {
+      const projected = inferFieldsFromPipelineStage(step.config.pipeline[index]);
+      if (projected.length > 0) return projected;
+    }
+  }
+
+  if (typeof step.config?.value === "object" && !Array.isArray(step.config.value)) {
+    const keys = Object.keys(step.config.value).filter((key) => key !== "_id");
+    if (keys.length > 0) return keys;
+  }
+
+  if (["find_records", "get_record"].includes(step.type)) {
+    return schemaFieldNames(containers, step.targetSchema || fallbackSchemaName);
+  }
+
+  return [];
+};
+
+const inferWorkflowOutputFields = (
+  workflow: DynamicWorkflow,
+  containers: ContainerModel[],
+  fallbackSchemaName: string,
+): string[] => {
+  const explicit = normalizeOutputFields(
+    (workflow as any).outputFields || (workflow as any).returnFields,
+  );
+  if (explicit.length > 0) return explicit;
+
+  const steps = flattenWorkflowSteps(workflow.steps || []);
+  const returnStep = steps.find((step) => step.type === "return" && step.isActive !== false);
+  if (returnStep) {
+    const fromReturn = inferWorkflowStepFields(returnStep, containers, fallbackSchemaName);
+    if (fromReturn.length > 0) return fromReturn;
+
+    const value = returnStep.config?.value;
+    if (typeof value === "string") {
+      const match = value.match(/^\{\{\s*([^.}]+)(?:\.items)?\s*\}\}$/);
+      if (match) {
+        const referenced = steps.find((step) => workflowStepId(step) === match[1]);
+        const inferred = inferWorkflowStepFields(referenced, containers, fallbackSchemaName);
+        if (inferred.length > 0) return inferred;
+      }
+    }
+  }
+
+  if (workflow.returnStep) {
+    const referenced = steps.find((step) => workflowStepId(step) === workflow.returnStep);
+    return inferWorkflowStepFields(referenced, containers, fallbackSchemaName);
+  }
+
+  return [];
+};
+
 const cleanRules = (rules: RowClassConfig[] = []): RowClassConfig[] =>
   rules.filter((rule) => rule.condition.trim() || rule.className.trim());
 
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
-  columns: (tableConfig.columns || []).map((column) => ({
-    field: column.field,
-    ...(column.displayName?.trim()
-      ? { displayName: column.displayName.trim() }
-      : {}),
-    ...(cleanRules(column.cellClassName).length > 0
-      ? { cellClassName: cleanRules(column.cellClassName) }
-      : {}),
-    ...(column.link?.template?.trim()
-      ? {
-          link: {
-            template: column.link.template.trim(),
-            ...(column.link.labelField?.trim()
-              ? { labelField: column.link.labelField.trim() }
-              : {}),
-            type: column.link.type || "external",
-          },
-        }
-      : {}),
-  })),
+  columns: (tableConfig.columns || [])
+    .filter((column) => column.field.trim())
+    .map((column) => ({
+      field: column.field.trim(),
+      ...(column.displayName?.trim()
+        ? { displayName: column.displayName.trim() }
+        : {}),
+      ...(cleanRules(column.cellClassName).length > 0
+        ? { cellClassName: cleanRules(column.cellClassName) }
+        : {}),
+      ...(column.link?.template?.trim()
+        ? {
+            link: {
+              template: column.link.template.trim(),
+              ...(column.link.labelField?.trim()
+                ? { labelField: column.link.labelField.trim() }
+                : {}),
+              type: column.link.type || "external",
+            },
+          }
+        : {}),
+    })),
   ...(cleanRules(tableConfig.rows?.className).length > 0
     ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
     : {}),
@@ -903,6 +1077,16 @@ const CellEditor: React.FC<CellEditorProps> = ({
                           {component.dataBinding.schemaName}
                         </span>
                       </div>
+                    ) : component.dataBinding.kind === "workflow" ? (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                          {component.dataBinding.workflowName}
+                        </span>
+                        <span className="text-neutral-400">in</span>
+                        <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {component.dataBinding.schemaName}
+                        </span>
+                      </div>
                     ) : null}
                   </div>
                 )}
@@ -948,7 +1132,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const { t } = useTranslation();
   const [componentType, setComponentType] = useState<string>("table");
   const [schemaName, setSchemaName] = useState<string>("");
+  const [tableSourceType, setTableSourceType] = useState<
+    "schema" | "pipeline" | "workflow"
+  >("schema");
   const [pipelineName, setPipelineName] = useState<string>("");
+  const [workflowName, setWorkflowName] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
   const [showTabExcelModal, setShowTabExcelModal] = useState(false);
@@ -966,6 +1154,36 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     [containers, schemaName]
   );
   const selectedFields = selectedContainer?.fields || [];
+  const pipelineOptions = useMemo(
+    () =>
+      (selectedContainer?.pipelines || [])
+        .map((pipeline) => ({
+          pipeline,
+          outputFields: inferPipelineOutputFields(pipeline, selectedFields),
+        }))
+        .filter(
+          ({ pipeline, outputFields }) =>
+            pipeline.isActive !== false && outputFields.length > 0,
+        ),
+    [selectedContainer?.pipelines, selectedFields],
+  );
+  const workflowOptions = useMemo(
+    () =>
+      (selectedContainer?.workflows || [])
+        .map((workflow) => ({
+          workflow,
+          outputFields: inferWorkflowOutputFields(
+            workflow,
+            containers,
+            schemaName,
+          ),
+        }))
+        .filter(
+          ({ workflow, outputFields }) =>
+            workflow.isActive !== false && outputFields.length > 0,
+        ),
+    [containers, schemaName, selectedContainer?.workflows],
+  );
 
   // Initialize form with editingComponent data
   useEffect(() => {
@@ -974,8 +1192,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setTitle(editingComponent.title || "");
 
       if (editingComponent.dataBinding) {
+        setTableSourceType(
+          editingComponent.dataBinding.kind === "pipeline" ||
+            editingComponent.dataBinding.kind === "workflow"
+            ? editingComponent.dataBinding.kind
+            : "schema"
+        );
         setSchemaName(editingComponent.dataBinding.schemaName || "");
         setPipelineName(editingComponent.dataBinding.pipelineName || "");
+        setWorkflowName(editingComponent.dataBinding.workflowName || "");
         setParams(
           editingComponent.dataBinding.params
             ? JSON.stringify(editingComponent.dataBinding.params, null, 2)
@@ -1017,6 +1242,44 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     });
   }, [componentType, containers, editingComponent?.table, schemaName]);
 
+  useEffect(() => {
+    if (componentType !== "table" || tableSourceType !== "pipeline") {
+      return;
+    }
+
+    const selected = pipelineOptions.find(
+      ({ pipeline }) => pipeline.name === pipelineName,
+    );
+    if (!selected) {
+      setPipelineName("");
+      return;
+    }
+
+    setTableConfig((current) => ({
+      ...current,
+      columns: buildTableColumnsFromNames(selected.outputFields),
+    }));
+  }, [componentType, pipelineName, pipelineOptions, tableSourceType]);
+
+  useEffect(() => {
+    if (componentType !== "table" || tableSourceType !== "workflow") {
+      return;
+    }
+
+    const selected = workflowOptions.find(
+      ({ workflow }) => workflow.name === workflowName,
+    );
+    if (!selected) {
+      setWorkflowName("");
+      return;
+    }
+
+    setTableConfig((current) => ({
+      ...current,
+      columns: buildTableColumnsFromNames(selected.outputFields),
+    }));
+  }, [componentType, tableSourceType, workflowName, workflowOptions]);
+
   const handleAdd = () => {
     const component: ComponentBlock = {
       id: editingComponent?.id || `comp-${Date.now()}`,
@@ -1026,9 +1289,21 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     };
 
     if (componentType === "table") {
+      let parsedParams = undefined;
+      if (params.trim()) {
+        try {
+          parsedParams = JSON.parse(params);
+        } catch (e) {
+          console.error("Invalid params JSON:", e);
+        }
+      }
+
       component.dataBinding = {
-        kind: "schema",
+        kind: tableSourceType,
         schemaName,
+        ...(tableSourceType === "pipeline" && { pipelineName }),
+        ...(tableSourceType === "workflow" && { workflowName }),
+        ...(parsedParams && { params: parsedParams }),
       };
       component.table = cleanTableConfig(tableConfig);
     } else if (componentType === "tabPanel") {
@@ -1076,6 +1351,31 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       ...current,
       columns: (current.columns || []).map((column) =>
         column.field === fieldName ? { ...column, ...updates } : column,
+      ),
+    }));
+  };
+
+  const addTableColumn = () => {
+    setTableConfig((current) => {
+      const columns = current.columns || [];
+      let index = columns.length + 1;
+      let field = `field${index}`;
+      while (columns.some((column) => column.field === field)) {
+        index += 1;
+        field = `field${index}`;
+      }
+      return {
+        ...current,
+        columns: [...columns, { field, displayName: "" }],
+      };
+    });
+  };
+
+  const removeTableColumn = (fieldName: string) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).filter(
+        (column) => column.field !== fieldName,
       ),
     }));
   };
@@ -1249,11 +1549,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         }
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-scale-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-[min(96vw,1440px)] max-h-[96vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-neutral-100">
           <div>
-            <h3 className="text-base font-semibold text-neutral-900">
+            <h3 className="text-lg font-semibold text-neutral-900">
               {editingComponent ? "Edit Component" : "Add Component"}
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
@@ -1281,93 +1581,203 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="space-y-5">
+        <div className="flex-1 overflow-y-auto px-8 py-6 bg-neutral-50/40">
+          <div className="space-y-6">
             {/* Component Type */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Component Type
-              </label>
-              <select
-                value={componentType}
-                onChange={(e) => setComponentType(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-              >
-                <option value="table">📊 Table</option>
-                <option value="tabPanel">📑 Tab Panel</option>
-                {CHART_TYPES.map((chart) => (
-                  <option key={chart.value} value={chart.value}>
-                    📈 {chart.label}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border border-neutral-200 bg-white p-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                  Component Type
+                </label>
+                <select
+                  value={componentType}
+                  onChange={(e) => setComponentType(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                >
+                  <option value="table">Table</option>
+                  <option value="tabPanel">Tab Panel</option>
+                  {CHART_TYPES.map((chart) => (
+                    <option key={chart.value} value={chart.value}>
+                      {chart.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {componentType !== "tabPanel" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      placeholder="Optional component title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Schema Name
+                      <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <select
+                      value={schemaName}
+                      onChange={(e) => {
+                        setSchemaName(e.target.value);
+                        if (componentType === "table") {
+                          resetTableColumnsForSchema(e.target.value);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Select a schema...</option>
+                      {containerOptions.map((container) => (
+                        <option key={container.value} value={container.value}>
+                          {container.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {componentType === "table" && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                          Table Source
+                        </label>
+                        <select
+                          value={tableSourceType}
+                          onChange={(e) => {
+                            setTableSourceType(
+                              e.target.value as "schema" | "pipeline" | "workflow",
+                            );
+                            setPipelineName("");
+                            setWorkflowName("");
+                            if (e.target.value === "schema") {
+                              resetTableColumnsForSchema(schemaName);
+                            } else {
+                              setTableConfig((current) => ({
+                                ...current,
+                                columns: [],
+                              }));
+                            }
+                          }}
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        >
+                          <option value="schema">Schema rows</option>
+                          <option value="pipeline">Pipeline request</option>
+                          <option value="workflow">Workflow request</option>
+                        </select>
+                      </div>
+
+                      {tableSourceType === "pipeline" && (
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Pipeline Name
+                            <span className="text-red-500 ml-0.5">*</span>
+                          </label>
+                          <select
+                            value={pipelineName}
+                            onChange={(e) => setPipelineName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="">
+                              {pipelineOptions.length > 0
+                                ? "Select a pipeline..."
+                                : "No data-returning pipelines"}
+                            </option>
+                            {pipelineOptions.map(({ pipeline }) => (
+                              <option key={pipeline.name} value={pipeline.name}>
+                                {pipeline.name}
+                              </option>
+                            ))}
+                          </select>
+                          {pipelineName && (
+                            <p className="mt-1 text-xs text-neutral-500">
+                              Output fields:{" "}
+                              {pipelineOptions
+                                .find(({ pipeline }) => pipeline.name === pipelineName)
+                                ?.outputFields.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {tableSourceType === "workflow" && (
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Workflow Name
+                            <span className="text-red-500 ml-0.5">*</span>
+                          </label>
+                          <select
+                            value={workflowName}
+                            onChange={(e) => setWorkflowName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="">
+                              {workflowOptions.length > 0
+                                ? "Select a workflow..."
+                                : "No data-returning workflows"}
+                            </option>
+                            {workflowOptions.map(({ workflow }) => (
+                              <option key={workflow.name} value={workflow.name}>
+                                {workflow.name}
+                              </option>
+                            ))}
+                          </select>
+                          {workflowName && (
+                            <p className="mt-1 text-xs text-neutral-500">
+                              Output fields:{" "}
+                              {workflowOptions
+                                .find(({ workflow }) => workflow.name === workflowName)
+                                ?.outputFields.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </div>
 
             {componentType !== "tabPanel" && (
               <>
-                {/* Title */}
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Title
-                    <span className="text-neutral-400 text-xs ml-1.5">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                    placeholder="Enter component title"
-                  />
-                </div>
-
-                {/* Schema Name */}
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Schema Name
-                    <span className="text-red-500 ml-0.5">*</span>
-                  </label>
-                  <select
-                    value={schemaName}
-                    onChange={(e) => {
-                      setSchemaName(e.target.value);
-                      if (componentType === "table") {
-                        resetTableColumnsForSchema(e.target.value);
-                      }
-                    }}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                  >
-                    <option value="">Select a schema...</option>
-                    {containerOptions.map((container) => (
-                      <option key={container.value} value={container.value}>
-                        {container.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 {/* Table Configuration */}
                 {componentType === "table" && (
-                  <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/60">
-                    <div>
-                      <h4 className="text-sm font-semibold text-neutral-900">
+                  <div className="space-y-5 border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-base font-semibold text-neutral-900">
                         Table Settings
-                      </h4>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Configure column labels, links, cell classes, and row
-                        classes for this table component.
-                      </p>
+                        </h4>
+                        <p className="text-sm text-neutral-500 mt-1">
+                          Configure column labels, links, cell classes, and row
+                          classes for this table component.
+                        </p>
+                      </div>
+                      {schemaName && (
+                        <div className="shrink-0 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+                          <span className="font-semibold text-neutral-800">
+                            {tableConfig.columns?.length || 0}
+                          </span>{" "}
+                          columns
+                        </div>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-[150px_1fr] gap-4">
-                      <div className="space-y-1">
+                    <div className="grid grid-cols-[220px_1fr] gap-5 min-h-[620px]">
+                      <div className="space-y-1 rounded-xl border border-neutral-200 bg-neutral-50 p-2">
                         {TABLE_SETTINGS_TABS.map((tab) => (
                           <button
                             key={tab.value}
                             type="button"
                             onClick={() => setActiveTableSettingsTab(tab.value)}
-                            className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition-all ${
+                            className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all ${
                               activeTableSettingsTab === tab.value
                                 ? "bg-white text-violet-700 shadow-sm border border-violet-200"
                                 : "text-neutral-600 hover:bg-white border border-transparent"
@@ -1378,23 +1788,32 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         ))}
                       </div>
 
-                      <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4">
+                      <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-5">
                         {!schemaName ? (
                           <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
                             Select a schema to configure table settings.
                           </div>
-                        ) : selectedFields.length === 0 ? (
+                        ) : selectedFields.length === 0 &&
+                          (tableConfig.columns || []).length === 0 ? (
                           <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
-                            This schema has no fields.
+                            Add output fields for this table source.
                           </div>
                         ) : (
                           <>
                             {activeTableSettingsTab === "columns" && (
-                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                              <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
+                                <button
+                                  type="button"
+                                  onClick={addTableColumn}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                >
+                                  <FiPlus size={14} />
+                                  Add output field
+                                </button>
                                 {(tableConfig.columns || []).map((column) => (
                                   <div
                                     key={column.field}
-                                    className="grid grid-cols-2 gap-3 border border-neutral-200 rounded-lg p-3"
+                                    className="grid grid-cols-[minmax(180px,0.8fr)_1fr_auto] gap-4 border border-neutral-200 rounded-xl p-4"
                                   >
                                     <div>
                                       <label className="block text-[11px] font-medium text-neutral-600 mb-1">
@@ -1403,8 +1822,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       <input
                                         type="text"
                                         value={column.field}
-                                        disabled
-                                        className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-600"
+                                        onChange={(e) =>
+                                          updateTableColumn(column.field, {
+                                            field: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                       />
                                     </div>
                                     <div>
@@ -1423,17 +1846,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         placeholder={column.field}
                                       />
                                     </div>
+                                    <div className="flex items-end">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeTableColumn(column.field)
+                                        }
+                                        className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                        title="Remove field"
+                                      >
+                                        <FiTrash2 size={16} />
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
                             )}
 
                             {activeTableSettingsTab === "links" && (
-                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                              <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
                                 {(tableConfig.columns || []).map((column) => (
                                   <div
                                     key={column.field}
-                                    className="border border-neutral-200 rounded-lg p-3 space-y-3"
+                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
                                   >
                                     <div className="text-xs font-semibold text-neutral-700">
                                       {column.displayName || column.field}
@@ -1501,11 +1936,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                             )}
 
                             {activeTableSettingsTab === "cellClasses" && (
-                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                              <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
                                 {(tableConfig.columns || []).map((column) => (
                                   <div
                                     key={column.field}
-                                    className="border border-neutral-200 rounded-lg p-3 space-y-2"
+                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="text-xs font-semibold text-neutral-700">
@@ -1574,7 +2009,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                             )}
 
                             {activeTableSettingsTab === "rows" && (
-                              <div className="space-y-2">
+                              <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
                                     Row Class Rules
@@ -1635,26 +2070,30 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 )}
 
                 {/* Pipeline Name (for charts) */}
-                {CHART_TYPES.find((c) => c.value === componentType) && (
+                {(CHART_TYPES.find((c) => c.value === componentType) ||
+                  (componentType === "table" &&
+                    tableSourceType !== "schema")) && (
                   <>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Pipeline Name
-                        <span className="text-red-500 ml-0.5">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={pipelineName}
-                        onChange={(e) => setPipelineName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                        placeholder="Enter pipeline name"
-                      />
-                    </div>
+                    {CHART_TYPES.find((c) => c.value === componentType) && (
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                          Pipeline Name
+                          <span className="text-red-500 ml-0.5">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={pipelineName}
+                          onChange={(e) => setPipelineName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Enter pipeline name"
+                        />
+                      </div>
+                    )}
 
                     {/* Pipeline Params */}
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Pipeline Parameters (JSON)
+                        Source Parameters (JSON)
                       </label>
                       <textarea
                         value={params}
@@ -1803,17 +2242,25 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-neutral-100 bg-neutral-50/50">
+        <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-neutral-200 bg-white">
           <button
             onClick={onClose}
-            className="px-4 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 active:scale-[0.98] transition-all"
+            className="px-5 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 active:scale-[0.98] transition-all"
           >
             Cancel
           </button>
           <button
             onClick={handleAdd}
-            disabled={componentType !== "tabPanel" && !schemaName}
-            className="px-4 py-2.5 text-sm font-medium text-white bg-violet-500 rounded-lg hover:bg-violet-600 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-500 flex items-center gap-2"
+            disabled={
+              (componentType !== "tabPanel" && !schemaName) ||
+              (componentType === "table" &&
+                tableSourceType === "pipeline" &&
+                !pipelineName) ||
+              (componentType === "table" &&
+                tableSourceType === "workflow" &&
+                !workflowName)
+            }
+            className="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-600 flex items-center gap-2"
           >
             {editingComponent ? (
               <>

@@ -7,12 +7,18 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetList } from "./factory";
 
 // Type definitions based on Go models
-export type BindingKind = "schema" | "pipeline" | "api" | "function";
+export type BindingKind =
+  | "schema"
+  | "pipeline"
+  | "workflow"
+  | "api"
+  | "function";
 
 export interface DataBinding {
   kind: BindingKind;
   schemaName?: string;
   pipelineName?: string;
+  workflowName?: string;
   apiName?: string;
   functionName?: string;
   params?: Record<string, any>;

@@ -96,12 +96,35 @@ export interface Redis {
 export interface PipelineStage {
   name: string;
   pipelineJson: string; // serialized JSON string
+  outputFields?: string[];
   isAuthenticated: boolean;
   isAuthorized: boolean;
   authorizeRole: string[];
   isActive: boolean;
   isRedisCached: boolean;
   cacheTime: number;
+}
+
+export interface WorkflowStep {
+  name: string;
+  type: string;
+  order?: number;
+  isActive?: boolean;
+  targetSchema?: string;
+  config?: Record<string, any>;
+  steps?: WorkflowStep[];
+  elseSteps?: WorkflowStep[];
+  branches?: { name?: string; steps?: WorkflowStep[] }[];
+}
+
+export interface DynamicWorkflow {
+  name: string;
+  trigger?: string;
+  mode?: string;
+  isActive: boolean;
+  returnStep?: string;
+  outputFields?: string[];
+  steps?: WorkflowStep[];
 }
 
 /** Dynamic function spec (server-executed code) */
@@ -179,6 +202,7 @@ export interface ContainerModel {
   routes: Routes;
   redis: Redis;
   pipelines: PipelineStage[];
+  workflows?: DynamicWorkflow[];
   dynamicFunctions: DynamicFunction[];
   dynamicApis: DynamicApiModel[];
   isAuthContainer?: boolean;
@@ -221,6 +245,7 @@ export interface CreateContainerPayload {
   routes?: Partial<Routes>;
   redis?: Partial<Redis>;
   pipelines?: PipelineStage[];
+  workflows?: DynamicWorkflow[];
   dynamicFunctions?: DynamicFunction[];
   dynamicApis?: DynamicApiModel[];
   isAuthContainer?: boolean;

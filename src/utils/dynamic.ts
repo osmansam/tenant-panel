@@ -12,6 +12,15 @@ export interface DynamicPayload<T> {
   currentPage: number;
 }
 
+export type TableSourceBinding = {
+  kind?: "schema" | "pipeline" | "workflow";
+  schemaName?: string;
+  pipelineName?: string;
+  workflowName?: string;
+  fields?: string[];
+  params?: Record<string, unknown>;
+};
+
 const BASE = "/dynamic";
 const qs = (params: Record<string, unknown>) =>
   new URLSearchParams(
@@ -443,6 +452,78 @@ export function useGetPaginatedItems<T>(
   const url = `${baseQueryUrl}?${queryString}`;
 
   return useGet<DynamicPayload<T>>(url, queryKey, true);
+}
+
+export function useGetTableSourceItems<T>(
+  page: number,
+  limit: number,
+  binding: TableSourceBinding,
+  filters: FormElementsState
+) {
+  const sourceType = binding.kind || "schema";
+  const schemaName = binding.schemaName || "";
+  const baseQueryUrl = `${BASE}/table-source`;
+  const queryKey = [
+    "dynamic",
+    schemaName,
+    "table-source",
+    sourceType,
+    binding.pipelineName || "",
+    binding.workflowName || "",
+    { page, limit, filters, fields: binding.fields || [], params: binding.params || {} },
+  ] as const;
+
+  const parts = [
+    `schemaName=${schemaName}`,
+    `sourceType=${sourceType}`,
+    binding.pipelineName &&
+      `pipelineName=${encodeURIComponent(binding.pipelineName)}`,
+    binding.workflowName &&
+      `workflowName=${encodeURIComponent(binding.workflowName)}`,
+    binding.fields?.length &&
+      `fields=${encodeURIComponent(binding.fields.join(","))}`,
+    `page=${page}`,
+    `limit=${limit}`,
+    filters.sort && `sort=${filters.sort}`,
+    filters.asc !== undefined && `asc=${filters.asc}`,
+    filters.search &&
+      `search=${
+        typeof filters.search === "string"
+          ? filters.search.trim()
+          : filters.search
+      }`,
+  ];
+
+  Object.entries({ ...(binding.params || {}), ...filters }).forEach(
+    ([key, value]) => {
+      if (
+        !["sort", "asc", "search"].includes(key) &&
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      ) {
+        if (Array.isArray(value)) {
+          value.forEach((item) => {
+            if (item !== undefined && item !== null && item !== "") {
+              const trimmedItem =
+                typeof item === "string" ? item.trim() : String(item);
+              parts.push(`${key}=${encodeURIComponent(trimmedItem)}`);
+            }
+          });
+        } else if (value instanceof Date) {
+          parts.push(`${key}=${value.toISOString()}`);
+        } else {
+          const trimmedValue =
+            typeof value === "string" ? value.trim() : String(value);
+          parts.push(`${key}=${encodeURIComponent(trimmedValue)}`);
+        }
+      }
+    }
+  );
+
+  const queryString = parts.filter(Boolean).join("&");
+  const url = `${baseQueryUrl}?${queryString}`;
+  return useGet<DynamicPayload<T>>(url, queryKey, Boolean(schemaName));
 }
 
 // utils/dynamic.ts (or wherever this lives)
