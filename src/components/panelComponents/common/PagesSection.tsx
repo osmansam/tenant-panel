@@ -131,8 +131,10 @@ export const PagesSection: React.FC = () => {
           sections: sections,
         },
       });
-      setShowDesigner(false);
-      setEditingPage(null);
+      setEditingPage({
+        ...editingPage,
+        sections,
+      });
     } catch (error) {
       console.error("Failed to save page structure:", error);
     }

@@ -6,6 +6,53 @@ import {
 import { ContainerModel, Field, Frontend, Types } from "./api/container";
 
 type GenericItem = Record<string, unknown> & { _id: string };
+type ComparableValue = string | number | boolean | null | undefined;
+type RowClassRule = {
+  condition?: string;
+  className?: string;
+  Condition?: string;
+  ClassName?: string;
+};
+
+const toComparableValue = (value: unknown): ComparableValue => {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  return String(value);
+};
+
+const compareValues = (
+  left: ComparableValue,
+  right: ComparableValue,
+  operator: ">=" | "<=" | ">" | "<",
+) => {
+  if (
+    left === null ||
+    left === undefined ||
+    right === null ||
+    right === undefined
+  ) {
+    return false;
+  }
+
+  switch (operator) {
+    case ">=":
+      return left >= right;
+    case "<=":
+      return left <= right;
+    case ">":
+      return left > right;
+    case "<":
+      return left < right;
+  }
+};
 
 export type RawPopulationSettings = {
   fieldName?: string;
@@ -352,7 +399,10 @@ export const tailwindBgToStyle = (className: string): React.CSSProperties => {
 /**
  * Parse a value from a condition string
  */
-export const parseValue = (row: GenericItem, value: string): any => {
+export const parseValue = (
+  row: GenericItem,
+  value: string,
+): ComparableValue => {
   if (!value) return value;
   value = value.trim();
 
@@ -360,7 +410,7 @@ export const parseValue = (row: GenericItem, value: string): any => {
   const rowMatch = value.match(/^row\((.+)\)$/);
   if (rowMatch) {
     const field = rowMatch[1];
-    return row[field];
+    return toComparableValue(row[field]);
   }
 
   // Check for quoted strings
@@ -380,20 +430,47 @@ export const parseValue = (row: GenericItem, value: string): any => {
 
   // Fallback: Check if value is a key in row
   if (value in row) {
-    return row[value];
+    return toComparableValue(row[value]);
   }
 
   return value;
 };
 
-/**
- * Evaluate a row condition (e.g., "field > 5", "status = active")
- */
-export const evaluateRowCondition = (
+const splitLogicalExpression = (
+  expression: string,
+  operator: "&&" | "||",
+): string[] => {
+  const parts: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
+
+  for (let index = 0; index < expression.length; index += 1) {
+    const char = expression[index];
+    const next = expression[index + 1];
+
+    if ((char === '"' || char === "'") && expression[index - 1] !== "\\") {
+      quote = quote === char ? null : quote ?? char;
+    }
+
+    if (!quote && char === operator[0] && next === operator[1]) {
+      parts.push(current.trim());
+      current = "";
+      index += 1;
+      continue;
+    }
+
+    current += char;
+  }
+
+  parts.push(current.trim());
+  return parts.filter(Boolean);
+};
+
+const evaluateSimpleRowCondition = (
   row: GenericItem,
-  condition: string
+  condition: string,
 ): boolean => {
-  if (!condition) return false;
+  if (!condition?.trim()) return false;
 
   // Handle inequality (!=)
   if (condition.includes("!=")) {
@@ -407,7 +484,7 @@ export const evaluateRowCondition = (
   if (condition.includes(">=")) {
     const [lhs, rhs] = condition.split(">=");
     if (!lhs || rhs === undefined) return false;
-    const result = parseValue(row, lhs) >= parseValue(row, rhs);
+    const result = compareValues(parseValue(row, lhs), parseValue(row, rhs), ">=");
     return result;
   }
 
@@ -415,7 +492,7 @@ export const evaluateRowCondition = (
   if (condition.includes("<=")) {
     const [lhs, rhs] = condition.split("<=");
     if (!lhs || rhs === undefined) return false;
-    const result = parseValue(row, lhs) <= parseValue(row, rhs);
+    const result = compareValues(parseValue(row, lhs), parseValue(row, rhs), "<=");
     return result;
   }
 
@@ -423,7 +500,7 @@ export const evaluateRowCondition = (
   if (condition.includes(">")) {
     const [lhs, rhs] = condition.split(">");
     if (!lhs || rhs === undefined) return false;
-    const result = parseValue(row, lhs) > parseValue(row, rhs);
+    const result = compareValues(parseValue(row, lhs), parseValue(row, rhs), ">");
     return result;
   }
 
@@ -431,7 +508,7 @@ export const evaluateRowCondition = (
   if (condition.includes("<")) {
     const [lhs, rhs] = condition.split("<");
     if (!lhs || rhs === undefined) return false;
-    const result = parseValue(row, lhs) < parseValue(row, rhs);
+    const result = compareValues(parseValue(row, lhs), parseValue(row, rhs), "<");
     return result;
   }
 
@@ -451,6 +528,57 @@ export const evaluateRowCondition = (
 
   // Handle truthy check (just field name)
   return !!parseValue(row, condition);
+};
+
+/**
+ * Evaluate a row condition (e.g., "field > 5", "status = active", "type='farm' && count=4")
+ */
+export const evaluateRowCondition = (
+  row: GenericItem,
+  condition: string
+): boolean => {
+  const trimmedCondition = condition?.trim();
+  if (!trimmedCondition) return false;
+
+  const orParts = splitLogicalExpression(trimmedCondition, "||");
+  if (orParts.length > 1) {
+    return orParts.some((part) => evaluateRowCondition(row, part));
+  }
+
+  const andParts = splitLogicalExpression(trimmedCondition, "&&");
+  if (andParts.length > 1) {
+    return andParts.every((part) => evaluateRowCondition(row, part));
+  }
+
+  return evaluateSimpleRowCondition(row, trimmedCondition);
+};
+
+export const getMatchingRowClassNames = (
+  row: GenericItem,
+  rules: RowClassRule[] = [],
+): string => {
+  const matchedClassNames: string[] = [];
+  const fallbackClassNames: string[] = [];
+
+  rules.forEach((rule) => {
+    const condition = rule.condition ?? rule.Condition ?? "";
+    const className = rule.className ?? rule.ClassName ?? "";
+    if (!className.trim()) return;
+
+    if (!condition.trim()) {
+      fallbackClassNames.push(className);
+      return;
+    }
+
+    if (evaluateRowCondition(row, condition)) {
+      matchedClassNames.push(className);
+    }
+  });
+
+  return (matchedClassNames.length > 0
+    ? matchedClassNames
+    : fallbackClassNames
+  ).join(" ");
 };
 
 /**

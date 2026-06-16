@@ -22,6 +22,40 @@ export interface DataBinding {
   params?: Record<string, any>;
 }
 
+export type LinkType = "external" | "internal" | "email" | "phone" | "file";
+
+export interface RowClassConfig {
+  condition: string;
+  className: string;
+}
+
+export interface TableLinkConfig {
+  template?: string;
+  labelField?: string;
+  type?: LinkType;
+}
+
+export interface TableColumnConfig {
+  field: string;
+  displayName?: string;
+  cellClassName?: RowClassConfig[];
+  link?: TableLinkConfig;
+}
+
+export interface TableRowsConfig {
+  className?: RowClassConfig[];
+}
+
+export interface TableCacheConfig {
+  invalidateKeys?: string[];
+}
+
+export interface TableComponentConfig {
+  columns?: TableColumnConfig[];
+  rows?: TableRowsConfig;
+  cache?: TableCacheConfig;
+}
+
 /**
  * Component block - represents a single UI component
  */
@@ -36,6 +70,8 @@ export interface ComponentBlock {
   order: number;
   /** Data binding configuration */
   dataBinding?: DataBinding;
+  /** Table-specific display, row, link, and cache config */
+  table?: TableComponentConfig;
   /** Additional props passed to the component */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props?: Record<string, any>;
