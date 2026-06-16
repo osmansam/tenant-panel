@@ -3,6 +3,7 @@ import {
   FormKeyTypeEnum,
   InputTypes,
 } from "../components/panelComponents/shared/types";
+import { TableActionConfig } from "../types/page";
 import { ContainerModel, Field, Frontend, Types } from "./api/container";
 
 type GenericItem = Record<string, unknown> & { _id: string };
@@ -12,6 +13,31 @@ type RowClassRule = {
   className?: string;
   Condition?: string;
   ClassName?: string;
+};
+type RawActionConfig = Partial<TableActionConfig> & {
+  ID?: string;
+  Kind?: TableActionConfig["kind"];
+  Label?: string;
+  Icon?: string;
+  Order?: number;
+  Enabled?: boolean;
+  ModalType?: TableActionConfig["modalType"];
+  FormFields?: TableActionConfig["formFields"];
+  Fields?: string[];
+  ExcludeFields?: string[];
+  FieldOverrides?: TableActionConfig["fieldOverrides"];
+  ConstantValues?: Record<string, unknown>;
+  ConstantValuesJson?: string;
+  DisabledCondition?: string;
+  HiddenCondition?: string;
+  RequiredCondition?: string;
+  ConfirmTitle?: string;
+  ConfirmText?: string;
+  LinkTemplate?: string;
+  LinkType?: TableActionConfig["linkType"];
+  ClassName?: string;
+  ButtonClassName?: string;
+  IsButton?: boolean;
 };
 
 const toComparableValue = (value: unknown): ComparableValue => {
@@ -105,6 +131,10 @@ export type RawField = {
       className: string;
     }[];
     invalidateKeys?: string[];
+    linkTemplate?: string;
+    linkLabelField?: string;
+    linkType?: string;
+    actions?: RawActionConfig[];
   };
   Frontend?: {
     DisplayName?: string;
@@ -120,6 +150,7 @@ export type RawField = {
     linkTemplate?: string;
     linkLabelField?: string;
     linkType?: string;
+    Actions?: RawActionConfig[];
   };
   populationSettings?: RawPopulationSettings;
   PopulationSettings?: RawPopulationSettings;
@@ -160,6 +191,7 @@ export type RawContainer = {
       className: string;
     }[];
     invalidateKeys?: string[];
+    actions?: RawActionConfig[];
   };
   Frontend?: {
     DisplayName?: string;
@@ -168,8 +200,37 @@ export type RawContainer = {
       ClassName: string;
     }[];
     invalidateKeys?: string[];
+    Actions?: RawActionConfig[];
   };
 };
+
+const normalizeActionConfig = (
+  action: RawActionConfig,
+): TableActionConfig => ({
+  id: action.id ?? action.ID,
+  kind: (action.kind ?? action.Kind ?? "update") as TableActionConfig["kind"],
+  label: action.label ?? action.Label,
+  icon: action.icon ?? action.Icon,
+  order: action.order ?? action.Order,
+  enabled: action.enabled ?? action.Enabled,
+  modalType: action.modalType ?? action.ModalType,
+  formFields: action.formFields ?? action.FormFields,
+  fields: action.fields ?? action.Fields,
+  excludeFields: action.excludeFields ?? action.ExcludeFields,
+  fieldOverrides: action.fieldOverrides ?? action.FieldOverrides,
+  constantValues: action.constantValues ?? action.ConstantValues,
+  constantValuesJson: action.constantValuesJson ?? action.ConstantValuesJson,
+  disabledCondition: action.disabledCondition ?? action.DisabledCondition,
+  hiddenCondition: action.hiddenCondition ?? action.HiddenCondition,
+  requiredCondition: action.requiredCondition ?? action.RequiredCondition,
+  confirmTitle: action.confirmTitle ?? action.ConfirmTitle,
+  confirmText: action.confirmText ?? action.ConfirmText,
+  linkTemplate: action.linkTemplate ?? action.LinkTemplate,
+  linkType: action.linkType ?? action.LinkType,
+  className: action.className ?? action.ClassName,
+  buttonClassName: action.buttonClassName ?? action.ButtonClassName,
+  isButton: action.isButton ?? action.IsButton,
+});
 
 /**
  * Humanize a string by converting camelCase/snake_case to Title Case
@@ -209,30 +270,36 @@ export const normalizeField = (f: RawField): Field => {
       normalizeField(c)
     ),
     frontend:
-      f.frontend ??
-      (f.Frontend
+      f.frontend
         ? ({
-            displayName: f.Frontend.DisplayName,
-            rowClassName: f.Frontend.RowClassName?.map((rc) => ({
-              condition: rc.Condition,
-              className: rc.ClassName,
-            })),
-            rowKeyClassName: f.Frontend.RowKeyClassName?.map((rc) => ({
-              condition: rc.Condition,
-              className: rc.ClassName,
-            })),
-            invalidateKeys: f.Frontend.invalidateKeys || [],
-            linkTemplate: f.Frontend.linkTemplate,
-            linkLabelField: f.Frontend.linkLabelField,
-            linkType: f.Frontend.linkType as
-              | "external"
-              | "internal"
-              | "email"
-              | "phone"
-              | "file"
-              | undefined,
+            ...f.frontend,
+            linkType: f.frontend.linkType as Frontend["linkType"],
+            actions: (f.frontend.actions || []).map(normalizeActionConfig),
           } as Frontend)
-        : undefined),
+        : f.Frontend
+          ? ({
+              displayName: f.Frontend.DisplayName,
+              rowClassName: f.Frontend.RowClassName?.map((rc) => ({
+                condition: rc.Condition,
+                className: rc.ClassName,
+              })),
+              rowKeyClassName: f.Frontend.RowKeyClassName?.map((rc) => ({
+                condition: rc.Condition,
+                className: rc.ClassName,
+              })),
+              invalidateKeys: f.Frontend.invalidateKeys || [],
+              linkTemplate: f.Frontend.linkTemplate,
+              linkLabelField: f.Frontend.linkLabelField,
+              linkType: f.Frontend.linkType as
+                | "external"
+                | "internal"
+                | "email"
+                | "phone"
+                | "file"
+                | undefined,
+              actions: (f.Frontend.Actions || []).map(normalizeActionConfig),
+            } as Frontend)
+          : undefined,
     populationSettings: rawPopSettings
       ? {
           fieldName: rawPopSettings.fieldName ?? rawPopSettings.FieldName ?? "",
@@ -284,17 +351,22 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
     []) as ContainerModel["populationArray"],
   populatedRoutes: c.populatedRoutes ?? c.PopulatedRoutes ?? [],
   frontend:
-    c.frontend ??
-    (c.Frontend
+    c.frontend
       ? ({
-          displayName: c.Frontend.DisplayName,
-          rowClassName: c.Frontend.RowClassName?.map((rc) => ({
-            condition: rc.Condition,
-            className: rc.ClassName,
-          })),
-          invalidateKeys: c.Frontend.invalidateKeys || [],
+          ...c.frontend,
+          actions: (c.frontend.actions || []).map(normalizeActionConfig),
         } as Frontend)
-      : undefined),
+      : c.Frontend
+        ? ({
+            displayName: c.Frontend.DisplayName,
+            rowClassName: c.Frontend.RowClassName?.map((rc) => ({
+              condition: rc.Condition,
+              className: rc.ClassName,
+            })),
+            invalidateKeys: c.Frontend.invalidateKeys || [],
+            actions: (c.Frontend.Actions || []).map(normalizeActionConfig),
+          } as Frontend)
+        : undefined,
 });
 
 /**

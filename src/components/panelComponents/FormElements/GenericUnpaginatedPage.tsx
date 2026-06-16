@@ -8,7 +8,7 @@ import { useGeneralContext } from "../../../context/General.context";
 import { useUserContext } from "../../../context/User.context";
 import { useSelectionData } from "../../../hooks/useSelectionData";
 import { FormElementsState } from "../../../types";
-import { TableComponentConfig } from "../../../types/page";
+import { TableActionConfig, TableComponentConfig } from "../../../types/page";
 import { UpdatePayload } from "../../../utils/api";
 import {
   ContainerModel,
@@ -26,12 +26,25 @@ import {
   normalizeContainer,
   normalizeField,
   tailwindBgToStyle,
+  evaluateRowCondition,
 } from "../../../utils/genericPageHelpers";
 import {
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
 } from "../../../utils/tableConfig";
+import {
+  buildActionFormInputs,
+  buildActionFormKeys,
+  filterActionFields,
+  getActionConstantValues,
+  getActionDefaultValues,
+  getActionIconElement,
+  getActionId,
+  getConfiguredTableActions,
+  resolveActionTemplate,
+  useActionFormSelectionData,
+} from "../../../utils/tableActions";
 import { generateMockData } from "../../../utils/mockDataGenerator";
 import {
   isFieldRequired,
@@ -39,7 +52,7 @@ import {
 } from "../../../utils/validationHelper";
 import { LinkCell } from "../../LinkCell";
 import SwitchButton from "../common/SwitchButton";
-import { FormKeyTypeEnum, InputTypes } from "../shared/types";
+import { ActionType, FormKeyTypeEnum, GenericInputType, InputTypes } from "../shared/types";
 import GenericTable from "../Tables/GenericTable";
 import GenericAddEditPanel from "./GenericAddEditPanel";
 
@@ -70,6 +83,9 @@ export default function GenericUnpaginatedPage({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [actionModalOpen, setActionModalOpen] = useState<Record<string, boolean>>(
+    {},
+  );
   const [rowToAction, setRowToAction] = useState<GenericItem | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterFormElements, setFilterFormElements] =
@@ -527,7 +543,101 @@ export default function GenericUnpaginatedPage({
     };
   }, [t, isAddOpen, inputs, formKeys, handleSubmitItem]);
 
-  const actions = useMemo(() => {
+  const normalizeRowForSubmit = useCallback(
+    (row: GenericItem) => {
+      const normalizedUpdates = { ...row };
+      displayFields.forEach((f) => {
+        const fieldType = (f.type || "").toLowerCase();
+        if (
+          (fieldType === Types.ObjectId ||
+            fieldType === Types.AutoIncrementId) &&
+          f.populationSettings &&
+          normalizedUpdates[f.name] &&
+          typeof normalizedUpdates[f.name] === "object"
+        ) {
+          const populatedValue = normalizedUpdates[f.name] as Record<
+            string,
+            unknown
+          >;
+          normalizedUpdates[f.name] = populatedValue._id;
+        } else if (
+          fieldType === Types.ObjectIdArray &&
+          f.populationSettings &&
+          normalizedUpdates[f.name] &&
+          Array.isArray(normalizedUpdates[f.name])
+        ) {
+          const populatedArray = normalizedUpdates[f.name] as Array<
+            Record<string, unknown>
+          >;
+          normalizedUpdates[f.name] = populatedArray.map((item) =>
+            item && typeof item === "object" ? item._id : item,
+          );
+        }
+      });
+      return normalizedUpdates;
+    },
+    [displayFields],
+  );
+
+  const configuredActionDefinitions = useMemo(
+    () => getConfiguredTableActions(tableConfig, container?.frontend?.actions),
+    [container?.frontend?.actions, tableConfig],
+  );
+  const actionSelectionDataMap = useActionFormSelectionData(
+    configuredActionDefinitions || [],
+  );
+
+  const getActionInputs = useCallback(
+    (action: TableActionConfig, actionId: string, row: GenericItem | null) => {
+      if (action.formFields?.length) {
+        return buildActionFormInputs(
+          action,
+          actionId,
+          row,
+          actionSelectionDataMap,
+        );
+      }
+
+      const fields = filterActionFields(displayFields, action);
+      const fieldNames = new Set(fields.map((field) => field.name));
+      const overrides = new Map(
+        (action.fieldOverrides || []).map((override) => [
+          override.field,
+          override,
+        ]),
+      );
+
+      return inputs
+        .filter((input) => fieldNames.has(input.formKey))
+        .map((input): GenericInputType => {
+          const genericInput = input as GenericInputType;
+          const override = overrides.get(input.formKey);
+          const isConditionDisabled =
+            !!row &&
+            !!override?.disabledCondition?.trim() &&
+            evaluateRowCondition(row, override.disabledCondition);
+
+          return {
+            ...genericInput,
+            required: override?.required ?? genericInput.required,
+            isDisabled: genericInput.isDisabled || isConditionDisabled,
+          };
+        });
+    },
+    [actionSelectionDataMap, displayFields, inputs],
+  );
+
+  const getActionFormKeys = useCallback(
+    (action: TableActionConfig, actionInputs: GenericInputType[]) => {
+      if (action.formFields?.length) return buildActionFormKeys(action);
+
+      const fieldNames = new Set(actionInputs.map((input) => input.formKey));
+      return formKeys.filter((formKey) => fieldNames.has(formKey.key));
+    },
+    [formKeys],
+  );
+
+  const defaultActions = useMemo<ActionType<GenericItem>[]>(() => {
     if (!actionsEnabled) return [];
     return [
       {
@@ -560,38 +670,7 @@ export default function GenericUnpaginatedPage({
         setRow: setRowToAction as (value: GenericItem) => void,
         modal: rowToAction
           ? (() => {
-              // Normalize the row data to extract IDs from populated fields
-              const normalizedUpdates = { ...rowToAction };
-              displayFields.forEach((f) => {
-                const fieldType = (f.type || "").toLowerCase();
-                if (
-                  (fieldType === Types.ObjectId ||
-                    fieldType === Types.AutoIncrementId) &&
-                  f.populationSettings &&
-                  normalizedUpdates[f.name] &&
-                  typeof normalizedUpdates[f.name] === "object"
-                ) {
-                  // Extract the _id from the populated object
-                  const populatedValue = normalizedUpdates[f.name] as Record<
-                    string,
-                    unknown
-                  >;
-                  normalizedUpdates[f.name] = populatedValue._id;
-                } else if (
-                  fieldType === Types.ObjectIdArray &&
-                  f.populationSettings &&
-                  normalizedUpdates[f.name] &&
-                  Array.isArray(normalizedUpdates[f.name])
-                ) {
-                  // Extract array of _ids from populated objects
-                  const populatedArray = normalizedUpdates[f.name] as Array<
-                    Record<string, unknown>
-                  >;
-                  normalizedUpdates[f.name] = populatedArray.map((item) =>
-                    item && typeof item === "object" ? item._id : item,
-                  );
-                }
-              });
+              const normalizedUpdates = normalizeRowForSubmit(rowToAction);
 
               return (
                 <GenericAddEditPanel
@@ -625,6 +704,173 @@ export default function GenericUnpaginatedPage({
     inputs,
     formKeys,
     actionsEnabled,
+    normalizeRowForSubmit,
+  ]);
+
+  const actions = useMemo<ActionType<GenericItem>[]>(() => {
+    if (!actionsEnabled) return [];
+    if (!configuredActionDefinitions?.length) return defaultActions;
+
+    return configuredActionDefinitions.map((actionConfig, index) => {
+      const actionId = getActionId(actionConfig, index);
+      const label =
+        actionConfig.label ||
+        (actionConfig.kind === "edit"
+          ? t("Edit")
+          : actionConfig.kind === "delete"
+          ? t("Delete")
+          : t("Action"));
+      const modalType =
+        actionConfig.modalType ||
+        (actionConfig.kind === "edit" ? "form" : "none");
+      const fallbackIcon =
+        actionConfig.kind === "delete"
+          ? "HiOutlineTrash"
+          : actionConfig.kind === "edit"
+          ? "FiEdit"
+          : "MdTouchApp";
+      const actionInputs = getActionInputs(actionConfig, actionId, rowToAction);
+      const actionFormKeys = getActionFormKeys(actionConfig, actionInputs);
+      const constants = getActionConstantValues(actionConfig);
+      const defaultValues = getActionDefaultValues(actionConfig);
+      const closeModal = () =>
+        setActionModalOpen((current) => ({ ...current, [actionId]: false }));
+      const openModal = (row: GenericItem) => {
+        setRowToAction(row);
+        setActionModalOpen((current) => ({ ...current, [actionId]: true }));
+      };
+      const isHidden = (row: GenericItem) =>
+        !!actionConfig.hiddenCondition?.trim() &&
+        evaluateRowCondition(row, actionConfig.hiddenCondition);
+      const isDisabled = (row: GenericItem) =>
+        (!!actionConfig.disabledCondition?.trim() &&
+          evaluateRowCondition(row, actionConfig.disabledCondition)) ||
+        (!!actionConfig.requiredCondition?.trim() &&
+          !evaluateRowCondition(row, actionConfig.requiredCondition));
+      const runAction = (row: GenericItem) => {
+        if (isDisabled(row)) return;
+        if (modalType === "confirm" || modalType === "form") {
+          openModal(row);
+          return;
+        }
+
+        if (actionConfig.kind === "delete") {
+          deleteDynamicItem(row._id);
+          return;
+        }
+
+        if (actionConfig.kind === "link" && actionConfig.linkTemplate) {
+          const nextUrl = resolveActionTemplate(actionConfig.linkTemplate, row);
+          if (actionConfig.linkType === "internal") {
+            window.location.assign(nextUrl);
+          } else {
+            window.open(nextUrl, "_blank", "noopener,noreferrer");
+          }
+          return;
+        }
+
+        updateDynamicItem(row._id, constants as Partial<GenericItem>);
+      };
+      const submitConfiguredAction = (
+        item: GenericItem | UpdatePayload<GenericItem>,
+      ) => {
+        if (!rowToAction) return;
+        const rawUpdates =
+          "updates" in item
+            ? (item.updates as Record<string, unknown>)
+            : (item as Record<string, unknown>);
+        updateDynamicItem(rowToAction._id, {
+          ...rawUpdates,
+          ...constants,
+        } as Partial<GenericItem>);
+        closeModal();
+      };
+
+      return {
+        name: label,
+        icon: getActionIconElement(actionConfig, fallbackIcon),
+        isModal: modalType === "confirm" || modalType === "form",
+        isModalOpen: !!actionModalOpen[actionId],
+        setIsModal: (value: boolean) =>
+          setActionModalOpen((current) => ({ ...current, [actionId]: value })),
+        modal:
+          rowToAction && modalType === "confirm" ? (
+            <ConfirmationDialog
+              isOpen={!!actionModalOpen[actionId]}
+              close={closeModal}
+              confirm={() => {
+                if (actionConfig.kind === "delete") {
+                  deleteDynamicItem(rowToAction._id);
+                } else {
+                  updateDynamicItem(
+                    rowToAction._id,
+                    constants as Partial<GenericItem>,
+                  );
+                }
+                closeModal();
+              }}
+              title={t(actionConfig.confirmTitle || label)}
+              text={t(actionConfig.confirmText || "GeneralConfirmMessage")}
+            />
+          ) : rowToAction && modalType === "form" ? (
+            <GenericAddEditPanel
+              isOpen={!!actionModalOpen[actionId]}
+              close={closeModal}
+              inputs={actionInputs}
+              formKeys={actionFormKeys}
+              submitItem={submitConfiguredAction}
+              isEditMode
+              topClassName="flex flex-col gap-2"
+              itemToEdit={{
+                id: rowToAction._id,
+                updates: {
+                  ...normalizeRowForSubmit(rowToAction),
+                  ...defaultValues,
+                  ...constants,
+                },
+              }}
+            />
+          ) : null,
+        isPath: false,
+        node: (row: GenericItem) => {
+          if (isHidden(row)) return null;
+          const disabled = isDisabled(row);
+          return (
+            <button
+              type="button"
+              title={label}
+              disabled={disabled}
+              onClick={() => runAction(row)}
+              className={
+                actionConfig.isButton
+                  ? actionConfig.buttonClassName ||
+                    "px-2 py-1 rounded border border-neutral-200 text-xs disabled:opacity-50"
+                  : `${
+                      actionConfig.className ||
+                      "text-blue-500 cursor-pointer text-xl"
+                    } ${disabled ? "opacity-40 pointer-events-none" : ""}`
+              }
+            >
+              {actionConfig.isButton
+                ? label
+                : getActionIconElement(actionConfig, fallbackIcon)}
+            </button>
+          );
+        },
+      };
+    });
+  }, [
+    actionModalOpen,
+    actionsEnabled,
+    configuredActionDefinitions,
+    defaultActions,
+    deleteDynamicItem,
+    getActionFormKeys,
+    getActionInputs,
+    normalizeRowForSubmit,
+    rowToAction,
+    t,
+    updateDynamicItem,
   ]);
 
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);

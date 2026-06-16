@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
+import { TableActionConfig } from "../../types/page";
 import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
@@ -35,6 +36,7 @@ export interface Frontend {
   linkTemplate?: string;
   linkLabelField?: string;
   linkType?: LinkType;
+  actions?: TableActionConfig[];
 }
 
 export interface Field {

@@ -53,10 +53,101 @@ export interface TableCacheConfig {
   invalidateKeys?: string[];
 }
 
+export type TableActionKind = "edit" | "delete" | "update" | "link";
+export type TableActionModalType = "none" | "confirm" | "form";
+export type TableActionInputType =
+  | "text"
+  | "date"
+  | "number"
+  | "select"
+  | "textarea"
+  | "image"
+  | "password"
+  | "time"
+  | "color"
+  | "checkbox"
+  | "hour"
+  | "monthYear";
+export type TableActionFormKeyType =
+  | "string"
+  | "number"
+  | "color"
+  | "date"
+  | "boolean"
+  | "checkbox"
+  | "stringArray"
+  | "numberArray"
+  | "intArray";
+export type TableActionOptionsSource = "static" | "schema";
+
+export interface TableActionFieldConfig {
+  field: string;
+  required?: boolean;
+  disabledCondition?: string;
+}
+
+export interface TableActionFormOptionConfig {
+  value: string | number;
+  label: string;
+}
+
+export interface TableActionFormFieldConfig {
+  formKey: string;
+  type: TableActionInputType;
+  formKeyType?: TableActionFormKeyType;
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  requiredCondition?: string;
+  disabledCondition?: string;
+  isMultiple?: boolean;
+  optionsSource?: TableActionOptionsSource;
+  staticOptions?: TableActionFormOptionConfig[];
+  staticOptionsJson?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  sourceFilterCondition?: string;
+  defaultValue?: string | number | boolean | string[] | number[];
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  validationMessage?: string;
+}
+
+export interface TableActionConfig {
+  id?: string;
+  kind: TableActionKind;
+  label?: string;
+  icon?: string;
+  order?: number;
+  enabled?: boolean;
+  modalType?: TableActionModalType;
+  formFields?: TableActionFormFieldConfig[];
+  fields?: string[];
+  excludeFields?: string[];
+  fieldOverrides?: TableActionFieldConfig[];
+  constantValues?: Record<string, unknown>;
+  constantValuesJson?: string;
+  disabledCondition?: string;
+  hiddenCondition?: string;
+  requiredCondition?: string;
+  confirmTitle?: string;
+  confirmText?: string;
+  linkTemplate?: string;
+  linkType?: LinkType;
+  className?: string;
+  buttonClassName?: string;
+  isButton?: boolean;
+}
+
 export interface TableComponentConfig {
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
   cache?: TableCacheConfig;
+  actions?: TableActionConfig[];
 }
 
 export type ComponentType =

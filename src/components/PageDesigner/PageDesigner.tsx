@@ -15,6 +15,13 @@ import {
   GridCell,
   GridSection,
   RowClassConfig,
+  TableActionConfig,
+  TableActionFormFieldConfig,
+  TableActionFormKeyType,
+  TableActionInputType,
+  TableActionOptionsSource,
+  TableActionKind,
+  TableActionModalType,
   TableColumnConfig,
   TableComponentConfig,
   TabPanelTab,
@@ -27,6 +34,7 @@ import {
   WorkflowStep,
   useGetContainers,
 } from "../../utils/api/container";
+import { getIconByName } from "../../utils/menuIcons";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 
 interface PageDesignerProps {
@@ -60,17 +68,95 @@ const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: "phone", label: "Phone" },
 ];
 
+const ACTION_KINDS: { value: TableActionKind; label: string }[] = [
+  { value: "edit", label: "Edit" },
+  { value: "delete", label: "Delete" },
+  { value: "update", label: "Update" },
+  { value: "link", label: "Link" },
+];
+
+const ACTION_MODAL_TYPES: { value: TableActionModalType; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "confirm", label: "Confirm" },
+  { value: "form", label: "Form" },
+];
+
+const ACTION_INPUT_TYPES: { value: TableActionInputType; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "textarea", label: "Textarea" },
+  { value: "number", label: "Number" },
+  { value: "date", label: "Date" },
+  { value: "select", label: "Select" },
+  { value: "checkbox", label: "Checkbox" },
+  { value: "color", label: "Color" },
+  { value: "time", label: "Time" },
+  { value: "image", label: "Image" },
+  { value: "password", label: "Password" },
+  { value: "hour", label: "Hour" },
+  { value: "monthYear", label: "Month Year" },
+];
+
+const formKeyTypeForActionInput = (
+  type: TableActionInputType,
+  isMultiple?: boolean,
+): TableActionFormKeyType => {
+  if (isMultiple) return "stringArray";
+  if (type === "number") return "number";
+  if (type === "date" || type === "time" || type === "hour" || type === "monthYear") {
+    return "date";
+  }
+  if (type === "checkbox") return "boolean";
+  if (type === "color") return "color";
+  return "string";
+};
+
+const ACTION_OPTIONS_SOURCES: {
+  value: TableActionOptionsSource;
+  label: string;
+}[] = [
+  { value: "static", label: "Static" },
+  { value: "schema", label: "Schema" },
+];
+
+const ACTION_ICON_OPTIONS = [
+  { value: "FiEdit", label: "Edit" },
+  { value: "HiOutlineTrash", label: "Trash" },
+  { value: "MdTouchApp", label: "Action" },
+  { value: "FiCheck", label: "Check" },
+  { value: "FiX", label: "Close" },
+  { value: "FiEye", label: "View" },
+  { value: "FiSend", label: "Send" },
+  { value: "FiDownload", label: "Download" },
+  { value: "FiUpload", label: "Upload" },
+  { value: "FiCopy", label: "Copy" },
+  { value: "FiExternalLink", label: "External Link" },
+  { value: "MdDone", label: "Done" },
+  { value: "MdCancel", label: "Cancel" },
+  { value: "MdApproval", label: "Approval" },
+  { value: "MdArchive", label: "Archive" },
+  { value: "MdRestore", label: "Restore" },
+  { value: "MdEmail", label: "Email" },
+  { value: "MdPhone", label: "Phone" },
+];
+
+const getDefaultActionsForSource = (
+  sourceType: "schema" | "pipeline" | "workflow",
+  fields: Field[] = [],
+) => (sourceType === "schema" ? buildDefaultSchemaActions(fields) : []);
+
 type TableSettingsTab =
   | "columns"
   | "links"
   | "cellClasses"
-  | "rows";
+  | "rows"
+  | "actions";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "columns", label: "Columns" },
   { value: "links", label: "Links" },
   { value: "cellClasses", label: "Cell Classes" },
   { value: "rows", label: "Row Classes" },
+  { value: "actions", label: "Actions" },
 ];
 
 const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
@@ -85,9 +171,105 @@ const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
             template: field.frontend.linkTemplate,
             labelField: field.frontend.linkLabelField,
             type: field.frontend.linkType || "external",
-          }
-        : undefined,
+      }
+      : undefined,
     }));
+
+const actionInputTypeFromField = (field: Field): TableActionInputType => {
+  const fieldType = (field.type || "").toLowerCase();
+  if (fieldType.includes("image")) return "image";
+  if (fieldType.includes("date")) return "date";
+  if (
+    fieldType.includes("number") ||
+    fieldType.includes("int") ||
+    fieldType.includes("float") ||
+    fieldType.includes("double")
+  ) {
+    return "number";
+  }
+  if (fieldType.includes("bool")) return "checkbox";
+  if (
+    fieldType === "objectid" ||
+    fieldType === "autoincrementid" ||
+    fieldType === "objectidarray" ||
+    (field.enumList && field.enumList.length > 0)
+  ) {
+    return "select";
+  }
+  return "text";
+};
+
+const buildActionFormFieldsFromFields = (
+  fields: Field[],
+): TableActionFormFieldConfig[] =>
+  fields
+    .filter((field) => field.name && !["_id", "id"].includes(field.name))
+    .filter((field) => !field.equation)
+    .map((field) => {
+      const inputType = actionInputTypeFromField(field);
+      const fieldType = (field.type || "").toLowerCase();
+      const isMultiple = fieldType === "objectidarray";
+      return {
+        formKey: field.name,
+        type: inputType,
+        formKeyType: formKeyTypeForActionInput(inputType, isMultiple),
+        label: field.frontend?.displayName || field.name,
+        placeholder: field.frontend?.displayName || field.name,
+        required: field.tag?.includes("required") || false,
+        disabledCondition: "",
+        requiredCondition: "",
+        isMultiple,
+        optionsSource:
+          inputType === "select" && field.objectSchemaName
+            ? "schema"
+            : "static",
+        staticOptionsJson:
+          field.enumList && field.enumList.length > 0
+            ? JSON.stringify(
+                field.enumList.map((value) => ({ value, label: String(value) })),
+                null,
+                2,
+              )
+            : "[]",
+        sourceSchemaName: field.objectSchemaName || "",
+        sourceValueField: "_id",
+        sourceLabelField: field.populationSettings?.inputSelectionField || "",
+        sourceFilterCondition: "",
+      };
+    });
+
+const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
+  {
+    id: "default-edit",
+    kind: "edit",
+    label: "Edit",
+    icon: "FiEdit",
+    order: 1,
+    enabled: true,
+    modalType: "form",
+    formFields: buildActionFormFieldsFromFields(fields),
+  },
+  {
+    id: "default-delete",
+    kind: "delete",
+    label: "Delete",
+    icon: "HiOutlineTrash",
+    order: 2,
+    enabled: true,
+    modalType: "confirm",
+    confirmText: "GeneralDeleteMessage",
+  },
+];
+
+const hydrateSchemaEditActionFields = (
+  actions: TableActionConfig[],
+  fields: Field[],
+): TableActionConfig[] =>
+  actions.map((action) =>
+    action.kind === "edit" && action.formFields === undefined
+      ? { ...action, formFields: buildActionFormFieldsFromFields(fields) }
+      : action,
+  );
 
 const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
   fields
@@ -261,6 +443,149 @@ const inferWorkflowOutputFields = (
 const cleanRules = (rules: RowClassConfig[] = []): RowClassConfig[] =>
   rules.filter((rule) => rule.condition.trim() || rule.className.trim());
 
+const parseJsonObject = (value?: string): Record<string, unknown> | undefined => {
+  if (!value?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const cleanTableActions = (
+  actions: TableActionConfig[] = [],
+): TableActionConfig[] =>
+  actions
+    .filter((action) => action.kind)
+    .map((action, index) => {
+      const constantValues =
+        action.constantValues || parseJsonObject(action.constantValuesJson);
+      return {
+        kind: action.kind,
+        id: action.id?.trim() || `${action.kind}-${index + 1}`,
+        ...(action.label?.trim() ? { label: action.label.trim() } : {}),
+        ...(action.icon?.trim() ? { icon: action.icon.trim() } : {}),
+        order: Number(action.order ?? index + 1),
+        enabled: action.enabled !== false,
+        modalType: action.modalType || "none",
+        ...(action.formFields !== undefined
+          ? {
+              formFields: action.formFields
+                .filter((field) => field.formKey.trim())
+                .map((field) => ({
+                  formKey: field.formKey.trim(),
+                  type: field.type || "text",
+                  formKeyType: field.formKeyType || "string",
+                  ...(field.label?.trim() ? { label: field.label.trim() } : {}),
+                  ...(field.placeholder?.trim()
+                    ? { placeholder: field.placeholder.trim() }
+                    : {}),
+                  ...(field.required ? { required: true } : {}),
+                  ...(field.disabledCondition?.trim()
+                    ? { disabledCondition: field.disabledCondition.trim() }
+                    : {}),
+                  ...(field.requiredCondition?.trim()
+                    ? { requiredCondition: field.requiredCondition.trim() }
+                    : {}),
+                  ...(field.isMultiple ? { isMultiple: true } : {}),
+                  ...(field.optionsSource
+                    ? { optionsSource: field.optionsSource }
+                    : {}),
+                  ...(field.staticOptionsJson?.trim()
+                    ? { staticOptionsJson: field.staticOptionsJson.trim() }
+                    : {}),
+                  ...(field.sourceSchemaName?.trim()
+                    ? { sourceSchemaName: field.sourceSchemaName.trim() }
+                    : {}),
+                  ...(field.sourceValueField?.trim()
+                    ? { sourceValueField: field.sourceValueField.trim() }
+                    : {}),
+                  ...(field.sourceLabelField?.trim()
+                    ? { sourceLabelField: field.sourceLabelField.trim() }
+                    : {}),
+                  ...(field.sourceFilterCondition?.trim()
+                    ? {
+                        sourceFilterCondition:
+                          field.sourceFilterCondition.trim(),
+                      }
+                    : {}),
+                  ...(field.defaultValue !== undefined && field.defaultValue !== ""
+                    ? { defaultValue: field.defaultValue }
+                    : {}),
+                  ...(field.min !== undefined ? { min: field.min } : {}),
+                  ...(field.max !== undefined ? { max: field.max } : {}),
+                  ...(field.minLength !== undefined
+                    ? { minLength: field.minLength }
+                    : {}),
+                  ...(field.maxLength !== undefined
+                    ? { maxLength: field.maxLength }
+                    : {}),
+                  ...(field.pattern?.trim()
+                    ? { pattern: field.pattern.trim() }
+                    : {}),
+                  ...(field.validationMessage?.trim()
+                    ? { validationMessage: field.validationMessage.trim() }
+                    : {}),
+                })),
+            }
+          : {}),
+        ...(action.fields?.filter((field) => field.trim()).length
+          ? { fields: action.fields.map((field) => field.trim()).filter(Boolean) }
+          : {}),
+        ...(action.excludeFields?.filter((field) => field.trim()).length
+          ? {
+              excludeFields: action.excludeFields
+                .map((field) => field.trim())
+                .filter(Boolean),
+            }
+          : {}),
+        ...(action.fieldOverrides?.filter((override) => override.field.trim())
+          .length
+          ? {
+              fieldOverrides: action.fieldOverrides
+                .filter((override) => override.field.trim())
+                .map((override) => ({
+                  field: override.field.trim(),
+                  ...(override.required !== undefined
+                    ? { required: override.required }
+                    : {}),
+                  ...(override.disabledCondition?.trim()
+                    ? { disabledCondition: override.disabledCondition.trim() }
+                    : {}),
+                })),
+            }
+          : {}),
+        ...(constantValues ? { constantValues } : {}),
+        ...(action.disabledCondition?.trim()
+          ? { disabledCondition: action.disabledCondition.trim() }
+          : {}),
+        ...(action.hiddenCondition?.trim()
+          ? { hiddenCondition: action.hiddenCondition.trim() }
+          : {}),
+        ...(action.requiredCondition?.trim()
+          ? { requiredCondition: action.requiredCondition.trim() }
+          : {}),
+        ...(action.confirmTitle?.trim()
+          ? { confirmTitle: action.confirmTitle.trim() }
+          : {}),
+        ...(action.confirmText?.trim()
+          ? { confirmText: action.confirmText.trim() }
+          : {}),
+        ...(action.linkTemplate?.trim()
+          ? { linkTemplate: action.linkTemplate.trim() }
+          : {}),
+        ...(action.linkType ? { linkType: action.linkType } : {}),
+        ...(action.className?.trim() ? { className: action.className.trim() } : {}),
+        ...(action.buttonClassName?.trim()
+          ? { buttonClassName: action.buttonClassName.trim() }
+          : {}),
+        ...(action.isButton ? { isButton: true } : {}),
+      };
+    });
+
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
@@ -297,6 +622,9 @@ const cleanTableConfig = (
             .filter(Boolean),
         },
       }
+    : {}),
+  ...(cleanTableActions(tableConfig.actions).length > 0
+    ? { actions: cleanTableActions(tableConfig.actions) }
     : {}),
 });
 
@@ -1145,6 +1473,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     columns: [],
     rows: { className: [] },
     cache: { invalidateKeys: [] },
+    actions: [],
   });
   const [activeTableSettingsTab, setActiveTableSettingsTab] =
     useState<TableSettingsTab>("columns");
@@ -1213,12 +1542,37 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       }
 
       if (editingComponent.table) {
+        const editingSourceType =
+          editingComponent.dataBinding?.kind === "pipeline" ||
+          editingComponent.dataBinding?.kind === "workflow"
+            ? editingComponent.dataBinding.kind
+            : "schema";
         setTableConfig({
           columns: editingComponent.table.columns || [],
           rows: { className: editingComponent.table.rows?.className || [] },
           cache: {
             invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
           },
+          actions:
+            editingComponent.table.actions && editingComponent.table.actions.length
+              ? editingSourceType === "schema"
+                ? hydrateSchemaEditActionFields(
+                    editingComponent.table.actions,
+                    containers.find(
+                      (container) =>
+                        container.schemaName ===
+                        editingComponent.dataBinding?.schemaName,
+                    )?.fields || [],
+                  )
+                : editingComponent.table.actions
+              : getDefaultActionsForSource(
+                  editingSourceType,
+                  containers.find(
+                    (container) =>
+                      container.schemaName ===
+                      editingComponent.dataBinding?.schemaName,
+                  )?.fields || [],
+                ),
         });
       }
     }
@@ -1238,6 +1592,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       return {
         ...current,
         columns: buildTableColumnsFromFields(container.fields || []),
+        actions:
+          current.actions && current.actions.length > 0
+            ? hydrateSchemaEditActionFields(current.actions, container.fields || [])
+            : getDefaultActionsForSource("schema", container.fields || []),
       };
     });
   }, [componentType, containers, editingComponent?.table, schemaName]);
@@ -1258,6 +1616,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig((current) => ({
       ...current,
       columns: buildTableColumnsFromNames(selected.outputFields),
+      actions: [],
     }));
   }, [componentType, pipelineName, pipelineOptions, tableSourceType]);
 
@@ -1277,6 +1636,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig((current) => ({
       ...current,
       columns: buildTableColumnsFromNames(selected.outputFields),
+      actions: [],
     }));
   }, [componentType, tableSourceType, workflowName, workflowOptions]);
 
@@ -1340,6 +1700,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       columns: buildTableColumnsFromFields(container?.fields || []),
       rows: { className: [] },
       cache: { invalidateKeys: [] },
+      actions: getDefaultActionsForSource("schema", container?.fields || []),
     });
   };
 
@@ -1474,6 +1835,189 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           (_, index) => index !== ruleIndex,
         ),
       },
+    }));
+  };
+
+  const addTableAction = () => {
+    setTableConfig((current) => {
+      const actions = current.actions || [];
+      const nextOrder = actions.length + 1;
+      return {
+        ...current,
+        actions: [
+          ...actions,
+          {
+            id: `action-${Date.now()}`,
+            kind: "update",
+            label: "Action",
+            icon: "MdTouchApp",
+            order: nextOrder,
+            enabled: true,
+            modalType: "none",
+            fields: [],
+            excludeFields: [],
+            fieldOverrides: [],
+            constantValuesJson: "{}",
+          },
+        ],
+      };
+    });
+  };
+
+  const updateTableAction = (
+    actionIndex: number,
+    updates: Partial<TableActionConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex ? { ...action, ...updates } : action,
+      ),
+    }));
+  };
+
+  const removeTableAction = (actionIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).filter(
+        (_, index) => index !== actionIndex,
+      ),
+    }));
+  };
+
+  const updateActionFieldList = (
+    actionIndex: number,
+    key: "fields" | "excludeFields",
+    value: string,
+  ) => {
+    updateTableAction(actionIndex, {
+      [key]: value
+        .split(",")
+        .map((field) => field.trim())
+        .filter(Boolean),
+    });
+  };
+
+  const addActionFieldOverride = (actionIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              fieldOverrides: [
+                ...(action.fieldOverrides || []),
+                { field: "", required: false, disabledCondition: "" },
+              ],
+            }
+          : action,
+      ),
+    }));
+  };
+
+  const updateActionFieldOverride = (
+    actionIndex: number,
+    overrideIndex: number,
+    updates: Partial<NonNullable<TableActionConfig["fieldOverrides"]>[number]>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) => {
+        if (index !== actionIndex) return action;
+        const overrides = [...(action.fieldOverrides || [])];
+        overrides[overrideIndex] = {
+          ...overrides[overrideIndex],
+          ...updates,
+        };
+        return { ...action, fieldOverrides: overrides };
+      }),
+    }));
+  };
+
+  const removeActionFieldOverride = (
+    actionIndex: number,
+    overrideIndex: number,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              fieldOverrides: (action.fieldOverrides || []).filter(
+                (_, currentIndex) => currentIndex !== overrideIndex,
+              ),
+            }
+          : action,
+      ),
+    }));
+  };
+
+  const addActionFormField = (actionIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              modalType: action.modalType === "none" ? "form" : action.modalType,
+              formFields: [
+                ...(action.formFields || []),
+                {
+                  formKey: "",
+                  type: "text",
+                  formKeyType: "string",
+                  label: "",
+                  placeholder: "",
+                  required: false,
+                  requiredCondition: "",
+                  disabledCondition: "",
+                  optionsSource: "static",
+                  staticOptionsJson: "[]",
+                  sourceSchemaName: "",
+                  sourceValueField: "_id",
+                  sourceLabelField: "",
+                  sourceFilterCondition: "",
+                },
+              ],
+            }
+          : action,
+      ),
+    }));
+  };
+
+  const updateActionFormField = (
+    actionIndex: number,
+    fieldIndex: number,
+    updates: Partial<TableActionFormFieldConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) => {
+        if (index !== actionIndex) return action;
+        const formFields = [...(action.formFields || [])];
+        formFields[fieldIndex] = { ...formFields[fieldIndex], ...updates };
+        return { ...action, formFields };
+      }),
+    }));
+  };
+
+  const removeActionFormField = (
+    actionIndex: number,
+    fieldIndex: number,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              formFields: (action.formFields || []).filter(
+                (_, currentIndex) => currentIndex !== fieldIndex,
+              ),
+            }
+          : action,
+      ),
     }));
   };
 
@@ -1663,6 +2207,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                               setTableConfig((current) => ({
                                 ...current,
                                 columns: [],
+                                actions: [],
                               }));
                             }
                           }}
@@ -2057,6 +2602,723 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       >
                                         <FiTrash2 size={14} />
                                       </button>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "actions" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <button
+                                  type="button"
+                                  onClick={addTableAction}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                >
+                                  <FiPlus size={14} />
+                                  Add action
+                                </button>
+                                {(tableConfig.actions || []).map(
+                                  (action, actionIndex) => (
+                                    <div
+                                      key={action.id || actionIndex}
+                                      className="space-y-4 border border-neutral-200 rounded-xl p-4"
+                                    >
+                                      <div className="grid grid-cols-[1fr_150px_110px_110px_auto] gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Label
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={action.label || ""}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                label: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Kind
+                                          </label>
+                                          <select
+                                            value={action.kind}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                kind: e.target
+                                                  .value as TableActionKind,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          >
+                                            {ACTION_KINDS.map((kind) => (
+                                              <option
+                                                key={kind.value}
+                                                value={kind.value}
+                                              >
+                                                {kind.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Modal
+                                          </label>
+                                          <select
+                                            value={action.modalType || "none"}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                modalType: e.target
+                                                  .value as TableActionModalType,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          >
+                                            {ACTION_MODAL_TYPES.map((modal) => (
+                                              <option
+                                                key={modal.value}
+                                                value={modal.value}
+                                              >
+                                                {modal.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Order
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={action.order ?? actionIndex + 1}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                order: Number(e.target.value),
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          />
+                                        </div>
+                                        <div className="flex items-end gap-2">
+                                          <label className="flex h-9 items-center gap-2 text-xs text-neutral-700">
+                                            <input
+                                              type="checkbox"
+                                              checked={action.enabled !== false}
+                                              onChange={(e) =>
+                                                updateTableAction(actionIndex, {
+                                                  enabled: e.target.checked,
+                                                })
+                                              }
+                                            />
+                                            On
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableAction(actionIndex)
+                                            }
+                                            className="h-9 rounded-lg bg-red-50 px-3 text-red-700 hover:bg-red-100"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Icon
+                                          </label>
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700">
+                                              {React.createElement(
+                                                getIconByName(
+                                                  action.icon || "MdTouchApp",
+                                                ),
+                                                { size: 16 },
+                                              )}
+                                            </div>
+                                            <select
+                                              value={action.icon || "MdTouchApp"}
+                                              onChange={(e) =>
+                                                updateTableAction(actionIndex, {
+                                                  icon: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            >
+                                              {ACTION_ICON_OPTIONS.map((icon) => (
+                                                <option
+                                                  key={icon.value}
+                                                  value={icon.value}
+                                                >
+                                                  {icon.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Include Fields
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={(action.fields || []).join(", ")}
+                                            onChange={(e) =>
+                                              updateActionFieldList(
+                                                actionIndex,
+                                                "fields",
+                                                e.target.value,
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="name, status"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Exclude Fields
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={(action.excludeFields || []).join(
+                                              ", ",
+                                            )}
+                                            onChange={(e) =>
+                                              updateActionFieldList(
+                                                actionIndex,
+                                                "excludeFields",
+                                                e.target.value,
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="createdAt"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-3 gap-3">
+                                        <input
+                                          type="text"
+                                          value={action.disabledCondition || ""}
+                                          onChange={(e) =>
+                                            updateTableAction(actionIndex, {
+                                              disabledCondition: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Disabled condition"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={action.hiddenCondition || ""}
+                                          onChange={(e) =>
+                                            updateTableAction(actionIndex, {
+                                              hiddenCondition: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Hidden condition"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={action.requiredCondition || ""}
+                                          onChange={(e) =>
+                                            updateTableAction(actionIndex, {
+                                              requiredCondition: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Required condition"
+                                        />
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <textarea
+                                          value={
+                                            action.constantValuesJson ||
+                                            JSON.stringify(
+                                              action.constantValues || {},
+                                              null,
+                                              2,
+                                            )
+                                          }
+                                          onChange={(e) =>
+                                            updateTableAction(actionIndex, {
+                                              constantValuesJson: e.target.value,
+                                              constantValues: undefined,
+                                            })
+                                          }
+                                          className="min-h-24 px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder='{"status":"approved"}'
+                                        />
+                                        <div className="space-y-3">
+                                          <input
+                                            type="text"
+                                            value={action.linkTemplate || ""}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                linkTemplate: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="/orders/{{_id}}"
+                                          />
+                                          <input
+                                            type="text"
+                                            value={action.confirmText || ""}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                confirmText: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="Confirm text"
+                                          />
+                                          <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                            <input
+                                              type="checkbox"
+                                              checked={!!action.isButton}
+                                              onChange={(e) =>
+                                                updateTableAction(actionIndex, {
+                                                  isButton: e.target.checked,
+                                                })
+                                              }
+                                            />
+                                            Render as text button
+                                          </label>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-semibold text-neutral-700">
+                                            Form Fields
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              addActionFormField(actionIndex)
+                                            }
+                                            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                          >
+                                            + Add field
+                                          </button>
+                                        </div>
+                                        {(action.formFields || []).map(
+                                          (field, fieldIndex) => (
+                                            <div
+                                              key={fieldIndex}
+                                              className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3"
+                                            >
+                                              <div className="grid grid-cols-[1fr_160px_auto] gap-2">
+                                                <input
+                                                  type="text"
+                                                  value={field.formKey}
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      { formKey: e.target.value },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="form key"
+                                                />
+                                                <select
+                                                  value={field.type}
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      {
+                                                        type: e.target.value as TableActionInputType,
+                                                        formKeyType:
+                                                          formKeyTypeForActionInput(
+                                                            e.target.value as TableActionInputType,
+                                                            field.isMultiple,
+                                                          ),
+                                                      },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                >
+                                                  {ACTION_INPUT_TYPES.map(
+                                                    (inputType) => (
+                                                      <option
+                                                        key={inputType.value}
+                                                        value={inputType.value}
+                                                      >
+                                                        {inputType.label}
+                                                      </option>
+                                                    ),
+                                                  )}
+                                                </select>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    removeActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                    )
+                                                  }
+                                                  className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                >
+                                                  <FiTrash2 size={14} />
+                                                </button>
+                                              </div>
+                                              <div className="grid grid-cols-4 gap-2">
+                                                <input
+                                                  type="text"
+                                                  value={field.label || ""}
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      { label: e.target.value },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="label"
+                                                />
+                                                <input
+                                                  type="text"
+                                                  value={field.placeholder || ""}
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      {
+                                                        placeholder:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="placeholder"
+                                                />
+                                                <input
+                                                  type="text"
+                                                  value={
+                                                    field.disabledCondition || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      {
+                                                        disabledCondition:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="disabled condition"
+                                                />
+                                                <input
+                                                  type="text"
+                                                  value={
+                                                    field.requiredCondition || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      {
+                                                        requiredCondition:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="required condition"
+                                                />
+                                              </div>
+                                              <div className="grid grid-cols-[auto_auto_1fr] gap-3">
+                                                <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={!!field.required}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          required:
+                                                            e.target.checked,
+                                                        },
+                                                      )
+                                                    }
+                                                  />
+                                                  Required
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={!!field.isMultiple}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          isMultiple:
+                                                            e.target.checked,
+                                                          formKeyType:
+                                                            formKeyTypeForActionInput(
+                                                              field.type,
+                                                              e.target.checked,
+                                                            ),
+                                                        },
+                                                      )
+                                                    }
+                                                  />
+                                                  Multiple
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={String(
+                                                    field.defaultValue ?? "",
+                                                  )}
+                                                  onChange={(e) =>
+                                                    updateActionFormField(
+                                                      actionIndex,
+                                                      fieldIndex,
+                                                      {
+                                                        defaultValue:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="default value"
+                                                />
+                                              </div>
+
+                                              {field.type === "select" && (
+                                                <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                                  <div className="grid grid-cols-4 gap-2">
+                                                    <select
+                                                      value={
+                                                        field.optionsSource ||
+                                                        "static"
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            optionsSource: e
+                                                              .target
+                                                              .value as TableActionOptionsSource,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    >
+                                                      {ACTION_OPTIONS_SOURCES.map(
+                                                        (source) => (
+                                                          <option
+                                                            key={source.value}
+                                                            value={source.value}
+                                                          >
+                                                            {source.label}
+                                                          </option>
+                                                        ),
+                                                      )}
+                                                    </select>
+                                                    <input
+                                                      type="text"
+                                                      value={
+                                                        field.sourceSchemaName ||
+                                                        ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            sourceSchemaName:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="source schema"
+                                                    />
+                                                    <input
+                                                      type="text"
+                                                      value={
+                                                        field.sourceValueField ||
+                                                        "_id"
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            sourceValueField:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="value field"
+                                                    />
+                                                    <input
+                                                      type="text"
+                                                      value={
+                                                        field.sourceLabelField ||
+                                                        ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            sourceLabelField:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="label field"
+                                                    />
+                                                  </div>
+                                                  <input
+                                                    type="text"
+                                                    value={
+                                                      field.sourceFilterCondition ||
+                                                      ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          sourceFilterCondition:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="option filter condition"
+                                                  />
+                                                  <textarea
+                                                    value={
+                                                      field.staticOptionsJson ||
+                                                      "[]"
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          staticOptionsJson:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="min-h-20 w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder='[{"value":"active","label":"Active"}]'
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-semibold text-neutral-700">
+                                            Field Overrides
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              addActionFieldOverride(actionIndex)
+                                            }
+                                            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                          >
+                                            + Add override
+                                          </button>
+                                        </div>
+                                        {(action.fieldOverrides || []).map(
+                                          (override, overrideIndex) => (
+                                            <div
+                                              key={overrideIndex}
+                                              className="grid grid-cols-[1fr_auto_1fr_auto] gap-2"
+                                            >
+                                              <input
+                                                type="text"
+                                                value={override.field}
+                                                onChange={(e) =>
+                                                  updateActionFieldOverride(
+                                                    actionIndex,
+                                                    overrideIndex,
+                                                    { field: e.target.value },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="field"
+                                              />
+                                              <label className="flex items-center gap-2 px-2 text-xs text-neutral-700">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={!!override.required}
+                                                  onChange={(e) =>
+                                                    updateActionFieldOverride(
+                                                      actionIndex,
+                                                      overrideIndex,
+                                                      {
+                                                        required:
+                                                          e.target.checked,
+                                                      },
+                                                    )
+                                                  }
+                                                />
+                                                Required
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  override.disabledCondition ||
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateActionFieldOverride(
+                                                    actionIndex,
+                                                    overrideIndex,
+                                                    {
+                                                      disabledCondition:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="disabled condition"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeActionFieldOverride(
+                                                    actionIndex,
+                                                    overrideIndex,
+                                                  )
+                                                }
+                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
                                     </div>
                                   ),
                                 )}

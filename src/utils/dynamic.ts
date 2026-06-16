@@ -58,6 +58,10 @@ export function useDynamicCrud<T extends { _id: string | number }>(
   const queryKey = listKey(schemaName);
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const invalidateSchemaQueries = () => {
+    qc.invalidateQueries({ queryKey });
+    qc.invalidateQueries({ queryKey: ["dynamic", schemaName] });
+  };
 
   // Custom create function that handles FormData
   async function createRequest(payload: Partial<T>) {
@@ -106,7 +110,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -138,13 +142,16 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
   const { deleteItem } = useMutationApi<T>({
     baseQuery: BASE,
     queryKey,
+    isInvalidate: true,
+    isAdditionalInvalidate: true,
+    additionalInvalidates: [["dynamic", schemaName]],
   });
 
   const createDynamicItem = (doc: Partial<T>) => createMutation.mutate(doc);
@@ -189,7 +196,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       console.log("Error creating multiple items:", errorMessage);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -234,7 +241,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
     },
     onSettled: async () => {
       // keep your pattern consistent with the rest of your hook
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -290,7 +297,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
