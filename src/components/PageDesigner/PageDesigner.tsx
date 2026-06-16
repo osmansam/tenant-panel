@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiEdit2,
@@ -11,11 +11,19 @@ import {
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
+  LinkType,
   GridCell,
   GridSection,
+  RowClassConfig,
+  TableColumnConfig,
+  TableComponentConfig,
   TabPanelTab,
 } from "../../types/page";
-import { useGetContainers } from "../../utils/api/container";
+import {
+  ContainerModel,
+  Field,
+  useGetContainers,
+} from "../../utils/api/container";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 
 interface PageDesignerProps {
@@ -41,6 +49,82 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+const LINK_TYPES: { value: LinkType; label: string }[] = [
+  { value: "external", label: "External" },
+  { value: "internal", label: "Internal" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Phone" },
+];
+
+type TableSettingsTab =
+  | "columns"
+  | "links"
+  | "cellClasses"
+  | "rows";
+
+const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
+  { value: "columns", label: "Columns" },
+  { value: "links", label: "Links" },
+  { value: "cellClasses", label: "Cell Classes" },
+  { value: "rows", label: "Row Classes" },
+];
+
+const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
+  fields
+    .filter((field) => field.name && !["_id", "id"].includes(field.name))
+    .map((field) => ({
+      field: field.name,
+      displayName: field.frontend?.displayName || "",
+      cellClassName: field.frontend?.rowKeyClassName || [],
+      link: field.frontend?.linkTemplate
+        ? {
+            template: field.frontend.linkTemplate,
+            labelField: field.frontend.linkLabelField,
+            type: field.frontend.linkType || "external",
+          }
+        : undefined,
+    }));
+
+const cleanRules = (rules: RowClassConfig[] = []): RowClassConfig[] =>
+  rules.filter((rule) => rule.condition.trim() || rule.className.trim());
+
+const cleanTableConfig = (
+  tableConfig: TableComponentConfig,
+): TableComponentConfig => ({
+  columns: (tableConfig.columns || []).map((column) => ({
+    field: column.field,
+    ...(column.displayName?.trim()
+      ? { displayName: column.displayName.trim() }
+      : {}),
+    ...(cleanRules(column.cellClassName).length > 0
+      ? { cellClassName: cleanRules(column.cellClassName) }
+      : {}),
+    ...(column.link?.template?.trim()
+      ? {
+          link: {
+            template: column.link.template.trim(),
+            ...(column.link.labelField?.trim()
+              ? { labelField: column.link.labelField.trim() }
+              : {}),
+            type: column.link.type || "external",
+          },
+        }
+      : {}),
+  })),
+  ...(cleanRules(tableConfig.rows?.className).length > 0
+    ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
+    : {}),
+  ...(tableConfig.cache?.invalidateKeys?.filter((key) => key.trim()).length
+    ? {
+        cache: {
+          invalidateKeys: tableConfig.cache.invalidateKeys
+            .map((key) => key.trim())
+            .filter(Boolean),
+        },
+      }
+    : {}),
+});
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
@@ -334,6 +418,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             sectionIndex={selectedSection}
             schemas={schemas}
             containerOptions={containerOptions}
+            containers={containers || []}
             onUpdateSection={(updates) =>
               updateSection(selectedSection, updates)
             }
@@ -390,6 +475,7 @@ interface SectionEditorProps {
   sectionIndex: number;
   schemas: string[];
   containerOptions: { value: string; label: string }[];
+  containers: ContainerModel[];
   onUpdateSection: (updates: Partial<GridSection>) => void;
   onAddCell: () => void;
   onAddCellWithExcel: () => void;
@@ -411,6 +497,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   sectionIndex,
   schemas,
   containerOptions,
+  containers,
   onUpdateSection,
   onAddCell,
   onAddCellWithExcel,
@@ -557,6 +644,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         <ComponentModal
           schemas={schemas}
           containerOptions={containerOptions}
+          containers={containers}
           editingComponent={editingComponent}
           onClose={() => {
             setShowComponentModal(false);
@@ -843,6 +931,7 @@ const CellEditor: React.FC<CellEditorProps> = ({
 interface ComponentModalProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
+  containers: ContainerModel[];
   editingComponent: ComponentBlock | null;
   onClose: () => void;
   onAdd: (component: ComponentBlock) => void;
@@ -851,6 +940,7 @@ interface ComponentModalProps {
 const ComponentModal: React.FC<ComponentModalProps> = ({
   schemas,
   containerOptions,
+  containers,
   editingComponent,
   onClose,
   onAdd,
@@ -863,6 +953,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
   const [showTabExcelModal, setShowTabExcelModal] = useState(false);
   const [params, setParams] = useState<string>(""); // JSON string for params
+  const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
+    columns: [],
+    rows: { className: [] },
+    cache: { invalidateKeys: [] },
+  });
+  const [activeTableSettingsTab, setActiveTableSettingsTab] =
+    useState<TableSettingsTab>("columns");
+
+  const selectedContainer = useMemo(
+    () => containers.find((container) => container.schemaName === schemaName),
+    [containers, schemaName]
+  );
+  const selectedFields = selectedContainer?.fields || [];
 
   // Initialize form with editingComponent data
   useEffect(() => {
@@ -883,8 +986,36 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       if (editingComponent.tabs) {
         setTabs(editingComponent.tabs);
       }
+
+      if (editingComponent.table) {
+        setTableConfig({
+          columns: editingComponent.table.columns || [],
+          rows: { className: editingComponent.table.rows?.className || [] },
+          cache: {
+            invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
+          },
+        });
+      }
     }
   }, [editingComponent]);
+
+  useEffect(() => {
+    if (componentType !== "table" || !schemaName || editingComponent?.table) {
+      return;
+    }
+
+    const container = containers.find((item) => item.schemaName === schemaName);
+    if (!container) return;
+
+    setTableConfig((current) => {
+      if (current.columns && current.columns.length > 0) return current;
+
+      return {
+        ...current,
+        columns: buildTableColumnsFromFields(container.fields || []),
+      };
+    });
+  }, [componentType, containers, editingComponent?.table, schemaName]);
 
   const handleAdd = () => {
     const component: ComponentBlock = {
@@ -899,6 +1030,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         kind: "schema",
         schemaName,
       };
+      component.table = cleanTableConfig(tableConfig);
     } else if (componentType === "tabPanel") {
       component.tabs = tabs;
     } else if (CHART_TYPES.find((c) => c.value === componentType)) {
@@ -923,6 +1055,126 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }
 
     onAdd(component);
+  };
+
+  const resetTableColumnsForSchema = (nextSchemaName: string) => {
+    const container = containers.find(
+      (item) => item.schemaName === nextSchemaName,
+    );
+    setTableConfig({
+      columns: buildTableColumnsFromFields(container?.fields || []),
+      rows: { className: [] },
+      cache: { invalidateKeys: [] },
+    });
+  };
+
+  const updateTableColumn = (
+    fieldName: string,
+    updates: Partial<TableColumnConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName ? { ...column, ...updates } : column,
+      ),
+    }));
+  };
+
+  const updateTableColumnLink = (
+    fieldName: string,
+    updates: NonNullable<TableColumnConfig["link"]>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? { ...column, link: { type: "external", ...column.link, ...updates } }
+          : column,
+      ),
+    }));
+  };
+
+  const updateTableColumnRule = (
+    fieldName: string,
+    ruleIndex: number,
+    updates: Partial<RowClassConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) => {
+        if (column.field !== fieldName) return column;
+        const rules = [...(column.cellClassName || [])];
+        rules[ruleIndex] = { ...rules[ruleIndex], ...updates };
+        return { ...column, cellClassName: rules };
+      }),
+    }));
+  };
+
+  const addTableColumnRule = (fieldName: string) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              cellClassName: [
+                ...(column.cellClassName || []),
+                { condition: "", className: "" },
+              ],
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const removeTableColumnRule = (fieldName: string, ruleIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              cellClassName: (column.cellClassName || []).filter(
+                (_, index) => index !== ruleIndex,
+              ),
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const updateRowRule = (
+    ruleIndex: number,
+    updates: Partial<RowClassConfig>,
+  ) => {
+    setTableConfig((current) => {
+      const rules = [...(current.rows?.className || [])];
+      rules[ruleIndex] = { ...rules[ruleIndex], ...updates };
+      return { ...current, rows: { className: rules } };
+    });
+  };
+
+  const addRowRule = () => {
+    setTableConfig((current) => ({
+      ...current,
+      rows: {
+        className: [
+          ...(current.rows?.className || []),
+          { condition: "", className: "" },
+        ],
+      },
+    }));
+  };
+
+  const removeRowRule = (ruleIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      rows: {
+        className: (current.rows?.className || []).filter(
+          (_, index) => index !== ruleIndex,
+        ),
+      },
+    }));
   };
 
   const addTab = () => {
@@ -960,6 +1212,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const addTableToTab = (tabIndex: number, schema: string) => {
     const updatedTabs = [...tabs];
+    const container = containers.find((item) => item.schemaName === schema);
     updatedTabs[tabIndex].components.push({
       id: `comp-${Date.now()}`,
       type: "table",
@@ -967,6 +1220,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       dataBinding: {
         kind: "schema",
         schemaName: schema,
+      },
+      table: {
+        columns: buildTableColumnsFromFields(container?.fields || []),
       },
     });
     setTabs(updatedTabs);
@@ -993,7 +1249,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         }
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-scale-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <div>
@@ -1074,7 +1330,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </label>
                   <select
                     value={schemaName}
-                    onChange={(e) => setSchemaName(e.target.value)}
+                    onChange={(e) => {
+                      setSchemaName(e.target.value);
+                      if (componentType === "table") {
+                        resetTableColumnsForSchema(e.target.value);
+                      }
+                    }}
                     className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   >
                     <option value="">Select a schema...</option>
@@ -1085,6 +1346,293 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     ))}
                   </select>
                 </div>
+
+                {/* Table Configuration */}
+                {componentType === "table" && (
+                  <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/60">
+                    <div>
+                      <h4 className="text-sm font-semibold text-neutral-900">
+                        Table Settings
+                      </h4>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Configure column labels, links, cell classes, and row
+                        classes for this table component.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-[150px_1fr] gap-4">
+                      <div className="space-y-1">
+                        {TABLE_SETTINGS_TABS.map((tab) => (
+                          <button
+                            key={tab.value}
+                            type="button"
+                            onClick={() => setActiveTableSettingsTab(tab.value)}
+                            className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition-all ${
+                              activeTableSettingsTab === tab.value
+                                ? "bg-white text-violet-700 shadow-sm border border-violet-200"
+                                : "text-neutral-600 hover:bg-white border border-transparent"
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4">
+                        {!schemaName ? (
+                          <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
+                            Select a schema to configure table settings.
+                          </div>
+                        ) : selectedFields.length === 0 ? (
+                          <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
+                            This schema has no fields.
+                          </div>
+                        ) : (
+                          <>
+                            {activeTableSettingsTab === "columns" && (
+                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                {(tableConfig.columns || []).map((column) => (
+                                  <div
+                                    key={column.field}
+                                    className="grid grid-cols-2 gap-3 border border-neutral-200 rounded-lg p-3"
+                                  >
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Field
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={column.field}
+                                        disabled
+                                        className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-600"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Display Name
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={column.displayName || ""}
+                                        onChange={(e) =>
+                                          updateTableColumn(column.field, {
+                                            displayName: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder={column.field}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "links" && (
+                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                {(tableConfig.columns || []).map((column) => (
+                                  <div
+                                    key={column.field}
+                                    className="border border-neutral-200 rounded-lg p-3 space-y-3"
+                                  >
+                                    <div className="text-xs font-semibold text-neutral-700">
+                                      {column.displayName || column.field}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                      <div>
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Link Type
+                                        </label>
+                                        <select
+                                          value={column.link?.type || "external"}
+                                          onChange={(e) =>
+                                            updateTableColumnLink(column.field, {
+                                              type: e.target.value as LinkType,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        >
+                                          {LINK_TYPES.map((linkType) => (
+                                            <option
+                                              key={linkType.value}
+                                              value={linkType.value}
+                                            >
+                                              {linkType.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Link Template
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={column.link?.template || ""}
+                                          onChange={(e) =>
+                                            updateTableColumnLink(column.field, {
+                                              template: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="https://example.com/{{value}}"
+                                        />
+                                      </div>
+                                      <div className="col-span-3">
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Link Label Field
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={column.link?.labelField || ""}
+                                          onChange={(e) =>
+                                            updateTableColumnLink(column.field, {
+                                              labelField: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Optional field name for link text"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "cellClasses" && (
+                              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                {(tableConfig.columns || []).map((column) => (
+                                  <div
+                                    key={column.field}
+                                    className="border border-neutral-200 rounded-lg p-3 space-y-2"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="text-xs font-semibold text-neutral-700">
+                                        {column.displayName || column.field}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          addTableColumnRule(column.field)
+                                        }
+                                        className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                      >
+                                        + Add rule
+                                      </button>
+                                    </div>
+                                    {(column.cellClassName || []).map(
+                                      (rule, ruleIndex) => (
+                                        <div
+                                          key={ruleIndex}
+                                          className="grid grid-cols-[1fr_1fr_auto] gap-2"
+                                        >
+                                          <input
+                                            type="text"
+                                            value={rule.condition}
+                                            onChange={(e) =>
+                                              updateTableColumnRule(
+                                                column.field,
+                                                ruleIndex,
+                                                { condition: e.target.value },
+                                              )
+                                            }
+                                            className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="status = 'active'"
+                                          />
+                                          <input
+                                            type="text"
+                                            value={rule.className}
+                                            onChange={(e) =>
+                                              updateTableColumnRule(
+                                                column.field,
+                                                ruleIndex,
+                                                { className: e.target.value },
+                                              )
+                                            }
+                                            className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="text-green-600"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableColumnRule(
+                                                column.field,
+                                                ruleIndex,
+                                              )
+                                            }
+                                            className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </button>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "rows" && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                    Row Class Rules
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={addRowRule}
+                                    className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                  >
+                                    + Add rule
+                                  </button>
+                                </div>
+                                {(tableConfig.rows?.className || []).map(
+                                  (rule, ruleIndex) => (
+                                    <div
+                                      key={ruleIndex}
+                                      className="grid grid-cols-[1fr_1fr_auto] gap-2"
+                                    >
+                                      <input
+                                        type="text"
+                                        value={rule.condition}
+                                        onChange={(e) =>
+                                          updateRowRule(ruleIndex, {
+                                            condition: e.target.value,
+                                          })
+                                        }
+                                        className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="status = 'active'"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={rule.className}
+                                        onChange={(e) =>
+                                          updateRowRule(ruleIndex, {
+                                            className: e.target.value,
+                                          })
+                                        }
+                                        className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="bg-green-50"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeRowRule(ruleIndex)}
+                                        className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                      >
+                                        <FiTrash2 size={14} />
+                                      </button>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pipeline Name (for charts) */}
                 {CHART_TYPES.find((c) => c.value === componentType) && (

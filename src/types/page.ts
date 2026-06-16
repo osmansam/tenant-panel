@@ -19,6 +19,40 @@ export interface GroupBy {
   groupByField: string; // Field name to display from grouped object (e.g., "name")
 }
 
+export type LinkType = "external" | "internal" | "email" | "phone" | "file";
+
+export interface RowClassConfig {
+  condition: string;
+  className: string;
+}
+
+export interface TableLinkConfig {
+  template?: string;
+  labelField?: string;
+  type?: LinkType;
+}
+
+export interface TableColumnConfig {
+  field: string;
+  displayName?: string;
+  cellClassName?: RowClassConfig[];
+  link?: TableLinkConfig;
+}
+
+export interface TableRowsConfig {
+  className?: RowClassConfig[];
+}
+
+export interface TableCacheConfig {
+  invalidateKeys?: string[];
+}
+
+export interface TableComponentConfig {
+  columns?: TableColumnConfig[];
+  rows?: TableRowsConfig;
+  cache?: TableCacheConfig;
+}
+
 export type ComponentType =
   | "table"
   | "tabPanel"
@@ -60,6 +94,7 @@ export interface ComponentBlock {
   order?: number;
   dataBinding?: DataBinding;
   groupBy?: GroupBy; // Grouping configuration for table components
+  table?: TableComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
   tabs?: TabContent[]; // For tabPanel type

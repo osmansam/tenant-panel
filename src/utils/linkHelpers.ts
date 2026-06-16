@@ -6,6 +6,7 @@ import { Frontend } from "./api/container";
  * - {{value}} → current field value
  * - {{_id}} → row ID
  * - {{row.FIELD_NAME}} → any other field from the row
+ * - {{FIELD_NAME}} → any other field from the row
  * 
  * @param frontend - Frontend configuration containing linkTemplate
  * @param fieldValue - The current field's value
@@ -36,6 +37,11 @@ export function buildLinkUrl(
     const rowFieldPattern = /\{\{row\.([a-zA-Z0-9_]+)\}\}/g;
     url = url.replace(rowFieldPattern, (match, fieldName) => {
       return String(row?.[fieldName] ?? "");
+    });
+
+    const bareFieldPattern = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+    url = url.replace(bareFieldPattern, (match, fieldName) => {
+      return String(row?.[fieldName] ?? match);
     });
 
     // Check if there are still unresolved placeholders

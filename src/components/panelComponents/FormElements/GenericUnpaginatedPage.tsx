@@ -8,6 +8,7 @@ import { useGeneralContext } from "../../../context/General.context";
 import { useUserContext } from "../../../context/User.context";
 import { useSelectionData } from "../../../hooks/useSelectionData";
 import { FormElementsState } from "../../../types";
+import { TableComponentConfig } from "../../../types/page";
 import { UpdatePayload } from "../../../utils/api";
 import {
   ContainerModel,
@@ -17,15 +18,20 @@ import {
 } from "../../../utils/api/container";
 import {
   RawContainer,
-  evaluateRowCondition,
   fieldToInput,
   getFieldLabel,
+  getMatchingRowClassNames,
   humanize,
   isDisplayablePrimitive,
   normalizeContainer,
   normalizeField,
   tailwindBgToStyle,
 } from "../../../utils/genericPageHelpers";
+import {
+  getTableCellClassName,
+  getTableDisplayName,
+  getTableLinkConfig,
+} from "../../../utils/tableConfig";
 import { generateMockData } from "../../../utils/mockDataGenerator";
 import {
   isFieldRequired,
@@ -45,6 +51,7 @@ type Props = {
   excludeFields?: string[];
   actionsEnabled?: boolean;
   isHeader?: boolean;
+  tableConfig?: TableComponentConfig;
 };
 
 export default function GenericUnpaginatedPage({
@@ -53,6 +60,7 @@ export default function GenericUnpaginatedPage({
   excludeFields,
   actionsEnabled = true,
   isHeader = false,
+  tableConfig,
 }: Props) {
   const { t } = useTranslation();
   const { selectedRows, setSelectedRows, setIsSelectionActive } =
@@ -83,30 +91,34 @@ export default function GenericUnpaginatedPage({
   const rowStyleFunction = useCallback(
     (row: GenericItem): React.CSSProperties => {
       const styles: React.CSSProperties = {};
+      const rowClassName = tableConfig?.rows?.className;
+
+      if (rowClassName) {
+        Object.assign(styles, tailwindBgToStyle(getMatchingRowClassNames(row, rowClassName)));
+        return styles;
+      }
 
       // Container level configs
       if (container?.frontend?.rowClassName) {
-        container.frontend.rowClassName.forEach((config) => {
-          if (evaluateRowCondition(row, config.condition)) {
-            Object.assign(styles, tailwindBgToStyle(config.className));
-          }
-        });
+        Object.assign(
+          styles,
+          tailwindBgToStyle(getMatchingRowClassNames(row, container.frontend.rowClassName)),
+        );
       }
 
       // Field level configs
       container?.fields.forEach((field) => {
         if (field.frontend?.rowClassName) {
-          field.frontend.rowClassName.forEach((config) => {
-            if (evaluateRowCondition(row, config.condition)) {
-              Object.assign(styles, tailwindBgToStyle(config.className));
-            }
-          });
+          Object.assign(
+            styles,
+            tailwindBgToStyle(getMatchingRowClassNames(row, field.frontend.rowClassName)),
+          );
         }
       });
 
       return styles;
     },
-    [container],
+    [container, tableConfig],
   );
 
   // Generate mock data based on container fields (10 items)
@@ -220,17 +232,15 @@ export default function GenericUnpaginatedPage({
           isBoolean: fieldType === Types.Boolean || fieldType === "bool",
         };
 
-        // Compute className based on rowKeyClassName conditions
-        if (f.frontend?.rowKeyClassName) {
-          rowKey.className = (row: GenericItem) => {
-            let classNames = "";
-            f.frontend!.rowKeyClassName!.forEach((config) => {
-              if (evaluateRowCondition(row, config.condition)) {
-                classNames += ` ${config.className}`;
-              }
-            });
-            return classNames.trim();
-          };
+        const cellClassName = getTableCellClassName(tableConfig, f);
+        const legacyCellClassName = f.frontend?.rowKeyClassName;
+        const rowKeyClassName = cellClassName ?? legacyCellClassName;
+        const linkConfig = getTableLinkConfig(tableConfig, f);
+
+        // Compute className based on table column cellClassName conditions
+        if (rowKeyClassName) {
+          rowKey.className = (row: GenericItem) =>
+            getMatchingRowClassNames(row, rowKeyClassName);
         }
 
         // Add node function for boolean fields
@@ -252,8 +262,8 @@ export default function GenericUnpaginatedPage({
             const content = Array.isArray(value)
               ? value.join(", ")
               : String(value || "");
-            return f.frontend?.linkTemplate ? (
-              <LinkCell field={f} row={row} />
+            return linkConfig?.linkTemplate ? (
+              <LinkCell field={f} row={row} linkConfig={linkConfig} />
             ) : (
               <span>{content}</span>
             );
@@ -282,8 +292,8 @@ export default function GenericUnpaginatedPage({
             } else {
               content = String(value || "");
             }
-            return f.frontend?.linkTemplate ? (
-              <LinkCell field={f} row={row} />
+            return linkConfig?.linkTemplate ? (
+              <LinkCell field={f} row={row} linkConfig={linkConfig} />
             ) : (
               <span>{content}</span>
             );
@@ -330,25 +340,27 @@ export default function GenericUnpaginatedPage({
             } else {
               content = String(value || "");
             }
-            return f.frontend?.linkTemplate ? (
-              <LinkCell field={f} row={row} />
+            return linkConfig?.linkTemplate ? (
+              <LinkCell field={f} row={row} linkConfig={linkConfig} />
             ) : (
               <span>{content}</span>
             );
           };
-        } else if (f.frontend?.linkTemplate) {
+        } else if (linkConfig?.linkTemplate) {
           // Handle all other field types with linkTemplate (e.g., regular strings, numbers)
-          rowKey.node = (row: GenericItem) => <LinkCell field={f} row={row} />;
+          rowKey.node = (row: GenericItem) => (
+            <LinkCell field={f} row={row} linkConfig={linkConfig} />
+          );
         }
 
         return rowKey;
       }),
-    [displayFields, updateDynamicItem, selectionDataMap, t],
+    [displayFields, updateDynamicItem, selectionDataMap, t, tableConfig],
   );
 
   const columns = useMemo(() => {
     const baseCols = displayFields.map((f) => ({
-      key: t(getFieldLabel(f)),
+      key: t(getTableDisplayName(tableConfig, f) || getFieldLabel(f)),
       isSortable: true,
       correspondingKey: f.name,
     }));
@@ -356,7 +368,7 @@ export default function GenericUnpaginatedPage({
       return [...baseCols, { key: t("Actions"), isSortable: false }];
     }
     return baseCols;
-  }, [displayFields, t, actionsEnabled]);
+  }, [displayFields, t, actionsEnabled, tableConfig]);
 
   const { inputs, formKeys } = useMemo(() => {
     const ins = displayFields

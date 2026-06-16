@@ -5,7 +5,12 @@ import DynamicChart, {
 } from "../components/panelComponents/FormElements/DynamicChart";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
-import { ComponentBlock, GridCell, GridSection } from "../types/page";
+import {
+  ComponentBlock,
+  GridCell,
+  GridSection,
+  TableComponentConfig,
+} from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
 
 // Map component type to chart type
@@ -38,6 +43,12 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
   component,
 }) => {
   const { type, dataBinding, tabs, title, props } = component;
+  const tableConfig =
+    component.table ||
+    (props?.table as TableComponentConfig | undefined) ||
+    (props?.columns || props?.rows || props?.cache
+      ? (props as TableComponentConfig)
+      : undefined);
 
   switch (type) {
     case "table":
@@ -46,6 +57,7 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
           <GenericPaginatedPage
             schemaName={dataBinding.schemaName}
             isHeader={false}
+            tableConfig={tableConfig}
           />
         );
       }
@@ -71,6 +83,7 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
               schemaName,
               label: tab.title,
               isPaginated: true,
+              tableConfig: tab.components[0]?.table,
             };
           });
           return <GenericTabPage tabs={tabsConfig} />;
