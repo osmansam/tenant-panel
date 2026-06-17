@@ -113,6 +113,7 @@ const TextInput = ({
   };
 
   const handleIncrement = () => {
+    if (disabled || isReadOnly) return;
     if (type === "number") {
       const newValue = Math.max(minNumber, +localValue + 1);
       setLocalValue(newValue);
@@ -138,6 +139,7 @@ const TextInput = ({
     }
   };
   const handleDecrement = () => {
+    if (disabled || isReadOnly) return;
     if (type === "number" && +localValue > minNumber) {
       const newValue = Math.max(minNumber, +localValue - 1);
       setLocalValue(newValue);
@@ -174,6 +176,7 @@ const TextInput = ({
       document.activeElement.blur();
     }
   };
+  const isInputLocked = disabled || isReadOnly;
 
   if (type === "color") {
     return (
@@ -274,7 +277,7 @@ const TextInput = ({
             fontSize: "16px",
           }}
           placeholder={placeholder}
-          disabled={disabled || isReadOnly}
+          disabled={isInputLocked}
           value={localValue}
           onChange={handleChange}
           className={inputClassName}
@@ -296,13 +299,21 @@ const TextInput = ({
         )}
         {isNumberButtonsActive && (
           <FiMinusCircle
-            className="w-8 h-8 flex-shrink-0 text-red-500 hover:text-red-800 cursor-pointer focus:outline-none"
+            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
+              isInputLocked
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-red-500 hover:text-red-800 cursor-pointer"
+            }`}
             onClick={handleDecrement}
           />
         )}
         {isNumberButtonsActive && (
           <GoPlusCircle
-            className="w-8 h-8 flex-shrink-0 text-green-500 hover:text-green-800 cursor-pointer focus:outline-none"
+            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
+              isInputLocked
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-green-500 hover:text-green-800 cursor-pointer"
+            }`}
             onClick={handleIncrement}
           />
         )}

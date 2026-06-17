@@ -23,6 +23,7 @@ import {
 } from "../../../utils/api/container";
 import {
   RawContainer,
+  evaluateRowCondition,
   fieldToInput,
   getFieldLabel,
   getMatchingRowClassNames,
@@ -31,14 +32,8 @@ import {
   normalizeContainer,
   normalizeField,
   tailwindBgToStyle,
-  evaluateRowCondition,
 } from "../../../utils/genericPageHelpers";
 import { generateMockData } from "../../../utils/mockDataGenerator";
-import {
-  getTableCellClassName,
-  getTableDisplayName,
-  getTableLinkConfig,
-} from "../../../utils/tableConfig";
 import {
   buildActionFormInputs,
   buildActionFormKeys,
@@ -52,12 +47,22 @@ import {
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
 import {
+  getTableCellClassName,
+  getTableDisplayName,
+  getTableLinkConfig,
+} from "../../../utils/tableConfig";
+import {
   isFieldRequired,
   parseValidationRules,
 } from "../../../utils/validationHelper";
 import { LinkCell } from "../../LinkCell";
 import SwitchButton from "../common/SwitchButton";
-import { ActionType, FormKeyTypeEnum, GenericInputType, InputTypes } from "../shared/types";
+import {
+  ActionType,
+  FormKeyTypeEnum,
+  GenericInputType,
+  InputTypes,
+} from "../shared/types";
 import GenericTable from "../Tables/GenericTable";
 import GenericAddEditPanel from "./GenericAddEditPanel";
 
@@ -106,7 +111,9 @@ export default function GenericPaginatedPage({
       schemaName: dataBinding?.schemaName || schemaName,
       pipelineName: dataBinding?.pipelineName,
       workflowName: dataBinding?.workflowName,
-      fields: tableConfig?.columns?.map((column) => column.field).filter(Boolean),
+      fields: tableConfig?.columns
+        ?.map((column) => column.field)
+        .filter(Boolean),
       params: dataBinding?.params,
     }),
     [dataBinding, schemaName, tableConfig?.columns],
@@ -590,7 +597,10 @@ export default function GenericPaginatedPage({
       const rowClassName = tableConfig?.rows?.className;
 
       if (rowClassName) {
-        Object.assign(styles, tailwindBgToStyle(getMatchingRowClassNames(row, rowClassName)));
+        Object.assign(
+          styles,
+          tailwindBgToStyle(getMatchingRowClassNames(row, rowClassName)),
+        );
         return styles;
       }
 
@@ -598,7 +608,9 @@ export default function GenericPaginatedPage({
       if (container?.frontend?.rowClassName) {
         Object.assign(
           styles,
-          tailwindBgToStyle(getMatchingRowClassNames(row, container.frontend.rowClassName)),
+          tailwindBgToStyle(
+            getMatchingRowClassNames(row, container.frontend.rowClassName),
+          ),
         );
       }
 
@@ -607,7 +619,9 @@ export default function GenericPaginatedPage({
         if (field.frontend?.rowClassName) {
           Object.assign(
             styles,
-            tailwindBgToStyle(getMatchingRowClassNames(row, field.frontend.rowClassName)),
+            tailwindBgToStyle(
+              getMatchingRowClassNames(row, field.frontend.rowClassName),
+            ),
           );
         }
       });
@@ -629,9 +643,9 @@ export default function GenericPaginatedPage({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [actionModalOpen, setActionModalOpen] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [actionModalOpen, setActionModalOpen] = useState<
+    Record<string, boolean>
+  >({});
   const [rowToAction, setRowToAction] = useState<GenericItem | null>(null);
 
   const normalizeRowForSubmit = useCallback(
@@ -707,7 +721,6 @@ export default function GenericPaginatedPage({
             !!row &&
             !!override?.disabledCondition?.trim() &&
             evaluateRowCondition(row, override.disabledCondition);
-
           return {
             ...genericInput,
             required: override?.required ?? genericInput.required,
@@ -867,8 +880,8 @@ export default function GenericPaginatedPage({
         (actionConfig.kind === "edit"
           ? t("Edit")
           : actionConfig.kind === "delete"
-          ? t("Delete")
-          : t("Action"));
+            ? t("Delete")
+            : t("Action"));
       const modalType =
         actionConfig.modalType ||
         (actionConfig.kind === "edit" ? "form" : "none");
@@ -876,8 +889,8 @@ export default function GenericPaginatedPage({
         actionConfig.kind === "delete"
           ? "HiOutlineTrash"
           : actionConfig.kind === "edit"
-          ? "FiEdit"
-          : "MdTouchApp";
+            ? "FiEdit"
+            : "MdTouchApp";
       const actionInputs = getActionInputs(actionConfig, actionId, rowToAction);
       const actionFormKeys = getActionFormKeys(actionConfig, actionInputs);
       const constants = getActionConstantValues(actionConfig);
@@ -920,7 +933,9 @@ export default function GenericPaginatedPage({
 
         updateDynamicItem(row._id, constants as Partial<GenericItem>);
       };
-      const submitConfiguredAction = (item: GenericItem | UpdatePayload<GenericItem>) => {
+      const submitConfiguredAction = (
+        item: GenericItem | UpdatePayload<GenericItem>,
+      ) => {
         if (!rowToAction) return;
         const rawUpdates =
           "updates" in item
@@ -967,6 +982,9 @@ export default function GenericPaginatedPage({
               formKeys={actionFormKeys}
               submitItem={submitConfiguredAction}
               isEditMode
+              buttonName={
+                actionConfig.buttonName || actionConfig.label || t("Update")
+              }
               topClassName="flex flex-col gap-2"
               itemToEdit={{
                 id: rowToAction._id,

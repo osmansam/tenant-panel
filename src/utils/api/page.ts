@@ -29,6 +29,116 @@ export interface GroupBy {
   groupByField?: string;
 }
 
+export interface PageRowClassConfig {
+  condition: string;
+  className: string;
+}
+
+export interface PageTableLinkConfig {
+  template?: string;
+  labelField?: string;
+  type?: string;
+}
+
+export interface PageTableColumnConfig {
+  field: string;
+  displayName?: string;
+  cellClassName?: PageRowClassConfig[];
+  link?: PageTableLinkConfig;
+}
+
+export interface PageTableRowsConfig {
+  className?: PageRowClassConfig[];
+}
+
+export interface PageTableCacheConfig {
+  invalidateKeys?: string[];
+}
+
+export interface PageTableActionFormOptionConfig {
+  value: string | number;
+  label: string;
+}
+
+export interface PageTableActionFormFieldConfig {
+  formKey: string;
+  type: string;
+  formKeyType?: string;
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  requiredCondition?: string;
+  disabledCondition?: string;
+  isMultiple?: boolean;
+  isNumberButtonsActive?: boolean;
+  optionsSource?: string;
+  staticOptions?: PageTableActionFormOptionConfig[];
+  staticOptionsJson?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  sourceFilterCondition?: string;
+  invalidateKeys?: string[];
+  defaultValue?: string | number | boolean | string[] | number[];
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  validationMessage?: string;
+}
+
+export interface PageTableActionFieldConfig {
+  field: string;
+  value?: unknown;
+  required?: boolean;
+  disabledCondition?: string;
+}
+
+export interface PageTableActionSubmitConfig {
+  fields?: PageTableActionFieldConfig[];
+  includeFields?: string[];
+  excludeFields?: string[];
+  constantValues?: Record<string, unknown>;
+  workflowName?: string;
+  workflowSchema?: string;
+}
+
+export interface PageTableActionConfig {
+  id?: string;
+  key?: string;
+  name?: string;
+  label?: string;
+  buttonName?: string;
+  kind: string;
+  icon?: string;
+  className?: string;
+  buttonClassName?: string;
+  order?: number;
+  enabled?: boolean;
+  isModal?: boolean;
+  isButton?: boolean;
+  modalType?: string;
+  confirmTitle?: string;
+  confirmText?: string;
+  path?: string;
+  linkTemplate?: string;
+  disabledCondition?: string;
+  hiddenCondition?: string;
+  requiredCondition?: string;
+  formFields?: PageTableActionFormFieldConfig[];
+  fieldOverrides?: PageTableActionFieldConfig[];
+  constantValues?: Record<string, unknown>;
+  submit?: PageTableActionSubmitConfig;
+}
+
+export interface PageTableComponentConfig {
+  columns?: PageTableColumnConfig[];
+  rows?: PageTableRowsConfig;
+  cache?: PageTableCacheConfig;
+  actions?: PageTableActionConfig[];
+}
+
 export type ComponentType =
   | "table"
   | "tabPanel"
@@ -65,6 +175,7 @@ export interface ComponentBlock {
   order?: number;
   dataBinding?: DataBinding;
   groupBy?: GroupBy;
+  table?: PageTableComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
   props?: Record<string, any>;

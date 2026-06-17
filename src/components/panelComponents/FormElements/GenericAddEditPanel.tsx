@@ -9,6 +9,7 @@ import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
 import { useGeneralContext } from "../../../context/General.context";
 import { FormElementsState, NO_IMAGE_URL, OptionType } from "../../../types";
 import { UpdatePayload } from "../../../utils/api";
+import { evaluateRowCondition } from "../../../utils/genericPageHelpers";
 import {
   validateField,
   ValidationRules,
@@ -28,6 +29,42 @@ import SelectInput from "./SelectInput";
 import TabInput from "./TabInput";
 import TabInputScreen from "./TabInputScreen";
 import TextInput from "./TextInput";
+
+const resolveOptionFilterCondition = (
+  condition: string | undefined,
+  formElements: FormElementsState,
+): string => {
+  if (!condition?.trim()) return "";
+  return condition.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key: string) => {
+    const value = formElements[key.trim()];
+    if (value === undefined || value === null || value === "") return '""';
+    return typeof value === "number" || typeof value === "boolean"
+      ? String(value)
+      : JSON.stringify(String(value));
+  });
+};
+
+const getFilteredOptions = (
+  input: GenericInputType,
+  formElements: FormElementsState,
+): OptionType[] => {
+  const options = input.options || [];
+  if (!input.sourceFilterCondition?.trim()) return options;
+
+  const resolvedCondition = resolveOptionFilterCondition(
+    input.sourceFilterCondition,
+    formElements,
+  );
+
+  return options.filter((option) => {
+    const sourceItem = option.sourceItem;
+    if (!sourceItem) return true;
+    return evaluateRowCondition(
+      sourceItem as Record<string, unknown> & { _id: string },
+      resolvedCondition,
+    );
+  });
+};
 
 type Props<T> = {
   isOpen: boolean;
@@ -132,7 +169,7 @@ const GenericAddEditPanel = <T,>({
   const modalRef = useRef<HTMLDivElement>(null);
   const imageInputs = inputs.filter((input) => input.type === InputTypes.IMAGE);
   const nonImageInputs = inputs.filter(
-    (input) => input.type !== InputTypes.IMAGE
+    (input) => input.type !== InputTypes.IMAGE,
   );
   const initialState = formKeys.reduce<FormElementsState>(
     (acc, { key, type }) => {
@@ -164,7 +201,7 @@ const GenericAddEditPanel = <T,>({
       acc[key] = defaultValue;
       return acc;
     },
-    {}
+    {},
   );
   const mergedInitialState = { ...initialState, ...constantValues };
   const [formElements, setFormElements] = useState(() => {
@@ -245,7 +282,7 @@ const GenericAddEditPanel = <T,>({
       const error = validateField(value, rules, fieldType);
       return error;
     },
-    [formKeys]
+    [formKeys],
   );
   const allRequiredFilled = useMemo(() => {
     return inputs.every((input) => {
@@ -280,7 +317,7 @@ const GenericAddEditPanel = <T,>({
         setFormElements((prev) => ({ ...prev, [input.formKey]: file }));
       }
     },
-    []
+    [],
   );
   const finalSubmitFunction = () => {
     try {
@@ -339,7 +376,7 @@ const GenericAddEditPanel = <T,>({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             convertedFormElements[formKey.key] = value.map((item) =>
-              typeof item === "string" ? parseInt(item, 10) : item
+              typeof item === "string" ? parseInt(item, 10) : item,
             );
           } else {
             convertedFormElements[formKey.key] = [];
@@ -355,7 +392,7 @@ const GenericAddEditPanel = <T,>({
               .filter((item) => !isNaN(item));
           } else if (Array.isArray(value)) {
             convertedFormElements[formKey.key] = value.map((item) =>
-              typeof item === "string" ? parseFloat(item) : item
+              typeof item === "string" ? parseFloat(item) : item,
             );
           } else {
             convertedFormElements[formKey.key] = [];
@@ -390,7 +427,6 @@ const GenericAddEditPanel = <T,>({
       finalSubmitFunction();
     }
   };
-
   const handleInputClear = (input: GenericInputType) => {
     setFormElements((prev) => ({
       ...prev,
@@ -465,7 +501,7 @@ const GenericAddEditPanel = <T,>({
   };
   const renderGenericAddEditModal = () => {
     const hasValidationErrors = Object.values(fieldErrors).some(
-      (error) => !!error
+      (error) => !!error,
     );
 
     if (isTabInputScreenOpen) {
@@ -562,9 +598,10 @@ const GenericAddEditPanel = <T,>({
                   (rawValue === undefined || rawValue === null)
                     ? false
                     : rawValue;
+                const inputOptions = getFilteredOptions(input, formElements);
                 const handleChange = (key: string) => (value: string) => {
                   const changedInput = inputs.find(
-                    (input) => input.formKey === key
+                    (input) => input.formKey === key,
                   );
                   setFormElements((prev) => ({ ...prev, [key]: value }));
 
@@ -592,7 +629,7 @@ const GenericAddEditPanel = <T,>({
                     selectedValue:
                       | SingleValue<OptionType>
                       | MultiValue<OptionType>,
-                    actionMeta: ActionMeta<OptionType>
+                    actionMeta: ActionMeta<OptionType>,
                   ) => {
                     if (
                       actionMeta?.action === "select-option" ||
@@ -601,7 +638,7 @@ const GenericAddEditPanel = <T,>({
                     ) {
                       if (Array.isArray(selectedValue)) {
                         const values = selectedValue.map(
-                          (option) => option.value
+                          (option) => option.value,
                         );
                         setFormElements((prev) => ({ ...prev, [key]: values }));
                       } else if (selectedValue) {
@@ -614,7 +651,7 @@ const GenericAddEditPanel = <T,>({
                       }
                     }
                     const changedInput = inputs.find(
-                      (input) => input.formKey === key
+                      (input) => input.formKey === key,
                     );
                     if (changedInput?.invalidateKeys) {
                       changedInput.invalidateKeys.forEach((key) => {
@@ -650,7 +687,7 @@ const GenericAddEditPanel = <T,>({
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           placeholder={input.placeholder ?? ""}
                           onChange={(val) =>
@@ -663,6 +700,7 @@ const GenericAddEditPanel = <T,>({
                             input.isDateInitiallyOpen ?? false
                           }
                           isTopFlexRow={input.isTopFlexRow ?? false}
+                          disabled={input.isDisabled ?? false}
                           isReadOnly={input.isReadOnly ?? false}
                           onClear={() => {
                             handleInputClear(input);
@@ -682,7 +720,7 @@ const GenericAddEditPanel = <T,>({
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           placeholder={input.placeholder ?? ""}
                           onChange={handleChange(input.formKey)}
@@ -697,6 +735,7 @@ const GenericAddEditPanel = <T,>({
                           isTopFlexRow={input.isTopFlexRow ?? false}
                           minNumber={input?.minNumber ?? 0}
                           isDebounce={input?.isDebounce ?? false}
+                          disabled={input.isDisabled ?? false}
                           isReadOnly={input.isReadOnly ?? false}
                           isMinNumber={input?.isMinNumber ?? true}
                           error={fieldErrors[input.formKey]}
@@ -712,7 +751,7 @@ const GenericAddEditPanel = <T,>({
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           onChange={handleChange(input.formKey)}
                           requiredField={input.required}
@@ -726,7 +765,7 @@ const GenericAddEditPanel = <T,>({
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           onChange={handleChange(input.formKey)}
                           requiredField={input.required}
@@ -742,26 +781,26 @@ const GenericAddEditPanel = <T,>({
                           }
                           value={
                             (input.isMultiple
-                              ? input.options?.filter((option) =>
+                              ? inputOptions.filter((option) =>
                                   formElements[input.formKey]?.includes(
-                                    option.value
-                                  )
+                                    option.value,
+                                  ),
                                 )
-                              : input?.options?.find(
+                              : inputOptions.find(
                                   (option) =>
                                     option?.value ===
-                                    formElements[input.formKey]
+                                    formElements[input.formKey],
                                 )) ?? null
                           }
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           suggestedOption={input?.suggestedOption}
                           isSortDisabled={input.isSortDisabled ?? false}
                           isAutoFill={input?.isAutoFill}
-                          options={input.options ?? []}
+                          options={inputOptions}
                           placeholder={input.placeholder ?? ""}
                           isMultiple={input.isMultiple ?? false}
                           requiredField={input.required}
@@ -772,11 +811,11 @@ const GenericAddEditPanel = <T,>({
                               ? (value) => {
                                   if (Array.isArray(value)) {
                                     input.onChangeTrigger?.(
-                                      value.map((v) => v.value)
+                                      value.map((v) => v.value),
                                     );
                                   } else if (value && !Array.isArray(value)) {
                                     input.onChangeTrigger?.(
-                                      (value as OptionType).value
+                                      (value as OptionType).value,
                                     );
                                   } else {
                                     input.onChangeTrigger?.(null);
@@ -795,19 +834,19 @@ const GenericAddEditPanel = <T,>({
                         <TabInput
                           key={input.formKey + formElements[input.formKey]}
                           value={
-                            input.options?.find(
+                            inputOptions.find(
                               (option) =>
-                                option?.value === formElements[input.formKey]
+                                option?.value === formElements[input.formKey],
                             ) ?? null
                           }
                           label={
                             input.required && input.label
                               ? input.label
-                              : input.label ?? ""
+                              : (input.label ?? "")
                           }
                           suggestedOption={input?.suggestedOption || null}
                           formKey={input.formKey}
-                          options={input.options ?? []}
+                          options={inputOptions}
                           placeholder={input.placeholder ?? ""}
                           invalidateKeys={input.invalidateKeys}
                           requiredField={input.required}
@@ -845,7 +884,7 @@ const GenericAddEditPanel = <T,>({
                                   setOpenFor((prev) =>
                                     prev === input.formKey
                                       ? null
-                                      : input.formKey
+                                      : input.formKey,
                                   )
                                 }
                               >
@@ -877,7 +916,7 @@ const GenericAddEditPanel = <T,>({
                                     key={opt.value}
                                     onMouseDown={() => {
                                       handleChange(input.formKey)(
-                                        opt.value as string
+                                        opt.value as string,
                                       );
                                       setOpenFor(null);
                                     }}
@@ -1015,8 +1054,8 @@ const GenericAddEditPanel = <T,>({
                 {buttonName
                   ? buttonName
                   : isEditMode
-                  ? t("Update")
-                  : t("Create")}
+                    ? t("Update")
+                    : t("Create")}
               </GenericButton>
             )}
           </div>
@@ -1089,7 +1128,7 @@ const GenericAddEditPanel = <T,>({
         />
       )}
     </div>,
-    document.body
+    document.body,
   );
 };
 

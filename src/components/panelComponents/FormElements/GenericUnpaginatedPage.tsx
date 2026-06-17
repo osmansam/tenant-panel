@@ -820,6 +820,7 @@ export default function GenericUnpaginatedPage({
               formKeys={actionFormKeys}
               submitItem={submitConfiguredAction}
               isEditMode
+              buttonName={actionConfig.buttonName || actionConfig.label || t("Update")}
               topClassName="flex flex-col gap-2"
               itemToEdit={{
                 id: rowToAction._id,

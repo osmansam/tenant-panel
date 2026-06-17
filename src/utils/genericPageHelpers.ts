@@ -14,15 +14,45 @@ type RowClassRule = {
   Condition?: string;
   ClassName?: string;
 };
+type ActionFormFieldConfig = NonNullable<TableActionConfig["formFields"]>[number];
+type RawActionFormFieldConfig = Partial<ActionFormFieldConfig> & {
+  FormKey?: string;
+  Type?: ActionFormFieldConfig["type"];
+  FormKeyType?: ActionFormFieldConfig["formKeyType"];
+  Label?: string;
+  Placeholder?: string;
+  Required?: boolean;
+  RequiredCondition?: string;
+  DisabledCondition?: string;
+  IsDisabled?: boolean;
+  IsMultiple?: boolean;
+  IsNumberButtonsActive?: boolean;
+  OptionsSource?: ActionFormFieldConfig["optionsSource"];
+  StaticOptions?: ActionFormFieldConfig["staticOptions"];
+  StaticOptionsJson?: string;
+  SourceSchemaName?: string;
+  SourceValueField?: string;
+  SourceLabelField?: string;
+  SourceFilterCondition?: string;
+  InvalidateKeys?: string[];
+  DefaultValue?: ActionFormFieldConfig["defaultValue"];
+  Min?: number;
+  Max?: number;
+  MinLength?: number;
+  MaxLength?: number;
+  Pattern?: string;
+  ValidationMessage?: string;
+};
 type RawActionConfig = Partial<TableActionConfig> & {
   ID?: string;
   Kind?: TableActionConfig["kind"];
   Label?: string;
+  ButtonName?: string;
   Icon?: string;
   Order?: number;
   Enabled?: boolean;
   ModalType?: TableActionConfig["modalType"];
-  FormFields?: TableActionConfig["formFields"];
+  FormFields?: RawActionFormFieldConfig[];
   Fields?: string[];
   ExcludeFields?: string[];
   FieldOverrides?: TableActionConfig["fieldOverrides"];
@@ -49,6 +79,12 @@ const toComparableValue = (value: unknown): ComparableValue => {
     typeof value === "boolean"
   ) {
     return value;
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (record._id !== undefined) return String(record._id);
+    if (record.id !== undefined) return String(record.id);
   }
 
   return String(value);
@@ -206,17 +242,58 @@ export type RawContainer = {
   };
 };
 
+const normalizeActionFormFieldConfig = (
+  field: RawActionFormFieldConfig,
+): ActionFormFieldConfig => ({
+  formKey: field.formKey ?? field.FormKey ?? "",
+  type: (field.type ?? field.Type ?? "text") as ActionFormFieldConfig["type"],
+  formKeyType: field.formKeyType ?? field.FormKeyType,
+  label: field.label ?? field.Label,
+  placeholder: field.placeholder ?? field.Placeholder,
+  required: field.required ?? field.Required,
+  requiredCondition: field.requiredCondition ?? field.RequiredCondition,
+  disabledCondition: field.disabledCondition ?? field.DisabledCondition,
+  isDisabled: field.isDisabled ?? field.IsDisabled,
+  isMultiple: field.isMultiple ?? field.IsMultiple,
+  isNumberButtonsActive:
+    field.isNumberButtonsActive ?? field.IsNumberButtonsActive,
+  optionsSource: field.optionsSource ?? field.OptionsSource,
+  staticOptions: field.staticOptions ?? field.StaticOptions,
+  staticOptionsJson: field.staticOptionsJson ?? field.StaticOptionsJson,
+  sourceSchemaName: field.sourceSchemaName ?? field.SourceSchemaName,
+  sourceValueField: field.sourceValueField ?? field.SourceValueField,
+  sourceLabelField: field.sourceLabelField ?? field.SourceLabelField,
+  sourceFilterCondition:
+    field.sourceFilterCondition ?? field.SourceFilterCondition,
+  invalidateKeys: field.invalidateKeys ?? field.InvalidateKeys,
+  defaultValue: field.defaultValue ?? field.DefaultValue,
+  min: field.min ?? field.Min,
+  max: field.max ?? field.Max,
+  minLength: field.minLength ?? field.MinLength,
+  maxLength: field.maxLength ?? field.MaxLength,
+  pattern: field.pattern ?? field.Pattern,
+  validationMessage: field.validationMessage ?? field.ValidationMessage,
+});
+
+const normalizeActionFormFields = (
+  fields: RawActionFormFieldConfig[] | undefined,
+): TableActionConfig["formFields"] | undefined =>
+  fields?.map(normalizeActionFormFieldConfig);
+
 const normalizeActionConfig = (
   action: RawActionConfig,
 ): TableActionConfig => ({
   id: action.id ?? action.ID,
   kind: (action.kind ?? action.Kind ?? "update") as TableActionConfig["kind"],
   label: action.label ?? action.Label,
+  buttonName: action.buttonName ?? action.ButtonName,
   icon: action.icon ?? action.Icon,
   order: action.order ?? action.Order,
   enabled: action.enabled ?? action.Enabled,
   modalType: action.modalType ?? action.ModalType,
-  formFields: action.formFields ?? action.FormFields,
+  formFields:
+    normalizeActionFormFields(action.formFields as RawActionFormFieldConfig[]) ??
+    normalizeActionFormFields(action.FormFields),
   fields: action.fields ?? action.Fields,
   excludeFields: action.excludeFields ?? action.ExcludeFields,
   fieldOverrides: action.fieldOverrides ?? action.FieldOverrides,

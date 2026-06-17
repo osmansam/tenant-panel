@@ -93,8 +93,7 @@ export const useActionFormSelectionData = (
         (field) =>
           field.type === "select" &&
           field.optionsSource === "schema" &&
-          field.sourceSchemaName &&
-          field.sourceLabelField,
+          field.sourceSchemaName,
       )
       .map((field) => ({
         actionId: getActionId(action, actionIndex),
@@ -104,17 +103,15 @@ export const useActionFormSelectionData = (
 
   const queryResults = useQueries({
     queries: schemaSelectFields.map(({ field }) => {
-      const path = `/dynamic/selection?${qs({
+      const path = `/dynamic?${qs({
         schemaName: field.sourceSchemaName,
-        fieldName: field.sourceLabelField,
       })}`;
 
       return {
         queryKey: [
           "dynamic",
           field.sourceSchemaName,
-          "action-selection",
-          field.sourceLabelField,
+          "action-options",
         ],
         queryFn: () => get<Array<Record<string, unknown>>>({ path }),
         enabled: Boolean(field.sourceSchemaName && field.sourceLabelField),
@@ -177,6 +174,7 @@ const getFieldOptions = (
     .map((item) => ({
       value: String(item[valueField] ?? item._id ?? ""),
       label: String(item[labelField] ?? item[valueField] ?? item._id ?? ""),
+      sourceItem: item,
     }));
 };
 
@@ -248,12 +246,16 @@ export const buildActionFormInputs = (
         (!!row &&
           !!field.requiredCondition?.trim() &&
           evaluateRowCondition(row, field.requiredCondition)),
-      isDisabled:
-        !!row &&
-        !!field.disabledCondition?.trim() &&
-        evaluateRowCondition(row, field.disabledCondition),
+      requiredCondition: field.requiredCondition,
+      disabledCondition: field.disabledCondition,
       isMultiple: field.isMultiple,
+      isNumberButtonsActive: field.isNumberButtonsActive,
       options: getFieldOptions(actionId, field, selectDataMap),
+      sourceFilterCondition: field.sourceFilterCondition,
+      invalidateKeys: field.invalidateKeys?.map((key) => ({
+        key,
+        defaultValue: "",
+      })),
       min: field.min,
       max: field.max,
       minLength: field.minLength,

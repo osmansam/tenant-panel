@@ -33,7 +33,9 @@ import {
   WorkflowStep,
   useGetContainers,
 } from "../../utils/api/container";
+import type { OptionType } from "../../types";
 import { getIconByName } from "../../utils/menuIcons";
+import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 
 interface PageDesignerProps {
@@ -102,6 +104,9 @@ const formKeyTypeForActionInput = (
   if (type === "color") return "color";
   return "string";
 };
+
+const isActionNumberInput = (type?: string) =>
+  (type || "").toLowerCase() === "number";
 
 const ACTION_OPTIONS_SOURCES: {
   value: TableActionOptionsSource;
@@ -460,6 +465,9 @@ const cleanTableActions = (
         kind: action.kind,
         id: action.id?.trim() || `${action.kind}-${index + 1}`,
         ...(action.label?.trim() ? { label: action.label.trim() } : {}),
+        ...(action.buttonName?.trim()
+          ? { buttonName: action.buttonName.trim() }
+          : {}),
         ...(action.icon?.trim() ? { icon: action.icon.trim() } : {}),
         order: Number(action.order ?? index + 1),
         enabled: action.enabled !== false,
@@ -477,6 +485,7 @@ const cleanTableActions = (
                     ? { placeholder: field.placeholder.trim() }
                     : {}),
                   ...(field.required ? { required: true } : {}),
+                  ...(field.isDisabled ? { isDisabled: true } : {}),
                   ...(field.disabledCondition?.trim()
                     ? { disabledCondition: field.disabledCondition.trim() }
                     : {}),
@@ -484,6 +493,9 @@ const cleanTableActions = (
                     ? { requiredCondition: field.requiredCondition.trim() }
                     : {}),
                   ...(field.isMultiple ? { isMultiple: true } : {}),
+                  ...(isActionNumberInput(field.type) && field.isNumberButtonsActive
+                    ? { isNumberButtonsActive: true }
+                    : {}),
                   ...(field.optionsSource
                     ? { optionsSource: field.optionsSource }
                     : {}),
@@ -503,6 +515,13 @@ const cleanTableActions = (
                     ? {
                         sourceFilterCondition:
                           field.sourceFilterCondition.trim(),
+                      }
+                    : {}),
+                  ...(field.invalidateKeys?.filter((key) => key.trim()).length
+                    ? {
+                        invalidateKeys: field.invalidateKeys
+                          .map((key) => key.trim())
+                          .filter(Boolean),
                       }
                     : {}),
                   ...(field.defaultValue !== undefined && field.defaultValue !== ""
@@ -1958,6 +1977,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   label: "",
                   placeholder: "",
                   required: false,
+                  isDisabled: false,
                   requiredCondition: "",
                   disabledCondition: "",
                   optionsSource: "static",
@@ -2612,7 +2632,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       key={action.id || actionIndex}
                                       className="space-y-4 border border-neutral-200 rounded-xl p-4"
                                     >
-                                      <div className="grid grid-cols-[1fr_110px_110px_auto] gap-3">
+                                      <div className="grid grid-cols-[1fr_160px_110px_110px_auto] gap-3">
                                         <div>
                                           <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                             Label
@@ -2626,6 +2646,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               })
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Form button
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={action.buttonName || ""}
+                                            onChange={(e) =>
+                                              updateTableAction(actionIndex, {
+                                                buttonName: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="Update"
                                           />
                                         </div>
                                         <div>
@@ -2861,48 +2897,64 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3"
                                             >
                                               <div className="grid grid-cols-[1fr_160px_auto] gap-2">
-                                                <input
-                                                  type="text"
-                                                  value={field.formKey}
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      { formKey: e.target.value },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="form key"
-                                                />
-                                                <select
-                                                  value={field.type}
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      {
-                                                        type: e.target.value as TableActionInputType,
-                                                        formKeyType:
-                                                          formKeyTypeForActionInput(
-                                                            e.target.value as TableActionInputType,
-                                                            field.isMultiple,
-                                                          ),
-                                                      },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                >
-                                                  {ACTION_INPUT_TYPES.map(
-                                                    (inputType) => (
-                                                      <option
-                                                        key={inputType.value}
-                                                        value={inputType.value}
-                                                      >
-                                                        {inputType.label}
-                                                      </option>
-                                                    ),
-                                                  )}
-                                                </select>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Form key
+                                                  </span>
+                                                  <input
+                                                    type="text"
+                                                    value={field.formKey}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        { formKey: e.target.value },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="form key"
+                                                  />
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Input type
+                                                  </span>
+                                                  <select
+                                                    value={field.type}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          type: e.target.value as TableActionInputType,
+                                                          formKeyType:
+                                                            formKeyTypeForActionInput(
+                                                              e.target.value as TableActionInputType,
+                                                              field.isMultiple,
+                                                            ),
+                                                          isNumberButtonsActive:
+                                                            isActionNumberInput(
+                                                              e.target.value,
+                                                            )
+                                                              ? field.isNumberButtonsActive
+                                                              : false,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  >
+                                                    {ACTION_INPUT_TYPES.map(
+                                                      (inputType) => (
+                                                        <option
+                                                          key={inputType.value}
+                                                          value={inputType.value}
+                                                        >
+                                                          {inputType.label}
+                                                        </option>
+                                                      ),
+                                                    )}
+                                                  </select>
+                                                </label>
                                                 <button
                                                   type="button"
                                                   onClick={() =>
@@ -2917,73 +2969,93 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 </button>
                                               </div>
                                               <div className="grid grid-cols-4 gap-2">
-                                                <input
-                                                  type="text"
-                                                  value={field.label || ""}
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      { label: e.target.value },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="label"
-                                                />
-                                                <input
-                                                  type="text"
-                                                  value={field.placeholder || ""}
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      {
-                                                        placeholder:
-                                                          e.target.value,
-                                                      },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="placeholder"
-                                                />
-                                                <input
-                                                  type="text"
-                                                  value={
-                                                    field.disabledCondition || ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      {
-                                                        disabledCondition:
-                                                          e.target.value,
-                                                      },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="disabled condition"
-                                                />
-                                                <input
-                                                  type="text"
-                                                  value={
-                                                    field.requiredCondition || ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      {
-                                                        requiredCondition:
-                                                          e.target.value,
-                                                      },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="required condition"
-                                                />
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Label
+                                                  </span>
+                                                  <input
+                                                    type="text"
+                                                    value={field.label || ""}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        { label: e.target.value },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="label"
+                                                  />
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Placeholder
+                                                  </span>
+                                                  <input
+                                                    type="text"
+                                                    value={field.placeholder || ""}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          placeholder:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="placeholder"
+                                                  />
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Disabled condition
+                                                  </span>
+                                                  <input
+                                                    type="text"
+                                                    value={
+                                                      field.disabledCondition || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          disabledCondition:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="disabled condition"
+                                                  />
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Required condition
+                                                  </span>
+                                                  <input
+                                                    type="text"
+                                                    value={
+                                                      field.requiredCondition || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          requiredCondition:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                    placeholder="required condition"
+                                                  />
+                                                </label>
                                               </div>
-                                              <div className="grid grid-cols-[auto_auto_1fr] gap-3">
+                                              <div className="grid grid-cols-[auto_auto_auto_1fr] gap-3">
                                                 <label className="flex items-center gap-2 text-xs text-neutral-700">
                                                   <input
                                                     type="checkbox"
@@ -3000,6 +3072,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                     }
                                                   />
                                                   Required
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={!!field.isDisabled}
+                                                    onChange={(e) =>
+                                                      updateActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        {
+                                                          isDisabled:
+                                                            e.target.checked,
+                                                        },
+                                                      )
+                                                    }
+                                                  />
+                                                  Disabled
                                                 </label>
                                                 <label className="flex items-center gap-2 text-xs text-neutral-700">
                                                   <input
@@ -3023,165 +3112,258 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   />
                                                   Multiple
                                                 </label>
-                                                <input
-                                                  type="text"
-                                                  value={String(
-                                                    field.defaultValue ?? "",
-                                                  )}
-                                                  onChange={(e) =>
-                                                    updateActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                      {
-                                                        defaultValue:
-                                                          e.target.value,
-                                                      },
-                                                    )
-                                                  }
-                                                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                  placeholder="default value"
-                                                />
-                                              </div>
-
-                                              {field.type === "select" && (
-                                                <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                                                  <div className="grid grid-cols-4 gap-2">
-                                                    <select
-                                                      value={
-                                                        field.optionsSource ||
-                                                        "static"
+                                                {isActionNumberInput(field.type) && (
+                                                  <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={
+                                                        !!field.isNumberButtonsActive
                                                       }
                                                       onChange={(e) =>
                                                         updateActionFormField(
                                                           actionIndex,
                                                           fieldIndex,
                                                           {
-                                                            optionsSource: e
-                                                              .target
-                                                              .value as TableActionOptionsSource,
+                                                            isNumberButtonsActive:
+                                                              e.target.checked,
                                                           },
                                                         )
                                                       }
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                    >
-                                                      {ACTION_OPTIONS_SOURCES.map(
-                                                        (source) => (
-                                                          <option
-                                                            key={source.value}
-                                                            value={source.value}
-                                                          >
-                                                            {source.label}
-                                                          </option>
-                                                        ),
-                                                      )}
-                                                    </select>
-                                                    <select
-                                                      value={field.sourceSchemaName || ""}
-                                                      onChange={(e) =>
-                                                        updateActionFormField(
-                                                          actionIndex,
-                                                          fieldIndex,
-                                                          {
-                                                            sourceSchemaName: e.target.value,
-                                                            sourceValueField: "_id",
-                                                            sourceLabelField: "",
-                                                          },
-                                                        )
-                                                      }
-                                                      disabled={field.optionsSource !== "schema"}
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
-                                                    >
-                                                      <option value="">Source schema...</option>
-                                                      {containers.map((container) => (
-                                                        <option
-                                                          key={container.schemaName}
-                                                          value={container.schemaName}
-                                                        >
-                                                          {container.schemaName}
-                                                        </option>
-                                                      ))}
-                                                    </select>
-                                                    <select
-                                                      value={field.sourceValueField || "_id"}
-                                                      onChange={(e) =>
-                                                        updateActionFormField(
-                                                          actionIndex,
-                                                          fieldIndex,
-                                                          {
-                                                            sourceValueField: e.target.value,
-                                                          },
-                                                        )
-                                                      }
-                                                      disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
-                                                    >
-                                                      <option value="_id">_id</option>
-                                                      {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
-                                                        <option key={sourceField.name} value={sourceField.name}>
-                                                          {sourceField.name}
-                                                        </option>
-                                                      ))}
-                                                    </select>
-                                                    <select
-                                                      value={field.sourceLabelField || ""}
-                                                      onChange={(e) =>
-                                                        updateActionFormField(
-                                                          actionIndex,
-                                                          fieldIndex,
-                                                          {
-                                                            sourceLabelField: e.target.value,
-                                                          },
-                                                        )
-                                                      }
-                                                      disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
-                                                      className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
-                                                    >
-                                                      <option value="">Label field...</option>
-                                                      <option value="_id">_id</option>
-                                                      {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
-                                                        <option key={sourceField.name} value={sourceField.name}>
-                                                          {sourceField.name}
-                                                        </option>
-                                                      ))}
-                                                    </select>
-                                                  </div>
+                                                    />
+                                                    Number buttons
+                                                  </label>
+                                                )}
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Default value
+                                                  </span>
                                                   <input
                                                     type="text"
-                                                    value={
-                                                      field.sourceFilterCondition ||
-                                                      ""
-                                                    }
+                                                    value={String(
+                                                      field.defaultValue ?? "",
+                                                    )}
                                                     onChange={(e) =>
                                                       updateActionFormField(
                                                         actionIndex,
                                                         fieldIndex,
                                                         {
-                                                          sourceFilterCondition:
+                                                          defaultValue:
                                                             e.target.value,
                                                         },
                                                       )
                                                     }
                                                     className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                    placeholder="option filter condition"
+                                                    placeholder="default value"
                                                   />
-                                                  <textarea
-                                                    value={
-                                                      field.staticOptionsJson ||
-                                                      "[]"
-                                                    }
-                                                    onChange={(e) =>
+                                                </label>
+                                              </div>
+
+                                              {field.type === "select" && (
+                                                <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                                  <div className="grid grid-cols-4 gap-2">
+                                                    <label className="space-y-1">
+                                                      <span className="text-xs font-medium text-neutral-600">
+                                                        Options source
+                                                      </span>
+                                                      <select
+                                                        value={
+                                                          field.optionsSource ||
+                                                          "static"
+                                                        }
+                                                        onChange={(e) =>
+                                                          updateActionFormField(
+                                                            actionIndex,
+                                                            fieldIndex,
+                                                            {
+                                                              optionsSource: e
+                                                                .target
+                                                                .value as TableActionOptionsSource,
+                                                            },
+                                                          )
+                                                        }
+                                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      >
+                                                        {ACTION_OPTIONS_SOURCES.map(
+                                                          (source) => (
+                                                            <option
+                                                              key={source.value}
+                                                              value={source.value}
+                                                            >
+                                                              {source.label}
+                                                            </option>
+                                                          ),
+                                                        )}
+                                                      </select>
+                                                    </label>
+                                                    <label className="space-y-1">
+                                                      <span className="text-xs font-medium text-neutral-600">
+                                                        Source schema
+                                                      </span>
+                                                      <select
+                                                        value={field.sourceSchemaName || ""}
+                                                        onChange={(e) =>
+                                                          updateActionFormField(
+                                                            actionIndex,
+                                                            fieldIndex,
+                                                            {
+                                                              sourceSchemaName: e.target.value,
+                                                              sourceValueField: "_id",
+                                                              sourceLabelField: "",
+                                                            },
+                                                          )
+                                                        }
+                                                        disabled={field.optionsSource !== "schema"}
+                                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                      >
+                                                        <option value="">Source schema...</option>
+                                                        {containers.map((container) => (
+                                                          <option
+                                                            key={container.schemaName}
+                                                            value={container.schemaName}
+                                                          >
+                                                            {container.schemaName}
+                                                          </option>
+                                                        ))}
+                                                      </select>
+                                                    </label>
+                                                    <label className="space-y-1">
+                                                      <span className="text-xs font-medium text-neutral-600">
+                                                        Value field
+                                                      </span>
+                                                      <select
+                                                        value={field.sourceValueField || "_id"}
+                                                        onChange={(e) =>
+                                                          updateActionFormField(
+                                                            actionIndex,
+                                                            fieldIndex,
+                                                            {
+                                                              sourceValueField: e.target.value,
+                                                            },
+                                                          )
+                                                        }
+                                                        disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                      >
+                                                        <option value="_id">_id</option>
+                                                        {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
+                                                          <option key={sourceField.name} value={sourceField.name}>
+                                                            {sourceField.name}
+                                                          </option>
+                                                        ))}
+                                                      </select>
+                                                    </label>
+                                                    <label className="space-y-1">
+                                                      <span className="text-xs font-medium text-neutral-600">
+                                                        Label field
+                                                      </span>
+                                                      <select
+                                                        value={field.sourceLabelField || ""}
+                                                        onChange={(e) =>
+                                                          updateActionFormField(
+                                                            actionIndex,
+                                                            fieldIndex,
+                                                            {
+                                                              sourceLabelField: e.target.value,
+                                                            },
+                                                          )
+                                                        }
+                                                        disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                      >
+                                                        <option value="">Label field...</option>
+                                                        <option value="_id">_id</option>
+                                                        {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
+                                                          <option key={sourceField.name} value={sourceField.name}>
+                                                            {sourceField.name}
+                                                          </option>
+                                                        ))}
+                                                      </select>
+                                                    </label>
+                                                  </div>
+                                                  <label className="space-y-1">
+                                                    <span className="text-xs font-medium text-neutral-600">
+                                                      Option filter condition
+                                                    </span>
+                                                    <input
+                                                      type="text"
+                                                      value={
+                                                        field.sourceFilterCondition ||
+                                                        ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            sourceFilterCondition:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="option filter condition"
+                                                    />
+                                                  </label>
+                                                  <SelectInput
+                                                    label="Invalidate keys"
+                                                    options={(action.formFields || [])
+                                                      .filter((candidate, candidateIndex) =>
+                                                        candidateIndex !== fieldIndex && candidate.formKey.trim(),
+                                                      )
+                                                      .map((candidate) => ({
+                                                        value: candidate.formKey,
+                                                        label: candidate.label || candidate.formKey,
+                                                      }))}
+                                                    value={(field.invalidateKeys || []).map((key) => {
+                                                      const candidate = (action.formFields || []).find(
+                                                        (formField) => formField.formKey === key,
+                                                      );
+                                                      return {
+                                                        value: key,
+                                                        label: candidate?.label || key,
+                                                      };
+                                                    })}
+                                                    onChange={(selectedOptions) => {
+                                                      const selected = Array.isArray(selectedOptions)
+                                                        ? selectedOptions
+                                                        : [];
                                                       updateActionFormField(
                                                         actionIndex,
                                                         fieldIndex,
                                                         {
-                                                          staticOptionsJson:
-                                                            e.target.value,
+                                                          invalidateKeys: selected.map((option: OptionType) =>
+                                                            String(option.value),
+                                                          ),
                                                         },
-                                                      )
-                                                    }
-                                                    className="min-h-20 w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                    placeholder='[{"value":"active","label":"Active"}]'
+                                                      );
+                                                    }}
+                                                    isMultiple
+                                                    isAutoFill={false}
+                                                    placeholder="Select fields to clear"
                                                   />
+                                                  <label className="space-y-1">
+                                                    <span className="text-xs font-medium text-neutral-600">
+                                                      Static options JSON
+                                                    </span>
+                                                    <textarea
+                                                      value={
+                                                        field.staticOptionsJson ||
+                                                        "[]"
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            staticOptionsJson:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="min-h-20 w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder='[{"value":"active","label":"Active"}]'
+                                                    />
+                                                  </label>
                                                 </div>
                                               )}
                                             </div>

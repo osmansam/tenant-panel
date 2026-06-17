@@ -88,7 +88,8 @@ export interface OptionType {
   imageUrl?: string;
   bgColor?: string;
   textColor?: string;
-  [key: string]: string | number | boolean | undefined;
+  sourceItem?: Record<string, unknown>;
+  [key: string]: string | number | boolean | Record<string, unknown> | undefined;
 }
 
 export interface PanelFilterType {
@@ -138,6 +139,9 @@ export interface GenericInputType {
   }[];
   additionalOnChange?: (value: FormElementValue) => void;
   onChangeTrigger?: (value: FormElementValue) => void;
+  disabledCondition?: string;
+  requiredCondition?: string;
+  sourceFilterCondition?: string;
   isReadOnly?: boolean;
   invalidateKeys?: {
     key: string;
