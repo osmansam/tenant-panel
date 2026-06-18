@@ -52,6 +52,11 @@ import {
   getTableLinkConfig,
 } from "../../../utils/tableConfig";
 import {
+  buildConfiguredFilterInputs,
+  getFilterDefaultValues,
+  useFilterPanelSelectionData,
+} from "../../../utils/tableFilters";
+import {
   isFieldRequired,
   parseValidationRules,
 } from "../../../utils/validationHelper";
@@ -179,6 +184,31 @@ export default function GenericPaginatedPage({
     });
 
   const [showFilters, setShowFilters] = useState(false);
+  const configuredFilterInputs = tableConfig?.filterPanel?.inputs;
+  const filterSelectionDataMap =
+    useFilterPanelSelectionData(configuredFilterInputs);
+  const configuredFilterDefaults = useMemo(
+    () => getFilterDefaultValues(configuredFilterInputs),
+    [configuredFilterInputs],
+  );
+
+  useEffect(() => {
+    if (!Object.keys(configuredFilterDefaults).length) return;
+
+    setFilterPanelFormElements((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      Object.entries(configuredFilterDefaults).forEach(([key, value]) => {
+        if (next[key] === undefined) {
+          next[key] = value as FormElementsState[string];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [configuredFilterDefaults]);
 
   const displayFields: Field[] = useMemo(() => {
     const containerFields = container?.fields || [];
@@ -1349,7 +1379,7 @@ export default function GenericPaginatedPage({
       ? Object.keys(constantFilter)
       : [];
 
-    return displayFields
+    const defaultInputs = displayFields
       .filter((f) => {
         const fieldType = (f.type || "").toLowerCase();
         // Exclude id, image fields, and constantFilter fields from filters
@@ -1454,7 +1484,19 @@ export default function GenericPaginatedPage({
           required: false,
         };
       });
-  }, [displayFields, t, selectionDataMap, constantFilter]);
+    return buildConfiguredFilterInputs(
+      configuredFilterInputs,
+      defaultInputs,
+      filterSelectionDataMap,
+    );
+  }, [
+    displayFields,
+    t,
+    selectionDataMap,
+    constantFilter,
+    configuredFilterInputs,
+    filterSelectionDataMap,
+  ]);
 
   const filters = useMemo(
     () => [

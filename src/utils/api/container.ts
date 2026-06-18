@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
-import { TableActionConfig } from "../../types/page";
+import { TableActionConfig, TableFilterPanelConfig } from "../../types/page";
 import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
@@ -37,6 +37,7 @@ export interface Frontend {
   linkLabelField?: string;
   linkType?: LinkType;
   actions?: TableActionConfig[];
+  filterPanel?: TableFilterPanelConfig;
 }
 
 export interface Field {

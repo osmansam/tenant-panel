@@ -23,6 +23,7 @@ import {
   TableActionModalType,
   TableColumnConfig,
   TableComponentConfig,
+  TableFilterPanelInputConfig,
   TabPanelTab,
 } from "../../types/page";
 import {
@@ -147,7 +148,8 @@ type TableSettingsTab =
   | "links"
   | "cellClasses"
   | "rows"
-  | "actions";
+  | "actions"
+  | "filterInputs";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "columns", label: "Columns" },
@@ -155,6 +157,7 @@ const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "cellClasses", label: "Cell Classes" },
   { value: "rows", label: "Row Classes" },
   { value: "actions", label: "Actions" },
+  { value: "filterInputs", label: "Filter Inputs" },
 ];
 
 const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
@@ -229,6 +232,62 @@ const buildActionFormFieldsFromFields = (
                 2,
               )
             : "[]",
+        sourceSchemaName: field.objectSchemaName || "",
+        sourceValueField: "_id",
+        sourceLabelField: field.populationSettings?.inputSelectionField || "",
+        sourceFilterCondition: "",
+      };
+    });
+
+const buildFilterPanelInputsFromFields = (
+  fields: Field[],
+): TableFilterPanelInputConfig[] =>
+  fields
+    .filter((field) => field.name && !["_id", "id"].includes(field.name))
+    .filter((field) => !field.equation)
+    .filter((field) => {
+      const fieldType = (field.type || "").toLowerCase();
+      return fieldType !== "image" && fieldType !== "img";
+    })
+    .map((field) => {
+      const fieldType = (field.type || "").toLowerCase();
+      const baseInputType = actionInputTypeFromField(field);
+      const isBoolean = fieldType.includes("bool");
+      const inputType: TableActionInputType = isBoolean ? "select" : baseInputType;
+      const isMultiple =
+        fieldType === "objectidarray" ||
+        fieldType === "stringarray" ||
+        fieldType === "intarray" ||
+        fieldType === "numberarray" ||
+        fieldType === "string[]" ||
+        fieldType === "int[]" ||
+        fieldType === "number[]";
+      const staticOptions =
+        field.enumList && field.enumList.length > 0
+          ? field.enumList.map((value) => ({ value, label: String(value) }))
+          : isBoolean
+            ? [
+                { value: "true", label: "True" },
+                { value: "false", label: "False" },
+              ]
+            : [];
+
+      return {
+        formKey: field.name,
+        type: inputType,
+        formKeyType: formKeyTypeForActionInput(inputType, isMultiple),
+        label: field.frontend?.displayName || field.name,
+        placeholder: field.frontend?.displayName || field.name,
+        required: false,
+        disabledCondition: "",
+        requiredCondition: "",
+        isDisabled: false,
+        isMultiple,
+        optionsSource:
+          inputType === "select" && field.objectSchemaName
+            ? "schema"
+            : "static",
+        staticOptionsJson: JSON.stringify(staticOptions, null, 2),
         sourceSchemaName: field.objectSchemaName || "",
         sourceValueField: "_id",
         sourceLabelField: field.populationSettings?.inputSelectionField || "",
@@ -594,6 +653,60 @@ const cleanTableActions = (
       };
     });
 
+const cleanFilterPanelInputs = (
+  inputs: TableFilterPanelInputConfig[] = [],
+): TableFilterPanelInputConfig[] =>
+  inputs
+    .filter((field) => field.formKey.trim())
+    .map((field) => ({
+      formKey: field.formKey.trim(),
+      type: field.type || "text",
+      formKeyType: field.formKeyType || "string",
+      ...(field.label?.trim() ? { label: field.label.trim() } : {}),
+      ...(field.placeholder?.trim()
+        ? { placeholder: field.placeholder.trim() }
+        : {}),
+      ...(field.required ? { required: true } : {}),
+      ...(field.isDisabled ? { isDisabled: true } : {}),
+      ...(field.disabledCondition?.trim()
+        ? { disabledCondition: field.disabledCondition.trim() }
+        : {}),
+      ...(field.requiredCondition?.trim()
+        ? { requiredCondition: field.requiredCondition.trim() }
+        : {}),
+      ...(field.isMultiple ? { isMultiple: true } : {}),
+      ...(isActionNumberInput(field.type) && field.isNumberButtonsActive
+        ? { isNumberButtonsActive: true }
+        : {}),
+      ...(field.optionsSource ? { optionsSource: field.optionsSource } : {}),
+      ...(field.staticOptionsJson?.trim()
+        ? { staticOptionsJson: field.staticOptionsJson.trim() }
+        : {}),
+      ...(field.sourceSchemaName?.trim()
+        ? { sourceSchemaName: field.sourceSchemaName.trim() }
+        : {}),
+      ...(field.sourceValueField?.trim()
+        ? { sourceValueField: field.sourceValueField.trim() }
+        : {}),
+      ...(field.sourceLabelField?.trim()
+        ? { sourceLabelField: field.sourceLabelField.trim() }
+        : {}),
+      ...(field.sourceFilterCondition?.trim()
+        ? { sourceFilterCondition: field.sourceFilterCondition.trim() }
+        : {}),
+      ...(field.defaultValue !== undefined && field.defaultValue !== ""
+        ? { defaultValue: field.defaultValue }
+        : {}),
+      ...(field.min !== undefined ? { min: field.min } : {}),
+      ...(field.max !== undefined ? { max: field.max } : {}),
+      ...(field.minLength !== undefined ? { minLength: field.minLength } : {}),
+      ...(field.maxLength !== undefined ? { maxLength: field.maxLength } : {}),
+      ...(field.pattern?.trim() ? { pattern: field.pattern.trim() } : {}),
+      ...(field.validationMessage?.trim()
+        ? { validationMessage: field.validationMessage.trim() }
+        : {}),
+    }));
+
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
@@ -633,6 +746,13 @@ const cleanTableConfig = (
     : {}),
   ...(cleanTableActions(tableConfig.actions).length > 0
     ? { actions: cleanTableActions(tableConfig.actions) }
+    : {}),
+  ...(tableConfig.filterPanel !== undefined
+    ? {
+        filterPanel: {
+          inputs: cleanFilterPanelInputs(tableConfig.filterPanel.inputs || []),
+        },
+      }
     : {}),
 });
 
@@ -1594,6 +1714,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       editingComponent.dataBinding?.schemaName,
                   )?.fields || [],
                 ),
+          filterPanel:
+            editingComponent.table.filterPanel !== undefined
+              ? {
+                  inputs: editingComponent.table.filterPanel.inputs || [],
+                }
+              : {
+                  inputs: buildFilterPanelInputsFromFields(
+                    containers.find(
+                      (container) =>
+                        container.schemaName ===
+                        editingComponent.dataBinding?.schemaName,
+                    )?.fields || [],
+                  ),
+                },
         });
       }
     }
@@ -1617,6 +1751,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           current.actions && current.actions.length > 0
             ? hydrateSchemaEditActionFields(current.actions, container.fields || [])
             : getDefaultActionsForSource("schema", container.fields || []),
+        filterPanel:
+          current.filterPanel !== undefined &&
+          current.filterPanel.inputs !== undefined
+            ? current.filterPanel
+            : {
+                inputs: buildFilterPanelInputsFromFields(container.fields || []),
+              },
       };
     });
   }, [componentType, containers, editingComponent?.table, schemaName]);
@@ -2026,6 +2167,127 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             }
           : action,
       ),
+    }));
+  };
+
+  const addFilterPanelInput = () => {
+    setTableConfig((current) => ({
+      ...current,
+      filterPanel: {
+        inputs: [
+          ...(current.filterPanel?.inputs || []),
+          {
+            formKey: "",
+            type: "text",
+            formKeyType: "string",
+            label: "",
+            placeholder: "",
+            required: false,
+            isDisabled: false,
+            requiredCondition: "",
+            disabledCondition: "",
+            optionsSource: "static",
+            staticOptionsJson: "[]",
+            sourceSchemaName: "",
+            sourceValueField: "_id",
+            sourceLabelField: "",
+            sourceFilterCondition: "",
+          },
+        ],
+      },
+    }));
+  };
+
+  const buildDefaultFilterPanelInputsForCurrentSource =
+    (): TableFilterPanelInputConfig[] => {
+      if (tableSourceType === "pipeline") {
+        const outputFields =
+          pipelineOptions.find(({ pipeline }) => pipeline.name === pipelineName)
+            ?.outputFields || [];
+        return buildTableColumnsFromNames(outputFields).map((column) => ({
+          formKey: column.field,
+          type: "text",
+          formKeyType: "string",
+          label: column.displayName || column.field,
+          placeholder: column.displayName || column.field,
+          required: false,
+          disabledCondition: "",
+          requiredCondition: "",
+          isDisabled: false,
+          isMultiple: false,
+          optionsSource: "static",
+          staticOptionsJson: "[]",
+          sourceValueField: "_id",
+          sourceFilterCondition: "",
+        }));
+      }
+
+      if (tableSourceType === "workflow") {
+        const outputFields =
+          workflowOptions.find(({ workflow }) => workflow.name === workflowName)
+            ?.outputFields || [];
+        return buildTableColumnsFromNames(outputFields).map((column) => ({
+          formKey: column.field,
+          type: "text",
+          formKeyType: "string",
+          label: column.displayName || column.field,
+          placeholder: column.displayName || column.field,
+          required: false,
+          disabledCondition: "",
+          requiredCondition: "",
+          isDisabled: false,
+          isMultiple: false,
+          optionsSource: "static",
+          staticOptionsJson: "[]",
+          sourceValueField: "_id",
+          sourceFilterCondition: "",
+        }));
+      }
+
+      return buildFilterPanelInputsFromFields(selectedFields);
+    };
+
+  const areDefaultFilterPanelInputsActive = () => {
+    const currentInputs = tableConfig.filterPanel?.inputs || [];
+    const defaultInputs = buildDefaultFilterPanelInputsForCurrentSource();
+    if (currentInputs.length !== defaultInputs.length) return false;
+
+    const currentKeys = currentInputs.map((input) => input.formKey).sort();
+    const defaultKeys = defaultInputs.map((input) => input.formKey).sort();
+    return currentKeys.every((key, index) => key === defaultKeys[index]);
+  };
+
+  const setDefaultFilterPanelInputsActive = (isActive: boolean) => {
+    setTableConfig((current) => ({
+      ...current,
+      filterPanel: {
+        inputs: isActive ? buildDefaultFilterPanelInputsForCurrentSource() : [],
+      },
+    }));
+  };
+
+  const updateFilterPanelInput = (
+    inputIndex: number,
+    updates: Partial<TableFilterPanelInputConfig>,
+  ) => {
+    setTableConfig((current) => {
+      const inputs = [...(current.filterPanel?.inputs || [])];
+      inputs[inputIndex] = { ...inputs[inputIndex], ...updates };
+      return {
+        ...current,
+        filterPanel: { inputs },
+      };
+    });
+  };
+
+  const removeFilterPanelInput = (inputIndex: number) => {
+    setTableConfig((current) => ({
+      ...current,
+      filterPanel: {
+        inputs: (current.filterPanel?.inputs || []).filter(
+          (_, currentIndex) => currentIndex !== inputIndex,
+        ),
+      },
     }));
   };
 
@@ -2616,6 +2878,593 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                               </div>
                             )}
 
+                            {activeTableSettingsTab === "filterInputs" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Filter Panel Inputs
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Use defaults from the selected source or customize the list manually.
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-medium text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={areDefaultFilterPanelInputsActive()}
+                                        onChange={(e) =>
+                                          setDefaultFilterPanelInputsActive(
+                                            e.target.checked,
+                                          )
+                                        }
+                                      />
+                                      Use defaults
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={addFilterPanelInput}
+                                      className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                    >
+                                      <FiPlus size={14} />
+                                      Add input
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {(tableConfig.filterPanel?.inputs || []).map(
+                                  (field, fieldIndex) => (
+                                    <div
+                                      key={fieldIndex}
+                                      className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3"
+                                    >
+                                      <div className="grid grid-cols-[1fr_160px_auto] gap-2">
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Form key
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={field.formKey}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                formKey: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="field name"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Input type
+                                          </span>
+                                          <select
+                                            value={field.type}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                type: e.target
+                                                  .value as TableActionInputType,
+                                                formKeyType:
+                                                  formKeyTypeForActionInput(
+                                                    e.target
+                                                      .value as TableActionInputType,
+                                                    field.isMultiple,
+                                                  ),
+                                                isNumberButtonsActive:
+                                                  isActionNumberInput(
+                                                    e.target.value,
+                                                  )
+                                                    ? field.isNumberButtonsActive
+                                                    : false,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          >
+                                            {ACTION_INPUT_TYPES.map((inputType) => (
+                                              <option
+                                                key={inputType.value}
+                                                value={inputType.value}
+                                              >
+                                                {inputType.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            removeFilterPanelInput(fieldIndex)
+                                          }
+                                          className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                        >
+                                          <FiTrash2 size={14} />
+                                        </button>
+                                      </div>
+
+                                      <div className="grid grid-cols-4 gap-2">
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Label
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={field.label || ""}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                label: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="label"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Placeholder
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={field.placeholder || ""}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                placeholder: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="placeholder"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Disabled condition
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={field.disabledCondition || ""}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                disabledCondition: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="disabled condition"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Required condition
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={field.requiredCondition || ""}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                requiredCondition: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="required condition"
+                                          />
+                                        </label>
+                                      </div>
+
+                                      <div className="grid grid-cols-[auto_auto_auto_auto_1fr] gap-3">
+                                        <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={!!field.required}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                required: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Required
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={!!field.isDisabled}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                isDisabled: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Disabled
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={!!field.isMultiple}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                isMultiple: e.target.checked,
+                                                formKeyType:
+                                                  formKeyTypeForActionInput(
+                                                    field.type,
+                                                    e.target.checked,
+                                                  ),
+                                              })
+                                            }
+                                          />
+                                          Multiple
+                                        </label>
+                                        {isActionNumberInput(field.type) && (
+                                          <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                            <input
+                                              type="checkbox"
+                                              checked={
+                                                !!field.isNumberButtonsActive
+                                              }
+                                              onChange={(e) =>
+                                                updateFilterPanelInput(
+                                                  fieldIndex,
+                                                  {
+                                                    isNumberButtonsActive:
+                                                      e.target.checked,
+                                                  },
+                                                )
+                                              }
+                                            />
+                                            Number buttons
+                                          </label>
+                                        )}
+                                        <label className="space-y-1">
+                                          <span className="text-xs font-medium text-neutral-600">
+                                            Default value
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={String(field.defaultValue ?? "")}
+                                            onChange={(e) =>
+                                              updateFilterPanelInput(fieldIndex, {
+                                                defaultValue: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="default value"
+                                          />
+                                        </label>
+                                      </div>
+
+                                      {field.type === "select" && (
+                                        <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                          <div className="grid grid-cols-4 gap-2">
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Options source
+                                              </span>
+                                              <select
+                                                value={
+                                                  field.optionsSource || "static"
+                                                }
+                                                onChange={(e) =>
+                                                  updateFilterPanelInput(
+                                                    fieldIndex,
+                                                    {
+                                                      optionsSource: e.target
+                                                        .value as TableActionOptionsSource,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              >
+                                                {ACTION_OPTIONS_SOURCES.map(
+                                                  (source) => (
+                                                    <option
+                                                      key={source.value}
+                                                      value={source.value}
+                                                    >
+                                                      {source.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Source schema
+                                              </span>
+                                              <select
+                                                value={
+                                                  field.sourceSchemaName || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateFilterPanelInput(
+                                                    fieldIndex,
+                                                    {
+                                                      sourceSchemaName:
+                                                        e.target.value,
+                                                      sourceValueField: "_id",
+                                                      sourceLabelField: "",
+                                                    },
+                                                  )
+                                                }
+                                                disabled={
+                                                  field.optionsSource !== "schema"
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                              >
+                                                <option value="">
+                                                  Source schema...
+                                                </option>
+                                                {containers.map((container) => (
+                                                  <option
+                                                    key={container.schemaName}
+                                                    value={container.schemaName}
+                                                  >
+                                                    {container.schemaName}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Value field
+                                              </span>
+                                              <select
+                                                value={
+                                                  field.sourceValueField || "_id"
+                                                }
+                                                onChange={(e) =>
+                                                  updateFilterPanelInput(
+                                                    fieldIndex,
+                                                    {
+                                                      sourceValueField:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                disabled={
+                                                  field.optionsSource !==
+                                                    "schema" ||
+                                                  !field.sourceSchemaName
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                              >
+                                                <option value="_id">_id</option>
+                                                {(containers.find(
+                                                  (container) =>
+                                                    container.schemaName ===
+                                                    field.sourceSchemaName,
+                                                )?.fields || []).map(
+                                                  (sourceField) => (
+                                                    <option
+                                                      key={sourceField.name}
+                                                      value={sourceField.name}
+                                                    >
+                                                      {sourceField.name}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Label field
+                                              </span>
+                                              <select
+                                                value={
+                                                  field.sourceLabelField || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateFilterPanelInput(
+                                                    fieldIndex,
+                                                    {
+                                                      sourceLabelField:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                disabled={
+                                                  field.optionsSource !==
+                                                    "schema" ||
+                                                  !field.sourceSchemaName
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                              >
+                                                <option value="">
+                                                  Label field...
+                                                </option>
+                                                <option value="_id">_id</option>
+                                                {(containers.find(
+                                                  (container) =>
+                                                    container.schemaName ===
+                                                    field.sourceSchemaName,
+                                                )?.fields || []).map(
+                                                  (sourceField) => (
+                                                    <option
+                                                      key={sourceField.name}
+                                                      value={sourceField.name}
+                                                    >
+                                                      {sourceField.name}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                          </div>
+                                          <label className="space-y-1">
+                                            <span className="text-xs font-medium text-neutral-600">
+                                              Option filter condition
+                                            </span>
+                                            <input
+                                              type="text"
+                                              value={
+                                                field.sourceFilterCondition || ""
+                                              }
+                                              onChange={(e) =>
+                                                updateFilterPanelInput(
+                                                  fieldIndex,
+                                                  {
+                                                    sourceFilterCondition:
+                                                      e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="option filter condition"
+                                            />
+                                          </label>
+                                          <SelectInput
+                                            label="Invalidate keys"
+                                            options={(
+                                              tableConfig.filterPanel?.inputs || []
+                                            )
+                                              .filter(
+                                                (candidate, candidateIndex) =>
+                                                  candidateIndex !==
+                                                    fieldIndex &&
+                                                  candidate.formKey.trim(),
+                                              )
+                                              .map((candidate) => ({
+                                                value: candidate.formKey,
+                                                label:
+                                                  candidate.label ||
+                                                  candidate.formKey,
+                                              }))}
+                                            value={(field.invalidateKeys || []).map(
+                                              (key) => {
+                                                const candidate = (
+                                                  tableConfig.filterPanel
+                                                    ?.inputs || []
+                                                ).find(
+                                                  (input) =>
+                                                    input.formKey === key,
+                                                );
+                                                return {
+                                                  value: key,
+                                                  label:
+                                                    candidate?.label || key,
+                                                };
+                                              },
+                                            )}
+                                            onChange={(selectedOptions) => {
+                                              const selected = Array.isArray(
+                                                selectedOptions,
+                                              )
+                                                ? selectedOptions
+                                                : [];
+                                              updateFilterPanelInput(fieldIndex, {
+                                                invalidateKeys: selected.map(
+                                                  (option: OptionType) =>
+                                                    String(option.value),
+                                                ),
+                                              });
+                                            }}
+                                            isMultiple
+                                            isAutoFill={false}
+                                            placeholder="Select fields to clear"
+                                          />
+                                          <label className="space-y-1">
+                                            <span className="text-xs font-medium text-neutral-600">
+                                              Static options JSON
+                                            </span>
+                                            <textarea
+                                              value={
+                                                field.staticOptionsJson || "[]"
+                                              }
+                                              onChange={(e) =>
+                                                updateFilterPanelInput(
+                                                  fieldIndex,
+                                                  {
+                                                    staticOptionsJson:
+                                                      e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="min-h-20 w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder='[{"value":"active","label":"Active"}]'
+                                            />
+                                          </label>
+                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-5 gap-2">
+                                        <input
+                                          type="number"
+                                          value={field.min ?? ""}
+                                          onChange={(e) =>
+                                            updateFilterPanelInput(fieldIndex, {
+                                              min: e.target.value
+                                                ? Number(e.target.value)
+                                                : undefined,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="min"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={field.max ?? ""}
+                                          onChange={(e) =>
+                                            updateFilterPanelInput(fieldIndex, {
+                                              max: e.target.value
+                                                ? Number(e.target.value)
+                                                : undefined,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="max"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={field.minLength ?? ""}
+                                          onChange={(e) =>
+                                            updateFilterPanelInput(fieldIndex, {
+                                              minLength: e.target.value
+                                                ? Number(e.target.value)
+                                                : undefined,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="min length"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={field.maxLength ?? ""}
+                                          onChange={(e) =>
+                                            updateFilterPanelInput(fieldIndex, {
+                                              maxLength: e.target.value
+                                                ? Number(e.target.value)
+                                                : undefined,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="max length"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={field.pattern || ""}
+                                          onChange={(e) =>
+                                            updateFilterPanelInput(fieldIndex, {
+                                              pattern: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="pattern"
+                                        />
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={field.validationMessage || ""}
+                                        onChange={(e) =>
+                                          updateFilterPanelInput(fieldIndex, {
+                                            validationMessage: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="validation message"
+                                      />
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+
                             {activeTableSettingsTab === "actions" && (
                               <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
                                 <button
@@ -3157,6 +4006,59 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   />
                                                 </label>
                                               </div>
+
+                                              {isActionNumberInput(field.type) && (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                  <label className="space-y-1">
+                                                    <span className="text-xs font-medium text-neutral-600">
+                                                      Min value
+                                                    </span>
+                                                    <input
+                                                      type="number"
+                                                      value={field.min ?? ""}
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            min: e.target.value
+                                                              ? Number(
+                                                                  e.target.value,
+                                                                )
+                                                              : undefined,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="min"
+                                                    />
+                                                  </label>
+                                                  <label className="space-y-1">
+                                                    <span className="text-xs font-medium text-neutral-600">
+                                                      Max value
+                                                    </span>
+                                                    <input
+                                                      type="number"
+                                                      value={field.max ?? ""}
+                                                      onChange={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            max: e.target.value
+                                                              ? Number(
+                                                                  e.target.value,
+                                                                )
+                                                              : undefined,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder="max"
+                                                    />
+                                                  </label>
+                                                </div>
+                                              )}
 
                                               {field.type === "select" && (
                                                 <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">

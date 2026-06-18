@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 import { HiOutlineTrash } from "react-icons/hi2";
@@ -33,6 +33,11 @@ import {
   getTableDisplayName,
   getTableLinkConfig,
 } from "../../../utils/tableConfig";
+import {
+  buildConfiguredFilterInputs,
+  getFilterDefaultValues,
+  useFilterPanelSelectionData,
+} from "../../../utils/tableFilters";
 import {
   buildActionFormInputs,
   buildActionFormKeys,
@@ -90,6 +95,31 @@ export default function GenericUnpaginatedPage({
   const [showFilters, setShowFilters] = useState(false);
   const [filterFormElements, setFilterFormElements] =
     useState<FormElementsState>({});
+  const configuredFilterInputs = tableConfig?.filterPanel?.inputs;
+  const filterSelectionDataMap =
+    useFilterPanelSelectionData(configuredFilterInputs);
+  const configuredFilterDefaults = useMemo(
+    () => getFilterDefaultValues(configuredFilterInputs),
+    [configuredFilterInputs],
+  );
+
+  useEffect(() => {
+    if (!Object.keys(configuredFilterDefaults).length) return;
+
+    setFilterFormElements((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      Object.entries(configuredFilterDefaults).forEach(([key, value]) => {
+        if (next[key] === undefined) {
+          next[key] = value as FormElementsState[string];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [configuredFilterDefaults]);
 
   const rawContainers = useGetContainers();
 
@@ -1175,7 +1205,7 @@ export default function GenericUnpaginatedPage({
   ]);
 
   const filterPanelInputs = useMemo(() => {
-    return displayFields
+    const defaultInputs = displayFields
       .filter((f) => {
         const fieldType = (f.type || "").toLowerCase();
         // Exclude id, image fields from filters
@@ -1242,7 +1272,18 @@ export default function GenericUnpaginatedPage({
           required: false,
         };
       });
-  }, [displayFields, t, selectionDataMap]);
+    return buildConfiguredFilterInputs(
+      configuredFilterInputs,
+      defaultInputs,
+      filterSelectionDataMap,
+    );
+  }, [
+    displayFields,
+    t,
+    selectionDataMap,
+    configuredFilterInputs,
+    filterSelectionDataMap,
+  ]);
 
   const filters = useMemo(
     () => [

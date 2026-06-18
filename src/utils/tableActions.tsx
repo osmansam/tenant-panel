@@ -26,6 +26,9 @@ const qs = (params: Record<string, unknown>) =>
       .map(([k, v]) => [k, String(v)]),
   ).toString();
 
+const getSelectionFieldName = (field: TableActionFormFieldConfig) =>
+  field.sourceLabelField || field.sourceValueField || "_id";
+
 export const getActionId = (action: TableActionConfig, index: number) =>
   action.id || `${action.kind}-${action.label || index}`;
 
@@ -103,18 +106,22 @@ export const useActionFormSelectionData = (
 
   const queryResults = useQueries({
     queries: schemaSelectFields.map(({ field }) => {
-      const path = `/dynamic?${qs({
+      const fieldName = getSelectionFieldName(field);
+      const path = `/dynamic/selection?${qs({
         schemaName: field.sourceSchemaName,
+        fieldName,
       })}`;
 
       return {
         queryKey: [
           "dynamic",
           field.sourceSchemaName,
+          "selection",
+          fieldName,
           "action-options",
         ],
         queryFn: () => get<Array<Record<string, unknown>>>({ path }),
-        enabled: Boolean(field.sourceSchemaName && field.sourceLabelField),
+        enabled: Boolean(field.sourceSchemaName && fieldName),
         staleTime: Infinity,
       };
     }),

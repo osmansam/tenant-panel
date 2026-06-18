@@ -29,6 +29,7 @@ type TextInputProps = {
   requiredField?: boolean;
   isDateInitiallyOpen?: boolean;
   minNumber?: number;
+  maxNumber?: number;
   isMinNumber?: boolean;
   isNumberButtonsActive?: boolean;
   isOnClearActive?: boolean;
@@ -49,6 +50,7 @@ const TextInput = ({
   onClear,
   inputWidth,
   minNumber = 0,
+  maxNumber,
   isMinNumber = true,
   isNumberButtonsActive = false,
   isOnClearActive = true,
@@ -93,10 +95,13 @@ const TextInput = ({
     }
 
     const newValue =
-      type === "number" && +inputValue < minNumber && isMinNumber
-        ? Number(minNumber)
-        : type === "number"
-        ? Number(inputValue)
+      type === "number"
+        ? Math.min(
+            maxNumber ?? Number.POSITIVE_INFINITY,
+            isMinNumber
+              ? Math.max(Number(minNumber), Number(inputValue))
+              : Number(inputValue),
+          )
         : inputValue;
     setLocalValue(newValue);
     if (isDebounce) {
@@ -115,7 +120,10 @@ const TextInput = ({
   const handleIncrement = () => {
     if (disabled || isReadOnly) return;
     if (type === "number") {
-      const newValue = Math.max(minNumber, +localValue + 1);
+      const newValue = Math.min(
+        maxNumber ?? Number.POSITIVE_INFINITY,
+        Math.max(minNumber, +localValue + 1),
+      );
       setLocalValue(newValue);
 
       if (isDebounce) {
@@ -281,7 +289,12 @@ const TextInput = ({
           value={localValue}
           onChange={handleChange}
           className={inputClassName}
-          {...(isMinNumber && (type === "number" ? { min: minNumber } : {}))}
+          {...(type === "number"
+            ? {
+                ...(isMinNumber ? { min: minNumber } : {}),
+                ...(maxNumber !== undefined ? { max: maxNumber } : {}),
+              }
+            : {})}
           onWheel={type === "number" ? handleWheel : undefined}
         />
         {type === "password" && (

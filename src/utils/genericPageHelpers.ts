@@ -3,7 +3,7 @@ import {
   FormKeyTypeEnum,
   InputTypes,
 } from "../components/panelComponents/shared/types";
-import { TableActionConfig } from "../types/page";
+import { TableActionConfig, TableFilterPanelConfig } from "../types/page";
 import { ContainerModel, Field, Frontend, Types } from "./api/container";
 
 type GenericItem = Record<string, unknown> & { _id: string };
@@ -68,6 +68,9 @@ type RawActionConfig = Partial<TableActionConfig> & {
   ClassName?: string;
   ButtonClassName?: string;
   IsButton?: boolean;
+};
+type RawFilterPanelConfig = Partial<TableFilterPanelConfig> & {
+  Inputs?: RawActionFormFieldConfig[];
 };
 
 const toComparableValue = (value: unknown): ComparableValue => {
@@ -171,6 +174,7 @@ export type RawField = {
     linkLabelField?: string;
     linkType?: string;
     actions?: RawActionConfig[];
+    filterPanel?: RawFilterPanelConfig;
   };
   Frontend?: {
     DisplayName?: string;
@@ -187,6 +191,7 @@ export type RawField = {
     linkLabelField?: string;
     linkType?: string;
     Actions?: RawActionConfig[];
+    FilterPanel?: RawFilterPanelConfig;
   };
   populationSettings?: RawPopulationSettings;
   PopulationSettings?: RawPopulationSettings;
@@ -230,6 +235,7 @@ export type RawContainer = {
     }[];
     invalidateKeys?: string[];
     actions?: RawActionConfig[];
+    filterPanel?: RawFilterPanelConfig;
   };
   Frontend?: {
     DisplayName?: string;
@@ -239,6 +245,7 @@ export type RawContainer = {
     }[];
     invalidateKeys?: string[];
     Actions?: RawActionConfig[];
+    FilterPanel?: RawFilterPanelConfig;
   };
 };
 
@@ -279,6 +286,18 @@ const normalizeActionFormFields = (
   fields: RawActionFormFieldConfig[] | undefined,
 ): TableActionConfig["formFields"] | undefined =>
   fields?.map(normalizeActionFormFieldConfig);
+
+const normalizeFilterPanelConfig = (
+  filterPanel: RawFilterPanelConfig | undefined,
+): TableFilterPanelConfig | undefined => {
+  if (!filterPanel) return undefined;
+  return {
+    inputs:
+      normalizeActionFormFields(
+        filterPanel.inputs as RawActionFormFieldConfig[],
+      ) ?? normalizeActionFormFields(filterPanel.Inputs),
+  };
+};
 
 const normalizeActionConfig = (
   action: RawActionConfig,
@@ -354,6 +373,9 @@ export const normalizeField = (f: RawField): Field => {
             ...f.frontend,
             linkType: f.frontend.linkType as Frontend["linkType"],
             actions: (f.frontend.actions || []).map(normalizeActionConfig),
+            filterPanel: normalizeFilterPanelConfig(
+              f.frontend.filterPanel,
+            ) as Frontend["filterPanel"],
           } as Frontend)
         : f.Frontend
           ? ({
@@ -377,6 +399,9 @@ export const normalizeField = (f: RawField): Field => {
                 | "file"
                 | undefined,
               actions: (f.Frontend.Actions || []).map(normalizeActionConfig),
+              filterPanel: normalizeFilterPanelConfig(
+                f.Frontend.FilterPanel,
+              ) as Frontend["filterPanel"],
             } as Frontend)
           : undefined,
     populationSettings: rawPopSettings
@@ -435,6 +460,9 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
       ? ({
           ...c.frontend,
           actions: (c.frontend.actions || []).map(normalizeActionConfig),
+          filterPanel: normalizeFilterPanelConfig(
+            c.frontend.filterPanel,
+          ) as Frontend["filterPanel"],
         } as Frontend)
       : c.Frontend
         ? ({
@@ -445,6 +473,9 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
             })),
             invalidateKeys: c.Frontend.invalidateKeys || [],
             actions: (c.Frontend.Actions || []).map(normalizeActionConfig),
+            filterPanel: normalizeFilterPanelConfig(
+              c.Frontend.FilterPanel,
+            ) as Frontend["filterPanel"],
           } as Frontend)
         : undefined,
 });

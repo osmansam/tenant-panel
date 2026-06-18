@@ -46,7 +46,13 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
   const tableConfig =
     component.table ||
     (props?.table as TableComponentConfig | undefined) ||
-    (props?.columns || props?.rows || props?.cache
+    ([
+      props?.columns,
+      props?.rows,
+      props?.cache,
+      props?.actions,
+      props?.filterPanel,
+    ].some(Boolean)
       ? (props as TableComponentConfig)
       : undefined);
 

@@ -88,6 +88,12 @@ export interface PageTableActionFormFieldConfig {
   validationMessage?: string;
 }
 
+export type PageTableFilterPanelInputConfig = PageTableActionFormFieldConfig;
+
+export interface PageTableFilterPanelConfig {
+  inputs?: PageTableFilterPanelInputConfig[];
+}
+
 export interface PageTableActionFieldConfig {
   field: string;
   value?: unknown;
@@ -137,6 +143,7 @@ export interface PageTableComponentConfig {
   rows?: PageTableRowsConfig;
   cache?: PageTableCacheConfig;
   actions?: PageTableActionConfig[];
+  filterPanel?: PageTableFilterPanelConfig;
 }
 
 export type ComponentType =
