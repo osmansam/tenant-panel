@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useGeneralContext } from "../../../context/General.context";
@@ -29,14 +29,22 @@ const TabPanel: React.FC<Props> = ({
   isLanguageChange = true,
 }) => {
   const { t } = useTranslation();
-  const adjustedTabs = tabs
-    .filter((item) => !item.isDisabled)
-    .map((tab, index) => {
-      return {
-        ...tab,
-        adjustedNumber: index,
-      };
-    });
+  const adjustedTabs = useMemo(
+    () =>
+      tabs
+        .filter((item) => !item.isDisabled)
+        .map((tab, index) => {
+          return {
+            ...tab,
+            adjustedNumber: index,
+          };
+        }),
+    [tabs],
+  );
+  const activeAdjustedTab = useMemo(
+    () => adjustedTabs.find((tab) => tab.adjustedNumber === activeTab),
+    [activeTab, adjustedTabs],
+  );
 
   const [indicatorStyle, setIndicatorStyle] = useState<{
     width: number;
@@ -107,12 +115,12 @@ const TabPanel: React.FC<Props> = ({
 
   const handleTabChange = (tab: Tab) => {
     additionalClickAction && additionalClickAction();
-    resetGeneralContext();
-    adjustedTabs
-      ?.find((tab) => tab.adjustedNumber === activeTab)
-      ?.onCloseAction?.();
     setActiveTab(tab?.adjustedNumber ?? tab.number);
-    tab?.onOpenAction?.();
+    startTransition(() => {
+      resetGeneralContext();
+      activeAdjustedTab?.onCloseAction?.();
+      tab?.onOpenAction?.();
+    });
   };
 
   return (
@@ -187,14 +195,9 @@ const TabPanel: React.FC<Props> = ({
           </div>
         )}
       </div>
-      {adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)?.content &&
-        !adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)
-          ?.isDisabled && (
+      {activeAdjustedTab?.content && !activeAdjustedTab?.isDisabled && (
           <div className={`${topClassName ? "pt-3" : "py-6"}`}>
-            {
-              adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)
-                ?.content
-            }
+            {activeAdjustedTab.content}
           </div>
         )}
     </div>

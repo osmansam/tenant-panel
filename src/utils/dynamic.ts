@@ -534,23 +534,29 @@ export function useGetTableSourceItems<T>(
 }
 
 // utils/dynamic.ts (or wherever this lives)
-export function useGetSelection<T>(schemaName: string, fieldName: string) {
+export function useGetSelection<T>(
+  schemaName: string,
+  fieldName: string,
+  valueField?: string,
+) {
   // Only enable the request if both schemaName and fieldName are provided
   const enabled = Boolean(schemaName && fieldName);
 
-  const path = `${BASE}/selection?${qs({ schemaName, fieldName })}`;
+  const path = `${BASE}/selection?${qs({ schemaName, fieldName, valueField })}`;
 
   const queryKey = [
     "dynamic",
     schemaName || "",
     "selection",
     fieldName || "",
+    valueField || "",
   ] as const;
 
   const data = useGet<T>(path, queryKey, enabled);
 
   return (data ?? ([] as T)) as T;
 }
+
 
 export function useGetPipeline<T>(
   schemaName: string,

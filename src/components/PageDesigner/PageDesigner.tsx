@@ -11,6 +11,7 @@ import {
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
+  GroupBy,
   LinkType,
   GridCell,
   GridSection,
@@ -62,6 +63,17 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+const EMPTY_GROUP_BY: GroupBy = {
+  groupByObjectId: "",
+  groupByField: "",
+  groupedSchemaName: "",
+  groupedField: "",
+  sourceSchemaName: "",
+  sourceValueField: "_id",
+  sourceLabelField: "",
+  filterField: "",
+};
 
 const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: "external", label: "External" },
@@ -1595,6 +1607,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [workflowName, setWorkflowName] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [tabs, setTabs] = useState<TabPanelTab[]>([]);
+  const [groupBy, setGroupBy] = useState<GroupBy>(EMPTY_GROUP_BY);
   const [showTabExcelModal, setShowTabExcelModal] = useState(false);
   const [params, setParams] = useState<string>(""); // JSON string for params
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
@@ -1611,6 +1624,58 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     [containers, schemaName]
   );
   const selectedFields = selectedContainer?.fields || [];
+  const groupByTemplateSchemaName = useMemo(
+    () =>
+      tabs.find((tab) => tab.components[0]?.type === "table")?.components[0]
+        ?.dataBinding?.schemaName || "",
+    [tabs],
+  );
+  const selectedGroupedContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName ===
+          (groupBy.groupedSchemaName || groupByTemplateSchemaName),
+      ),
+    [containers, groupBy.groupedSchemaName, groupByTemplateSchemaName],
+  );
+  const groupByGroupedFields = useMemo(
+    () =>
+      (selectedGroupedContainer?.fields || [])
+        .filter((field) => field.name && field.name !== "_id")
+        .map((field) => ({
+          name: field.name,
+          label: field.frontend?.displayName || field.name,
+        })),
+    [selectedGroupedContainer?.fields],
+  );
+  const selectedGroupByContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName === groupBy.sourceSchemaName,
+      ),
+    [containers, groupBy.sourceSchemaName],
+  );
+  const groupByLabelFields = useMemo(
+    () =>
+      (selectedGroupByContainer?.fields || []).filter(
+        (field) => field.name && !["_id", "id"].includes(field.name),
+      ),
+    [selectedGroupByContainer?.fields],
+  );
+  const groupByValueFields = useMemo(
+    () => [
+      { name: "_id", label: "_id" },
+      ...(selectedGroupByContainer?.fields || [])
+        .filter((field) => field.name && field.name !== "_id")
+        .map((field) => ({
+          name: field.name,
+          label: field.frontend?.displayName || field.name,
+        })),
+    ],
+    [selectedGroupByContainer?.fields],
+  );
   const pipelineOptions = useMemo(
     () =>
       (selectedContainer?.pipelines || [])
@@ -1678,8 +1743,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         );
       }
 
-      if (editingComponent.tabs) {
-        setTabs(editingComponent.tabs);
+      setTabs(editingComponent.tabs || []);
+      setGroupBy(editingComponent.groupBy || EMPTY_GROUP_BY);
+      if (
+        editingComponent.type === "tabPanel" &&
+        !editingComponent.dataBinding?.schemaName &&
+        editingComponent.groupBy?.groupedSchemaName
+      ) {
+        setSchemaName(editingComponent.groupBy.groupedSchemaName);
       }
 
       if (editingComponent.table) {
@@ -1730,11 +1801,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 },
         });
       }
+    } else {
+      setGroupBy(EMPTY_GROUP_BY);
+      setTabs([]);
     }
   }, [editingComponent]);
 
   useEffect(() => {
-    if (componentType !== "table" || !schemaName || editingComponent?.table) {
+    if (
+      !["table", "tabPanel"].includes(componentType) ||
+      !schemaName ||
+      editingComponent?.table
+    ) {
       return;
     }
 
@@ -1829,7 +1907,53 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       };
       component.table = cleanTableConfig(tableConfig);
     } else if (componentType === "tabPanel") {
+      const groupedSchemaName = (
+        groupBy.groupedSchemaName ||
+        groupByTemplateSchemaName ||
+        schemaName ||
+        ""
+      ).trim();
+      const groupedField = (
+        groupBy.groupedField ||
+        groupBy.filterField ||
+        groupBy.groupByObjectId ||
+        ""
+      ).trim();
+      const sourceSchemaName = (
+        groupBy.sourceSchemaName ||
+        ""
+      ).trim();
+      const sourceValueField = (groupBy.sourceValueField || "_id").trim();
+      const sourceLabelField = (
+        groupBy.sourceLabelField ||
+        groupBy.groupByField ||
+        ""
+      ).trim();
+      const cleanGroupBy = {
+        groupByObjectId: groupedField,
+        groupByField: sourceLabelField,
+        groupedSchemaName,
+        groupedField,
+        sourceSchemaName,
+        sourceValueField,
+        sourceLabelField,
+        filterField: groupedField,
+      };
+
       component.tabs = tabs;
+      if (
+        cleanGroupBy.groupedSchemaName &&
+        cleanGroupBy.groupedField &&
+        cleanGroupBy.sourceSchemaName &&
+        cleanGroupBy.sourceLabelField
+      ) {
+        component.dataBinding = {
+          kind: "schema",
+          schemaName: cleanGroupBy.groupedSchemaName,
+        };
+        component.table = cleanTableConfig(tableConfig);
+        component.groupBy = cleanGroupBy;
+      }
     } else if (CHART_TYPES.find((c) => c.value === componentType)) {
       let parsedParams = undefined;
       if (params.trim()) {
@@ -2560,19 +2684,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               )}
             </div>
 
-            {componentType !== "tabPanel" && (
+            {(componentType !== "tabPanel" || componentType === "tabPanel") && (
               <>
                 {/* Table Configuration */}
-                {componentType === "table" && (
+                {(componentType === "table" || componentType === "tabPanel") && (
                   <div className="space-y-5 border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h4 className="text-base font-semibold text-neutral-900">
-                        Table Settings
+                          Table Settings
                         </h4>
                         <p className="text-sm text-neutral-500 mt-1">
-                          Configure column labels, links, cell classes, and row
-                          classes for this table component.
+                          Configure column labels, links, cell classes, filters,
+                          actions, and rows for this table component.
                         </p>
                       </div>
                       {schemaName && (
@@ -4437,6 +4561,202 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       <FiUpload size={14} strokeWidth={2.5} />
                       <span>Excel</span>
                     </button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Group By
+                      </label>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Optional. Uses the first table tab as the template for dynamic tabs.
+                      </p>
+                    </div>
+                    {(groupBy.groupedSchemaName ||
+                      groupBy.groupedField ||
+                      groupBy.sourceSchemaName ||
+                      groupBy.groupByObjectId ||
+                      (groupBy.sourceValueField &&
+                        groupBy.sourceValueField !== "_id") ||
+                      groupBy.sourceLabelField ||
+                      groupBy.groupByField ||
+                      groupBy.filterField) && (
+                      <button
+                        type="button"
+                        onClick={() => setGroupBy(EMPTY_GROUP_BY)}
+                        className="px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+                        Grouped schema
+                      </label>
+                      <select
+                        value={
+                          groupBy.groupedSchemaName ||
+                          groupByTemplateSchemaName ||
+                          ""
+                        }
+                        onChange={(e) => {
+                          setSchemaName(e.target.value);
+                          resetTableColumnsForSchema(e.target.value);
+                          setGroupBy((current) => ({
+                            ...current,
+                            groupedSchemaName: e.target.value,
+                            groupedField: "",
+                            groupByObjectId: "",
+                            filterField: "",
+                          }));
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select grouped schema...</option>
+                        {schemas.map((schema) => (
+                          <option key={schema} value={schema}>
+                            {schema}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+                        Grouped field
+                      </label>
+                      <select
+                        value={
+                          groupBy.groupedField ||
+                          groupBy.filterField ||
+                          groupBy.groupByObjectId ||
+                          ""
+                        }
+                        onChange={(e) =>
+                          setGroupBy((current) => ({
+                            ...current,
+                            groupedField: e.target.value,
+                            filterField: e.target.value,
+                            groupByObjectId: e.target.value,
+                          }))
+                        }
+                        disabled={
+                          !(
+                            groupBy.groupedSchemaName ||
+                            groupByTemplateSchemaName
+                          )
+                        }
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white disabled:bg-neutral-100 disabled:text-neutral-400"
+                      >
+                        <option value="">Select grouped field...</option>
+                        {(groupBy.groupedField ||
+                          groupBy.filterField ||
+                          groupBy.groupByObjectId) &&
+                          !groupByGroupedFields.some(
+                            (field) =>
+                              field.name ===
+                              (groupBy.groupedField ||
+                                groupBy.filterField ||
+                                groupBy.groupByObjectId),
+                          ) && (
+                            <option
+                              value={
+                                groupBy.groupedField ||
+                                groupBy.filterField ||
+                                groupBy.groupByObjectId
+                              }
+                            >
+                              {groupBy.groupedField ||
+                                groupBy.filterField ||
+                                groupBy.groupByObjectId}
+                            </option>
+                          )}
+                        {groupByGroupedFields.map((field) => (
+                          <option key={field.name} value={field.name}>
+                            {field.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+                        Source schema
+                      </label>
+                      <select
+                        value={groupBy.sourceSchemaName || ""}
+                        onChange={(e) =>
+                          setGroupBy((current) => ({
+                            ...current,
+                            sourceSchemaName: e.target.value,
+                            sourceValueField: "_id",
+                            sourceLabelField: "",
+                            groupByField: "",
+                          }))
+                        }
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select source schema...</option>
+                        {schemas.map((schema) => (
+                          <option key={schema} value={schema}>
+                            {schema}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+                        Source value field
+                      </label>
+                      <select
+                        value={groupBy.sourceValueField || "_id"}
+                        onChange={(e) =>
+                          setGroupBy((current) => ({
+                            ...current,
+                            sourceValueField: e.target.value,
+                          }))
+                        }
+                        disabled={!groupBy.sourceSchemaName}
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white disabled:bg-neutral-100 disabled:text-neutral-400"
+                      >
+                        {groupByValueFields.map((field) => (
+                          <option key={field.name} value={field.name}>
+                            {field.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+                        Source label field
+                      </label>
+                      <select
+                        value={groupBy.sourceLabelField || groupBy.groupByField || ""}
+                        onChange={(e) =>
+                          setGroupBy((current) => ({
+                            ...current,
+                            sourceLabelField: e.target.value,
+                            groupByField: e.target.value,
+                          }))
+                        }
+                        disabled={!groupBy.sourceSchemaName}
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white disabled:bg-neutral-100 disabled:text-neutral-400"
+                      >
+                        <option value="">Select label field...</option>
+                        {groupByLabelFields.map((field) => (
+                          <option key={field.name} value={field.name}>
+                            {field.frontend?.displayName || field.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 

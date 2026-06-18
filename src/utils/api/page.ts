@@ -27,6 +27,12 @@ export interface DataBinding {
 export interface GroupBy {
   groupByObjectId?: string;
   groupByField?: string;
+  groupedSchemaName?: string;
+  groupedField?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  filterField?: string;
 }
 
 export interface PageRowClassConfig {

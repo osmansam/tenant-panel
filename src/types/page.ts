@@ -23,6 +23,12 @@ export interface DataBinding {
 export interface GroupBy {
   groupByObjectId: string; // Schema name to group by (e.g., "can")
   groupByField: string; // Field name to display from grouped object (e.g., "name")
+  groupedSchemaName?: string;
+  groupedField?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  filterField?: string;
 }
 
 export type LinkType = "external" | "internal" | "email" | "phone" | "file";
