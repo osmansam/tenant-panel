@@ -1,6 +1,13 @@
 import { TableColumnConfig, TableComponentConfig } from "../types/page";
 import { Field, Frontend } from "./api/container";
 
+const CONDITION_KEYWORD_VALUES = new Set([
+  "true",
+  "false",
+  "null",
+  "undefined",
+]);
+
 export const getTableColumnConfig = (
   tableConfig: TableComponentConfig | undefined,
   fieldName: string,
@@ -16,6 +23,158 @@ export const getTableCellClassName = (
   tableConfig: TableComponentConfig | undefined,
   field: Field,
 ) => getTableColumnConfig(tableConfig, field.name)?.cellClassName;
+
+export const getComputedLabelValue = (
+  tableConfig: TableComponentConfig | undefined,
+  fieldName: string,
+  row: Record<string, unknown>,
+  evaluateCondition: (
+    row: Record<string, unknown> & { _id: string },
+    condition: string,
+  ) => boolean,
+): string => {
+  const column = getTableColumnConfig(tableConfig, fieldName);
+  if (column?.type !== "computedLabel") return "";
+
+  const typedRow = row as Record<string, unknown> & { _id: string };
+  const matchedRule = (column.computedLabelRules || []).find(
+    (rule) =>
+      rule.condition?.trim() &&
+      evaluateCondition(typedRow, rule.condition.trim()),
+  );
+
+  return matchedRule?.value || column.fallbackValue || "";
+};
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+export const getProgressBarValue = (
+  tableConfig: TableComponentConfig | undefined,
+  fieldName: string,
+  row: Record<string, unknown>,
+  evaluateCondition: (
+    row: Record<string, unknown> & { _id: string },
+    condition: string,
+  ) => boolean,
+) => {
+  const column = getTableColumnConfig(tableConfig, fieldName);
+  if (column?.type !== "progressBar") return undefined;
+
+  const config = column.progressBar || {};
+  const sourceField = config.sourceField || fieldName;
+  const value = toNumber(row[sourceField]) ?? 0;
+  const max = config.maxField
+    ? toNumber(row[config.maxField]) ?? config.max ?? 0
+    : config.max ?? 0;
+  const percent = max > 0 ? Math.min(Math.max((value / max) * 100, 0), 100) : 0;
+  const typedRow = {
+    ...row,
+    [fieldName]: value,
+  } as Record<string, unknown> & { _id: string };
+  const matchedColorRule = (config.colorRules || []).find(
+    (rule) =>
+      rule.condition?.trim() &&
+      evaluateCondition(typedRow, rule.condition.trim()),
+  );
+
+  return {
+    value,
+    max,
+    percent,
+    color: matchedColorRule?.color || config.color || "#4d9f24",
+    trackColor: config.trackColor || "#e7e5df",
+    height: config.height || 12,
+    width: config.width || 260,
+    showValue: config.showValue !== false,
+  };
+};
+
+const extractConditionFieldCandidates = (condition: string): string[] => {
+  const fields = new Set<string>();
+  const withoutQuotedStrings = condition.replace(/(["'])(?:\\.|(?!\1).)*\1/g, " ");
+
+  withoutQuotedStrings.replace(/row\(([^)]+)\)/g, (_match, fieldName) => {
+    const trimmedField = String(fieldName).trim();
+    if (trimmedField) fields.add(trimmedField);
+    return " ";
+  });
+
+  withoutQuotedStrings
+    .replace(/row\(([^)]+)\)/g, " ")
+    .match(/[A-Za-z_][A-Za-z0-9_.]*/g)
+    ?.forEach((candidate) => {
+      if (!CONDITION_KEYWORD_VALUES.has(candidate)) fields.add(candidate);
+    });
+
+  return Array.from(fields);
+};
+
+export const getTableDataFieldNames = (
+  tableConfig: TableComponentConfig | undefined,
+  availableFieldNames?: string[],
+): string[] | undefined => {
+  if (!tableConfig?.columns?.length) return undefined;
+
+  const available = availableFieldNames?.length
+    ? new Set(availableFieldNames)
+    : undefined;
+  const fields = new Set<string>();
+
+  tableConfig.columns.forEach((column) => {
+    if (column.type !== "computedLabel" && column.field) {
+      fields.add(column.field);
+    }
+
+    column.cellClassName?.forEach((rule) => {
+      extractConditionFieldCandidates(rule.condition || "").forEach(
+        (candidate) => {
+          if (!available || available.has(candidate)) {
+            fields.add(candidate);
+          }
+        },
+      );
+    });
+
+    if (column.type === "computedLabel") {
+      column.computedLabelRules?.forEach((rule) => {
+        extractConditionFieldCandidates(rule.condition || "").forEach(
+          (candidate) => {
+            if (!available || available.has(candidate)) {
+              fields.add(candidate);
+            }
+          },
+        );
+      });
+    }
+
+    if (column.type === "progressBar") {
+      if (column.progressBar?.sourceField) {
+        fields.add(column.progressBar.sourceField);
+      }
+      if (column.progressBar?.maxField) {
+        fields.add(column.progressBar.maxField);
+      }
+      column.progressBar?.colorRules?.forEach((rule) => {
+        extractConditionFieldCandidates(rule.condition || "").forEach(
+          (candidate) => {
+            if (!available || available.has(candidate)) {
+              fields.add(candidate);
+            }
+          },
+        );
+      });
+    }
+  });
+
+  return Array.from(fields);
+};
 
 export const getTableLinkConfig = (
   tableConfig: TableComponentConfig | undefined,

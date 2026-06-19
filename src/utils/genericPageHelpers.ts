@@ -695,6 +695,14 @@ const evaluateSimpleRowCondition = (
     return result;
   }
 
+  // Handle equality (==)
+  if (condition.includes("==")) {
+    const [lhs, rhs] = condition.split("==");
+    if (!lhs || rhs === undefined) return false;
+    const result = parseValue(row, lhs) == parseValue(row, rhs);
+    return result;
+  }
+
   // Handle equality (=)
   if (condition.includes("=")) {
     const [lhs, rhs] = condition.split("=");

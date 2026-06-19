@@ -3,12 +3,14 @@ import { useParams } from "react-router-dom";
 import DynamicChart, {
   ChartType,
 } from "../components/panelComponents/FormElements/DynamicChart";
+import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
 import {
   ComponentBlock,
   GridCell,
   GridSection,
+  InfoBlocksConfig,
   TableComponentConfig,
 } from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
@@ -249,6 +251,14 @@ const RenderComponent: React.FC<{
             TabPanel component requires tabs configuration
           </p>
         </div>
+      );
+
+    case "infoBlocks":
+      return (
+        <InfoBlocks
+          config={props?.infoBlocks as InfoBlocksConfig | undefined}
+          dataBinding={resolvedDataBinding}
+        />
       );
 
     case "barChart":

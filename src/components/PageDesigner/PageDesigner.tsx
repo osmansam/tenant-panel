@@ -12,6 +12,10 @@ import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
   GroupBy,
+  InfoBlockColorRule,
+  InfoBlockItemConfig,
+  InfoBlocksConfig,
+  InfoBlocksSource,
   LinkType,
   GridCell,
   GridSection,
@@ -63,6 +67,38 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+const INFO_BLOCK_SOURCES: { value: InfoBlocksSource; label: string }[] = [
+  { value: "static", label: "Static values" },
+  { value: "schema", label: "Schema rows" },
+  { value: "pipeline", label: "Pipeline request" },
+  { value: "workflow", label: "Workflow request" },
+];
+
+const createInfoBlockItem = (
+  index: number,
+  current?: InfoBlockItemConfig,
+): InfoBlockItemConfig => ({
+  title: current?.title || "",
+  value: current?.value || (index === 0 ? "{{quantity}}" : ""),
+  footer: current?.footer || "",
+  color: current?.color || "",
+  titleColorRules: current?.titleColorRules || [],
+  footerColorRules: current?.footerColorRules || [],
+});
+
+const resizeInfoBlockItems = (
+  count: number,
+  current: InfoBlockItemConfig[],
+): InfoBlockItemConfig[] =>
+  Array.from({ length: Math.min(Math.max(count, 1), 5) }, (_item, index) =>
+    createInfoBlockItem(index, current[index]),
+  );
+
+const createInfoBlockColorRule = (): InfoBlockColorRule => ({
+  condition: "",
+  color: "#16a34a",
+});
 
 const EMPTY_GROUP_BY: GroupBy = {
   groupByObjectId: "",
@@ -177,6 +213,7 @@ const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
     .filter((field) => field.name && !["_id", "id"].includes(field.name))
     .map((field) => ({
       field: field.name,
+      type: "field" as const,
       displayName: field.frontend?.displayName || "",
       cellClassName: field.frontend?.rowKeyClassName || [],
       link: field.frontend?.linkTemplate
@@ -344,7 +381,7 @@ const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
   fields
     .map((field) => field.trim())
     .filter((field, index, all) => field && !["_id", "id"].includes(field) && all.indexOf(field) === index)
-    .map((field) => ({ field, displayName: "" }));
+    .map((field) => ({ field, type: "field", displayName: "" }));
 
 const normalizeOutputFields = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
@@ -726,8 +763,57 @@ const cleanTableConfig = (
     .filter((column) => column.field.trim())
     .map((column) => ({
       field: column.field.trim(),
+      ...(column.type && column.type !== "field" ? { type: column.type } : {}),
       ...(column.displayName?.trim()
         ? { displayName: column.displayName.trim() }
+        : {}),
+      ...(column.type === "computedLabel" &&
+      (column.computedLabelRules || []).some(
+        (rule) => rule.condition?.trim() || rule.value?.trim(),
+      )
+        ? {
+            computedLabelRules: (column.computedLabelRules || [])
+              .filter((rule) => rule.condition?.trim() || rule.value?.trim())
+              .map((rule) => ({
+                condition: rule.condition?.trim() || "",
+                value: rule.value?.trim() || "",
+              })),
+          }
+        : {}),
+      ...(column.type === "computedLabel" && column.fallbackValue?.trim()
+        ? { fallbackValue: column.fallbackValue.trim() }
+        : {}),
+      ...(column.type === "progressBar"
+        ? {
+            progressBar: {
+              sourceField:
+                column.progressBar?.sourceField?.trim() || column.field.trim(),
+              max: Number(column.progressBar?.max ?? 8),
+              ...(column.progressBar?.maxField?.trim()
+                ? { maxField: column.progressBar.maxField.trim() }
+                : {}),
+              color: column.progressBar?.color?.trim() || "#4d9f24",
+              trackColor:
+                column.progressBar?.trackColor?.trim() || "#e7e5df",
+              height: Number(column.progressBar?.height ?? 12),
+              width: Number(column.progressBar?.width ?? 260),
+              showValue: column.progressBar?.showValue !== false,
+              ...(column.progressBar?.colorRules?.some(
+                (rule) => rule.condition?.trim() || rule.color?.trim(),
+              )
+                ? {
+                    colorRules: column.progressBar.colorRules
+                      .filter(
+                        (rule) => rule.condition?.trim() || rule.color?.trim(),
+                      )
+                      .map((rule) => ({
+                        condition: rule.condition?.trim() || "",
+                        color: rule.color?.trim() || "",
+                      })),
+                  }
+                : {}),
+            },
+          }
         : {}),
       ...(cleanRules(column.cellClassName).length > 0
         ? { cellClassName: cleanRules(column.cellClassName) }
@@ -1616,6 +1702,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     cache: { invalidateKeys: [] },
     actions: [],
   });
+  const [infoBlocksSource, setInfoBlocksSource] =
+    useState<InfoBlocksSource>("static");
+  const [infoBlockItems, setInfoBlockItems] = useState<InfoBlockItemConfig[]>(
+    resizeInfoBlockItems(4, []),
+  );
   const [activeTableSettingsTab, setActiveTableSettingsTab] =
     useState<TableSettingsTab>("columns");
 
@@ -1745,6 +1836,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
       setTabs(editingComponent.tabs || []);
       setGroupBy(editingComponent.groupBy || EMPTY_GROUP_BY);
+      if (editingComponent.type === "infoBlocks") {
+        const infoBlocks = editingComponent.props?.infoBlocks as
+          | InfoBlocksConfig
+          | undefined;
+        const nextSource =
+          infoBlocks?.source ||
+          (editingComponent.dataBinding?.kind as InfoBlocksSource | undefined) ||
+          "static";
+        setInfoBlocksSource(nextSource);
+        setInfoBlockItems(
+          resizeInfoBlockItems(
+            Math.min(Math.max(infoBlocks?.items?.length || 4, 1), 5),
+            infoBlocks?.items || [],
+          ),
+        );
+      }
       if (
         editingComponent.type === "tabPanel" &&
         !editingComponent.dataBinding?.schemaName &&
@@ -1804,6 +1911,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     } else {
       setGroupBy(EMPTY_GROUP_BY);
       setTabs([]);
+      setInfoBlocksSource("static");
+      setInfoBlockItems(resizeInfoBlockItems(4, []));
     }
   }, [editingComponent]);
 
@@ -1954,6 +2063,32 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         component.table = cleanTableConfig(tableConfig);
         component.groupBy = cleanGroupBy;
       }
+    } else if (componentType === "infoBlocks") {
+      let parsedParams = undefined;
+      if (params.trim()) {
+        try {
+          parsedParams = JSON.parse(params);
+        } catch (e) {
+          console.error("Invalid params JSON:", e);
+        }
+      }
+
+      component.props = {
+        infoBlocks: {
+          source: infoBlocksSource,
+          items: infoBlockItems,
+        } satisfies InfoBlocksConfig,
+      };
+
+      if (infoBlocksSource !== "static") {
+        component.dataBinding = {
+          kind: infoBlocksSource,
+          schemaName,
+          ...(infoBlocksSource === "pipeline" && { pipelineName }),
+          ...(infoBlocksSource === "workflow" && { workflowName }),
+          ...(parsedParams && { params: parsedParams }),
+        };
+      }
     } else if (CHART_TYPES.find((c) => c.value === componentType)) {
       let parsedParams = undefined;
       if (params.trim()) {
@@ -2013,9 +2148,165 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       }
       return {
         ...current,
-        columns: [...columns, { field, displayName: "" }],
+        columns: [...columns, { field, type: "field", displayName: "" }],
       };
     });
+  };
+
+  const addTableComputedLabelRule = (fieldName: string) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              computedLabelRules: [
+                ...(column.computedLabelRules || []),
+                { condition: "", value: "" },
+              ],
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const updateTableComputedLabelRule = (
+    fieldName: string,
+    ruleIndex: number,
+    updates: Partial<NonNullable<TableColumnConfig["computedLabelRules"]>[number]>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) => {
+        if (column.field !== fieldName) return column;
+        const rules = [...(column.computedLabelRules || [])];
+        rules[ruleIndex] = { ...rules[ruleIndex], ...updates };
+        return { ...column, computedLabelRules: rules };
+      }),
+    }));
+  };
+
+  const removeTableComputedLabelRule = (
+    fieldName: string,
+    ruleIndex: number,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              computedLabelRules: (column.computedLabelRules || []).filter(
+                (_, index) => index !== ruleIndex,
+              ),
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const updateTableProgressBar = (
+    fieldName: string,
+    updates: Partial<NonNullable<TableColumnConfig["progressBar"]>>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              progressBar: {
+                sourceField: column.progressBar?.sourceField || column.field,
+                max: column.progressBar?.max ?? 8,
+                color: column.progressBar?.color || "#4d9f24",
+                trackColor: column.progressBar?.trackColor || "#e7e5df",
+                height: column.progressBar?.height ?? 12,
+                width: column.progressBar?.width ?? 260,
+                showValue: column.progressBar?.showValue ?? true,
+                ...(column.progressBar || {}),
+                ...updates,
+              },
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const addTableProgressBarColorRule = (fieldName: string) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              progressBar: {
+                sourceField: column.progressBar?.sourceField || column.field,
+                max: column.progressBar?.max ?? 8,
+                color: column.progressBar?.color || "#4d9f24",
+                trackColor: column.progressBar?.trackColor || "#e7e5df",
+                height: column.progressBar?.height ?? 12,
+                width: column.progressBar?.width ?? 260,
+                showValue: column.progressBar?.showValue ?? true,
+                ...(column.progressBar || {}),
+                colorRules: [
+                  ...(column.progressBar?.colorRules || []),
+                  { condition: "", color: "#4d9f24" },
+                ],
+              },
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const updateTableProgressBarColorRule = (
+    fieldName: string,
+    ruleIndex: number,
+    updates: Partial<
+      NonNullable<
+        NonNullable<TableColumnConfig["progressBar"]>["colorRules"]
+      >[number]
+    >,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) => {
+        if (column.field !== fieldName) return column;
+        const colorRules = [...(column.progressBar?.colorRules || [])];
+        colorRules[ruleIndex] = { ...colorRules[ruleIndex], ...updates };
+        return {
+          ...column,
+          progressBar: {
+            ...(column.progressBar || {}),
+            sourceField: column.progressBar?.sourceField || column.field,
+            colorRules,
+          },
+        };
+      }),
+    }));
+  };
+
+  const removeTableProgressBarColorRule = (
+    fieldName: string,
+    ruleIndex: number,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      columns: (current.columns || []).map((column) =>
+        column.field === fieldName
+          ? {
+              ...column,
+              progressBar: {
+                ...(column.progressBar || {}),
+                sourceField: column.progressBar?.sourceField || column.field,
+                colorRules: (column.progressBar?.colorRules || []).filter(
+                  (_, index) => index !== ruleIndex,
+                ),
+              },
+            }
+          : column,
+      ),
+    }));
   };
 
   const removeTableColumn = (fieldName: string) => {
@@ -2122,6 +2413,57 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ),
       },
     }));
+  };
+
+  const updateInfoBlockColorRule = (
+    blockIndex: number,
+    target: "titleColorRules" | "footerColorRules",
+    ruleIndex: number,
+    updates: Partial<InfoBlockColorRule>,
+  ) => {
+    setInfoBlockItems((current) =>
+      current.map((block, itemIndex) => {
+        if (itemIndex !== blockIndex) return block;
+        const rules = [...(block[target] || [])];
+        rules[ruleIndex] = { ...rules[ruleIndex], ...updates };
+        return { ...block, [target]: rules };
+      }),
+    );
+  };
+
+  const addInfoBlockColorRule = (
+    blockIndex: number,
+    target: "titleColorRules" | "footerColorRules",
+  ) => {
+    setInfoBlockItems((current) =>
+      current.map((block, itemIndex) =>
+        itemIndex === blockIndex
+          ? {
+              ...block,
+              [target]: [...(block[target] || []), createInfoBlockColorRule()],
+            }
+          : block,
+      ),
+    );
+  };
+
+  const removeInfoBlockColorRule = (
+    blockIndex: number,
+    target: "titleColorRules" | "footerColorRules",
+    ruleIndex: number,
+  ) => {
+    setInfoBlockItems((current) =>
+      current.map((block, itemIndex) =>
+        itemIndex === blockIndex
+          ? {
+              ...block,
+              [target]: (block[target] || []).filter(
+                (_, index) => index !== ruleIndex,
+              ),
+            }
+          : block,
+      ),
+    );
   };
 
   const addTableAction = () => {
@@ -2534,6 +2876,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 >
                   <option value="table">Table</option>
                   <option value="tabPanel">Tab Panel</option>
+                  <option value="infoBlocks">Information Blocks</option>
                   {CHART_TYPES.map((chart) => (
                     <option key={chart.value} value={chart.value}>
                       {chart.label}
@@ -2542,7 +2885,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 </select>
               </div>
 
-              {componentType !== "tabPanel" && (
+              {componentType !== "tabPanel" && componentType !== "infoBlocks" && (
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
@@ -2684,6 +3027,352 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               )}
             </div>
 
+            {componentType === "infoBlocks" && (
+              <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      placeholder="Optional component title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Source
+                    </label>
+                    <select
+                      value={infoBlocksSource}
+                      onChange={(e) => {
+                        const nextSource = e.target.value as InfoBlocksSource;
+                        setInfoBlocksSource(nextSource);
+                        setPipelineName("");
+                        setWorkflowName("");
+                      }}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    >
+                      {INFO_BLOCK_SOURCES.map((source) => (
+                        <option key={source.value} value={source.value}>
+                          {source.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Blocks
+                    </label>
+                    <select
+                      value={infoBlockItems.length}
+                      onChange={(e) =>
+                        setInfoBlockItems((current) =>
+                          resizeInfoBlockItems(Number(e.target.value), current),
+                        )
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    >
+                      {[1, 2, 3, 4, 5].map((count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {infoBlocksSource !== "static" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Schema Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={schemaName}
+                        onChange={(e) => setSchemaName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Select a schema...</option>
+                        {containerOptions.map((container) => (
+                          <option key={container.value} value={container.value}>
+                            {container.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {infoBlocksSource === "pipeline" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Pipeline Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={pipelineName}
+                        onChange={(e) => setPipelineName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">
+                          {pipelineOptions.length > 0
+                            ? "Select a pipeline..."
+                            : "No data-returning pipelines"}
+                        </option>
+                        {pipelineOptions.map(({ pipeline }) => (
+                          <option key={pipeline.name} value={pipeline.name}>
+                            {pipeline.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {infoBlocksSource === "workflow" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Workflow Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={workflowName}
+                        onChange={(e) => setWorkflowName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">
+                          {workflowOptions.length > 0
+                            ? "Select a workflow..."
+                            : "No data-returning workflows"}
+                        </option>
+                        {workflowOptions.map(({ workflow }) => (
+                          <option key={workflow.name} value={workflow.name}>
+                            {workflow.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {infoBlockItems.map((item, index) => {
+                    return (
+                      <div
+                        key={`info-block-editor-${index}`}
+                        className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+                      >
+                      <div className="mb-3 text-sm font-semibold text-neutral-800">
+                        Block {index + 1}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          value={item.title || ""}
+                          onChange={(e) =>
+                            setInfoBlockItems((current) =>
+                              current.map((block, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...block, title: e.target.value }
+                                  : block,
+                              ),
+                            )
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Upper text"
+                        />
+                        <input
+                          type="text"
+                          value={item.value || ""}
+                          onChange={(e) =>
+                            setInfoBlockItems((current) =>
+                              current.map((block, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...block, value: e.target.value }
+                                  : block,
+                              ),
+                            )
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="{{quantity}}"
+                        />
+                        <input
+                          type="text"
+                          value={item.footer || ""}
+                          onChange={(e) =>
+                            setInfoBlockItems((current) =>
+                              current.map((block, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...block, footer: e.target.value }
+                                  : block,
+                              ),
+                            )
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Lower text"
+                        />
+                        <input
+                          type="color"
+                          value={item.color || "#ffffff"}
+                          onChange={(e) =>
+                            setInfoBlockItems((current) =>
+                              current.map((block, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...block, color: e.target.value }
+                                  : block,
+                              ),
+                            )
+                          }
+                          className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                          title="Side color"
+                        />
+                        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                              Upper text color rules
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addInfoBlockColorRule(index, "titleColorRules")
+                              }
+                              className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                            >
+                              + Add rule
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {(item.titleColorRules || []).map(
+                              (rule, ruleIndex) => (
+                                <div
+                                  key={ruleIndex}
+                                  className="grid grid-cols-[1fr_96px_auto] gap-2"
+                                >
+                                  <input
+                                    type="text"
+                                    value={rule.condition || ""}
+                                    onChange={(e) =>
+                                      updateInfoBlockColorRule(
+                                        index,
+                                        "titleColorRules",
+                                        ruleIndex,
+                                        { condition: e.target.value },
+                                      )
+                                    }
+                                    className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    placeholder="{{high}} > 4 or default"
+                                  />
+                                  <input
+                                    type="color"
+                                    value={rule.color || "#16a34a"}
+                                    onChange={(e) =>
+                                      updateInfoBlockColorRule(
+                                        index,
+                                        "titleColorRules",
+                                        ruleIndex,
+                                        { color: e.target.value },
+                                      )
+                                    }
+                                    className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                    title="Upper text color"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeInfoBlockColorRule(
+                                        index,
+                                        "titleColorRules",
+                                        ruleIndex,
+                                      )
+                                    }
+                                    className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                  >
+                                    <FiTrash2 size={14} />
+                                  </button>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                              Lower text color rules
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addInfoBlockColorRule(index, "footerColorRules")
+                              }
+                              className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                            >
+                              + Add rule
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {(item.footerColorRules || []).map(
+                              (rule, ruleIndex) => (
+                                <div
+                                  key={ruleIndex}
+                                  className="grid grid-cols-[1fr_96px_auto] gap-2"
+                                >
+                                  <input
+                                    type="text"
+                                    value={rule.condition || ""}
+                                    onChange={(e) =>
+                                      updateInfoBlockColorRule(
+                                        index,
+                                        "footerColorRules",
+                                        ruleIndex,
+                                        { condition: e.target.value },
+                                      )
+                                    }
+                                    className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    placeholder="{{high}} > 4 or default"
+                                  />
+                                  <input
+                                    type="color"
+                                    value={rule.color || "#16a34a"}
+                                    onChange={(e) =>
+                                      updateInfoBlockColorRule(
+                                        index,
+                                        "footerColorRules",
+                                        ruleIndex,
+                                        { color: e.target.value },
+                                      )
+                                    }
+                                    className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                    title="Lower text color"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeInfoBlockColorRule(
+                                        index,
+                                        "footerColorRules",
+                                        ruleIndex,
+                                      )
+                                    }
+                                    className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                  >
+                                    <FiTrash2 size={14} />
+                                  </button>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {(componentType !== "tabPanel" || componentType === "tabPanel") && (
               <>
                 {/* Table Configuration */}
@@ -2752,51 +3441,428 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 {(tableConfig.columns || []).map((column) => (
                                   <div
                                     key={column.field}
-                                    className="grid grid-cols-[minmax(180px,0.8fr)_1fr_auto] gap-4 border border-neutral-200 rounded-xl p-4"
+                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
                                   >
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                        Field
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={column.field}
-                                        onChange={(e) =>
-                                          updateTableColumn(column.field, {
-                                            field: e.target.value,
-                                          })
-                                        }
-                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                      />
+                                    <div className="grid grid-cols-[minmax(160px,0.8fr)_minmax(150px,0.7fr)_1fr_auto] gap-4">
+                                      <div>
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Field
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={column.field}
+                                          onChange={(e) =>
+                                            updateTableColumn(column.field, {
+                                              field: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Type
+                                        </label>
+                                        <select
+                                          value={column.type || "field"}
+                                          onChange={(e) => {
+                                            const nextType = e.target
+                                              .value as TableColumnConfig["type"];
+                                            updateTableColumn(column.field, {
+                                              type: nextType,
+                                              ...(nextType === "progressBar" &&
+                                              !column.progressBar
+                                                ? {
+                                                    progressBar: {
+                                                      sourceField: column.field,
+                                                      max: 8,
+                                                      color: "#4d9f24",
+                                                      trackColor: "#e7e5df",
+                                                      height: 12,
+                                                      width: 260,
+                                                      showValue: true,
+                                                      colorRules: [],
+                                                    },
+                                                  }
+                                                : {}),
+                                            });
+                                          }}
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        >
+                                          <option value="field">Field</option>
+                                          <option value="computedLabel">
+                                            Computed Label
+                                          </option>
+                                          <option value="progressBar">
+                                            Progress Bar
+                                          </option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                          Display Name
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={column.displayName || ""}
+                                          onChange={(e) =>
+                                            updateTableColumn(column.field, {
+                                              displayName: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder={column.field}
+                                        />
+                                      </div>
+                                      <div className="flex items-end">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            removeTableColumn(column.field)
+                                          }
+                                          className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                          title="Remove field"
+                                        >
+                                          <FiTrash2 size={16} />
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                        Display Name
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={column.displayName || ""}
-                                        onChange={(e) =>
-                                          updateTableColumn(column.field, {
-                                            displayName: e.target.value,
-                                          })
-                                        }
-                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                        placeholder={column.field}
-                                      />
-                                    </div>
-                                    <div className="flex items-end">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          removeTableColumn(column.field)
-                                        }
-                                        className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
-                                        title="Remove field"
-                                      >
-                                        <FiTrash2 size={16} />
-                                      </button>
-                                    </div>
+                                    {(column.type || "field") ===
+                                      "computedLabel" && (
+                                      <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                        <div className="grid grid-cols-[1fr_auto] gap-3">
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Fallback Value
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={column.fallbackValue || ""}
+                                              onChange={(e) =>
+                                                updateTableColumn(column.field, {
+                                                  fallbackValue: e.target.value,
+                                                })
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="Optional"
+                                            />
+                                          </div>
+                                          <div className="flex items-end">
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                addTableComputedLabelRule(
+                                                  column.field,
+                                                )
+                                              }
+                                              className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                                            >
+                                              Add rule
+                                            </button>
+                                          </div>
+                                        </div>
+                                        {(column.computedLabelRules || []).map(
+                                          (rule, ruleIndex) => (
+                                            <div
+                                              key={ruleIndex}
+                                              className="grid grid-cols-[1fr_1fr_auto] gap-2"
+                                            >
+                                              <input
+                                                type="text"
+                                                value={rule.condition || ""}
+                                                onChange={(e) =>
+                                                  updateTableComputedLabelRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    {
+                                                      condition: e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="stock == 1"
+                                              />
+                                              <input
+                                                type="text"
+                                                value={rule.value || ""}
+                                                onChange={(e) =>
+                                                  updateTableComputedLabelRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    { value: e.target.value },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="critical"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeTableComputedLabelRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                  )
+                                                }
+                                                className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                                title="Remove rule"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    )}
+                                    {(column.type || "field") ===
+                                      "progressBar" && (
+                                      <div className="space-y-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Source Field
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={
+                                                column.progressBar
+                                                  ?.sourceField || column.field
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    sourceField: e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="stock"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Max
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={
+                                                column.progressBar?.max ?? 8
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    max:
+                                                      e.target.value === ""
+                                                        ? undefined
+                                                        : Number(
+                                                            e.target.value,
+                                                          ),
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              min={0}
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Max Field
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={
+                                                column.progressBar?.maxField ||
+                                                ""
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    maxField: e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="Optional"
+                                            />
+                                          </div>
+                                          <label className="flex items-end gap-2 pb-2 text-sm text-neutral-700">
+                                            <input
+                                              type="checkbox"
+                                              checked={
+                                                column.progressBar
+                                                  ?.showValue !== false
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    showValue:
+                                                      e.target.checked,
+                                                  },
+                                                )
+                                              }
+                                            />
+                                            Show value
+                                          </label>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Default Color
+                                            </label>
+                                            <input
+                                              type="color"
+                                              value={
+                                                column.progressBar?.color ||
+                                                "#4d9f24"
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  { color: e.target.value },
+                                                )
+                                              }
+                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Track Color
+                                            </label>
+                                            <input
+                                              type="color"
+                                              value={
+                                                column.progressBar
+                                                  ?.trackColor || "#e7e5df"
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    trackColor:
+                                                      e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Height
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={
+                                                column.progressBar?.height ?? 12
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    height: Number(
+                                                      e.target.value,
+                                                    ),
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              min={4}
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                              Width
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={
+                                                column.progressBar?.width ?? 260
+                                              }
+                                              onChange={(e) =>
+                                                updateTableProgressBar(
+                                                  column.field,
+                                                  {
+                                                    width: Number(
+                                                      e.target.value,
+                                                    ),
+                                                  },
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              min={80}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div className="text-xs font-semibold text-neutral-700">
+                                            Color Rules
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              addTableProgressBarColorRule(
+                                                column.field,
+                                              )
+                                            }
+                                            className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                                          >
+                                            Add rule
+                                          </button>
+                                        </div>
+                                        {(
+                                          column.progressBar?.colorRules || []
+                                        ).map((rule, ruleIndex) => (
+                                          <div
+                                            key={ruleIndex}
+                                            className="grid grid-cols-[1fr_120px_auto] gap-2"
+                                          >
+                                            <input
+                                              type="text"
+                                              value={rule.condition || ""}
+                                              onChange={(e) =>
+                                                updateTableProgressBarColorRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                  {
+                                                    condition: e.target.value,
+                                                  },
+                                                )
+                                              }
+                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="stock < 2"
+                                            />
+                                            <input
+                                              type="color"
+                                              value={rule.color || "#4d9f24"}
+                                              onChange={(e) =>
+                                                updateTableProgressBarColorRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                  { color: e.target.value },
+                                                )
+                                              }
+                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                removeTableProgressBarColorRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                )
+                                              }
+                                              className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                              title="Remove rule"
+                                            >
+                                              <FiTrash2 size={14} />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -4498,7 +5564,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 {/* Pipeline Name (for charts) */}
                 {(CHART_TYPES.find((c) => c.value === componentType) ||
                   (componentType === "table" &&
-                    tableSourceType !== "schema")) && (
+                    tableSourceType !== "schema") ||
+                  (componentType === "infoBlocks" &&
+                    infoBlocksSource !== "static")) && (
                   <>
                     {CHART_TYPES.find((c) => c.value === componentType) && (
                       <div>

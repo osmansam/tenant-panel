@@ -29,6 +29,8 @@ import {
   evaluateRowCondition,
 } from "../../../utils/genericPageHelpers";
 import {
+  getComputedLabelValue,
+  getProgressBarValue,
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
@@ -289,6 +291,69 @@ export default function GenericUnpaginatedPage({
             getMatchingRowClassNames(row, rowKeyClassName);
         }
 
+        const columnConfig = tableConfig?.columns?.find(
+          (column) => column.field === f.name,
+        );
+        if (columnConfig?.type === "computedLabel") {
+          const getComputedValue = (row: GenericItem) =>
+            getComputedLabelValue(
+              tableConfig,
+              f.name,
+              row,
+              evaluateRowCondition,
+            );
+
+          if (rowKeyClassName) {
+            rowKey.className = (row: GenericItem) =>
+              getMatchingRowClassNames(
+                { ...row, [f.name]: getComputedValue(row) },
+                rowKeyClassName,
+              );
+          }
+
+          rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "progressBar") {
+          rowKey.node = (row: GenericItem) => {
+            const progress = getProgressBarValue(
+              tableConfig,
+              f.name,
+              row,
+              evaluateRowCondition,
+            );
+            if (!progress) return <span>-</span>;
+
+            return (
+              <span className="inline-flex items-center gap-3 align-middle">
+                <span
+                  className="inline-flex overflow-hidden rounded-full"
+                  style={{
+                    width: progress.width,
+                    height: progress.height,
+                    backgroundColor: progress.trackColor,
+                  }}
+                >
+                  <span
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${progress.percent}%`,
+                      backgroundColor: progress.color,
+                    }}
+                  />
+                </span>
+                {progress.showValue && (
+                  <span className="text-sm font-medium text-neutral-500">
+                    {progress.value}/{progress.max}
+                  </span>
+                )}
+              </span>
+            );
+          };
+          return rowKey;
+        }
+
         // Add node function for boolean fields
         if (rowKey.isBoolean) {
           rowKey.node = (row: GenericItem) => (
@@ -407,7 +472,9 @@ export default function GenericUnpaginatedPage({
   const columns = useMemo(() => {
     const baseCols = displayFields.map((f) => ({
       key: t(getTableDisplayName(tableConfig, f) || getFieldLabel(f)),
-      isSortable: true,
+      isSortable:
+        tableConfig?.columns?.find((column) => column.field === f.name)
+          ?.type !== "computedLabel",
       correspondingKey: f.name,
     }));
     if (actionsEnabled) {

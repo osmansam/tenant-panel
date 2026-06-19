@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { FormElementsState } from "../types";
@@ -10,6 +10,13 @@ export interface DynamicPayload<T> {
   totalItems: number;
   totalPages: number;
   currentPage: number;
+}
+
+export interface DynamicExecutionResponse<T> {
+  status?: number;
+  message?: string;
+  data?: T;
+  source?: string;
 }
 
 export type TableSourceBinding = {
@@ -531,6 +538,46 @@ export function useGetTableSourceItems<T>(
   const queryString = parts.filter(Boolean).join("&");
   const url = `${baseQueryUrl}?${queryString}`;
   return useGet<DynamicPayload<T>>(url, queryKey, Boolean(schemaName));
+}
+
+export function useGetWorkflowData<T>(
+  binding: Pick<TableSourceBinding, "schemaName" | "workflowName" | "params">
+) {
+  const schemaName = binding.schemaName || "";
+  const workflowName = binding.workflowName || "";
+  const queryKey = [
+    "dynamic",
+    schemaName,
+    "workflow",
+    workflowName,
+    binding.params || {},
+  ] as const;
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const response = await axiosClient.post<DynamicExecutionResponse<T>>(
+        `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
+          schemaName,
+        })}`,
+        { record: binding.params || {} },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    },
+    enabled: Boolean(schemaName && workflowName),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+
+  return data?.data;
 }
 
 // utils/dynamic.ts (or wherever this lives)

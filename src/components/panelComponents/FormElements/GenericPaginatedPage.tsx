@@ -47,6 +47,9 @@ import {
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
 import {
+  getComputedLabelValue,
+  getProgressBarValue,
+  getTableDataFieldNames,
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
@@ -107,23 +110,6 @@ export default function GenericPaginatedPage({
   } = useGeneralContext();
   const { user } = useUserContext();
   const rawContainers = useGetContainers();
-  const tableBinding = useMemo(
-    () => ({
-      kind:
-        dataBinding?.kind === "pipeline" || dataBinding?.kind === "workflow"
-          ? dataBinding.kind
-          : "schema",
-      schemaName: dataBinding?.schemaName || schemaName,
-      pipelineName: dataBinding?.pipelineName,
-      workflowName: dataBinding?.workflowName,
-      fields: tableConfig?.columns
-        ?.map((column) => column.field)
-        .filter(Boolean),
-      params: dataBinding?.params,
-    }),
-    [dataBinding, schemaName, tableConfig?.columns],
-  );
-  const schemaActionsEnabled = actionsEnabled && tableBinding.kind === "schema";
 
   const container: ContainerModel | undefined = useMemo(() => {
     if (!rawContainers) return undefined;
@@ -135,6 +121,25 @@ export default function GenericPaginatedPage({
         (c.schemaName || "").toLowerCase() === schemaName.toLowerCase(),
     );
   }, [rawContainers, schemaName]);
+
+  const tableBinding = useMemo(
+    () => ({
+      kind:
+        dataBinding?.kind === "pipeline" || dataBinding?.kind === "workflow"
+          ? dataBinding.kind
+          : "schema",
+      schemaName: dataBinding?.schemaName || schemaName,
+      pipelineName: dataBinding?.pipelineName,
+      workflowName: dataBinding?.workflowName,
+      fields: getTableDataFieldNames(
+        tableConfig,
+        container?.fields?.map((field) => field.name),
+      ),
+      params: dataBinding?.params,
+    }),
+    [container?.fields, dataBinding, schemaName, tableConfig],
+  );
+  const schemaActionsEnabled = actionsEnabled && tableBinding.kind === "schema";
 
   // Generate mock data based on container fields (10 items)
   const mockItems = useMemo(() => {
@@ -185,8 +190,9 @@ export default function GenericPaginatedPage({
 
   const [showFilters, setShowFilters] = useState(false);
   const configuredFilterInputs = tableConfig?.filterPanel?.inputs;
-  const filterSelectionDataMap =
-    useFilterPanelSelectionData(configuredFilterInputs);
+  const filterSelectionDataMap = useFilterPanelSelectionData(
+    configuredFilterInputs,
+  );
   const configuredFilterDefaults = useMemo(
     () => getFilterDefaultValues(configuredFilterInputs),
     [configuredFilterInputs],
@@ -321,6 +327,69 @@ export default function GenericPaginatedPage({
             getMatchingRowClassNames(row, rowKeyClassName);
         }
 
+        const columnConfig = tableConfig?.columns?.find(
+          (column) => column.field === f.name,
+        );
+        if (columnConfig?.type === "computedLabel") {
+          const getComputedValue = (row: GenericItem) =>
+            getComputedLabelValue(
+              tableConfig,
+              f.name,
+              row,
+              evaluateRowCondition,
+            );
+
+          if (rowKeyClassName) {
+            rowKey.className = (row: GenericItem) =>
+              getMatchingRowClassNames(
+                { ...row, [f.name]: getComputedValue(row) },
+                rowKeyClassName,
+              );
+          }
+
+          rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "progressBar") {
+          rowKey.node = (row: GenericItem) => {
+            const progress = getProgressBarValue(
+              tableConfig,
+              f.name,
+              row,
+              evaluateRowCondition,
+            );
+            if (!progress) return <span>-</span>;
+
+            return (
+              <span className="inline-flex items-center gap-3 align-middle">
+                <span
+                  className="inline-flex overflow-hidden rounded-full"
+                  style={{
+                    width: progress.width,
+                    height: progress.height,
+                    backgroundColor: progress.trackColor,
+                  }}
+                >
+                  <span
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${progress.percent}%`,
+                      backgroundColor: progress.color,
+                    }}
+                  />
+                </span>
+                {progress.showValue && (
+                  <span className="text-sm font-medium text-neutral-500">
+                    {progress.value}/{progress.max}
+                  </span>
+                )}
+              </span>
+            );
+          };
+          return rowKey;
+        }
+
         if (rowKey.isBoolean) {
           rowKey.node = (row: GenericItem) => (
             <CheckSwitch
@@ -448,7 +517,9 @@ export default function GenericPaginatedPage({
       .filter((f) => !constantFilterKeys.includes(f.name))
       .map((f) => ({
         key: t(getTableDisplayName(tableConfig, f) || getFieldLabel(f)),
-        isSortable: true,
+        isSortable:
+          tableConfig?.columns?.find((column) => column.field === f.name)
+            ?.type !== "computedLabel",
         correspondingKey: f.name,
       }));
     return schemaActionsEnabled

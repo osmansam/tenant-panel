@@ -46,9 +46,37 @@ export interface PageTableLinkConfig {
   type?: string;
 }
 
+export type PageTableColumnType = "field" | "computedLabel" | "progressBar";
+
+export interface PageTableComputedLabelRule {
+  condition?: string;
+  value?: string;
+}
+
+export interface PageTableProgressBarColorRule {
+  condition?: string;
+  color?: string;
+}
+
+export interface PageTableProgressBarConfig {
+  sourceField?: string;
+  max?: number;
+  maxField?: string;
+  color?: string;
+  trackColor?: string;
+  height?: number;
+  width?: number;
+  showValue?: boolean;
+  colorRules?: PageTableProgressBarColorRule[];
+}
+
 export interface PageTableColumnConfig {
   field: string;
+  type?: PageTableColumnType;
   displayName?: string;
+  computedLabelRules?: PageTableComputedLabelRule[];
+  fallbackValue?: string;
+  progressBar?: PageTableProgressBarConfig;
   cellClassName?: PageRowClassConfig[];
   link?: PageTableLinkConfig;
 }
@@ -158,6 +186,7 @@ export type ComponentType =
   | "form"
   | "text"
   | "custom"
+  | "infoBlocks"
   | "barChart"
   | "lineChart"
   | "pieChart"

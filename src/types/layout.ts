@@ -39,9 +39,37 @@ export interface TableLinkConfig {
   type?: LinkType;
 }
 
+export type TableColumnType = "field" | "computedLabel" | "progressBar";
+
+export interface TableComputedLabelRule {
+  condition?: string;
+  value?: string;
+}
+
+export interface TableProgressBarColorRule {
+  condition?: string;
+  color?: string;
+}
+
+export interface TableProgressBarConfig {
+  sourceField?: string;
+  max?: number;
+  maxField?: string;
+  color?: string;
+  trackColor?: string;
+  height?: number;
+  width?: number;
+  showValue?: boolean;
+  colorRules?: TableProgressBarColorRule[];
+}
+
 export interface TableColumnConfig {
   field: string;
+  type?: TableColumnType;
   displayName?: string;
+  computedLabelRules?: TableComputedLabelRule[];
+  fallbackValue?: string;
+  progressBar?: TableProgressBarConfig;
   cellClassName?: RowClassConfig[];
   link?: TableLinkConfig;
 }
