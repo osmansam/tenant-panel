@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoClose } from "react-icons/io5";
 import {
@@ -38,12 +38,42 @@ const ICON_OPTIONS = [
   { value: "MdVerifiedUser", label: "Verified User" },
 ];
 
+const buildPathFromName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const normalizePagePath = (path: string) =>
+  path
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\s+/g, "-");
+
+const isValidPagePath = (path: string) => {
+  if (!path) return true;
+
+  return path.split("/").every((segment) => {
+    if (!segment) return false;
+    if (segment.startsWith(":")) {
+      return /^:[A-Za-z][A-Za-z0-9_-]*$/.test(segment);
+    }
+    return /^[a-z0-9][a-z0-9-]*$/.test(segment);
+  });
+};
+
 export const CreatePageModal: React.FC<CreatePageModalProps> = ({
   isOpen,
   onClose,
 }) => {
   const { t } = useTranslation();
   const [pageName, setPageName] = useState("");
+  const [pagePath, setPagePath] = useState("");
+  const [isPagePathEdited, setIsPagePathEdited] = useState(false);
+  const [isOnSidebar, setIsOnSidebar] = useState(true);
   const [selectedIcon, setSelectedIcon] = useState("MdSpaceDashboard");
   const [parentPageId, setParentPageId] = useState("");
   const { createPage, isCreating } = useCreatePage();
@@ -51,22 +81,40 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
 
   const getPageId = (page: PageModel) => page._id || page.id || "";
   const parentOptions = pages.filter((page) => getPageId(page));
+  const normalizedPagePath = useMemo(
+    () => normalizePagePath(pagePath),
+    [pagePath],
+  );
+  const pathError =
+    normalizedPagePath && !isValidPagePath(normalizedPagePath)
+      ? t("Use path segments like count, count/:id, or reports/:reportId")
+      : "";
+
+  useEffect(() => {
+    if (isPagePathEdited) return;
+    setPagePath(buildPathFromName(pageName));
+  }, [isPagePathEdited, pageName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pageName.trim()) return;
+    if (!pageName.trim() || pathError) return;
 
     // Create page with just name, icon, and empty sections
     createPage({
       name: pageName.trim(),
       icon: selectedIcon,
+      slug: normalizedPagePath || undefined,
       parentPageId: parentPageId || undefined,
+      isOnSidebar,
       sections: [], // Empty sections as requested
       isAuthenticated: true, // Default to authenticated
     });
 
     // Reset form and close modal
     setPageName("");
+    setPagePath("");
+    setIsPagePathEdited(false);
+    setIsOnSidebar(true);
     setSelectedIcon("MdSpaceDashboard");
     setParentPageId("");
     onClose();
@@ -74,6 +122,9 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
 
   const handleCancel = () => {
     setPageName("");
+    setPagePath("");
+    setIsPagePathEdited(false);
+    setIsOnSidebar(true);
     setSelectedIcon("MdSpaceDashboard");
     setParentPageId("");
     onClose();
@@ -118,6 +169,9 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
               <p className="text-sm font-semibold text-neutral-900 truncate">
                 {pageName || t("test")}
               </p>
+              <p className="mt-1 text-xs font-mono text-neutral-500 truncate">
+                /{normalizedPagePath || buildPathFromName(pageName) || "test"}
+              </p>
             </div>
           </div>
 
@@ -153,6 +207,54 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Page Path */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              {t("Page Path")}
+            </label>
+            <input
+              value={pagePath}
+              onChange={(e) => {
+                setIsPagePathEdited(true);
+                setPagePath(e.target.value);
+              }}
+              placeholder="count/:id"
+              className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all font-mono ${
+                pathError ? "border-red-400" : "border-neutral-300"
+              }`}
+            />
+            <p
+              className={`mt-2 text-xs ${
+                pathError ? "text-red-600" : "text-neutral-500"
+              }`}
+            >
+              {pathError ||
+                t(
+                  "Use :param for route values, for example count/:id. Components can use {{route.id}} in source params."
+                )}
+            </p>
+          </div>
+
+          {/* Sidebar Visibility */}
+          <label className="flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-3">
+            <input
+              type="checkbox"
+              checked={isOnSidebar}
+              onChange={(event) => setIsOnSidebar(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+            />
+            <span>
+              <span className="block text-sm font-medium text-neutral-800">
+                {t("Show in sidebar")}
+              </span>
+              <span className="mt-0.5 block text-xs text-neutral-500">
+                {t(
+                  "Turn this off for detail pages like count/:id that should only open from links."
+                )}
+              </span>
+            </span>
+          </label>
 
           {/* Parent Page Selection */}
           <div>
@@ -211,7 +313,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!pageName.trim() || isCreating}
+              disabled={!pageName.trim() || Boolean(pathError) || isCreating}
               className="px-4 py-2.5 text-sm font-medium text-white bg-neutral-900 rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-900"
             >
               {isCreating ? t("Creating...") : t("Create Page")}

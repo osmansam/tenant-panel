@@ -51,6 +51,7 @@ const RouterContainer = () => {
           path={ProtectedRoutes.ProjectManagement}
           element={<ProjectManagementPage />}
         />
+        <Route path="/page-preview/:pageId/*" element={<PagePreviewPage />} />
         <Route path="/page-preview/:pageId" element={<PagePreviewPage />} />
         {/* <Route path={ProtectedRoutes.Users} element={<UsersPage />} /> */}
         {/* <Route path={ProtectedRoutes.Settings} element={<SettingsPage />} /> */}

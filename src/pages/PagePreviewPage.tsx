@@ -13,6 +13,11 @@ import {
 } from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
 import { useGetSelection } from "../utils/dynamic";
+import {
+  extractRouteParamsFromPath,
+  RouteParams,
+  resolveRouteParamValue,
+} from "../utils/routeParams";
 
 // Map component type to chart type
 const getChartTypeFromComponentType = (
@@ -40,10 +45,15 @@ const getChartTypeFromComponentType = (
 };
 
 // Render a single component
-const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
-  component,
-}) => {
+const RenderComponent: React.FC<{
+  component: ComponentBlock;
+  routeParams: RouteParams;
+}> = ({ component, routeParams }) => {
   const { type, dataBinding, tabs, groupBy, title, props } = component;
+  const resolvedDataBinding = useMemo(
+    () => resolveRouteParamValue(dataBinding, routeParams),
+    [dataBinding, routeParams],
+  );
   const getTableConfig = (
     table: TableComponentConfig | undefined,
     props: Record<string, unknown> | undefined,
@@ -81,7 +91,7 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
       : undefined;
   const templateSchemaName =
     templateComponent?.dataBinding?.schemaName ||
-    dataBinding?.schemaName ||
+    resolvedDataBinding?.schemaName ||
     "";
   const groupByGroupedSchema =
     tabPanelGroupBy?.groupedSchemaName || templateSchemaName;
@@ -115,16 +125,16 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
   switch (type) {
     case "table":
       if (
-        dataBinding?.schemaName &&
-        ["schema", "pipeline", "workflow"].includes(dataBinding.kind)
+        resolvedDataBinding?.schemaName &&
+        ["schema", "pipeline", "workflow"].includes(resolvedDataBinding.kind)
       ) {
         return (
           <GenericPaginatedPage
-            schemaName={dataBinding.schemaName}
+            schemaName={resolvedDataBinding.schemaName}
             isHeader={false}
             tableConfig={tableConfig}
-            dataBinding={dataBinding}
-            actionsEnabled={dataBinding.kind === "schema"}
+            dataBinding={resolvedDataBinding}
+            actionsEnabled={resolvedDataBinding.kind === "schema"}
           />
         );
       }
@@ -165,26 +175,39 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 
         const dynamicTabs = selectionData.map((item) => {
           const groupValue = item[groupByValueField] ?? item._id;
+          const resolvedBaseBinding = resolveRouteParamValue(
+            baseComponent.dataBinding,
+            routeParams,
+          );
           return {
-            schemaName: baseComponent.dataBinding!.schemaName!,
+            schemaName: resolvedBaseBinding!.schemaName!,
             label: String(item[groupByLabelField] ?? groupValue),
             isPaginated: true,
             constantFilter: {
               [groupByGroupedField]: groupValue,
             },
+            dataBinding: resolvedBaseBinding,
             tableConfig: getTableConfig(baseComponent.table, baseComponent.props),
           };
         });
 
-        const manualTabs = (tabs || []).map((tab) => ({
-          schemaName: tab.components[0]?.dataBinding?.schemaName || "",
-          label: tab.title,
-          isPaginated: true,
-          tableConfig: getTableConfig(
-            tab.components[0]?.table,
-            tab.components[0]?.props,
-          ),
-        }));
+        const manualTabs = (tabs || []).map((tab) => {
+          const tabComponent = tab.components[0];
+          const tabBinding = resolveRouteParamValue(
+            tabComponent?.dataBinding,
+            routeParams,
+          );
+          return {
+            schemaName: tabBinding?.schemaName || "",
+            label: tab.title,
+            isPaginated: true,
+            dataBinding: tabBinding,
+            tableConfig: getTableConfig(
+              tabComponent?.table,
+              tabComponent?.props,
+            ),
+          };
+        });
         const tabsConfig = [
           ...dynamicTabs,
           ...manualTabs,
@@ -201,14 +224,19 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 
         if (allTabsAreTables) {
           const tabsConfig = tabs.map((tab) => {
-            const schemaName = tab.components[0]?.dataBinding?.schemaName || "";
+            const tabComponent = tab.components[0];
+            const tabBinding = resolveRouteParamValue(
+              tabComponent?.dataBinding,
+              routeParams,
+            );
             return {
-              schemaName,
+              schemaName: tabBinding?.schemaName || "",
               label: tab.title,
               isPaginated: true,
+              dataBinding: tabBinding,
               tableConfig: getTableConfig(
-                tab.components[0]?.table,
-                tab.components[0]?.props,
+                tabComponent?.table,
+                tabComponent?.props,
               ),
             };
           });
@@ -251,9 +279,9 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
       }
 
       if (
-        dataBinding?.kind === "pipeline" &&
-        dataBinding.schemaName &&
-        dataBinding.pipelineName
+        resolvedDataBinding?.kind === "pipeline" &&
+        resolvedDataBinding.schemaName &&
+        resolvedDataBinding.pipelineName
       ) {
         return (
           <DynamicChart
@@ -267,9 +295,9 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
                 | undefined,
               dataBinding: {
                 kind: "pipeline",
-                schemaName: dataBinding.schemaName,
-                pipelineName: dataBinding.pipelineName,
-                params: dataBinding.params,
+                schemaName: resolvedDataBinding.schemaName,
+                pipelineName: resolvedDataBinding.pipelineName,
+                params: resolvedDataBinding.params,
               },
             }}
           />
@@ -296,7 +324,10 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 };
 
 // Render a grid cell
-const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
+const GridCellView: React.FC<{ cell: GridCell; routeParams: RouteParams }> = ({
+  cell,
+  routeParams,
+}) => {
   const { row, column, rowSpan = 1, colSpan = 1, components } = cell;
   const sortedComponents = [...components].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0)
@@ -311,7 +342,11 @@ const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
     >
       <div className="flex flex-col gap-4 h-full">
         {sortedComponents.map((component) => (
-          <RenderComponent key={component.id} component={component} />
+          <RenderComponent
+            key={component.id}
+            component={component}
+            routeParams={routeParams}
+          />
         ))}
       </div>
     </div>
@@ -319,7 +354,10 @@ const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
 };
 
 // Render a grid section
-const GridSectionView: React.FC<{ grid: GridSection }> = ({ grid }) => {
+const GridSectionView: React.FC<{
+  grid: GridSection;
+  routeParams: RouteParams;
+}> = ({ grid, routeParams }) => {
   const { columns, gap = 16, cells } = grid;
 
   return (
@@ -332,20 +370,26 @@ const GridSectionView: React.FC<{ grid: GridSection }> = ({ grid }) => {
       }}
     >
       {cells.map((cell) => (
-        <GridCellView key={cell.id} cell={cell} />
+        <GridCellView key={cell.id} cell={cell} routeParams={routeParams} />
       ))}
     </div>
   );
 };
 
 export const PagePreviewPage: React.FC = () => {
-  const { pageId } = useParams<{ pageId: string }>();
+  const params = useParams<{ pageId: string; "*": string }>();
+  const { pageId } = params;
   const pages = useGetTenantPages();
 
   const page = useMemo(() => {
     if (!pages || !pageId) return null;
     return pages.find((p: any) => p._id === pageId || p.id === pageId);
   }, [pages, pageId]);
+
+  const routeParams = useMemo(
+    () => extractRouteParamsFromPath(page?.slug, params["*"]),
+    [page?.slug, params],
+  );
 
   if (!page) {
     return (
@@ -390,7 +434,11 @@ export const PagePreviewPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">{page.name}</h1>
         <div className="flex flex-col gap-8">
           {gridSections.map((section, index) => (
-            <GridSectionView key={index} grid={section} />
+            <GridSectionView
+              key={index}
+              grid={section}
+              routeParams={routeParams}
+            />
           ))}
         </div>
       </div>

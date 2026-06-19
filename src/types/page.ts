@@ -244,6 +244,7 @@ export interface PageModel {
   slug?: string;
   order?: number;
   isGroupOnly?: boolean;
+  isOnSidebar?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
