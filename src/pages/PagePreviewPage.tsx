@@ -3,11 +3,13 @@ import { useParams } from "react-router-dom";
 import DynamicChart, {
   ChartType,
 } from "../components/panelComponents/FormElements/DynamicChart";
+import DistributionBlocks from "../components/panelComponents/FormElements/DistributionBlocks";
 import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
 import {
   ComponentBlock,
+  DistributionBlocksConfig,
   GridCell,
   GridSection,
   InfoBlocksConfig,
@@ -257,6 +259,17 @@ const RenderComponent: React.FC<{
       return (
         <InfoBlocks
           config={props?.infoBlocks as InfoBlocksConfig | undefined}
+          dataBinding={resolvedDataBinding}
+        />
+      );
+
+    case "distributionBlocks":
+      return (
+        <DistributionBlocks
+          title={title}
+          config={
+            props?.distributionBlocks as DistributionBlocksConfig | undefined
+          }
           dataBinding={resolvedDataBinding}
         />
       );

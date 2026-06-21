@@ -18,6 +18,12 @@ import { getIconByName } from "./menuIcons";
 
 type GenericItem = Record<string, unknown> & { _id: string };
 type ActionSelectDataMap = Map<string, Array<Record<string, unknown>>>;
+type SelectionResponse =
+  | Array<Record<string, unknown>>
+  | {
+      data?: Array<Record<string, unknown>>;
+      items?: Array<Record<string, unknown>>;
+    };
 
 const qs = (params: Record<string, unknown>) =>
   new URLSearchParams(
@@ -47,6 +53,25 @@ export const getConfiguredTableActions = (
     ?.filter((action) => action.enabled !== false)
     .slice()
     .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+};
+
+export const getConfiguredCreateAction = (
+  tableConfig: TableComponentConfig | undefined,
+  schemaActions?: TableActionConfig[],
+): TableActionConfig | undefined =>
+  tableConfig?.addButton?.enabled !== false
+    ? tableConfig?.addButton
+    : getConfiguredTableActions(tableConfig, schemaActions)?.find(
+        (action) => action.kind === "create",
+      );
+
+export const getConfiguredRowActions = (
+  tableConfig: TableComponentConfig | undefined,
+  schemaActions?: TableActionConfig[],
+): TableActionConfig[] | undefined => {
+  const actions = getConfiguredTableActions(tableConfig, schemaActions);
+  if (!actions) return undefined;
+  return actions.filter((action) => action.kind !== "create");
 };
 
 export const getActionConstantValues = (
@@ -120,7 +145,7 @@ export const useActionFormSelectionData = (
           fieldName,
           "action-options",
         ],
-        queryFn: () => get<Array<Record<string, unknown>>>({ path }),
+        queryFn: () => get<SelectionResponse>({ path }),
         enabled: Boolean(field.sourceSchemaName && fieldName),
         staleTime: Infinity,
       };
@@ -128,9 +153,14 @@ export const useActionFormSelectionData = (
   });
 
   return schemaSelectFields.reduce<ActionSelectDataMap>((map, item, index) => {
+    const rawData = queryResults[index]?.data;
+    const items = Array.isArray(rawData)
+      ? rawData
+      : rawData?.data || rawData?.items || [];
+
     map.set(
       `${item.actionId}:${item.field.formKey}`,
-      queryResults[index]?.data || [],
+      items,
     );
     return map;
   }, new Map());

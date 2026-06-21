@@ -176,6 +176,7 @@ export interface PageTableComponentConfig {
   columns?: PageTableColumnConfig[];
   rows?: PageTableRowsConfig;
   cache?: PageTableCacheConfig;
+  addButton?: PageTableActionConfig;
   actions?: PageTableActionConfig[];
   filterPanel?: PageTableFilterPanelConfig;
 }
@@ -187,6 +188,7 @@ export type ComponentType =
   | "text"
   | "custom"
   | "infoBlocks"
+  | "distributionBlocks"
   | "barChart"
   | "lineChart"
   | "pieChart"

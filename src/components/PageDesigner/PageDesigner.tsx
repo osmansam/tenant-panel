@@ -11,6 +11,8 @@ import {
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
 import {
   ComponentBlock,
+  DistributionBlockItemConfig,
+  DistributionBlocksConfig,
   GroupBy,
   InfoBlockColorRule,
   InfoBlockItemConfig,
@@ -95,6 +97,29 @@ const resizeInfoBlockItems = (
     createInfoBlockItem(index, current[index]),
   );
 
+const DISTRIBUTION_BLOCK_COLORS = ["#4f46e5", "#4d7c0f", "#2563eb"];
+const DISTRIBUTION_BLOCK_LABELS = ["Strateji", "Soyut", "Parti / Diğer"];
+
+const createDistributionBlockItem = (
+  index: number,
+  current?: DistributionBlockItemConfig,
+): DistributionBlockItemConfig => ({
+  label: current?.label || DISTRIBUTION_BLOCK_LABELS[index] || "",
+  value: current?.value || "",
+  percent: current?.percent || "",
+  color:
+    current?.color ||
+    DISTRIBUTION_BLOCK_COLORS[index % DISTRIBUTION_BLOCK_COLORS.length],
+});
+
+const resizeDistributionBlockItems = (
+  count: number,
+  current: DistributionBlockItemConfig[],
+): DistributionBlockItemConfig[] =>
+  Array.from({ length: Math.min(Math.max(count, 1), 5) }, (_item, index) =>
+    createDistributionBlockItem(index, current[index]),
+  );
+
 const createInfoBlockColorRule = (): InfoBlockColorRule => ({
   condition: "",
   color: "#16a34a",
@@ -123,6 +148,16 @@ const ACTION_MODAL_TYPES: { value: TableActionModalType; label: string }[] = [
   { value: "none", label: "None" },
   { value: "confirm", label: "Confirm" },
   { value: "form", label: "Form" },
+];
+
+const ACTION_KIND_OPTIONS: {
+  value: TableActionConfig["kind"];
+  label: string;
+}[] = [
+  { value: "edit", label: "Edit" },
+  { value: "delete", label: "Delete" },
+  { value: "update", label: "Update" },
+  { value: "link", label: "Link" },
 ];
 
 const ACTION_INPUT_TYPES: { value: TableActionInputType; label: string }[] = [
@@ -166,6 +201,7 @@ const ACTION_OPTIONS_SOURCES: {
 ];
 
 const ACTION_ICON_OPTIONS = [
+  { value: "FiPlus", label: "Add" },
   { value: "FiEdit", label: "Edit" },
   { value: "HiOutlineTrash", label: "Trash" },
   { value: "MdTouchApp", label: "Action" },
@@ -367,15 +403,38 @@ const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
   },
 ];
 
+const buildDefaultCreateAction = (fields: Field[]): TableActionConfig => ({
+  id: "default-create",
+  kind: "create",
+  label: "Add",
+  buttonName: "Create",
+  icon: "FiPlus",
+  order: 1,
+  enabled: true,
+  modalType: "form",
+  formFields: buildActionFormFieldsFromFields(fields),
+});
+
 const hydrateSchemaEditActionFields = (
   actions: TableActionConfig[],
   fields: Field[],
 ): TableActionConfig[] =>
-  actions.map((action) =>
-    action.kind === "edit" && action.formFields === undefined
-      ? { ...action, formFields: buildActionFormFieldsFromFields(fields) }
-      : action,
-  );
+  actions
+    .filter((action) => action.kind !== "create")
+    .map((action) =>
+      action.kind === "edit" && action.formFields === undefined
+        ? { ...action, formFields: buildActionFormFieldsFromFields(fields) }
+        : action,
+    );
+
+const hydrateSchemaAddButton = (
+  addButton: TableActionConfig | undefined,
+  actions: TableActionConfig[] | undefined,
+  fields: Field[],
+): TableActionConfig =>
+  addButton ||
+  actions?.find((action) => action.kind === "create") ||
+  buildDefaultCreateAction(fields);
 
 const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
   fields
@@ -842,8 +901,25 @@ const cleanTableConfig = (
         },
       }
     : {}),
-  ...(cleanTableActions(tableConfig.actions).length > 0
-    ? { actions: cleanTableActions(tableConfig.actions) }
+  ...(cleanTableActions(
+    tableConfig.addButton ? [tableConfig.addButton] : [],
+  )[0]
+    ? {
+        addButton: cleanTableActions(
+          tableConfig.addButton ? [tableConfig.addButton] : [],
+        )[0],
+      }
+    : {}),
+  ...(cleanTableActions(
+    (tableConfig.actions || []).filter((action) => action.kind !== "create"),
+  ).length > 0
+    ? {
+        actions: cleanTableActions(
+          (tableConfig.actions || []).filter(
+            (action) => action.kind !== "create",
+          ),
+        ),
+      }
     : {}),
   ...(tableConfig.filterPanel !== undefined
     ? {
@@ -1700,6 +1776,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     columns: [],
     rows: { className: [] },
     cache: { invalidateKeys: [] },
+    addButton: undefined,
     actions: [],
   });
   const [infoBlocksSource, setInfoBlocksSource] =
@@ -1707,6 +1784,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [infoBlockItems, setInfoBlockItems] = useState<InfoBlockItemConfig[]>(
     resizeInfoBlockItems(4, []),
   );
+  const [distributionBlocksSource, setDistributionBlocksSource] =
+    useState<InfoBlocksSource>("static");
+  const [distributionBlockItems, setDistributionBlockItems] = useState<
+    DistributionBlockItemConfig[]
+  >(resizeDistributionBlockItems(3, []));
   const [activeTableSettingsTab, setActiveTableSettingsTab] =
     useState<TableSettingsTab>("columns");
 
@@ -1852,6 +1934,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           ),
         );
       }
+      if (editingComponent.type === "distributionBlocks") {
+        const distributionBlocks = editingComponent.props?.distributionBlocks as
+          | DistributionBlocksConfig
+          | undefined;
+        const nextSource =
+          distributionBlocks?.source ||
+          (editingComponent.dataBinding?.kind as InfoBlocksSource | undefined) ||
+          "static";
+        setDistributionBlocksSource(nextSource);
+        setDistributionBlockItems(
+          resizeDistributionBlockItems(
+            Math.min(Math.max(distributionBlocks?.items?.length || 3, 1), 5),
+            distributionBlocks?.items || [],
+          ),
+        );
+      }
       if (
         editingComponent.type === "tabPanel" &&
         !editingComponent.dataBinding?.schemaName &&
@@ -1872,6 +1970,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           cache: {
             invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
           },
+          addButton:
+            editingSourceType === "schema"
+              ? hydrateSchemaAddButton(
+                  editingComponent.table.addButton,
+                  editingComponent.table.actions,
+                  containers.find(
+                    (container) =>
+                      container.schemaName ===
+                      editingComponent.dataBinding?.schemaName,
+                  )?.fields || [],
+                )
+              : editingComponent.table.addButton,
           actions:
             editingComponent.table.actions && editingComponent.table.actions.length
               ? editingSourceType === "schema"
@@ -1913,6 +2023,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setTabs([]);
       setInfoBlocksSource("static");
       setInfoBlockItems(resizeInfoBlockItems(4, []));
+      setDistributionBlocksSource("static");
+      setDistributionBlockItems(resizeDistributionBlockItems(3, []));
     }
   }, [editingComponent]);
 
@@ -1934,6 +2046,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       return {
         ...current,
         columns: buildTableColumnsFromFields(container.fields || []),
+        addButton:
+          current.addButton ||
+          hydrateSchemaAddButton(
+            current.addButton,
+            current.actions,
+            container.fields || [],
+          ),
         actions:
           current.actions && current.actions.length > 0
             ? hydrateSchemaEditActionFields(current.actions, container.fields || [])
@@ -2089,6 +2208,32 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           ...(parsedParams && { params: parsedParams }),
         };
       }
+    } else if (componentType === "distributionBlocks") {
+      let parsedParams = undefined;
+      if (params.trim()) {
+        try {
+          parsedParams = JSON.parse(params);
+        } catch (e) {
+          console.error("Invalid params JSON:", e);
+        }
+      }
+
+      component.props = {
+        distributionBlocks: {
+          source: distributionBlocksSource,
+          items: distributionBlockItems,
+        } satisfies DistributionBlocksConfig,
+      };
+
+      if (distributionBlocksSource !== "static") {
+        component.dataBinding = {
+          kind: distributionBlocksSource,
+          schemaName,
+          ...(distributionBlocksSource === "pipeline" && { pipelineName }),
+          ...(distributionBlocksSource === "workflow" && { workflowName }),
+          ...(parsedParams && { params: parsedParams }),
+        };
+      }
     } else if (CHART_TYPES.find((c) => c.value === componentType)) {
       let parsedParams = undefined;
       if (params.trim()) {
@@ -2121,6 +2266,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       columns: buildTableColumnsFromFields(container?.fields || []),
       rows: { className: [] },
       cache: { invalidateKeys: [] },
+      addButton: buildDefaultCreateAction(container?.fields || []),
       actions: getDefaultActionsForSource("schema", container?.fields || []),
     });
   };
@@ -2466,6 +2612,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     );
   };
 
+  const updateDistributionBlockItem = (
+    blockIndex: number,
+    updates: Partial<DistributionBlockItemConfig>,
+  ) => {
+    setDistributionBlockItems((current) =>
+      current.map((block, itemIndex) =>
+        itemIndex === blockIndex ? { ...block, ...updates } : block,
+      ),
+    );
+  };
+
   const addTableAction = () => {
     setTableConfig((current) => {
       const actions = current.actions || [];
@@ -2478,6 +2635,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             id: `action-${Date.now()}`,
             kind: "update",
             label: "Action",
+            buttonName: "",
             icon: "MdTouchApp",
             order: nextOrder,
             enabled: true,
@@ -2499,6 +2657,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       actions: (current.actions || []).map((action, index) =>
         index === actionIndex ? { ...action, ...updates } : action,
       ),
+    }));
+  };
+
+  const updateTableAddButton = (updates: Partial<TableActionConfig>) => {
+    setTableConfig((current) => ({
+      ...current,
+      addButton: {
+        ...(current.addButton || buildDefaultCreateAction(selectedFields)),
+        ...updates,
+      },
     }));
   };
 
@@ -2634,6 +2802,69 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           : action,
       ),
     }));
+  };
+
+  const addAddButtonFormField = () => {
+    setTableConfig((current) => {
+      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      return {
+        ...current,
+        addButton: {
+          ...addButton,
+          modalType: "form",
+          formFields: [
+            ...(addButton.formFields || []),
+            {
+              formKey: "",
+              type: "text",
+              formKeyType: "string",
+              label: "",
+              placeholder: "",
+              required: false,
+              isDisabled: false,
+              requiredCondition: "",
+              disabledCondition: "",
+              optionsSource: "static",
+              staticOptionsJson: "[]",
+              sourceSchemaName: "",
+              sourceValueField: "_id",
+              sourceLabelField: "",
+              sourceFilterCondition: "",
+            },
+          ],
+        },
+      };
+    });
+  };
+
+  const updateAddButtonFormField = (
+    fieldIndex: number,
+    updates: Partial<TableActionFormFieldConfig>,
+  ) => {
+    setTableConfig((current) => {
+      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      const formFields = [...(addButton.formFields || [])];
+      formFields[fieldIndex] = { ...formFields[fieldIndex], ...updates };
+      return {
+        ...current,
+        addButton: { ...addButton, formFields },
+      };
+    });
+  };
+
+  const removeAddButtonFormField = (fieldIndex: number) => {
+    setTableConfig((current) => {
+      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      return {
+        ...current,
+        addButton: {
+          ...addButton,
+          formFields: (addButton.formFields || []).filter(
+            (_, currentIndex) => currentIndex !== fieldIndex,
+          ),
+        },
+      };
+    });
   };
 
   const addFilterPanelInput = () => {
@@ -2820,6 +3051,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTabs(updatedTabs);
   };
 
+  const currentAddButton =
+    tableConfig.addButton || buildDefaultCreateAction(selectedFields);
+
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in"
@@ -2877,6 +3111,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   <option value="table">Table</option>
                   <option value="tabPanel">Tab Panel</option>
                   <option value="infoBlocks">Information Blocks</option>
+                  <option value="distributionBlocks">Distribution Blocks</option>
                   {CHART_TYPES.map((chart) => (
                     <option key={chart.value} value={chart.value}>
                       {chart.label}
@@ -2885,7 +3120,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 </select>
               </div>
 
-              {componentType !== "tabPanel" && componentType !== "infoBlocks" && (
+              {componentType !== "tabPanel" &&
+                componentType !== "infoBlocks" &&
+                componentType !== "distributionBlocks" && (
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
@@ -3369,6 +3606,201 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {componentType === "distributionBlocks" && (
+              <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      placeholder="Kategori Dağılımı (adet)"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Source
+                    </label>
+                    <select
+                      value={distributionBlocksSource}
+                      onChange={(e) => {
+                        const nextSource = e.target.value as InfoBlocksSource;
+                        setDistributionBlocksSource(nextSource);
+                        setPipelineName("");
+                        setWorkflowName("");
+                      }}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    >
+                      {INFO_BLOCK_SOURCES.map((source) => (
+                        <option key={source.value} value={source.value}>
+                          {source.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Blocks
+                    </label>
+                    <select
+                      value={distributionBlockItems.length}
+                      onChange={(e) =>
+                        setDistributionBlockItems((current) =>
+                          resizeDistributionBlockItems(
+                            Number(e.target.value),
+                            current,
+                          ),
+                        )
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    >
+                      {[1, 2, 3, 4, 5].map((count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {distributionBlocksSource !== "static" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Schema Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={schemaName}
+                        onChange={(e) => setSchemaName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Select a schema...</option>
+                        {containerOptions.map((container) => (
+                          <option key={container.value} value={container.value}>
+                            {container.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {distributionBlocksSource === "pipeline" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Pipeline Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={pipelineName}
+                        onChange={(e) => setPipelineName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">
+                          {pipelineOptions.length > 0
+                            ? "Select a pipeline..."
+                            : "No data-returning pipelines"}
+                        </option>
+                        {pipelineOptions.map(({ pipeline }) => (
+                          <option key={pipeline.name} value={pipeline.name}>
+                            {pipeline.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {distributionBlocksSource === "workflow" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Workflow Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={workflowName}
+                        onChange={(e) => setWorkflowName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">
+                          {workflowOptions.length > 0
+                            ? "Select a workflow..."
+                            : "No data-returning workflows"}
+                        </option>
+                        {workflowOptions.map(({ workflow }) => (
+                          <option key={workflow.name} value={workflow.name}>
+                            {workflow.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {distributionBlockItems.map((item, index) => (
+                    <div
+                      key={`distribution-block-editor-${index}`}
+                      className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+                    >
+                      <div className="mb-3 text-sm font-semibold text-neutral-800">
+                        Block {index + 1}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          value={item.label || ""}
+                          onChange={(e) =>
+                            updateDistributionBlockItem(index, {
+                              label: e.target.value,
+                            })
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder='{{high > 4 ? "↑ Strateji" : "Strateji"}}'
+                        />
+                        <input
+                          type="text"
+                          value={item.value || ""}
+                          onChange={(e) =>
+                            updateDistributionBlockItem(index, {
+                              value: e.target.value,
+                            })
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="{{strategyCount}}"
+                        />
+                        <input
+                          type="text"
+                          value={item.percent || ""}
+                          onChange={(e) =>
+                            updateDistributionBlockItem(index, {
+                              percent: e.target.value,
+                            })
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="{{strategyPercent}}"
+                        />
+                        <input
+                          type="color"
+                          value={item.color || "#4f46e5"}
+                          onChange={(e) =>
+                            updateDistributionBlockItem(index, {
+                              color: e.target.value,
+                            })
+                          }
+                          className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                          title="Block color"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -4657,6 +5089,681 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                             {activeTableSettingsTab === "actions" && (
                               <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="space-y-4 border border-blue-200 bg-blue-50/60 rounded-xl p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-blue-900">
+                                        Add Button
+                                      </h4>
+                                      <p className="text-xs text-blue-700">
+                                        Controls the top table add button, not row actions.
+                                      </p>
+                                    </div>
+                                    <label className="flex h-9 items-center gap-2 text-xs text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          (tableConfig.addButton ||
+                                            buildDefaultCreateAction(selectedFields))
+                                            .enabled !== false
+                                        }
+                                        onChange={(e) =>
+                                          updateTableAddButton({
+                                            enabled: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      On
+                                    </label>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Label
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={
+                                          (tableConfig.addButton ||
+                                            buildDefaultCreateAction(selectedFields))
+                                            .label || ""
+                                        }
+                                        onChange={(e) =>
+                                          updateTableAddButton({
+                                            label: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Form button
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={
+                                          (tableConfig.addButton ||
+                                            buildDefaultCreateAction(selectedFields))
+                                            .buttonName || ""
+                                        }
+                                        onChange={(e) =>
+                                          updateTableAddButton({
+                                            buttonName: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3 rounded-lg border border-blue-100 bg-white p-3">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-xs font-semibold text-neutral-700">
+                                        Add Form Fields
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={addAddButtonFormField}
+                                        className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                      >
+                                        + Add field
+                                      </button>
+                                    </div>
+                                    {(currentAddButton.formFields || []).map(
+                                      (field, fieldIndex) => (
+                                        <div
+                                          key={fieldIndex}
+                                          className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3"
+                                        >
+                                          <div className="grid grid-cols-[1fr_160px_auto] gap-2">
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Form key
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={field.formKey}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    { formKey: e.target.value },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="form key"
+                                              />
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Input type
+                                              </span>
+                                              <select
+                                                value={field.type}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      type: e.target
+                                                        .value as TableActionInputType,
+                                                      formKeyType:
+                                                        formKeyTypeForActionInput(
+                                                          e.target
+                                                            .value as TableActionInputType,
+                                                          field.isMultiple,
+                                                        ),
+                                                      isNumberButtonsActive:
+                                                        isActionNumberInput(
+                                                          e.target.value,
+                                                        )
+                                                          ? field.isNumberButtonsActive
+                                                          : false,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              >
+                                                {ACTION_INPUT_TYPES.map(
+                                                  (inputType) => (
+                                                    <option
+                                                      key={inputType.value}
+                                                      value={inputType.value}
+                                                    >
+                                                      {inputType.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                removeAddButtonFormField(
+                                                  fieldIndex,
+                                                )
+                                              }
+                                              className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                            >
+                                              <FiTrash2 size={14} />
+                                            </button>
+                                          </div>
+                                          <div className="grid grid-cols-4 gap-2">
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Label
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={field.label || ""}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    { label: e.target.value },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="label"
+                                              />
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Placeholder
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={field.placeholder || ""}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      placeholder:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="placeholder"
+                                              />
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Disabled condition
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  field.disabledCondition || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      disabledCondition:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="disabled condition"
+                                              />
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Required condition
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  field.requiredCondition || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      requiredCondition:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="required condition"
+                                              />
+                                            </label>
+                                          </div>
+                                          <div className="grid grid-cols-[auto_auto_auto_1fr] gap-3">
+                                            <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                              <input
+                                                type="checkbox"
+                                                checked={!!field.required}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      required:
+                                                        e.target.checked,
+                                                    },
+                                                  )
+                                                }
+                                              />
+                                              Required
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                              <input
+                                                type="checkbox"
+                                                checked={!!field.isDisabled}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      isDisabled:
+                                                        e.target.checked,
+                                                    },
+                                                  )
+                                                }
+                                              />
+                                              Disabled
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                              <input
+                                                type="checkbox"
+                                                checked={!!field.isMultiple}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      isMultiple:
+                                                        e.target.checked,
+                                                      formKeyType:
+                                                        formKeyTypeForActionInput(
+                                                          field.type,
+                                                          e.target.checked,
+                                                        ),
+                                                    },
+                                                  )
+                                                }
+                                              />
+                                              Multiple
+                                            </label>
+                                            {isActionNumberInput(field.type) && (
+                                              <label className="flex items-center gap-2 text-xs text-neutral-700">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={
+                                                    !!field.isNumberButtonsActive
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        isNumberButtonsActive:
+                                                          e.target.checked,
+                                                      },
+                                                    )
+                                                  }
+                                                />
+                                                Number buttons
+                                              </label>
+                                            )}
+                                            <label className="space-y-1">
+                                              <span className="text-xs font-medium text-neutral-600">
+                                                Default value
+                                              </span>
+                                              <input
+                                                type="text"
+                                                value={String(
+                                                  field.defaultValue ?? "",
+                                                )}
+                                                onChange={(e) =>
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      defaultValue:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="default value"
+                                              />
+                                            </label>
+                                          </div>
+
+                                          {isActionNumberInput(field.type) && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <label className="space-y-1">
+                                                <span className="text-xs font-medium text-neutral-600">
+                                                  Min value
+                                                </span>
+                                                <input
+                                                  type="number"
+                                                  value={field.min ?? ""}
+                                                  onChange={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        min: e.target.value
+                                                          ? Number(
+                                                              e.target.value,
+                                                            )
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="min"
+                                                />
+                                              </label>
+                                              <label className="space-y-1">
+                                                <span className="text-xs font-medium text-neutral-600">
+                                                  Max value
+                                                </span>
+                                                <input
+                                                  type="number"
+                                                  value={field.max ?? ""}
+                                                  onChange={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        max: e.target.value
+                                                          ? Number(
+                                                              e.target.value,
+                                                            )
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="max"
+                                                />
+                                              </label>
+                                            </div>
+                                          )}
+
+                                          {field.type === "select" && (
+                                            <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                              <div className="grid grid-cols-4 gap-2">
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Options source
+                                                  </span>
+                                                  <select
+                                                    value={
+                                                      field.optionsSource ||
+                                                      "static"
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateAddButtonFormField(
+                                                        fieldIndex,
+                                                        {
+                                                          optionsSource: e
+                                                            .target
+                                                            .value as TableActionOptionsSource,
+                                                        },
+                                                      )
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  >
+                                                    {ACTION_OPTIONS_SOURCES.map(
+                                                      (source) => (
+                                                        <option
+                                                          key={source.value}
+                                                          value={source.value}
+                                                        >
+                                                          {source.label}
+                                                        </option>
+                                                      ),
+                                                    )}
+                                                  </select>
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Source schema
+                                                  </span>
+                                                  <select
+                                                    value={
+                                                      field.sourceSchemaName || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateAddButtonFormField(
+                                                        fieldIndex,
+                                                        {
+                                                          sourceSchemaName:
+                                                            e.target.value,
+                                                          sourceValueField: "_id",
+                                                          sourceLabelField: "",
+                                                        },
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      field.optionsSource !==
+                                                      "schema"
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                  >
+                                                    <option value="">
+                                                      Source schema...
+                                                    </option>
+                                                    {containers.map(
+                                                      (container) => (
+                                                        <option
+                                                          key={
+                                                            container.schemaName
+                                                          }
+                                                          value={
+                                                            container.schemaName
+                                                          }
+                                                        >
+                                                          {container.schemaName}
+                                                        </option>
+                                                      ),
+                                                    )}
+                                                  </select>
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Value field
+                                                  </span>
+                                                  <select
+                                                    value={
+                                                      field.sourceValueField ||
+                                                      "_id"
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateAddButtonFormField(
+                                                        fieldIndex,
+                                                        {
+                                                          sourceValueField:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      field.optionsSource !==
+                                                        "schema" ||
+                                                      !field.sourceSchemaName
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                  >
+                                                    <option value="_id">
+                                                      _id
+                                                    </option>
+                                                    {(
+                                                      containers.find(
+                                                        (container) =>
+                                                          container.schemaName ===
+                                                          field.sourceSchemaName,
+                                                      )?.fields || []
+                                                    ).map((sourceField) => (
+                                                      <option
+                                                        key={sourceField.name}
+                                                        value={sourceField.name}
+                                                      >
+                                                        {sourceField.name}
+                                                      </option>
+                                                    ))}
+                                                  </select>
+                                                </label>
+                                                <label className="space-y-1">
+                                                  <span className="text-xs font-medium text-neutral-600">
+                                                    Label field
+                                                  </span>
+                                                  <select
+                                                    value={
+                                                      field.sourceLabelField || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      updateAddButtonFormField(
+                                                        fieldIndex,
+                                                        {
+                                                          sourceLabelField:
+                                                            e.target.value,
+                                                        },
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      field.optionsSource !==
+                                                        "schema" ||
+                                                      !field.sourceSchemaName
+                                                    }
+                                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                                  >
+                                                    <option value="">
+                                                      Label field...
+                                                    </option>
+                                                    <option value="_id">
+                                                      _id
+                                                    </option>
+                                                    {(
+                                                      containers.find(
+                                                        (container) =>
+                                                          container.schemaName ===
+                                                          field.sourceSchemaName,
+                                                      )?.fields || []
+                                                    ).map((sourceField) => (
+                                                      <option
+                                                        key={sourceField.name}
+                                                        value={sourceField.name}
+                                                      >
+                                                        {sourceField.name}
+                                                      </option>
+                                                    ))}
+                                                  </select>
+                                                </label>
+                                              </div>
+                                              <label className="space-y-1">
+                                                <span className="text-xs font-medium text-neutral-600">
+                                                  Option filter condition
+                                                </span>
+                                                <input
+                                                  type="text"
+                                                  value={
+                                                    field.sourceFilterCondition ||
+                                                    ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        sourceFilterCondition:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder="option filter condition"
+                                                />
+                                              </label>
+                                              <SelectInput
+                                                label="Invalidate keys"
+                                                options={(
+                                                  currentAddButton.formFields ||
+                                                  []
+                                                )
+                                                  .filter(
+                                                    (
+                                                      candidate,
+                                                      candidateIndex,
+                                                    ) =>
+                                                      candidateIndex !==
+                                                        fieldIndex &&
+                                                      candidate.formKey.trim(),
+                                                  )
+                                                  .map((candidate) => ({
+                                                    value: candidate.formKey,
+                                                    label:
+                                                      candidate.label ||
+                                                      candidate.formKey,
+                                                  }))}
+                                                value={(
+                                                  field.invalidateKeys || []
+                                                ).map((key) => {
+                                                  const candidate = (
+                                                    currentAddButton.formFields ||
+                                                    []
+                                                  ).find(
+                                                    (formField) =>
+                                                      formField.formKey === key,
+                                                  );
+                                                  return {
+                                                    value: key,
+                                                    label:
+                                                      candidate?.label || key,
+                                                  };
+                                                })}
+                                                onChange={(selectedOptions) => {
+                                                  const selected = Array.isArray(
+                                                    selectedOptions,
+                                                  )
+                                                    ? selectedOptions
+                                                    : [];
+                                                  updateAddButtonFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      invalidateKeys:
+                                                        selected.map(
+                                                          (
+                                                            option: OptionType,
+                                                          ) =>
+                                                            String(
+                                                              option.value,
+                                                            ),
+                                                        ),
+                                                    },
+                                                  );
+                                                }}
+                                                isMultiple
+                                                isAutoFill={false}
+                                                placeholder="Select fields to clear"
+                                              />
+                                              <label className="space-y-1">
+                                                <span className="text-xs font-medium text-neutral-600">
+                                                  Static options JSON
+                                                </span>
+                                                <textarea
+                                                  value={
+                                                    field.staticOptionsJson ||
+                                                    "[]"
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        staticOptionsJson:
+                                                          e.target.value,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="min-h-20 w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder='[{"value":"active","label":"Active"}]'
+                                                />
+                                              </label>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={addTableAction}
@@ -4671,7 +5778,61 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       key={action.id || actionIndex}
                                       className="space-y-4 border border-neutral-200 rounded-xl p-4"
                                     >
-                                      <div className="grid grid-cols-[1fr_160px_110px_110px_auto] gap-3">
+                                      <div className="grid grid-cols-[130px_1fr_160px_110px_110px_auto] gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Kind
+                                          </label>
+                                          <select
+                                            value={action.kind}
+                                            onChange={(e) => {
+                                              const kind = e.target
+                                                .value as TableActionConfig["kind"];
+                                              updateTableAction(actionIndex, {
+                                                kind,
+                                                label:
+                                                  kind === "create"
+                                                    ? "Add"
+                                                    : kind === "edit"
+                                                      ? "Edit"
+                                                      : kind === "delete"
+                                                        ? "Delete"
+                                                        : action.label || "Action",
+                                                buttonName:
+                                                  kind === "create"
+                                                    ? "Create"
+                                                    : action.buttonName,
+                                                icon:
+                                                  kind === "create"
+                                                    ? "FiPlus"
+                                                    : kind === "edit"
+                                                      ? "FiEdit"
+                                                      : kind === "delete"
+                                                        ? "HiOutlineTrash"
+                                                        : action.icon ||
+                                                          "MdTouchApp",
+                                                modalType:
+                                                  kind === "create" ||
+                                                  kind === "edit"
+                                                    ? "form"
+                                                    : kind === "delete"
+                                                      ? "confirm"
+                                                      : action.modalType ||
+                                                        "none",
+                                              });
+                                            }}
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          >
+                                            {ACTION_KIND_OPTIONS.map((kind) => (
+                                              <option
+                                                key={kind.value}
+                                                value={kind.value}
+                                              >
+                                                {kind.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
                                         <div>
                                           <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                             Label
@@ -5566,7 +6727,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   (componentType === "table" &&
                     tableSourceType !== "schema") ||
                   (componentType === "infoBlocks" &&
-                    infoBlocksSource !== "static")) && (
+                    infoBlocksSource !== "static") ||
+                  (componentType === "distributionBlocks" &&
+                    distributionBlocksSource !== "static")) && (
                   <>
                     {CHART_TYPES.find((c) => c.value === componentType) && (
                       <div>
@@ -5942,12 +7105,33 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           <button
             onClick={handleAdd}
             disabled={
-              (componentType !== "tabPanel" && !schemaName) ||
+              (componentType !== "tabPanel" &&
+                componentType !== "infoBlocks" &&
+                componentType !== "distributionBlocks" &&
+                !schemaName) ||
               (componentType === "table" &&
                 tableSourceType === "pipeline" &&
                 !pipelineName) ||
               (componentType === "table" &&
                 tableSourceType === "workflow" &&
+                !workflowName) ||
+              (componentType === "infoBlocks" &&
+                infoBlocksSource !== "static" &&
+                !schemaName) ||
+              (componentType === "infoBlocks" &&
+                infoBlocksSource === "pipeline" &&
+                !pipelineName) ||
+              (componentType === "infoBlocks" &&
+                infoBlocksSource === "workflow" &&
+                !workflowName) ||
+              (componentType === "distributionBlocks" &&
+                distributionBlocksSource !== "static" &&
+                !schemaName) ||
+              (componentType === "distributionBlocks" &&
+                distributionBlocksSource === "pipeline" &&
+                !pipelineName) ||
+              (componentType === "distributionBlocks" &&
+                distributionBlocksSource === "workflow" &&
                 !workflowName)
             }
             className="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-600 flex items-center gap-2"

@@ -42,7 +42,8 @@ import {
   getActionDefaultValues,
   getActionIconElement,
   getActionId,
-  getConfiguredTableActions,
+  getConfiguredCreateAction,
+  getConfiguredRowActions,
   resolveActionTemplate,
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
@@ -785,12 +786,25 @@ export default function GenericPaginatedPage({
     [displayFields],
   );
 
-  const configuredActionDefinitions = useMemo(
-    () => getConfiguredTableActions(tableConfig, container?.frontend?.actions),
+  const configuredCreateAction = useMemo(
+    () => getConfiguredCreateAction(tableConfig, container?.frontend?.actions),
     [container?.frontend?.actions, tableConfig],
   );
+
+  const configuredActionDefinitions = useMemo(
+    () => getConfiguredRowActions(tableConfig, container?.frontend?.actions),
+    [container?.frontend?.actions, tableConfig],
+  );
+  const configuredActionsForSelectionData = useMemo(
+    () =>
+      [
+        ...(configuredCreateAction ? [configuredCreateAction] : []),
+        ...(configuredActionDefinitions || []),
+      ],
+    [configuredActionDefinitions, configuredCreateAction],
+  );
   const actionSelectionDataMap = useActionFormSelectionData(
-    configuredActionDefinitions || [],
+    configuredActionsForSelectionData,
   );
 
   const getActionInputs = useCallback(
@@ -842,6 +856,22 @@ export default function GenericPaginatedPage({
     [formKeys],
   );
 
+  const createActionId = configuredCreateAction
+    ? getActionId(configuredCreateAction, 0)
+    : "create";
+  const createActionInputs = configuredCreateAction
+    ? getActionInputs(configuredCreateAction, createActionId, null)
+    : inputs;
+  const createActionFormKeys = configuredCreateAction
+    ? getActionFormKeys(configuredCreateAction, createActionInputs)
+    : formKeys;
+  const createActionConstants = configuredCreateAction
+    ? getActionConstantValues(configuredCreateAction)
+    : {};
+  const createActionDefaults = configuredCreateAction
+    ? getActionDefaultValues(configuredCreateAction)
+    : {};
+
   const handleSubmitItem = useCallback(
     (item: GenericItem | UpdatePayload<GenericItem>) => {
       if ("id" in item && "updates" in item) {
@@ -860,32 +890,56 @@ export default function GenericPaginatedPage({
         );
       } else {
         // Create operation - merge constantFilter into new item
+        const configuredCreateValues = {
+          ...createActionDefaults,
+          ...(item as Record<string, unknown>),
+          ...createActionConstants,
+        };
         const mergedItem = constantFilter
-          ? { ...(item as Record<string, unknown>), ...constantFilter }
-          : item;
+          ? { ...configuredCreateValues, ...constantFilter }
+          : configuredCreateValues;
         createDynamicItem(mergedItem as GenericItem);
       }
     },
-    [updateDynamicItem, createDynamicItem, constantFilter, constantFilterKeys],
+    [
+      updateDynamicItem,
+      createDynamicItem,
+      constantFilter,
+      constantFilterKeys,
+      createActionDefaults,
+      createActionConstants,
+    ],
   );
 
   const addButton = useMemo(
     () => ({
-      name: t("Add"),
+      name: configuredCreateAction?.label || t("Add"),
       isModal: true,
       modal: (
         <GenericAddEditPanel
           isOpen={isAddOpen}
           close={() => setIsAddOpen(false)}
-          inputs={inputs}
-          formKeys={formKeys}
+          inputs={createActionInputs}
+          formKeys={createActionFormKeys}
           submitItem={handleSubmitItem}
+          buttonName={
+            configuredCreateAction?.buttonName ||
+            configuredCreateAction?.label ||
+            undefined
+          }
           topClassName="flex flex-col gap-2"
           itemToEdit={
-            constantFilter
+            constantFilter ||
+            Object.keys(createActionDefaults).length > 0 ||
+            Object.keys(createActionConstants).length > 0
               ? {
                   id: "",
-                  updates: { ...constantFilter, _id: "" } as GenericItem,
+                  updates: {
+                    ...createActionDefaults,
+                    ...createActionConstants,
+                    ...(constantFilter || {}),
+                    _id: "",
+                  } as GenericItem,
                 }
               : undefined
           }
@@ -895,9 +949,22 @@ export default function GenericPaginatedPage({
       setIsModal: setIsAddOpen,
       isPath: false,
       icon: null,
-      className: "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
+      className:
+        configuredCreateAction?.buttonClassName ||
+        configuredCreateAction?.className ||
+        "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
     }),
-    [t, isAddOpen, inputs, formKeys, handleSubmitItem, constantFilter],
+    [
+      t,
+      configuredCreateAction,
+      isAddOpen,
+      createActionInputs,
+      createActionFormKeys,
+      handleSubmitItem,
+      constantFilter,
+      createActionDefaults,
+      createActionConstants,
+    ],
   );
 
   const defaultActions = useMemo<ActionType<GenericItem>[]>(() => {
@@ -972,7 +1039,8 @@ export default function GenericPaginatedPage({
 
   const actions = useMemo<ActionType<GenericItem>[]>(() => {
     if (!schemaActionsEnabled) return [];
-    if (!configuredActionDefinitions?.length) return defaultActions;
+    if (configuredActionDefinitions === undefined) return defaultActions;
+    if (configuredActionDefinitions.length === 0) return [];
 
     return configuredActionDefinitions.map((actionConfig, index) => {
       const actionId = getActionId(actionConfig, index);

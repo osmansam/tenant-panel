@@ -87,7 +87,7 @@ export interface TableCacheConfig {
   invalidateKeys?: string[];
 }
 
-export type TableActionKind = "edit" | "delete" | "update" | "link";
+export type TableActionKind = "create" | "edit" | "delete" | "update" | "link";
 export type TableActionModalType = "none" | "confirm" | "form";
 export type TableActionInputType =
   | "text"
@@ -197,6 +197,7 @@ export interface TableComponentConfig {
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
   cache?: TableCacheConfig;
+  addButton?: TableActionConfig;
   actions?: TableActionConfig[];
   filterPanel?: TableFilterPanelConfig;
 }
@@ -222,6 +223,18 @@ export interface InfoBlocksConfig {
   items?: InfoBlockItemConfig[];
 }
 
+export interface DistributionBlockItemConfig {
+  label?: string;
+  value?: string;
+  percent?: string;
+  color?: string;
+}
+
+export interface DistributionBlocksConfig {
+  source?: InfoBlocksSource;
+  items?: DistributionBlockItemConfig[];
+}
+
 export type ComponentType =
   | "table"
   | "tabPanel"
@@ -229,6 +242,7 @@ export type ComponentType =
   | "text"
   | "custom"
   | "infoBlocks"
+  | "distributionBlocks"
   // Chart types
   | "barChart"
   | "lineChart"
