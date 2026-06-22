@@ -7,6 +7,7 @@ import DistributionBlocks from "../components/panelComponents/FormElements/Distr
 import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
+import DynamicForm from "../components/forms/DynamicForm";
 import {
   ComponentBlock,
   DistributionBlocksConfig,
@@ -127,6 +128,18 @@ const RenderComponent: React.FC<{
   );
 
   switch (type) {
+    case "form": {
+      const formConfig =
+        component.form ||
+        (props?.form as ComponentBlock["form"] | undefined);
+      return formConfig ? (
+        <DynamicForm form={formConfig} title={title} />
+      ) : (
+        <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          Form component requires form configuration.
+        </div>
+      );
+    }
     case "table":
       if (
         resolvedDataBinding?.schemaName &&

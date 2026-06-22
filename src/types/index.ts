@@ -169,7 +169,10 @@ export type FormElementValue =
   | boolean
   | string[]
   | number[]
+  | Record<string, unknown>
+  | Record<string, unknown>[]
   | Date
+  | File
   | null
   | undefined;
 

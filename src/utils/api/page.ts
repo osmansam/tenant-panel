@@ -181,6 +181,92 @@ export interface PageTableComponentConfig {
   filterPanel?: PageTableFilterPanelConfig;
 }
 
+
+export type PageFormAreaKey = "top" | "main" | "bottom" | "left" | "right";
+
+export interface PageFormAreaConfig {
+  key: PageFormAreaKey;
+  title?: string;
+  order?: number;
+  className?: string;
+}
+
+export interface PageFormLayoutConfig {
+  variant?: "modal" | "page";
+  columns?: 1 | 2 | 3;
+  areas?: PageFormAreaConfig[];
+}
+
+export interface PageFormFieldConfig extends PageTableActionFormFieldConfig {
+  area?: PageFormAreaKey;
+  order?: number;
+  width?: "full" | "half" | "third";
+}
+
+export interface PageFormObjectListDisplayConfig {
+  primaryField?: string;
+  primaryTemplate?: string;
+  secondaryField?: string;
+  secondaryTemplate?: string;
+  imageField?: string;
+}
+
+export interface PageFormObjectActionConfig {
+  kind: "editObject" | "removeObject" | "increment" | "decrement";
+  label?: string;
+  icon?: string;
+  position?: "start" | "end";
+  field?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface PageFormActionConfig {
+  kind: "addObject" | "submit";
+  label?: string;
+  buttonName?: string;
+  area?: PageFormAreaKey;
+  targetObjectList?: string;
+  sourceFields?: string[];
+  clearSourceFields?: string[];
+  preserveSourceFields?: string[];
+  enabled?: boolean;
+  order?: number;
+}
+
+export interface PageFormObjectListConfig {
+  key: string;
+  title?: string;
+  area?: PageFormAreaKey;
+  source?: "embedded";
+  itemFields?: string[];
+  addAction?: PageFormActionConfig;
+  display?: PageFormObjectListDisplayConfig;
+  actions?: PageFormObjectActionConfig[];
+}
+
+export type PageFormSubmitMode = "create" | "createMany" | "workflow";
+
+export interface PageFormSubmitConfig {
+  mode?: PageFormSubmitMode;
+  buttonName?: string;
+  constantValues?: Record<string, unknown>;
+  bulkObjectListKey?: string;
+  workflowSchema?: string;
+  workflowName?: string;
+}
+
+export interface PageFormComponentConfig {
+  title?: string;
+  schemaName: string;
+  layout?: PageFormLayoutConfig;
+  fields?: PageFormFieldConfig[];
+  objectLists?: PageFormObjectListConfig[];
+  actions?: PageFormActionConfig[];
+  submit?: PageFormSubmitConfig;
+}
+
 export type ComponentType =
   | "table"
   | "tabPanel"
@@ -220,6 +306,7 @@ export interface ComponentBlock {
   dataBinding?: DataBinding;
   groupBy?: GroupBy;
   table?: PageTableComponentConfig;
+  form?: PageFormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
   props?: Record<string, any>;

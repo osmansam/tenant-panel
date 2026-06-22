@@ -13,6 +13,8 @@ import {
   ComponentBlock,
   DistributionBlockItemConfig,
   DistributionBlocksConfig,
+  FormComponentConfig,
+  FormFieldConfig,
   GroupBy,
   InfoBlockColorRule,
   InfoBlockItemConfig,
@@ -45,6 +47,7 @@ import type { OptionType } from "../../types";
 import { getIconByName } from "../../utils/menuIcons";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import FormComponentEditor from "./FormComponentEditor";
 
 interface PageDesignerProps {
   sections: GridSection[];
@@ -323,6 +326,47 @@ const buildActionFormFieldsFromFields = (
         sourceFilterCondition: "",
       };
     });
+
+const flattenFormFields = (fields: Field[]): Field[] =>
+  fields.flatMap((field) =>
+    field.children?.length ? flattenFormFields(field.children) : [field],
+  );
+
+const buildFormFieldsFromFields = (fields: Field[]): FormFieldConfig[] =>
+  buildActionFormFieldsFromFields(flattenFormFields(fields)).map((field, index) => ({
+    ...field,
+    area: "left",
+    order: index + 1,
+    width: "full",
+  }));
+
+const buildDefaultFormConfig = (
+  schemaName: string,
+  fields: Field[],
+): FormComponentConfig => ({
+  title: "",
+  schemaName,
+  layout: {
+    variant: "page",
+    columns: 2,
+    areas: [
+      { key: "left", title: "Details", order: 1 },
+      { key: "right", title: "Items", order: 2 },
+    ],
+  },
+  fields: buildFormFieldsFromFields(fields),
+  objectLists: [],
+  actions: [
+    {
+      kind: "submit",
+      buttonName: "Save",
+      area: "right",
+      enabled: true,
+      order: 1,
+    },
+  ],
+  submit: { mode: "create" },
+});
 
 const buildFilterPanelInputsFromFields = (
   fields: Field[],
@@ -928,6 +972,97 @@ const cleanTableConfig = (
         },
       }
     : {}),
+});
+
+const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
+  title: form.title?.trim() || "",
+  schemaName: form.schemaName.trim(),
+  layout: {
+    variant: form.layout?.variant || "page",
+    columns: form.layout?.columns || 2,
+    areas: (form.layout?.areas || [])
+      .filter((area) => area.key)
+      .map((area) => ({
+        ...area,
+        title: area.title?.trim() || "",
+        className: area.className?.trim() || "",
+      })),
+  },
+  fields: (form.fields || [])
+    .filter((field) => field.formKey.trim() && field.type)
+    .map((field, index) => ({
+      ...field,
+      formKey: field.formKey.trim(),
+      label: field.label?.trim() || field.formKey.trim(),
+      placeholder: field.placeholder?.trim() || "",
+      area: field.area || "main",
+      width: field.width || "full",
+      order: Number(field.order ?? index + 1),
+      invalidateKeys: field.invalidateKeys?.map((key) => key.trim()).filter(Boolean),
+    })),
+  objectLists: (form.objectLists || [])
+    .filter((objectList) => objectList.key.trim())
+    .map((objectList) => ({
+      ...objectList,
+      key: objectList.key.trim(),
+      title: objectList.title?.trim() || objectList.key.trim(),
+      area: objectList.area || "right",
+      source: "embedded",
+      itemFields: (objectList.itemFields || []).filter(Boolean),
+      display: {
+        primaryField: objectList.display?.primaryField?.trim() || "",
+        primaryTemplate: objectList.display?.primaryTemplate?.trim() || "",
+        secondaryField: objectList.display?.secondaryField?.trim() || "",
+        secondaryTemplate: objectList.display?.secondaryTemplate?.trim() || "",
+        imageField: objectList.display?.imageField?.trim() || "",
+      },
+      addAction: objectList.addAction
+        ? {
+            ...objectList.addAction,
+            kind: "addObject",
+            label: objectList.addAction.label?.trim() || "Add Item",
+            area: objectList.addAction.area || "left",
+            targetObjectList: objectList.key.trim(),
+            sourceFields: (objectList.addAction.sourceFields || []).filter(Boolean),
+            clearSourceFields: (objectList.addAction.clearSourceFields || []).filter(Boolean),
+            preserveSourceFields: (objectList.addAction.preserveSourceFields || []).filter(Boolean),
+            enabled: objectList.addAction.enabled !== false,
+          }
+        : undefined,
+      actions: (objectList.actions || []).map((action) => ({
+        ...action,
+        label: action.label?.trim() || "",
+        icon: action.icon?.trim() || "",
+        position: action.position || "end",
+        field: action.field?.trim() || "",
+      })),
+    })),
+  actions: (form.actions || []).map((action, index) => ({
+    ...action,
+    label: action.label?.trim() || "",
+    buttonName: action.buttonName?.trim() || "",
+    area: action.area || (action.kind === "submit" ? "right" : "left"),
+    targetObjectList: action.targetObjectList?.trim() || "",
+    sourceFields: (action.sourceFields || []).filter(Boolean),
+    clearSourceFields: (action.clearSourceFields || []).filter(Boolean),
+    preserveSourceFields: (action.preserveSourceFields || []).filter(Boolean),
+    enabled: action.enabled !== false,
+    order: Number(action.order ?? index + 1),
+  })),
+  submit: {
+    ...(form.submit || {}),
+    mode: form.submit?.mode || "create",
+    buttonName: form.submit?.buttonName?.trim() || "",
+    ...(form.submit?.mode === "createMany"
+      ? { bulkObjectListKey: form.submit.bulkObjectListKey?.trim() || "" }
+      : {}),
+    ...(form.submit?.mode === "workflow"
+      ? {
+          workflowSchema: form.submit.workflowSchema?.trim() || "",
+          workflowName: form.submit.workflowName?.trim() || "",
+        }
+      : {}),
+  },
 });
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({
@@ -1779,6 +1914,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     addButton: undefined,
     actions: [],
   });
+  const [formConfig, setFormConfig] = useState<FormComponentConfig>(() =>
+    buildDefaultFormConfig("", []),
+  );
   const [infoBlocksSource, setInfoBlocksSource] =
     useState<InfoBlocksSource>("static");
   const [infoBlockItems, setInfoBlockItems] = useState<InfoBlockItemConfig[]>(
@@ -1797,6 +1935,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     [containers, schemaName]
   );
   const selectedFields = selectedContainer?.fields || [];
+  const availableFormFields = useMemo(
+    () => flattenFormFields(selectedFields),
+    [selectedFields],
+  );
   const groupByTemplateSchemaName = useMemo(
     () =>
       tabs.find((tab) => tab.components[0]?.type === "table")?.components[0]
@@ -1958,6 +2100,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         setSchemaName(editingComponent.groupBy.groupedSchemaName);
       }
 
+      if (editingComponent.type === "form") {
+        const formSchemaName =
+          editingComponent.form?.schemaName ||
+          editingComponent.dataBinding?.schemaName ||
+          "";
+        const formFields =
+          containers.find(
+            (container) => container.schemaName === formSchemaName,
+          )?.fields || [];
+        setSchemaName(formSchemaName);
+        setFormConfig(
+          editingComponent.form ||
+            buildDefaultFormConfig(formSchemaName, formFields),
+        );
+      }
+
       if (editingComponent.table) {
         const editingSourceType =
           editingComponent.dataBinding?.kind === "pipeline" ||
@@ -2025,6 +2183,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setInfoBlockItems(resizeInfoBlockItems(4, []));
       setDistributionBlocksSource("static");
       setDistributionBlockItems(resizeDistributionBlockItems(3, []));
+      setFormConfig(buildDefaultFormConfig("", []));
     }
   }, [editingComponent]);
 
@@ -2067,6 +2226,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       };
     });
   }, [componentType, containers, editingComponent?.table, schemaName]);
+
+  useEffect(() => {
+    if (
+      componentType !== "form" ||
+      !schemaName ||
+      editingComponent?.form
+    ) {
+      return;
+    }
+    const container = containers.find((item) => item.schemaName === schemaName);
+    if (!container) return;
+    setFormConfig((current) => {
+      if (current.schemaName === schemaName && current.fields?.length) {
+        return current;
+      }
+      return buildDefaultFormConfig(schemaName, container.fields || []);
+    });
+  }, [componentType, containers, editingComponent?.form, schemaName]);
 
   useEffect(() => {
     if (componentType !== "table" || tableSourceType !== "pipeline") {
@@ -2134,6 +2311,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...(parsedParams && { params: parsedParams }),
       };
       component.table = cleanTableConfig(tableConfig);
+    } else if (componentType === "form") {
+      const cleanedForm = cleanFormConfig({
+        ...formConfig,
+        title: formConfig.title || title,
+        schemaName: formConfig.schemaName || schemaName,
+      });
+      component.dataBinding = {
+        kind: "schema",
+        schemaName: cleanedForm.schemaName,
+      };
+      component.form = cleanedForm;
     } else if (componentType === "tabPanel") {
       const groupedSchemaName = (
         groupBy.groupedSchemaName ||
@@ -3109,6 +3297,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 >
                   <option value="table">Table</option>
+                  <option value="form">Form</option>
                   <option value="tabPanel">Tab Panel</option>
                   <option value="infoBlocks">Information Blocks</option>
                   <option value="distributionBlocks">Distribution Blocks</option>
@@ -3148,6 +3337,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         setSchemaName(e.target.value);
                         if (componentType === "table") {
                           resetTableColumnsForSchema(e.target.value);
+                        }
+                        if (componentType === "form") {
+                          const container = containers.find(
+                            (item) => item.schemaName === e.target.value,
+                          );
+                          setFormConfig(
+                            buildDefaultFormConfig(
+                              e.target.value,
+                              container?.fields || [],
+                            ),
+                          );
                         }
                       }}
                       className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
@@ -3263,6 +3463,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 </>
               )}
             </div>
+
+            {componentType === "form" && (
+              <FormComponentEditor
+                value={formConfig}
+                schemaFields={availableFormFields}
+                containers={containers}
+                onChange={setFormConfig}
+              />
+            )}
 
             {componentType === "infoBlocks" && (
               <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -7132,7 +7341,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 !pipelineName) ||
               (componentType === "distributionBlocks" &&
                 distributionBlocksSource === "workflow" &&
-                !workflowName)
+                !workflowName) ||
+              (componentType === "form" &&
+                formConfig.submit?.mode === "createMany" &&
+                !formConfig.submit.bulkObjectListKey) ||
+              (componentType === "form" &&
+                formConfig.submit?.mode === "workflow" &&
+                (!formConfig.submit.workflowSchema ||
+                  !formConfig.submit.workflowName))
             }
             className="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-600 flex items-center gap-2"
           >
