@@ -29,6 +29,7 @@ type TextInputProps = {
   requiredField?: boolean;
   isDateInitiallyOpen?: boolean;
   minNumber?: number;
+  maxNumber?: number;
   isMinNumber?: boolean;
   isNumberButtonsActive?: boolean;
   isOnClearActive?: boolean;
@@ -49,6 +50,7 @@ const TextInput = ({
   onClear,
   inputWidth,
   minNumber = 0,
+  maxNumber,
   isMinNumber = true,
   isNumberButtonsActive = false,
   isOnClearActive = true,
@@ -93,10 +95,13 @@ const TextInput = ({
     }
 
     const newValue =
-      type === "number" && +inputValue < minNumber && isMinNumber
-        ? Number(minNumber)
-        : type === "number"
-        ? Number(inputValue)
+      type === "number"
+        ? Math.min(
+            maxNumber ?? Number.POSITIVE_INFINITY,
+            isMinNumber
+              ? Math.max(Number(minNumber), Number(inputValue))
+              : Number(inputValue),
+          )
         : inputValue;
     setLocalValue(newValue);
     if (isDebounce) {
@@ -113,8 +118,12 @@ const TextInput = ({
   };
 
   const handleIncrement = () => {
+    if (disabled || isReadOnly) return;
     if (type === "number") {
-      const newValue = Math.max(minNumber, +localValue + 1);
+      const newValue = Math.min(
+        maxNumber ?? Number.POSITIVE_INFINITY,
+        Math.max(minNumber, +localValue + 1),
+      );
       setLocalValue(newValue);
 
       if (isDebounce) {
@@ -138,6 +147,7 @@ const TextInput = ({
     }
   };
   const handleDecrement = () => {
+    if (disabled || isReadOnly) return;
     if (type === "number" && +localValue > minNumber) {
       const newValue = Math.max(minNumber, +localValue - 1);
       setLocalValue(newValue);
@@ -174,6 +184,7 @@ const TextInput = ({
       document.activeElement.blur();
     }
   };
+  const isInputLocked = disabled || isReadOnly;
 
   if (type === "color") {
     return (
@@ -274,11 +285,16 @@ const TextInput = ({
             fontSize: "16px",
           }}
           placeholder={placeholder}
-          disabled={disabled || isReadOnly}
+          disabled={isInputLocked}
           value={localValue}
           onChange={handleChange}
           className={inputClassName}
-          {...(isMinNumber && (type === "number" ? { min: minNumber } : {}))}
+          {...(type === "number"
+            ? {
+                ...(isMinNumber ? { min: minNumber } : {}),
+                ...(maxNumber !== undefined ? { max: maxNumber } : {}),
+              }
+            : {})}
           onWheel={type === "number" ? handleWheel : undefined}
         />
         {type === "password" && (
@@ -296,13 +312,21 @@ const TextInput = ({
         )}
         {isNumberButtonsActive && (
           <FiMinusCircle
-            className="w-8 h-8 flex-shrink-0 text-red-500 hover:text-red-800 cursor-pointer focus:outline-none"
+            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
+              isInputLocked
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-red-500 hover:text-red-800 cursor-pointer"
+            }`}
             onClick={handleDecrement}
           />
         )}
         {isNumberButtonsActive && (
           <GoPlusCircle
-            className="w-8 h-8 flex-shrink-0 text-green-500 hover:text-green-800 cursor-pointer focus:outline-none"
+            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
+              isInputLocked
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-green-500 hover:text-green-800 cursor-pointer"
+            }`}
             onClick={handleIncrement}
           />
         )}

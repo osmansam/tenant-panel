@@ -7,12 +7,18 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetList } from "./factory";
 
 // Type definitions based on Go models
-export type BindingKind = "schema" | "pipeline" | "api" | "function";
+export type BindingKind =
+  | "schema"
+  | "pipeline"
+  | "workflow"
+  | "api"
+  | "function";
 
 export interface DataBinding {
   kind: BindingKind;
   schemaName?: string;
   pipelineName?: string;
+  workflowName?: string;
   apiName?: string;
   functionName?: string;
   params?: Record<string, any>;
@@ -21,6 +27,244 @@ export interface DataBinding {
 export interface GroupBy {
   groupByObjectId?: string;
   groupByField?: string;
+  groupedSchemaName?: string;
+  groupedField?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  filterField?: string;
+}
+
+export interface PageRowClassConfig {
+  condition: string;
+  className: string;
+}
+
+export interface PageTableLinkConfig {
+  template?: string;
+  labelField?: string;
+  type?: string;
+}
+
+export type PageTableColumnType = "field" | "computedLabel" | "progressBar";
+
+export interface PageTableComputedLabelRule {
+  condition?: string;
+  value?: string;
+}
+
+export interface PageTableProgressBarColorRule {
+  condition?: string;
+  color?: string;
+}
+
+export interface PageTableProgressBarConfig {
+  sourceField?: string;
+  max?: number;
+  maxField?: string;
+  color?: string;
+  trackColor?: string;
+  height?: number;
+  width?: number;
+  showValue?: boolean;
+  colorRules?: PageTableProgressBarColorRule[];
+}
+
+export interface PageTableColumnConfig {
+  field: string;
+  type?: PageTableColumnType;
+  displayName?: string;
+  computedLabelRules?: PageTableComputedLabelRule[];
+  fallbackValue?: string;
+  progressBar?: PageTableProgressBarConfig;
+  cellClassName?: PageRowClassConfig[];
+  link?: PageTableLinkConfig;
+}
+
+export interface PageTableRowsConfig {
+  className?: PageRowClassConfig[];
+}
+
+export interface PageTableCacheConfig {
+  invalidateKeys?: string[];
+}
+
+export interface PageTableActionFormOptionConfig {
+  value: string | number;
+  label: string;
+}
+
+export interface PageTableActionFormFieldConfig {
+  formKey: string;
+  type: string;
+  formKeyType?: string;
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  requiredCondition?: string;
+  disabledCondition?: string;
+  isMultiple?: boolean;
+  isNumberButtonsActive?: boolean;
+  optionsSource?: string;
+  staticOptions?: PageTableActionFormOptionConfig[];
+  staticOptionsJson?: string;
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  sourceFilterCondition?: string;
+  invalidateKeys?: string[];
+  defaultValue?: string | number | boolean | string[] | number[];
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  validationMessage?: string;
+}
+
+export type PageTableFilterPanelInputConfig = PageTableActionFormFieldConfig;
+
+export interface PageTableFilterPanelConfig {
+  inputs?: PageTableFilterPanelInputConfig[];
+}
+
+export interface PageTableActionFieldConfig {
+  field: string;
+  value?: unknown;
+  required?: boolean;
+  disabledCondition?: string;
+}
+
+export interface PageTableActionSubmitConfig {
+  fields?: PageTableActionFieldConfig[];
+  includeFields?: string[];
+  excludeFields?: string[];
+  constantValues?: Record<string, unknown>;
+  workflowName?: string;
+  workflowSchema?: string;
+}
+
+export interface PageTableActionConfig {
+  id?: string;
+  key?: string;
+  name?: string;
+  label?: string;
+  buttonName?: string;
+  kind: string;
+  icon?: string;
+  className?: string;
+  buttonClassName?: string;
+  order?: number;
+  enabled?: boolean;
+  isModal?: boolean;
+  isButton?: boolean;
+  modalType?: string;
+  confirmTitle?: string;
+  confirmText?: string;
+  path?: string;
+  linkTemplate?: string;
+  disabledCondition?: string;
+  hiddenCondition?: string;
+  requiredCondition?: string;
+  formFields?: PageTableActionFormFieldConfig[];
+  fieldOverrides?: PageTableActionFieldConfig[];
+  constantValues?: Record<string, unknown>;
+  submit?: PageTableActionSubmitConfig;
+}
+
+export interface PageTableComponentConfig {
+  columns?: PageTableColumnConfig[];
+  rows?: PageTableRowsConfig;
+  cache?: PageTableCacheConfig;
+  addButton?: PageTableActionConfig;
+  actions?: PageTableActionConfig[];
+  filterPanel?: PageTableFilterPanelConfig;
+}
+
+
+export type PageFormAreaKey = "top" | "main" | "bottom" | "left" | "right";
+
+export interface PageFormAreaConfig {
+  key: PageFormAreaKey;
+  title?: string;
+  order?: number;
+  className?: string;
+}
+
+export interface PageFormLayoutConfig {
+  variant?: "modal" | "page";
+  columns?: 1 | 2 | 3;
+  areas?: PageFormAreaConfig[];
+}
+
+export interface PageFormFieldConfig extends PageTableActionFormFieldConfig {
+  area?: PageFormAreaKey;
+  order?: number;
+  width?: "full" | "half" | "third";
+}
+
+export interface PageFormObjectListDisplayConfig {
+  primaryField?: string;
+  primaryTemplate?: string;
+  secondaryField?: string;
+  secondaryTemplate?: string;
+  imageField?: string;
+}
+
+export interface PageFormObjectActionConfig {
+  kind: "editObject" | "removeObject" | "increment" | "decrement";
+  label?: string;
+  icon?: string;
+  position?: "start" | "end";
+  field?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface PageFormActionConfig {
+  kind: "addObject" | "submit";
+  label?: string;
+  buttonName?: string;
+  area?: PageFormAreaKey;
+  targetObjectList?: string;
+  sourceFields?: string[];
+  clearSourceFields?: string[];
+  preserveSourceFields?: string[];
+  enabled?: boolean;
+  order?: number;
+}
+
+export interface PageFormObjectListConfig {
+  key: string;
+  title?: string;
+  area?: PageFormAreaKey;
+  source?: "embedded";
+  itemFields?: string[];
+  addAction?: PageFormActionConfig;
+  display?: PageFormObjectListDisplayConfig;
+  actions?: PageFormObjectActionConfig[];
+}
+
+export type PageFormSubmitMode = "create" | "createMany" | "workflow";
+
+export interface PageFormSubmitConfig {
+  mode?: PageFormSubmitMode;
+  buttonName?: string;
+  constantValues?: Record<string, unknown>;
+  bulkObjectListKey?: string;
+  workflowSchema?: string;
+  workflowName?: string;
+}
+
+export interface PageFormComponentConfig {
+  title?: string;
+  schemaName: string;
+  layout?: PageFormLayoutConfig;
+  fields?: PageFormFieldConfig[];
+  objectLists?: PageFormObjectListConfig[];
+  actions?: PageFormActionConfig[];
+  submit?: PageFormSubmitConfig;
 }
 
 export type ComponentType =
@@ -29,6 +273,8 @@ export type ComponentType =
   | "form"
   | "text"
   | "custom"
+  | "infoBlocks"
+  | "distributionBlocks"
   | "barChart"
   | "lineChart"
   | "pieChart"
@@ -59,6 +305,8 @@ export interface ComponentBlock {
   order?: number;
   dataBinding?: DataBinding;
   groupBy?: GroupBy;
+  table?: PageTableComponentConfig;
+  form?: PageFormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
   props?: Record<string, any>;
@@ -117,6 +365,7 @@ export interface PageModel {
   parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
+  isOnSidebar?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
@@ -131,6 +380,7 @@ export interface CreatePagePayload {
   parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
+  isOnSidebar?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
@@ -145,6 +395,7 @@ export interface UpdatePagePayload {
   parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
+  isOnSidebar?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];

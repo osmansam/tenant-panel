@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
+import { TableActionConfig, TableFilterPanelConfig } from "../../types/page";
 import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
@@ -35,6 +36,8 @@ export interface Frontend {
   linkTemplate?: string;
   linkLabelField?: string;
   linkType?: LinkType;
+  actions?: TableActionConfig[];
+  filterPanel?: TableFilterPanelConfig;
 }
 
 export interface Field {
@@ -96,12 +99,35 @@ export interface Redis {
 export interface PipelineStage {
   name: string;
   pipelineJson: string; // serialized JSON string
+  outputFields?: string[];
   isAuthenticated: boolean;
   isAuthorized: boolean;
   authorizeRole: string[];
   isActive: boolean;
   isRedisCached: boolean;
   cacheTime: number;
+}
+
+export interface WorkflowStep {
+  name: string;
+  type: string;
+  order?: number;
+  isActive?: boolean;
+  targetSchema?: string;
+  config?: Record<string, any>;
+  steps?: WorkflowStep[];
+  elseSteps?: WorkflowStep[];
+  branches?: { name?: string; steps?: WorkflowStep[] }[];
+}
+
+export interface DynamicWorkflow {
+  name: string;
+  trigger?: string;
+  mode?: string;
+  isActive: boolean;
+  returnStep?: string;
+  outputFields?: string[];
+  steps?: WorkflowStep[];
 }
 
 /** Dynamic function spec (server-executed code) */
@@ -179,6 +205,7 @@ export interface ContainerModel {
   routes: Routes;
   redis: Redis;
   pipelines: PipelineStage[];
+  workflows?: DynamicWorkflow[];
   dynamicFunctions: DynamicFunction[];
   dynamicApis: DynamicApiModel[];
   isAuthContainer?: boolean;
@@ -221,6 +248,7 @@ export interface CreateContainerPayload {
   routes?: Partial<Routes>;
   redis?: Partial<Redis>;
   pipelines?: PipelineStage[];
+  workflows?: DynamicWorkflow[];
   dynamicFunctions?: DynamicFunction[];
   dynamicApis?: DynamicApiModel[];
   isAuthContainer?: boolean;
@@ -436,6 +464,7 @@ export function useContainers(enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
+    workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: container.DynamicApis || container.dynamicApis || [],
@@ -512,6 +541,7 @@ export function useContainer(id: string, enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
+    workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: container.DynamicApis || container.dynamicApis || [],

@@ -5,16 +5,20 @@
  * These types match the backend data structure for rendering dynamic pages.
  */
 
+import type { TableFilterPanelConfig } from "./page";
+
 /**
  * Data binding configuration for components
  */
 export interface DataBinding {
   /** Type of data source */
-  kind: "schema" | "pipeline" | "api";
+  kind: "schema" | "pipeline" | "workflow" | "api";
   /** Name of the schema (when kind="schema") */
   schemaName?: string;
   /** Name of the pipeline (when kind="pipeline") */
   pipelineName?: string;
+  /** Name of the workflow (when kind="workflow") */
+  workflowName?: string;
   /** API endpoint (when kind="api") */
   apiEndpoint?: string;
   /** Additional parameters for the data source */
@@ -35,9 +39,37 @@ export interface TableLinkConfig {
   type?: LinkType;
 }
 
+export type TableColumnType = "field" | "computedLabel" | "progressBar";
+
+export interface TableComputedLabelRule {
+  condition?: string;
+  value?: string;
+}
+
+export interface TableProgressBarColorRule {
+  condition?: string;
+  color?: string;
+}
+
+export interface TableProgressBarConfig {
+  sourceField?: string;
+  max?: number;
+  maxField?: string;
+  color?: string;
+  trackColor?: string;
+  height?: number;
+  width?: number;
+  showValue?: boolean;
+  colorRules?: TableProgressBarColorRule[];
+}
+
 export interface TableColumnConfig {
   field: string;
+  type?: TableColumnType;
   displayName?: string;
+  computedLabelRules?: TableComputedLabelRule[];
+  fallbackValue?: string;
+  progressBar?: TableProgressBarConfig;
   cellClassName?: RowClassConfig[];
   link?: TableLinkConfig;
 }
@@ -54,6 +86,7 @@ export interface TableComponentConfig {
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
   cache?: TableCacheConfig;
+  filterPanel?: TableFilterPanelConfig;
 }
 
 /**

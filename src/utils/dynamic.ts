@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { FormElementsState } from "../types";
@@ -11,6 +11,22 @@ export interface DynamicPayload<T> {
   totalPages: number;
   currentPage: number;
 }
+
+export interface DynamicExecutionResponse<T> {
+  status?: number;
+  message?: string;
+  data?: T;
+  source?: string;
+}
+
+export type TableSourceBinding = {
+  kind?: "schema" | "pipeline" | "workflow";
+  schemaName?: string;
+  pipelineName?: string;
+  workflowName?: string;
+  fields?: string[];
+  params?: Record<string, unknown>;
+};
 
 const BASE = "/dynamic";
 const qs = (params: Record<string, unknown>) =>
@@ -49,6 +65,10 @@ export function useDynamicCrud<T extends { _id: string | number }>(
   const queryKey = listKey(schemaName);
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const invalidateSchemaQueries = () => {
+    qc.invalidateQueries({ queryKey });
+    qc.invalidateQueries({ queryKey: ["dynamic", schemaName] });
+  };
 
   // Custom create function that handles FormData
   async function createRequest(payload: Partial<T>) {
@@ -97,7 +117,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -129,13 +149,16 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
   const { deleteItem } = useMutationApi<T>({
     baseQuery: BASE,
     queryKey,
+    isInvalidate: true,
+    isAdditionalInvalidate: true,
+    additionalInvalidates: [["dynamic", schemaName]],
   });
 
   const createDynamicItem = (doc: Partial<T>) => createMutation.mutate(doc);
@@ -180,7 +203,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       console.log("Error creating multiple items:", errorMessage);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -225,7 +248,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
     },
     onSettled: async () => {
       // keep your pattern consistent with the rest of your hook
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -281,7 +304,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       setTimeout(() => toast.error(t(errorMessage)), 200);
     },
     onSettled: async () => {
-      qc.invalidateQueries({ queryKey });
+      invalidateSchemaQueries();
     },
   });
 
@@ -289,8 +312,51 @@ export function useDynamicCrud<T extends { _id: string | number }>(
     docs: Array<{ _id: string | number; updates: Partial<T> }>
   ) => updateManyMutation.mutate(docs);
 
+  async function executeWorkflowRequest({
+    workflowName,
+    workflowSchema,
+    record,
+    oldRecord,
+  }: {
+    workflowName: string;
+    workflowSchema?: string;
+    record: Record<string, unknown>;
+    oldRecord?: Record<string, unknown>;
+  }) {
+    const targetSchema = workflowSchema || schemaName;
+    const { data } = await axiosClient.post(
+      `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
+        schemaName: targetSchema,
+      })}`,
+      { record, oldRecord },
+      { headers: { "Content-Type": "application/json" } },
+    );
+    return data;
+  }
+
+  const executeWorkflowMutation = useMutation({
+    mutationFn: executeWorkflowRequest,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) => {
+      const errorMessage =
+        err?.response?.data?.message || "An unexpected error occurred";
+      setTimeout(() => toast.error(t(errorMessage)), 200);
+    },
+    onSettled: async () => {
+      invalidateSchemaQueries();
+    },
+  });
+
+  const executeWorkflow = (payload: {
+    workflowName: string;
+    workflowSchema?: string;
+    record: Record<string, unknown>;
+    oldRecord?: Record<string, unknown>;
+  }) => executeWorkflowMutation.mutate(payload);
+
   return {
     createDynamicItem,
+    createMutation,
     createMultipleDynamicItem,
     createManyMutation,
     updateDynamicItem,
@@ -299,6 +365,8 @@ export function useDynamicCrud<T extends { _id: string | number }>(
     deleteManyMutation,
     updateMultipleDynamicItem,
     updateManyMutation,
+    executeWorkflow,
+    executeWorkflowMutation,
   };
 }
 
@@ -445,24 +513,142 @@ export function useGetPaginatedItems<T>(
   return useGet<DynamicPayload<T>>(url, queryKey, true);
 }
 
+export function useGetTableSourceItems<T>(
+  page: number,
+  limit: number,
+  binding: TableSourceBinding,
+  filters: FormElementsState
+) {
+  const sourceType = binding.kind || "schema";
+  const schemaName = binding.schemaName || "";
+  const baseQueryUrl = `${BASE}/table-source`;
+  const queryKey = [
+    "dynamic",
+    schemaName,
+    "table-source",
+    sourceType,
+    binding.pipelineName || "",
+    binding.workflowName || "",
+    { page, limit, filters, fields: binding.fields || [], params: binding.params || {} },
+  ] as const;
+
+  const parts = [
+    `schemaName=${schemaName}`,
+    `sourceType=${sourceType}`,
+    binding.pipelineName &&
+      `pipelineName=${encodeURIComponent(binding.pipelineName)}`,
+    binding.workflowName &&
+      `workflowName=${encodeURIComponent(binding.workflowName)}`,
+    binding.fields?.length &&
+      `fields=${encodeURIComponent(binding.fields.join(","))}`,
+    `page=${page}`,
+    `limit=${limit}`,
+    filters.sort && `sort=${filters.sort}`,
+    filters.asc !== undefined && `asc=${filters.asc}`,
+    filters.search &&
+      `search=${
+        typeof filters.search === "string"
+          ? filters.search.trim()
+          : filters.search
+      }`,
+  ];
+
+  Object.entries({ ...(binding.params || {}), ...filters }).forEach(
+    ([key, value]) => {
+      if (
+        !["sort", "asc", "search"].includes(key) &&
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      ) {
+        if (Array.isArray(value)) {
+          value.forEach((item) => {
+            if (item !== undefined && item !== null && item !== "") {
+              const trimmedItem =
+                typeof item === "string" ? item.trim() : String(item);
+              parts.push(`${key}=${encodeURIComponent(trimmedItem)}`);
+            }
+          });
+        } else if (value instanceof Date) {
+          parts.push(`${key}=${value.toISOString()}`);
+        } else {
+          const trimmedValue =
+            typeof value === "string" ? value.trim() : String(value);
+          parts.push(`${key}=${encodeURIComponent(trimmedValue)}`);
+        }
+      }
+    }
+  );
+
+  const queryString = parts.filter(Boolean).join("&");
+  const url = `${baseQueryUrl}?${queryString}`;
+  return useGet<DynamicPayload<T>>(url, queryKey, Boolean(schemaName));
+}
+
+export function useGetWorkflowData<T>(
+  binding: Pick<TableSourceBinding, "schemaName" | "workflowName" | "params">
+) {
+  const schemaName = binding.schemaName || "";
+  const workflowName = binding.workflowName || "";
+  const queryKey = [
+    "dynamic",
+    schemaName,
+    "workflow",
+    workflowName,
+    binding.params || {},
+  ] as const;
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const response = await axiosClient.post<DynamicExecutionResponse<T>>(
+        `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
+          schemaName,
+        })}`,
+        { record: binding.params || {} },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    },
+    enabled: Boolean(schemaName && workflowName),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+
+  return data?.data;
+}
+
 // utils/dynamic.ts (or wherever this lives)
-export function useGetSelection<T>(schemaName: string, fieldName: string) {
+export function useGetSelection<T>(
+  schemaName: string,
+  fieldName: string,
+  valueField?: string,
+) {
   // Only enable the request if both schemaName and fieldName are provided
   const enabled = Boolean(schemaName && fieldName);
 
-  const path = `${BASE}/selection?${qs({ schemaName, fieldName })}`;
+  const path = `${BASE}/selection?${qs({ schemaName, fieldName, valueField })}`;
 
   const queryKey = [
     "dynamic",
     schemaName || "",
     "selection",
     fieldName || "",
+    valueField || "",
   ] as const;
 
   const data = useGet<T>(path, queryKey, enabled);
 
   return (data ?? ([] as T)) as T;
 }
+
 
 export function useGetPipeline<T>(
   schemaName: string,

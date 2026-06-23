@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { startTransition, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineMenu } from "react-icons/md";
 import { useGeneralContext } from "../../../context/General.context";
@@ -28,24 +28,33 @@ const VerticalTabPanelResponsive: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const { resetGeneralContext } = useGeneralContext();
-  const adjustedTabs = tabs
-    .filter((tab) => !tab.isDisabled)
-    .map((tab, index) => ({
-      ...tab,
-      adjustedNumber: index,
-    }));
+  const adjustedTabs = useMemo(
+    () =>
+      tabs
+        .filter((tab) => !tab.isDisabled)
+        .map((tab, index) => ({
+          ...tab,
+          adjustedNumber: index,
+        })),
+    [tabs],
+  );
+  const activeAdjustedTab = useMemo(
+    () => adjustedTabs.find((tab) => tab.adjustedNumber === activeTab),
+    [activeTab, adjustedTabs],
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleTabChange = (tab: Tab) => {
     additionalClickAction && additionalClickAction();
-    resetGeneralContext();
     if (isMenuOpen) {
       setIsMenuOpen(false);
     }
-    const currentTab = adjustedTabs.find((t) => t.adjustedNumber === activeTab);
-    currentTab?.onCloseAction?.();
     setActiveTab(tab.adjustedNumber ?? tab.number);
-    tab.onOpenAction?.();
+    startTransition(() => {
+      resetGeneralContext();
+      activeAdjustedTab?.onCloseAction?.();
+      tab.onOpenAction?.();
+    });
   };
 
   return (
@@ -57,10 +66,7 @@ const VerticalTabPanelResponsive: React.FC<Props> = ({
         </GenericButton>
         <div className="ml-4">
           <P1 className="text-blue-500">
-            {t(
-              adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)
-                ?.label || ""
-            )}
+            {t(activeAdjustedTab?.label || "")}
           </P1>
         </div>
       </div>
@@ -93,10 +99,7 @@ const VerticalTabPanelResponsive: React.FC<Props> = ({
             </div>
           )}
           <div className="p-4">
-            {
-              adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)
-                ?.content
-            }
+            {activeAdjustedTab?.content}
           </div>
         </div>
       </div>
@@ -109,10 +112,7 @@ const VerticalTabPanelResponsive: React.FC<Props> = ({
             </GenericButton>
             <div className="ml-4">
               <P1 className="font-bold">
-                {t(
-                  adjustedTabs.find((tab) => tab.adjustedNumber === activeTab)
-                    ?.label ?? ""
-                )}
+                {t(activeAdjustedTab?.label ?? "")}
               </P1>
             </div>
           </div>

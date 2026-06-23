@@ -725,7 +725,7 @@ const GenericTable = <T,>({
                   key={keyIndex}
                   className={`px-4 py-3 min-w-20 ${columnClassName}`}
                 >
-                  {rowKey.node(row)}
+                  <span className={computedClassName}>{rowKey.node(row)}</span>
                 </td>
               );
             }

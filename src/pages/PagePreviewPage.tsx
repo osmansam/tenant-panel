@@ -3,15 +3,26 @@ import { useParams } from "react-router-dom";
 import DynamicChart, {
   ChartType,
 } from "../components/panelComponents/FormElements/DynamicChart";
+import DistributionBlocks from "../components/panelComponents/FormElements/DistributionBlocks";
+import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
+import DynamicForm from "../components/forms/DynamicForm";
 import {
   ComponentBlock,
+  DistributionBlocksConfig,
   GridCell,
   GridSection,
+  InfoBlocksConfig,
   TableComponentConfig,
 } from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
+import { useGetSelection } from "../utils/dynamic";
+import {
+  extractRouteParamsFromPath,
+  RouteParams,
+  resolveRouteParamValue,
+} from "../utils/routeParams";
 
 // Map component type to chart type
 const getChartTypeFromComponentType = (
@@ -39,37 +50,189 @@ const getChartTypeFromComponentType = (
 };
 
 // Render a single component
-const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
-  component,
-}) => {
-  const { type, dataBinding, tabs, title, props } = component;
-  const tableConfig =
-    component.table ||
+const RenderComponent: React.FC<{
+  component: ComponentBlock;
+  routeParams: RouteParams;
+}> = ({ component, routeParams }) => {
+  const { type, dataBinding, tabs, groupBy, title, props } = component;
+  const resolvedDataBinding = useMemo(
+    () => resolveRouteParamValue(dataBinding, routeParams),
+    [dataBinding, routeParams],
+  );
+  const getTableConfig = (
+    table: TableComponentConfig | undefined,
+    props: Record<string, unknown> | undefined,
+  ): TableComponentConfig | undefined =>
+    table ||
     (props?.table as TableComponentConfig | undefined) ||
-    (props?.columns || props?.rows || props?.cache
+    ([
+      props?.columns,
+      props?.rows,
+      props?.cache,
+      props?.actions,
+      props?.filterPanel,
+    ].some(Boolean)
       ? (props as TableComponentConfig)
       : undefined);
+  const tableConfig = getTableConfig(component.table, props);
+  const firstTableTabIndex =
+    tabs?.findIndex((tab) => tab.components[0]?.type === "table") ?? -1;
+  const tabWithGroupByIndex =
+    tabs?.findIndex((tab) => tab.components[0]?.groupBy) ?? -1;
+  const tabPanelGroupBy =
+    groupBy ||
+    (tabWithGroupByIndex >= 0
+      ? tabs![tabWithGroupByIndex]?.components[0]?.groupBy
+      : undefined);
+  const tabPanelTemplateTabIndex =
+    tabWithGroupByIndex >= 0
+      ? tabWithGroupByIndex
+      : tabPanelGroupBy
+        ? firstTableTabIndex
+        : -1;
+  const templateComponent =
+    tabPanelTemplateTabIndex >= 0
+      ? tabs?.[tabPanelTemplateTabIndex]?.components[0]
+      : undefined;
+  const templateSchemaName =
+    templateComponent?.dataBinding?.schemaName ||
+    resolvedDataBinding?.schemaName ||
+    "";
+  const groupByGroupedSchema =
+    tabPanelGroupBy?.groupedSchemaName || templateSchemaName;
+  const groupByGroupedField =
+    tabPanelGroupBy?.groupedField ||
+    tabPanelGroupBy?.filterField ||
+    tabPanelGroupBy?.groupByObjectId ||
+    "";
+  const groupBySourceSchema =
+    tabPanelGroupBy?.sourceSchemaName ||
+    tabPanelGroupBy?.groupByObjectId ||
+    "";
+  const groupByValueField = tabPanelGroupBy?.sourceValueField || "_id";
+  const groupByLabelField =
+    tabPanelGroupBy?.sourceLabelField ||
+    tabPanelGroupBy?.groupByField ||
+    groupByValueField;
+  const shouldFetchGrouping =
+    type === "tabPanel" &&
+    Boolean(groupByGroupedSchema) &&
+    Boolean(groupByGroupedField) &&
+    Boolean(groupBySourceSchema) &&
+    Boolean(groupByLabelField) &&
+    Boolean(templateSchemaName);
+  const selectionData = useGetSelection<Array<Record<string, unknown>>>(
+    shouldFetchGrouping ? groupBySourceSchema : "",
+    shouldFetchGrouping ? groupByLabelField : "",
+    shouldFetchGrouping ? groupByValueField : "",
+  );
 
   switch (type) {
+    case "form": {
+      const formConfig =
+        component.form ||
+        (props?.form as ComponentBlock["form"] | undefined);
+      return formConfig ? (
+        <DynamicForm form={formConfig} title={title} />
+      ) : (
+        <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          Form component requires form configuration.
+        </div>
+      );
+    }
     case "table":
-      if (dataBinding?.kind === "schema" && dataBinding.schemaName) {
+      if (
+        resolvedDataBinding?.schemaName &&
+        ["schema", "pipeline", "workflow"].includes(resolvedDataBinding.kind)
+      ) {
         return (
           <GenericPaginatedPage
-            schemaName={dataBinding.schemaName}
+            schemaName={resolvedDataBinding.schemaName}
             isHeader={false}
             tableConfig={tableConfig}
+            dataBinding={resolvedDataBinding}
+            actionsEnabled={resolvedDataBinding.kind === "schema"}
           />
         );
       }
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
           <p className="text-yellow-800 text-sm">
-            Table component requires schema binding
+            Table component requires schema, pipeline, or workflow binding
           </p>
         </div>
       );
 
     case "tabPanel":
+      if (shouldFetchGrouping) {
+        if (!selectionData || selectionData.length === 0) {
+          return (
+            <div className="bg-gray-50 border border-gray-200 rounded p-4">
+              <p className="text-gray-500 text-sm">Loading grouped tabs...</p>
+            </div>
+          );
+        }
+
+        const baseComponent =
+          templateComponent ||
+          ({
+            dataBinding,
+            table: component.table,
+            props,
+          } as ComponentBlock);
+        if (!baseComponent?.dataBinding?.schemaName) {
+          return (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+              <p className="text-yellow-800 text-sm">
+                Tab panel grouping requires a grouped schema binding
+              </p>
+            </div>
+          );
+        }
+
+        const dynamicTabs = selectionData.map((item) => {
+          const groupValue = item[groupByValueField] ?? item._id;
+          const resolvedBaseBinding = resolveRouteParamValue(
+            baseComponent.dataBinding,
+            routeParams,
+          );
+          return {
+            schemaName: resolvedBaseBinding!.schemaName!,
+            label: String(item[groupByLabelField] ?? groupValue),
+            isPaginated: true,
+            constantFilter: {
+              [groupByGroupedField]: groupValue,
+            },
+            dataBinding: resolvedBaseBinding,
+            tableConfig: getTableConfig(baseComponent.table, baseComponent.props),
+          };
+        });
+
+        const manualTabs = (tabs || []).map((tab) => {
+          const tabComponent = tab.components[0];
+          const tabBinding = resolveRouteParamValue(
+            tabComponent?.dataBinding,
+            routeParams,
+          );
+          return {
+            schemaName: tabBinding?.schemaName || "",
+            label: tab.title,
+            isPaginated: true,
+            dataBinding: tabBinding,
+            tableConfig: getTableConfig(
+              tabComponent?.table,
+              tabComponent?.props,
+            ),
+          };
+        });
+        const tabsConfig = [
+          ...dynamicTabs,
+          ...manualTabs,
+        ];
+
+        return <GenericTabPage tabs={tabsConfig} />;
+      }
+
       if (tabs && Array.isArray(tabs) && tabs.length > 0) {
         const allTabsAreTables = tabs.every(
           (tab) =>
@@ -78,12 +241,20 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 
         if (allTabsAreTables) {
           const tabsConfig = tabs.map((tab) => {
-            const schemaName = tab.components[0]?.dataBinding?.schemaName || "";
+            const tabComponent = tab.components[0];
+            const tabBinding = resolveRouteParamValue(
+              tabComponent?.dataBinding,
+              routeParams,
+            );
             return {
-              schemaName,
+              schemaName: tabBinding?.schemaName || "",
               label: tab.title,
               isPaginated: true,
-              tableConfig: tab.components[0]?.table,
+              dataBinding: tabBinding,
+              tableConfig: getTableConfig(
+                tabComponent?.table,
+                tabComponent?.props,
+              ),
             };
           });
           return <GenericTabPage tabs={tabsConfig} />;
@@ -95,6 +266,25 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
             TabPanel component requires tabs configuration
           </p>
         </div>
+      );
+
+    case "infoBlocks":
+      return (
+        <InfoBlocks
+          config={props?.infoBlocks as InfoBlocksConfig | undefined}
+          dataBinding={resolvedDataBinding}
+        />
+      );
+
+    case "distributionBlocks":
+      return (
+        <DistributionBlocks
+          title={title}
+          config={
+            props?.distributionBlocks as DistributionBlocksConfig | undefined
+          }
+          dataBinding={resolvedDataBinding}
+        />
       );
 
     case "barChart":
@@ -125,9 +315,9 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
       }
 
       if (
-        dataBinding?.kind === "pipeline" &&
-        dataBinding.schemaName &&
-        dataBinding.pipelineName
+        resolvedDataBinding?.kind === "pipeline" &&
+        resolvedDataBinding.schemaName &&
+        resolvedDataBinding.pipelineName
       ) {
         return (
           <DynamicChart
@@ -141,9 +331,9 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
                 | undefined,
               dataBinding: {
                 kind: "pipeline",
-                schemaName: dataBinding.schemaName,
-                pipelineName: dataBinding.pipelineName,
-                params: dataBinding.params,
+                schemaName: resolvedDataBinding.schemaName,
+                pipelineName: resolvedDataBinding.pipelineName,
+                params: resolvedDataBinding.params,
               },
             }}
           />
@@ -170,7 +360,10 @@ const RenderComponent: React.FC<{ component: ComponentBlock }> = ({
 };
 
 // Render a grid cell
-const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
+const GridCellView: React.FC<{ cell: GridCell; routeParams: RouteParams }> = ({
+  cell,
+  routeParams,
+}) => {
   const { row, column, rowSpan = 1, colSpan = 1, components } = cell;
   const sortedComponents = [...components].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0)
@@ -185,7 +378,11 @@ const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
     >
       <div className="flex flex-col gap-4 h-full">
         {sortedComponents.map((component) => (
-          <RenderComponent key={component.id} component={component} />
+          <RenderComponent
+            key={component.id}
+            component={component}
+            routeParams={routeParams}
+          />
         ))}
       </div>
     </div>
@@ -193,7 +390,10 @@ const GridCellView: React.FC<{ cell: GridCell }> = ({ cell }) => {
 };
 
 // Render a grid section
-const GridSectionView: React.FC<{ grid: GridSection }> = ({ grid }) => {
+const GridSectionView: React.FC<{
+  grid: GridSection;
+  routeParams: RouteParams;
+}> = ({ grid, routeParams }) => {
   const { columns, gap = 16, cells } = grid;
 
   return (
@@ -206,20 +406,26 @@ const GridSectionView: React.FC<{ grid: GridSection }> = ({ grid }) => {
       }}
     >
       {cells.map((cell) => (
-        <GridCellView key={cell.id} cell={cell} />
+        <GridCellView key={cell.id} cell={cell} routeParams={routeParams} />
       ))}
     </div>
   );
 };
 
 export const PagePreviewPage: React.FC = () => {
-  const { pageId } = useParams<{ pageId: string }>();
+  const params = useParams<{ pageId: string; "*": string }>();
+  const { pageId } = params;
   const pages = useGetTenantPages();
 
   const page = useMemo(() => {
     if (!pages || !pageId) return null;
     return pages.find((p: any) => p._id === pageId || p.id === pageId);
   }, [pages, pageId]);
+
+  const routeParams = useMemo(
+    () => extractRouteParamsFromPath(page?.slug, params["*"]),
+    [page?.slug, params],
+  );
 
   if (!page) {
     return (
@@ -264,7 +470,11 @@ export const PagePreviewPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">{page.name}</h1>
         <div className="flex flex-col gap-8">
           {gridSections.map((section, index) => (
-            <GridSectionView key={index} grid={section} />
+            <GridSectionView
+              key={index}
+              grid={section}
+              routeParams={routeParams}
+            />
           ))}
         </div>
       </div>

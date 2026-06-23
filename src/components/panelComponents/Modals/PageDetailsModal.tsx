@@ -171,6 +171,20 @@ export const PageDetailsModal: React.FC<PageDetailsModalProps> = ({
                       {getPageTypeLabel(page)}
                     </span>
                   </div>
+                  <div>
+                    <span className="text-gray-500">
+                      {t("Show in Sidebar")}:
+                    </span>
+                    <span
+                      className={`ml-2 font-medium ${
+                        page.isOnSidebar !== false
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {page.isOnSidebar !== false ? t("Yes") : t("No")}
+                    </span>
+                  </div>
                 </div>
               </div>
 

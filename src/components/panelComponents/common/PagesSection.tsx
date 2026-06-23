@@ -100,6 +100,7 @@ export const PagesSection: React.FC = () => {
         parentPageId: parentPageId || "",
         order: page.order,
         isGroupOnly: page.isGroupOnly,
+        isOnSidebar: page.isOnSidebar,
         isAuthenticated: page.isAuthenticated,
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
@@ -125,6 +126,7 @@ export const PagesSection: React.FC = () => {
           parentPageId: editingPage.parentPageId || undefined,
           order: editingPage.order,
           isGroupOnly: editingPage.isGroupOnly,
+          isOnSidebar: editingPage.isOnSidebar,
           isAuthenticated: editingPage.isAuthenticated,
           isAuthorized: editingPage.isAuthorized,
           authorizeRole: editingPage.authorizeRole,
@@ -138,6 +140,32 @@ export const PagesSection: React.FC = () => {
     } catch (error) {
       console.error("Failed to save page structure:", error);
     }
+  };
+
+  const handleSidebarVisibilityChange = (
+    page: PageModel,
+    isOnSidebar: boolean,
+  ) => {
+    const pageId = getPageId(page);
+    if (!pageId) return;
+
+    updatePage({
+      id: pageId,
+      payload: {
+        name: page.name,
+        icon: page.icon,
+        slug: page.slug,
+        parentPageId: page.parentPageId || "",
+        order: page.order,
+        isGroupOnly: page.isGroupOnly,
+        isOnSidebar,
+        isAuthenticated: page.isAuthenticated,
+        isAuthorized: page.isAuthorized,
+        authorizeRole: page.authorizeRole,
+        sections: page.sections,
+        subPage: page.subPage,
+      },
+    });
   };
 
   const handleCancelDesigner = () => {
@@ -225,6 +253,11 @@ export const PagesSection: React.FC = () => {
                         >
                           {getPageTypeLabel(page)}
                         </span>
+                        {page.isOnSidebar === false && (
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                            {t("Hidden from sidebar")}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {(page.sections || []).length} {t("sections")} •
@@ -261,6 +294,17 @@ export const PagesSection: React.FC = () => {
                       );
                     })}
                   </select>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={page.isOnSidebar !== false}
+                      onChange={(e) =>
+                        handleSidebarVisibilityChange(page, e.target.checked)
+                      }
+                      className="h-3.5 w-3.5 rounded border-gray-300"
+                    />
+                    {t("Sidebar")}
+                  </label>
                   <GenericButton
                     variant="outline"
                     size="sm"
