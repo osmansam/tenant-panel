@@ -39,7 +39,19 @@ export interface TableLinkConfig {
   type?: LinkType;
 }
 
-export type TableColumnType = "field" | "computedLabel" | "progressBar";
+export type TableColumnType =
+  | "field"
+  | "computedLabel"
+  | "progressBar"
+  | "number"
+  | "currency"
+  | "percentage"
+  | "growthPercentage"
+  | "date"
+  | "boolean"
+  | "image"
+  | "badge"
+  | "array";
 
 export interface TableComputedLabelRule {
   condition?: string;

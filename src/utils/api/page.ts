@@ -46,7 +46,19 @@ export interface PageTableLinkConfig {
   type?: string;
 }
 
-export type PageTableColumnType = "field" | "computedLabel" | "progressBar";
+export type PageTableColumnType =
+  | "field"
+  | "computedLabel"
+  | "progressBar"
+  | "number"
+  | "currency"
+  | "percentage"
+  | "growthPercentage"
+  | "date"
+  | "boolean"
+  | "image"
+  | "badge"
+  | "array";
 
 export interface PageTableComputedLabelRule {
   condition?: string;
