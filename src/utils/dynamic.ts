@@ -517,11 +517,13 @@ export function useGetTableSourceItems<T>(
   page: number,
   limit: number,
   binding: TableSourceBinding,
-  filters: FormElementsState
+  filters: FormElementsState,
+  resolvedParams?: Record<string, unknown>
 ) {
   const sourceType = binding.kind || "schema";
   const schemaName = binding.schemaName || "";
   const baseQueryUrl = `${BASE}/table-source`;
+  const mergedParams = { ...(binding.params || {}), ...(resolvedParams || {}) };
   const queryKey = [
     "dynamic",
     schemaName,
@@ -529,7 +531,7 @@ export function useGetTableSourceItems<T>(
     sourceType,
     binding.pipelineName || "",
     binding.workflowName || "",
-    { page, limit, filters, fields: binding.fields || [], params: binding.params || {} },
+    { page, limit, filters, fields: binding.fields || [], params: mergedParams },
   ] as const;
 
   const parts = [
@@ -553,7 +555,7 @@ export function useGetTableSourceItems<T>(
       }`,
   ];
 
-  Object.entries({ ...(binding.params || {}), ...filters }).forEach(
+  Object.entries({ ...mergedParams, ...filters }).forEach(
     ([key, value]) => {
       if (
         !["sort", "asc", "search"].includes(key) &&
@@ -586,16 +588,18 @@ export function useGetTableSourceItems<T>(
 }
 
 export function useGetWorkflowData<T>(
-  binding: Pick<TableSourceBinding, "schemaName" | "workflowName" | "params">
+  binding: Pick<TableSourceBinding, "schemaName" | "workflowName" | "params">,
+  resolvedParams?: Record<string, unknown>
 ) {
   const schemaName = binding.schemaName || "";
   const workflowName = binding.workflowName || "";
+  const mergedParams = { ...(binding.params || {}), ...(resolvedParams || {}) };
   const queryKey = [
     "dynamic",
     schemaName,
     "workflow",
     workflowName,
-    binding.params || {},
+    mergedParams,
   ] as const;
 
   const { data } = useQuery({
@@ -605,7 +609,7 @@ export function useGetWorkflowData<T>(
         `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
           schemaName,
         })}`,
-        { record: binding.params || {} },
+        { record: mergedParams },
         {
           headers: {
             "Content-Type": "application/json",

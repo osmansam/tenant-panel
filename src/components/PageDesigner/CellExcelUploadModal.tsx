@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComponentBlock } from "../../types/page";
 import { useUploadExcel } from "../../utils/api/container";
+import { createRuntimeId } from "../../utils/pageBindings";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
 interface CellExcelUploadModalProps {
@@ -93,7 +94,7 @@ export function CellExcelUploadModal({
 
       // Create table component with the schema
       const tableComponent: ComponentBlock = {
-        id: `comp-${Date.now()}`,
+        id: createRuntimeId("cmp"),
         type: "table",
         order: 1,
         dataBinding: {

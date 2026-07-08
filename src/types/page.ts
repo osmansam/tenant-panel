@@ -9,6 +9,85 @@ export type BindingKind =
   | "api"
   | "function";
 
+export type RuntimeValueType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "date"
+  | "dateRange"
+  | "stringArray"
+  | "numberArray";
+
+export interface PageVariableDefinition {
+  id: string;
+  key: string;
+  type: RuntimeValueType;
+  initialValue?: unknown;
+}
+
+export interface PageFilterPlacement {
+  kind: "navbar" | "cell";
+  cellId?: string;
+}
+
+export interface PageFilterDefinition {
+  id: string;
+  key: string;
+  label: string;
+  type: RuntimeValueType;
+  defaultValue?: unknown;
+  defaultPreset?:
+    | "today"
+    | "yesterday"
+    | "tomorrow"
+    | "thisWeek"
+    | "lastWeek"
+    | "thisMonth"
+    | "lastMonth"
+    | "thisYear"
+    | "lastYear";
+  arraySerialization?: "comma" | "repeat";
+  placement: PageFilterPlacement;
+}
+
+export type ComponentOutputSource =
+  | { kind: "tableFilter"; filterId: string }
+  | { kind: "tableSelectedIds" }
+  | { kind: "tableSearch" };
+
+export interface ComponentOutputDefinition {
+  id: string;
+  key: string;
+  type: RuntimeValueType;
+  source: ComponentOutputSource;
+}
+
+export type ParameterBinding =
+  | { source: "static"; value: unknown }
+  | {
+      source: "pageFilter";
+      filterId: string;
+      field?: "value" | "start" | "end" | "preset" | "timezone";
+    }
+  | { source: "pageVariable"; variableId: string }
+  | {
+      source: "componentOutput";
+      componentId: string;
+      outputId: string;
+      field?: "start" | "end" | "preset" | "timezone";
+    }
+  | {
+      source: "system";
+      value: "today" | "thisWeek" | "thisMonth" | "thisYear" | "now";
+      field?: "start" | "end";
+    }
+  | {
+      source: "derived";
+      input: ParameterBinding;
+      transform: "previousCalendarPeriod" | "previousEqualDuration";
+      field?: "start" | "end";
+    };
+
 export interface DataBinding {
   kind: BindingKind;
   schemaName?: string;
@@ -18,6 +97,7 @@ export interface DataBinding {
   functionName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   params?: Record<string, any>;
+  parameters?: Record<string, ParameterBinding>;
 }
 
 export interface GroupBy {
@@ -44,7 +124,19 @@ export interface TableLinkConfig {
   type?: LinkType;
 }
 
-export type TableColumnType = "field" | "computedLabel" | "progressBar";
+export type TableColumnType =
+  | "field"
+  | "computedLabel"
+  | "progressBar"
+  | "number"
+  | "currency"
+  | "percentage"
+  | "growthPercentage"
+  | "date"
+  | "boolean"
+  | "image"
+  | "badge"
+  | "array";
 
 export interface TableComputedLabelRule {
   condition?: string;
@@ -126,6 +218,7 @@ export interface TableActionFormOptionConfig {
 }
 
 export interface TableActionFormFieldConfig {
+  id?: string;
   formKey: string;
   type: TableActionInputType;
   formKeyType?: TableActionFormKeyType;
@@ -308,6 +401,9 @@ export interface InfoBlockItemConfig {
 export interface InfoBlocksConfig {
   source?: InfoBlocksSource;
   items?: InfoBlockItemConfig[];
+  isDynamic?: boolean;
+  dynamicLimit?: number;
+  dynamicItem?: InfoBlockItemConfig;
 }
 
 export interface DistributionBlockItemConfig {
@@ -320,6 +416,9 @@ export interface DistributionBlockItemConfig {
 export interface DistributionBlocksConfig {
   source?: InfoBlocksSource;
   items?: DistributionBlockItemConfig[];
+  isDynamic?: boolean;
+  dynamicLimit?: number;
+  dynamicItem?: DistributionBlockItemConfig;
 }
 
 export type ComponentType =
@@ -362,6 +461,8 @@ export interface ComponentBlock {
   id: string;
   type: ComponentType;
   title?: string;
+  stateKey?: string;
+  outputs?: ComponentOutputDefinition[];
   order?: number;
   dataBinding?: DataBinding;
   groupBy?: GroupBy; // Grouping configuration for table components
@@ -390,6 +491,8 @@ export interface GridSection {
 }
 
 export interface PageModel {
+  variables?: PageVariableDefinition[];
+  filters?: PageFilterDefinition[];
   id?: string;
   name: string;
   icon?: string;

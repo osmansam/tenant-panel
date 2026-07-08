@@ -7,36 +7,18 @@ import {
   useGetTenantPages,
 } from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
+import {
+  filterPageIcons,
+  PAGE_ICON_CATEGORIES,
+  PAGE_ICON_OPTIONS,
+  PageIconCategory,
+} from "../../../utils/pageIcons";
 import TextInput from "../FormElements/TextInput";
 
 interface CreatePageModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-// Popular icon options for pages
-const ICON_OPTIONS = [
-  { value: "MdSpaceDashboard", label: "Dashboard" },
-  { value: "MdTableRestaurant", label: "Table" },
-  { value: "MdShoppingCart", label: "Shopping Cart" },
-  { value: "MdPerson", label: "Person" },
-  { value: "MdSettings", label: "Settings" },
-  { value: "MdAssessment", label: "Assessment" },
-  { value: "MdBarChart", label: "Bar Chart" },
-  { value: "MdDescription", label: "Description" },
-  { value: "MdFolder", label: "Folder" },
-  { value: "MdImage", label: "Image" },
-  { value: "MdNotifications", label: "Notifications" },
-  { value: "MdCardGiftcard", label: "Gift Card" },
-  { value: "MdReceipt", label: "Receipt" },
-  { value: "MdStorefront", label: "Store" },
-  { value: "MdInventory2", label: "Inventory" },
-  { value: "MdAttachMoney", label: "Money" },
-  { value: "MdLocalShipping", label: "Shipping" },
-  { value: "MdEventAvailable", label: "Event" },
-  { value: "MdFeedback", label: "Feedback" },
-  { value: "MdVerifiedUser", label: "Verified User" },
-];
 
 const buildPathFromName = (name: string) =>
   name
@@ -75,6 +57,11 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
   const [isPagePathEdited, setIsPagePathEdited] = useState(false);
   const [isOnSidebar, setIsOnSidebar] = useState(true);
   const [selectedIcon, setSelectedIcon] = useState("MdSpaceDashboard");
+  const [isIconBrowserOpen, setIsIconBrowserOpen] = useState(false);
+  const [iconSearch, setIconSearch] = useState("");
+  const [iconCategory, setIconCategory] = useState<
+    PageIconCategory | "All"
+  >("All");
   const [parentPageId, setParentPageId] = useState("");
   const { createPage, isCreating } = useCreatePage();
   const pages = useGetTenantPages() || [];
@@ -89,6 +76,10 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     normalizedPagePath && !isValidPagePath(normalizedPagePath)
       ? t("Use path segments like count, count/:id, or reports/:reportId")
       : "";
+  const filteredIcons = useMemo(
+    () => filterPageIcons(iconSearch, iconCategory),
+    [iconCategory, iconSearch],
+  );
 
   useEffect(() => {
     if (isPagePathEdited) return;
@@ -116,6 +107,9 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     setIsPagePathEdited(false);
     setIsOnSidebar(true);
     setSelectedIcon("MdSpaceDashboard");
+    setIsIconBrowserOpen(false);
+    setIconSearch("");
+    setIconCategory("All");
     setParentPageId("");
     onClose();
   };
@@ -126,6 +120,9 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     setIsPagePathEdited(false);
     setIsOnSidebar(true);
     setSelectedIcon("MdSpaceDashboard");
+    setIsIconBrowserOpen(false);
+    setIconSearch("");
+    setIconCategory("All");
     setParentPageId("");
     onClose();
   };
@@ -199,14 +196,103 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                 onChange={(e) => setSelectedIcon(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
               >
-                {ICON_OPTIONS.map((option) => (
+                {PAGE_ICON_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => setIsIconBrowserOpen((current) => !current)}
+                className="mt-2 w-full px-3 py-2 text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                {isIconBrowserOpen
+                  ? t("Close icon browser")
+                  : t("Browse icons")}
+              </button>
             </div>
           </div>
+
+          {isIconBrowserOpen && (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">
+                    {t("Browse icons")}
+                  </h3>
+                  <p className="text-xs text-neutral-500">
+                    {t("Search by icon name or filter by category")}
+                  </p>
+                </div>
+                <span className="text-xs font-medium text-neutral-500">
+                  {filteredIcons.length} {t("icons")}
+                </span>
+              </div>
+
+              <input
+                type="search"
+                value={iconSearch}
+                onChange={(event) => setIconSearch(event.target.value)}
+                placeholder={t("Search icons...")}
+                className="w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+              />
+
+              <div className="flex flex-wrap gap-1.5">
+                {(["All", ...PAGE_ICON_CATEGORIES] as const).map(
+                  (category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setIconCategory(category)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                        iconCategory === category
+                          ? "bg-neutral-900 text-white"
+                          : "bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {t(category)}
+                    </button>
+                  ),
+                )}
+              </div>
+
+              {filteredIcons.length > 0 ? (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-64 overflow-y-auto pr-1">
+                  {filteredIcons.map((option) => {
+                    const IconComponent = getIconByName(option.value);
+                    const isSelected = selectedIcon === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        title={`${option.label} (${option.value})`}
+                        onClick={() => {
+                          setSelectedIcon(option.value);
+                          setIsIconBrowserOpen(false);
+                        }}
+                        className={`min-h-20 rounded-lg border p-2 flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
+                          isSelected
+                            ? "border-neutral-900 bg-neutral-900 text-white"
+                            : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-100"
+                        }`}
+                      >
+                        <IconComponent size={22} />
+                        <span className="w-full truncate text-[10px] font-medium">
+                          {t(option.label)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
+                  {t("No icons match your search")}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Page Path */}
           <div>

@@ -314,11 +314,11 @@ const RenderComponent: React.FC<{
         );
       }
 
-      if (
-        resolvedDataBinding?.kind === "pipeline" &&
-        resolvedDataBinding.schemaName &&
-        resolvedDataBinding.pipelineName
-      ) {
+      const hasBinding = resolvedDataBinding?.schemaName && 
+        ((resolvedDataBinding.kind === "pipeline" && resolvedDataBinding.pipelineName) || 
+         (resolvedDataBinding.kind === "workflow" && resolvedDataBinding.workflowName));
+
+      if (hasBinding) {
         return (
           <DynamicChart
             config={{
@@ -330,9 +330,10 @@ const RenderComponent: React.FC<{
                 | Record<string, unknown>
                 | undefined,
               dataBinding: {
-                kind: "pipeline",
+                kind: resolvedDataBinding.kind as "pipeline" | "workflow",
                 schemaName: resolvedDataBinding.schemaName,
                 pipelineName: resolvedDataBinding.pipelineName,
+                workflowName: resolvedDataBinding.workflowName,
                 params: resolvedDataBinding.params,
               },
             }}
@@ -342,7 +343,7 @@ const RenderComponent: React.FC<{
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
           <p className="text-yellow-800 text-sm">
-            Chart component requires pipeline binding
+            Chart component requires pipeline or workflow binding
           </p>
         </div>
       );

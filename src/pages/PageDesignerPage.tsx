@@ -2,15 +2,17 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import { PageDesigner } from "../components/PageDesigner/PageDesigner";
 import { GridSection } from "../types/page";
+import type { PageFilterDefinition } from "../utils/api/page";
 
 export const PageDesignerPage: React.FC = () => {
   const [sections, setSections] = useState<GridSection[]>([]);
+  const [filters, setFilters] = useState<PageFilterDefinition[]>([]);
   const [showJson, setShowJson] = useState(false);
 
   const handleSave = async () => {
     try {
       // Here you would save to your API
-      console.log("Saving page structure:", sections);
+      console.log("Saving page structure:", { sections, filters });
 
       // Example API call:
       // await savePage({ sections });
@@ -23,7 +25,7 @@ export const PageDesignerPage: React.FC = () => {
   };
 
   const handleExport = () => {
-    const json = JSON.stringify(sections, null, 2);
+    const json = JSON.stringify({ sections, filters }, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -42,7 +44,8 @@ export const PageDesignerPage: React.FC = () => {
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target?.result as string);
-        setSections(imported);
+        setSections(Array.isArray(imported) ? imported : imported.sections || []);
+        setFilters(Array.isArray(imported) ? [] : imported.filters || []);
         toast.success("Page structure imported!");
       } catch (error) {
         toast.error("Invalid JSON file");
@@ -199,7 +202,7 @@ export const PageDesignerPage: React.FC = () => {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    JSON.stringify(sections, null, 2)
+                    JSON.stringify({ sections, filters }, null, 2)
                   );
                   toast.success("Copied to clipboard!");
                 }}
@@ -222,7 +225,7 @@ export const PageDesignerPage: React.FC = () => {
               </button>
             </div>
             <pre className="text-xs text-emerald-300 overflow-auto max-h-64 bg-neutral-950 rounded-xl p-4 border border-neutral-800 font-mono shadow-inner">
-              {JSON.stringify(sections, null, 2)}
+              {JSON.stringify({ sections, filters }, null, 2)}
             </pre>
           </div>
         </div>
@@ -230,7 +233,12 @@ export const PageDesignerPage: React.FC = () => {
 
       {/* Page Designer */}
       <div className="flex-1 overflow-hidden">
-        <PageDesigner sections={sections} onChange={setSections} />
+        <PageDesigner
+          sections={sections}
+          filters={filters}
+          onChange={setSections}
+          onFiltersChange={setFilters}
+        />
       </div>
     </div>
   );

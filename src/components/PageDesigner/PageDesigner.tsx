@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiEdit2,
@@ -47,11 +47,31 @@ import type { OptionType } from "../../types";
 import { getIconByName } from "../../utils/menuIcons";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
+import ParameterBindingsEditor from "./ParameterBindingsEditor";
+import PageFilterModal from "./PageFilterModal";
+import type {
+  ComponentBlock as RuntimeComponentBlock,
+  PageModel as RuntimePageModel,
+  PageFilterDefinition,
+  ParameterBinding as RuntimeParameterBinding,
+} from "../../utils/api/page";
+import {
+  createRuntimeId,
+  dependentBindings,
+  ensurePageRuntimeIds,
+  isSafeRuntimeName,
+  type PageBindingIssue,
+  uniqueComponentStateKey,
+  validatePageBindings,
+} from "../../utils/pageBindings";
 
 interface PageDesignerProps {
   sections: GridSection[];
   onChange: (sections: GridSection[]) => void;
+  filters?: PageFilterDefinition[];
+  onFiltersChange?: (filters: PageFilterDefinition[]) => void;
 }
 
 const CHART_TYPES = [
@@ -72,6 +92,63 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+interface OptionField {
+  name: string;
+  label: string;
+  type: "text" | "number" | "boolean" | "select" | "array";
+  required?: boolean;
+  defaultValue?: any;
+  placeholder?: string;
+  options?: string[];
+}
+
+const CHART_SPECIFIC_OPTIONS: Record<string, OptionField[]> = {
+  barChart: [
+    { name: "indexBy", label: "Index By (X-Axis Field)", type: "text", required: true, placeholder: "e.g. monthName" },
+    { name: "keys", label: "Series Keys (Y-Axis Fields)", type: "array", required: true, placeholder: "e.g. totalQuantitySold, orderCount" },
+    { name: "groupMode", label: "Group Mode", type: "select", options: ["stacked", "grouped"], defaultValue: "stacked" },
+    { name: "layout", label: "Layout", type: "select", options: ["vertical", "horizontal"], defaultValue: "vertical" },
+    { name: "padding", label: "Padding between bars", type: "number", defaultValue: 0.3 }
+  ],
+  lineChart: [
+    { name: "curve", label: "Curve Type", type: "select", options: ["linear", "cardinal", "catmullRom", "monotoneX", "step"], defaultValue: "linear" },
+    { name: "enableArea", label: "Enable Area Fill", type: "boolean", defaultValue: false },
+    { name: "useMesh", label: "Enable Interactive Mesh", type: "boolean", defaultValue: true }
+  ],
+  pieChart: [
+    { name: "id", label: "Slice ID Property", type: "text", placeholder: "e.g. categoryName" },
+    { name: "value", label: "Slice Value Property", type: "text", placeholder: "e.g. totalQuantitySold" },
+    { name: "innerRadius", label: "Inner Radius (0-1 for donut)", type: "number", defaultValue: 0.5 },
+    { name: "padAngle", label: "Padding Angle", type: "number", defaultValue: 0.7 },
+    { name: "cornerRadius", label: "Corner Radius", type: "number", defaultValue: 3 }
+  ],
+  radarChart: [
+    { name: "indexBy", label: "Index By Field", type: "text", required: true, placeholder: "e.g. monthName" },
+    { name: "keys", label: "Series Keys", type: "array", required: true, placeholder: "e.g. totalQuantitySold" },
+    { name: "curve", label: "Curve Type", type: "select", options: ["linearClosed", "catmullRomClosed"], defaultValue: "linearClosed" }
+  ],
+  heatmapChart: [
+    { name: "indexBy", label: "Index By Field", type: "text", required: true, placeholder: "e.g. monthName" },
+    { name: "keys", label: "Series Keys", type: "array", required: true, placeholder: "e.g. totalQuantitySold" },
+    { name: "forceSquare", label: "Force Square Cells", type: "boolean", defaultValue: false }
+  ],
+  calendarChart: [
+    { name: "from", label: "From Date (YYYY-MM-DD)", type: "text", placeholder: "e.g. 2026-01-01" },
+    { name: "to", label: "To Date (YYYY-MM-DD)", type: "text", placeholder: "e.g. 2026-12-31" },
+    { name: "emptyColor", label: "Empty Cell Color", type: "text", defaultValue: "#eeeeee" }
+  ],
+  treemapChart: [
+    { name: "identity", label: "Identity Property", type: "text", defaultValue: "id" },
+    { name: "value", label: "Value Property", type: "text", defaultValue: "value" }
+  ],
+  waffleChart: [
+    { name: "total", label: "Total Waffle Cells", type: "number", required: true, defaultValue: 100 },
+    { name: "rows", label: "Waffle Rows", type: "number", required: true, defaultValue: 10 },
+    { name: "columns", label: "Waffle Columns", type: "number", required: true, defaultValue: 10 }
+  ]
+};
+
 
 const INFO_BLOCK_SOURCES: { value: InfoBlocksSource; label: string }[] = [
   { value: "static", label: "Static values" },
@@ -556,6 +633,54 @@ const inferPipelineOutputFields = (
   return fallbackFields.map((field) => field.name).filter(Boolean);
 };
 
+const extractPipelineParams = (pipeline: PipelineStage | null): string[] => {
+  if (!pipeline) return [];
+  const jsonStr = pipeline.pipelineJson || (pipeline as any).pipelineJSON || "";
+  if (!jsonStr) return [];
+  
+  const paramsSet = new Set<string>();
+  
+  // 1. Match {{paramName}}
+  const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
+  let match;
+  while ((match = rePlaceholders.exec(jsonStr)) !== null) {
+    const p = match[1];
+    if (!["tenantID", "projectID"].includes(p) && !p.startsWith("projectCollection:") && !p.startsWith("collection:")) {
+      paramsSet.add(p);
+    }
+  }
+  
+  // 2. Match {"$param": "paramName"}
+  const reDollarParam = /\{\s*"\$param"\s*:\s*"([A-Za-z0-9_-]+)"\s*\}/g;
+  while ((match = reDollarParam.exec(jsonStr)) !== null) {
+    paramsSet.add(match[1]);
+  }
+  
+  return Array.from(paramsSet);
+};
+
+const extractWorkflowParams = (workflow: any | null): string[] => {
+  if (!workflow) return [];
+  try {
+    const jsonStr = JSON.stringify(workflow);
+    const paramsSet = new Set<string>();
+    
+    // Match {{placeholder}}
+    const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
+    let match;
+    while ((match = rePlaceholders.exec(jsonStr)) !== null) {
+      const p = match[1];
+      if (!["tenantID", "projectID"].includes(p) && !p.startsWith("projectCollection:") && !p.startsWith("collection:")) {
+        paramsSet.add(p);
+      }
+    }
+    return Array.from(paramsSet);
+  } catch {
+    return [];
+  }
+};
+
+
 const flattenWorkflowSteps = (steps: WorkflowStep[] = []): WorkflowStep[] =>
   steps.flatMap((step) => [
     step,
@@ -811,6 +936,7 @@ const cleanFilterPanelInputs = (
   inputs
     .filter((field) => field.formKey.trim())
     .map((field) => ({
+      ...(field.id ? { id: field.id } : {}),
       formKey: field.formKey.trim(),
       type: field.type || "text",
       formKeyType: field.formKeyType || "string",
@@ -1068,6 +1194,8 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
   onChange,
+  filters = [],
+  onFiltersChange,
 }) => {
   const [selectedSection, setSelectedSection] = useState<number | null>(null);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
@@ -1078,6 +1206,31 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const [excelTargetSectionIndex, setExcelTargetSectionIndex] = useState<
     number | null
   >(null);
+  const [filterModal, setFilterModal] = useState<{
+    cellId: string;
+    filter: PageFilterDefinition | null;
+  } | null>(null);
+  const runtimePage = useMemo<RuntimePageModel>(
+    () => ({
+      name: "Designer",
+      filters,
+      sections: sections as unknown as RuntimePageModel["sections"],
+    }),
+    [filters, sections],
+  );
+  const isEnsuringRuntimeIds = useRef(false);
+
+  useEffect(() => {
+    if (isEnsuringRuntimeIds.current) {
+      isEnsuringRuntimeIds.current = false;
+      return;
+    }
+    const ensured = ensurePageRuntimeIds(runtimePage);
+    if (ensured.sections && ensured.sections !== runtimePage.sections) {
+      isEnsuringRuntimeIds.current = true;
+      onChange(ensured.sections as unknown as GridSection[]);
+    }
+  }, [onChange, runtimePage]);
 
   const containers = useGetContainers();
   const schemas = containers?.map((c: any) => c.schemaName || c.name) || [];
@@ -1086,6 +1239,32 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
       value: c.schemaName,
       label: c.schemaName,
     })) || [];
+  const allCellOptions = useMemo(
+    () =>
+      sections.flatMap((section, sectionIndex) =>
+        section.cells.map((cell, cellIndex) => ({
+          id: cell.id,
+          label: `Section ${sectionIndex + 1}, Cell ${cellIndex + 1}`,
+        })),
+      ),
+    [sections],
+  );
+  const savePageFilter = (next: PageFilterDefinition) => {
+    onFiltersChange?.(
+      filters.some((filter) => filter.id === next.id)
+        ? filters.map((filter) => (filter.id === next.id ? next : filter))
+        : [...filters, next],
+    );
+    setFilterModal(null);
+  };
+  const deletePageFilter = (filterId: string) => {
+    const dependents = dependentBindings(runtimePage, { kind: "pageFilter", filterId });
+    if (dependents.length > 0) {
+      alert("This page filter is used by component request parameters. Remove those bindings before deleting it.");
+      return;
+    }
+    onFiltersChange?.(filters.filter((filter) => filter.id !== filterId));
+  };
 
   // Add new section
   const addSection = () => {
@@ -1208,6 +1387,21 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   // Delete cell
   const deleteCell = (sectionIndex: number, cellId: string) => {
     const section = sections[sectionIndex];
+    if (filters.some((filter) => filter.placement.kind === "cell" && filter.placement.cellId === cellId)) {
+      alert("This cell contains page filters. Move or delete those filters before deleting the cell.");
+      return;
+    }
+    const cell = section.cells.find((candidate) => candidate.id === cellId);
+    const hasDependents = (cell?.components || []).some((component) =>
+      dependentBindings(runtimePage, {
+        kind: "component",
+        componentId: component.id,
+      }).length > 0,
+    );
+    if (hasDependents) {
+      alert("This cell contains component outputs used by request parameters. Remove those bindings before deleting the cell.");
+      return;
+    }
     updateSection(sectionIndex, {
       cells: section.cells.filter((c) => c.id !== cellId),
     });
@@ -1236,6 +1430,15 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     componentId: string
   ) => {
     const section = sections[sectionIndex];
+    if (
+      dependentBindings(runtimePage, {
+        kind: "component",
+        componentId,
+      }).length > 0
+    ) {
+      alert("This component has outputs used by request parameters. Remove those bindings before deleting the component.");
+      return;
+    }
     const cells = section.cells.map((cell) =>
       cell.id === cellId
         ? {
@@ -1358,6 +1561,8 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             schemas={schemas}
             containerOptions={containerOptions}
             containers={containers || []}
+            page={runtimePage}
+            filters={filters}
             onUpdateSection={(updates) =>
               updateSection(selectedSection, updates)
             }
@@ -1376,6 +1581,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             onUpdateComponent={(cellId, componentId, component) =>
               updateComponent(selectedSection, cellId, componentId, component)
             }
+            onAddPageFilter={(cellId) => setFilterModal({ cellId, filter: null })}
+            onEditPageFilter={(cellId, filter) => setFilterModal({ cellId, filter })}
+            onDeletePageFilter={deletePageFilter}
             selectedCell={selectedCell}
             setSelectedCell={setSelectedCell}
           />
@@ -1404,6 +1612,15 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
         onSuccess={handleCellExcelUploadSuccess}
         mode="cell"
       />
+      {filterModal && (
+        <PageFilterModal
+          filter={filterModal.filter}
+          defaultCellId={filterModal.cellId}
+          cells={allCellOptions}
+          onClose={() => setFilterModal(null)}
+          onSave={savePageFilter}
+        />
+      )}
     </div>
   );
 };
@@ -1415,6 +1632,8 @@ interface SectionEditorProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
   containers: ContainerModel[];
+  page: RuntimePageModel;
+  filters: PageFilterDefinition[];
   onUpdateSection: (updates: Partial<GridSection>) => void;
   onAddCell: () => void;
   onAddCellWithExcel: () => void;
@@ -1427,6 +1646,9 @@ interface SectionEditorProps {
     componentId: string,
     component: ComponentBlock
   ) => void;
+  onAddPageFilter: (cellId: string) => void;
+  onEditPageFilter: (cellId: string, filter: PageFilterDefinition) => void;
+  onDeletePageFilter: (filterId: string) => void;
   selectedCell: string | null;
   setSelectedCell: (cellId: string | null) => void;
 }
@@ -1437,6 +1659,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   schemas,
   containerOptions,
   containers,
+  page,
+  filters,
   onUpdateSection,
   onAddCell,
   onAddCellWithExcel,
@@ -1445,6 +1669,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onAddComponent,
   onDeleteComponent,
   onUpdateComponent,
+  onAddPageFilter,
+  onEditPageFilter,
+  onDeletePageFilter,
   selectedCell,
   setSelectedCell,
 }) => {
@@ -1560,12 +1787,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               <CellEditor
                 key={cell.id}
                 cell={cell}
+                filters={filters.filter(
+                  (filter) =>
+                    filter.placement.kind === "cell" &&
+                    filter.placement.cellId === cell.id,
+                )}
                 schemas={schemas}
                 isSelected={selectedCell === cell.id}
                 onSelect={() => setSelectedCell(cell.id)}
                 onUpdate={(updates) => onUpdateCell(cell.id, updates)}
                 onDelete={() => onDeleteCell(cell.id)}
                 onAddComponent={() => openComponentModal(cell.id)}
+                onAddPageFilter={() => onAddPageFilter(cell.id)}
+                onEditPageFilter={(filter) => onEditPageFilter(cell.id, filter)}
+                onDeletePageFilter={onDeletePageFilter}
                 onDeleteComponent={(componentId) =>
                   onDeleteComponent(cell.id, componentId)
                 }
@@ -1584,6 +1819,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           schemas={schemas}
           containerOptions={containerOptions}
           containers={containers}
+          page={page}
+          currentCellId={currentCellId}
           editingComponent={editingComponent}
           onClose={() => {
             setShowComponentModal(false);
@@ -1609,24 +1846,32 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 // Cell Editor Component
 interface CellEditorProps {
   cell: GridCell;
+  filters: PageFilterDefinition[];
   schemas: string[];
   isSelected: boolean;
   onSelect: () => void;
   onUpdate: (updates: Partial<GridCell>) => void;
   onDelete: () => void;
   onAddComponent: () => void;
+  onAddPageFilter: () => void;
+  onEditPageFilter: (filter: PageFilterDefinition) => void;
+  onDeletePageFilter: (filterId: string) => void;
   onDeleteComponent: (componentId: string) => void;
   onEditComponent: (component: ComponentBlock) => void;
 }
 
 const CellEditor: React.FC<CellEditorProps> = ({
   cell,
+  filters,
   schemas,
   isSelected,
   onSelect,
   onUpdate,
   onDelete,
   onAddComponent,
+  onAddPageFilter,
+  onEditPageFilter,
+  onDeletePageFilter,
   onDeleteComponent,
   onEditComponent,
 }) => {
@@ -1670,6 +1915,17 @@ const CellEditor: React.FC<CellEditorProps> = ({
           >
             <FiPlus size={13} />
             <span>Add</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddPageFilter();
+            }}
+            className="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-md transition-all flex items-center gap-1"
+            title="Add page filter"
+          >
+            <FiPlus size={13} />
+            <span>Filter</span>
           </button>
           <button
             onClick={(e) => {
@@ -1751,9 +2007,47 @@ const CellEditor: React.FC<CellEditorProps> = ({
 
       {/* Components List */}
       <div className="space-y-2">
+        {filters.map((filter) => (
+          <div
+            key={filter.id}
+            className="group/filter p-3 bg-violet-50 border border-violet-200 rounded-lg hover:border-violet-400 hover:shadow-sm transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-violet-900">
+                  {filter.label || filter.key}
+                </div>
+                <div className="text-[11px] text-violet-700 font-mono">
+                  {filter.key} · {filter.type}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onEditPageFilter(filter)}
+                  className="opacity-0 group-hover/filter:opacity-100 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-all flex items-center gap-1"
+                  title="Edit Page Filter"
+                >
+                  <FiEdit2 size={12} />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => onDeletePageFilter(filter.id)}
+                  className="opacity-0 group-hover/filter:opacity-100 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-all flex items-center gap-1"
+                  title="Delete Page Filter"
+                >
+                  <FiTrash2 size={12} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
         {cell.components.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-xs text-neutral-400 mb-2">No components</p>
+            <p className="text-xs text-neutral-400 mb-2">
+              {filters.length > 0 ? "No components" : "No components or filters"}
+            </p>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1762,6 +2056,15 @@ const CellEditor: React.FC<CellEditorProps> = ({
               className="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
             >
               Add your first component
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddPageFilter();
+              }}
+              className="ml-3 text-xs text-violet-700 hover:text-violet-900 font-medium"
+            >
+              Add page filter
             </button>
           </div>
         ) : (
@@ -1881,7 +2184,10 @@ interface ComponentModalProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
   containers: ContainerModel[];
+  page: RuntimePageModel;
+  currentCellId: string;
   editingComponent: ComponentBlock | null;
+  fixedComponentType?: ComponentBlock["type"];
   onClose: () => void;
   onAdd: (component: ComponentBlock) => void;
 }
@@ -1890,12 +2196,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   schemas,
   containerOptions,
   containers,
+  page,
+  currentCellId,
   editingComponent,
+  fixedComponentType,
   onClose,
   onAdd,
 }) => {
   const { t } = useTranslation();
-  const [componentType, setComponentType] = useState<string>("table");
+  const [componentType, setComponentType] = useState<string>(
+    fixedComponentType || "table",
+  );
   const [schemaName, setSchemaName] = useState<string>("");
   const [tableSourceType, setTableSourceType] = useState<
     "schema" | "pipeline" | "workflow"
@@ -1907,6 +2218,28 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [groupBy, setGroupBy] = useState<GroupBy>(EMPTY_GROUP_BY);
   const [showTabExcelModal, setShowTabExcelModal] = useState(false);
   const [params, setParams] = useState<string>(""); // JSON string for params
+  const [chartProps, setChartProps] = useState<Record<string, any>>({
+    height: 400,
+    colors: { scheme: "nivo" },
+  });
+  const [customChartOptions, setCustomChartOptions] = useState<string>("");
+  const [paramsMap, setParamsMap] = useState<Record<string, string>>({});
+  const [structuredParameters, setStructuredParameters] = useState<
+    Record<string, RuntimeParameterBinding>
+  >({});
+  const [runtimeOutputs, setRuntimeOutputs] = useState<
+    NonNullable<ComponentBlock["outputs"]>
+  >([]);
+  const [stateKey, setStateKey] = useState<string>("");
+  const [stateKeyTouched, setStateKeyTouched] = useState(false);
+  const [bindingIssues, setBindingIssues] = useState<PageBindingIssue[]>([]);
+  const [showAdvancedJson, setShowAdvancedJson] = useState<boolean>(false);
+  const [customParamKey, setCustomParamKey] = useState<string>("");
+  const [tableEditorTarget, setTableEditorTarget] = useState<{
+    tabIndex: number;
+    componentId?: string;
+  } | null>(null);
+
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
     columns: [],
     rows: { className: [] },
@@ -1914,6 +2247,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     addButton: undefined,
     actions: [],
   });
+  const draftRuntimeComponent = useMemo<RuntimeComponentBlock>(
+    () =>
+      ({
+        ...(editingComponent || {}),
+        id: editingComponent?.id || createRuntimeId("cmp"),
+        type: componentType,
+        title,
+        stateKey,
+        outputs: runtimeOutputs,
+        table: tableConfig,
+      }) as unknown as RuntimeComponentBlock,
+    [componentType, editingComponent, runtimeOutputs, stateKey, tableConfig, title],
+  );
   const [formConfig, setFormConfig] = useState<FormComponentConfig>(() =>
     buildDefaultFormConfig("", []),
   );
@@ -1929,6 +2275,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   >(resizeDistributionBlockItems(3, []));
   const [activeTableSettingsTab, setActiveTableSettingsTab] =
     useState<TableSettingsTab>("columns");
+
+  const [isDynamic, setIsDynamic] = useState<boolean>(false);
+  const [dynamicLimit, setDynamicLimit] = useState<number>(50);
+  const [dynamicInfoBlockItem, setDynamicInfoBlockItem] = useState<InfoBlockItemConfig>({
+    title: "",
+    value: "{{value}}",
+    footer: "",
+    color: "",
+    titleColorRules: [],
+    footerColorRules: [],
+  });
+  const [dynamicDistributionBlockItem, setDynamicDistributionBlockItem] = useState<DistributionBlockItemConfig>({
+    label: "",
+    value: "",
+    percent: "",
+    color: "",
+  });
 
   const selectedContainer = useMemo(
     () => containers.find((container) => container.schemaName === schemaName),
@@ -2040,6 +2403,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     if (editingComponent) {
       setComponentType(editingComponent.type);
       setTitle(editingComponent.title || "");
+      setRuntimeOutputs(editingComponent.outputs || []);
+      setStructuredParameters(
+        (editingComponent.dataBinding?.parameters || {}) as Record<
+          string,
+          RuntimeParameterBinding
+        >,
+      );
+      setStateKey(
+        editingComponent.stateKey ||
+          uniqueComponentStateKey(
+            page,
+            editingComponent.title || editingComponent.type,
+            editingComponent.type,
+          ),
+      );
+      setStateKeyTouched(!!editingComponent.stateKey);
+      setBindingIssues([]);
 
       if (editingComponent.dataBinding) {
         setTableSourceType(
@@ -2051,12 +2431,42 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         setSchemaName(editingComponent.dataBinding.schemaName || "");
         setPipelineName(editingComponent.dataBinding.pipelineName || "");
         setWorkflowName(editingComponent.dataBinding.workflowName || "");
+        
+        const initialParams = editingComponent.dataBinding.params || {};
+        const map: Record<string, string> = {};
+        for (const [k, v] of Object.entries(initialParams)) {
+          map[k] = typeof v === "object" ? JSON.stringify(v) : String(v);
+        }
+        setParamsMap(map);
+
         setParams(
           editingComponent.dataBinding.params
             ? JSON.stringify(editingComponent.dataBinding.params, null, 2)
             : ""
         );
       }
+
+      if (CHART_TYPES.some((c) => c.value === editingComponent.type)) {
+        const props = editingComponent.props || {};
+        const chartOptions = props.chartOptions || {};
+        
+        setChartProps({
+          height: props.height || 400,
+          ...chartOptions,
+        });
+        
+        const specificFields = CHART_SPECIFIC_OPTIONS[editingComponent.type] || [];
+        const specificKeys = ["height", "colors", ...specificFields.map((f) => f.name)];
+        
+        const restOptions: Record<string, any> = {};
+        for (const [k, v] of Object.entries(chartOptions)) {
+          if (!specificKeys.includes(k)) {
+            restOptions[k] = v;
+          }
+        }
+        setCustomChartOptions(Object.keys(restOptions).length > 0 ? JSON.stringify(restOptions, null, 2) : "");
+      }
+
 
       setTabs(editingComponent.tabs || []);
       setGroupBy(editingComponent.groupBy || EMPTY_GROUP_BY);
@@ -2075,6 +2485,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             infoBlocks?.items || [],
           ),
         );
+        setIsDynamic(infoBlocks?.isDynamic || false);
+        setDynamicLimit(infoBlocks?.dynamicLimit || 50);
+        setDynamicInfoBlockItem(infoBlocks?.dynamicItem || { title: "", value: "{{value}}", footer: "", color: "" });
       }
       if (editingComponent.type === "distributionBlocks") {
         const distributionBlocks = editingComponent.props?.distributionBlocks as
@@ -2091,6 +2504,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             distributionBlocks?.items || [],
           ),
         );
+        setIsDynamic(distributionBlocks?.isDynamic || false);
+        setDynamicLimit(distributionBlocks?.dynamicLimit || 50);
+        setDynamicDistributionBlockItem(distributionBlocks?.dynamicItem || { label: "", value: "", percent: "", color: "" });
       }
       if (
         editingComponent.type === "tabPanel" &&
@@ -2184,8 +2600,44 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setDistributionBlocksSource("static");
       setDistributionBlockItems(resizeDistributionBlockItems(3, []));
       setFormConfig(buildDefaultFormConfig("", []));
+      setIsDynamic(false);
+      setDynamicLimit(50);
+      setDynamicInfoBlockItem({ title: "", value: "{{value}}", footer: "", color: "" });
+      setDynamicDistributionBlockItem({ label: "", value: "", percent: "", color: "" });
+      setChartProps({
+        height: 400,
+        colors: { scheme: "nivo" },
+      });
+      setCustomChartOptions("");
+      setParamsMap({});
+      setParams("");
+      setStructuredParameters({});
+      setRuntimeOutputs([]);
+      setStateKey(uniqueComponentStateKey(page, "table", "table"));
+      setStateKeyTouched(false);
+      setBindingIssues([]);
     }
-  }, [editingComponent]);
+  }, [editingComponent, page]);
+
+  useEffect(() => {
+    if (stateKeyTouched || editingComponent?.stateKey) return;
+    setStateKey(uniqueComponentStateKey(page, title || componentType, componentType));
+  }, [componentType, editingComponent?.stateKey, page, stateKeyTouched, title]);
+
+  useEffect(() => {
+    if (componentType !== "table") return;
+    const inputs = tableConfig.filterPanel?.inputs;
+    if (!inputs?.some((input) => !input.id)) return;
+    setTableConfig((current) => ({
+      ...current,
+      filterPanel: {
+        ...current.filterPanel,
+        inputs: (current.filterPanel?.inputs || []).map((input) =>
+          input.id ? input : { ...input, id: createRuntimeId("tfl") },
+        ),
+      },
+    }));
+  }, [componentType, tableConfig.filterPanel?.inputs]);
 
   useEffect(() => {
     if (
@@ -2246,6 +2698,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   }, [componentType, containers, editingComponent?.form, schemaName]);
 
   useEffect(() => {
+    if (CHART_TYPES.some((c) => c.value === componentType) && tableSourceType === "schema") {
+      setTableSourceType("pipeline");
+    }
+  }, [componentType, tableSourceType]);
+
+  useEffect(() => {
     if (componentType !== "table" || tableSourceType !== "pipeline") {
       return;
     }
@@ -2285,9 +2743,213 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   }, [componentType, tableSourceType, workflowName, workflowOptions]);
 
+  const selectedPipeline = useMemo(() => {
+    const activeName = pipelineName;
+    if (!activeName) return null;
+    return pipelineOptions.find(({ pipeline }) => pipeline.name === activeName)?.pipeline || null;
+  }, [pipelineName, pipelineOptions]);
+
+  const selectedWorkflow = useMemo(() => {
+    const activeName = workflowName;
+    if (!activeName) return null;
+    return workflowOptions.find(({ workflow }) => workflow.name === activeName)?.workflow || null;
+  }, [workflowName, workflowOptions]);
+
+  useEffect(() => {
+    const detectedParams: string[] = [];
+    if (selectedPipeline) {
+      detectedParams.push(...extractPipelineParams(selectedPipeline));
+    } else if (selectedWorkflow) {
+      detectedParams.push(...extractWorkflowParams(selectedWorkflow));
+    }
+    
+    if (detectedParams.length > 0) {
+      setParamsMap((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const p of detectedParams) {
+          if (!(p in next)) {
+            next[p] = "";
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [selectedPipeline, selectedWorkflow]);
+
+  const handleParamChange = (key: string, val: string) => {
+    const updated = { ...paramsMap, [key]: val };
+    setParamsMap(updated);
+    syncParamsJson(updated);
+  };
+
+  const handleRemoveParam = (key: string) => {
+    const updated = { ...paramsMap };
+    delete updated[key];
+    setParamsMap(updated);
+    syncParamsJson(updated);
+  };
+
+  const handleAddCustomParam = () => {
+    const trimmed = customParamKey.trim();
+    if (!trimmed) return;
+    if (trimmed in paramsMap) {
+      alert("Parameter already exists.");
+      return;
+    }
+    const updated = { ...paramsMap, [trimmed]: "" };
+    setParamsMap(updated);
+    setCustomParamKey("");
+    syncParamsJson(updated);
+  };
+
+  const syncParamsJson = (map: Record<string, string>) => {
+    const cleanedParams: Record<string, any> = {};
+    for (const [k, v] of Object.entries(map)) {
+      if (v === "") continue;
+      
+      if (/^\d+$/.test(v)) {
+        cleanedParams[k] = parseInt(v, 10);
+      } else if (/^\d+\.\d+$/.test(v)) {
+        cleanedParams[k] = parseFloat(v);
+      } else if (v === "true") {
+        cleanedParams[k] = true;
+      } else if (v === "false") {
+        cleanedParams[k] = false;
+      } else {
+        try {
+          if ((v.startsWith("{") && v.endsWith("}")) || (v.startsWith("[") && v.endsWith("]"))) {
+            cleanedParams[k] = JSON.parse(v);
+          } else {
+            cleanedParams[k] = v;
+          }
+        } catch {
+          cleanedParams[k] = v;
+        }
+      }
+    }
+    setParams(JSON.stringify(cleanedParams, null, 2));
+  };
+
+  const handleRawJsonChange = (val: string) => {
+    setParams(val);
+    try {
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const nextMap: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          nextMap[k] = typeof v === "object" ? JSON.stringify(v) : String(v);
+        }
+        
+        const detectedParams: string[] = [];
+        if (selectedPipeline) {
+          detectedParams.push(...extractPipelineParams(selectedPipeline));
+        } else if (selectedWorkflow) {
+          detectedParams.push(...extractWorkflowParams(selectedWorkflow));
+        }
+        for (const p of detectedParams) {
+          if (!(p in nextMap)) {
+            nextMap[p] = "";
+          }
+        }
+        
+        setParamsMap(nextMap);
+      }
+    } catch {
+      // Ignore typing errors
+    }
+  };
+
+  const handleChartPropChange = (name: string, value: any) => {
+    setChartProps((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const isChartConfigInvalid = (): boolean => {
+    if (!CHART_TYPES.some((c) => c.value === componentType)) return false;
+    
+    const specificFields = CHART_SPECIFIC_OPTIONS[componentType] || [];
+    for (const field of specificFields) {
+      if (field.required) {
+        const val = chartProps[field.name];
+        if (val === undefined || val === null || String(val).trim() === "") {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
+    const next: ComponentBlock = {
+      ...component,
+      id: isSafeRuntimeName(component.id) ? component.id : createRuntimeId("cmp"),
+      stateKey:
+        stateKey.trim() ||
+        uniqueComponentStateKey(page, title || componentType, componentType),
+    };
+
+    if (runtimeOutputs.length > 0 || (editingComponent?.outputs?.length ?? 0) > 0) {
+      next.outputs = runtimeOutputs;
+    }
+
+    if (next.dataBinding) {
+      const parameterEntries = Object.entries(structuredParameters).filter(
+        ([parameter]) => parameter.trim(),
+      );
+      if (
+        parameterEntries.length > 0 ||
+        Object.keys(editingComponent?.dataBinding?.parameters || {}).length > 0
+      ) {
+        next.dataBinding = {
+          ...next.dataBinding,
+          parameters: Object.fromEntries(parameterEntries),
+        } as ComponentBlock["dataBinding"];
+      }
+    }
+
+    return next;
+  };
+
+  const pageWithSavedComponent = (component: ComponentBlock): RuntimePageModel => {
+    const runtimeComponent = component as unknown as NonNullable<
+      NonNullable<RuntimePageModel["sections"]>[number]["component"]
+    >;
+    const sections = (page.sections || []).map((section) => ({
+      ...section,
+      cells: (section.cells || []).map((cell) => {
+        if (cell.id !== currentCellId) return cell;
+        const components = editingComponent
+          ? (cell.components || []).map((candidate) =>
+              candidate.id === editingComponent.id ? runtimeComponent! : candidate,
+            )
+          : [...(cell.components || []), runtimeComponent!];
+        return { ...cell, components };
+      }),
+    }));
+    return { ...page, sections };
+  };
+
+  const validateComponentBindings = (component: ComponentBlock): boolean => {
+    const issues = validatePageBindings(pageWithSavedComponent(component));
+    const visibleIssues = issues.filter(
+      (issue) =>
+        issue.componentId === component.id ||
+        issue.path.includes(currentCellId),
+    );
+    setBindingIssues(visibleIssues);
+    return visibleIssues.length === 0;
+  };
+
   const handleAdd = () => {
-    const component: ComponentBlock = {
-      id: editingComponent?.id || `comp-${Date.now()}`,
+    let component: ComponentBlock = {
+      id:
+        editingComponent?.id && isSafeRuntimeName(editingComponent.id)
+          ? editingComponent.id
+          : createRuntimeId("cmp"),
       type: componentType as any,
       title,
       order: editingComponent?.order || 1,
@@ -2383,7 +3045,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       component.props = {
         infoBlocks: {
           source: infoBlocksSource,
-          items: infoBlockItems,
+          items: isDynamic ? undefined : infoBlockItems,
+          isDynamic,
+          dynamicLimit: isDynamic ? dynamicLimit : undefined,
+          dynamicItem: isDynamic ? dynamicInfoBlockItem : undefined,
         } satisfies InfoBlocksConfig,
       };
 
@@ -2409,7 +3074,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       component.props = {
         distributionBlocks: {
           source: distributionBlocksSource,
-          items: distributionBlockItems,
+          items: isDynamic ? undefined : distributionBlockItems,
+          isDynamic,
+          dynamicLimit: isDynamic ? dynamicLimit : undefined,
+          dynamicItem: isDynamic ? dynamicDistributionBlockItem : undefined,
         } satisfies DistributionBlocksConfig,
       };
 
@@ -2433,16 +3101,57 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         }
       }
 
+      let parsedCustomOptions = {};
+      if (customChartOptions.trim()) {
+        try {
+          parsedCustomOptions = JSON.parse(customChartOptions);
+        } catch (e) {
+          console.error("Invalid custom chart options JSON:", e);
+        }
+      }
+
+      const compiledChartOptions: Record<string, any> = {
+        colors: chartProps.colors || { scheme: "nivo" },
+        ...parsedCustomOptions,
+      };
+
+      const specificFields = CHART_SPECIFIC_OPTIONS[componentType] || [];
+      for (const field of specificFields) {
+        const val = chartProps[field.name];
+        if (val === undefined || val === "") continue;
+        
+        if (field.type === "array") {
+          compiledChartOptions[field.name] = String(val)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        } else if (field.type === "number") {
+          compiledChartOptions[field.name] = Number(val);
+        } else if (field.type === "boolean") {
+          compiledChartOptions[field.name] = Boolean(val);
+        } else {
+          compiledChartOptions[field.name] = val;
+        }
+      }
+
+      const isWorkflow = tableSourceType === "workflow";
       component.dataBinding = {
-        kind: "pipeline",
+        kind: isWorkflow ? "workflow" : "pipeline",
         schemaName,
-        pipelineName,
+        ...(isWorkflow ? { workflowName } : { pipelineName }),
         ...(parsedParams && { params: parsedParams }),
       };
 
-      console.log("📊 Chart component created:", component);
+      component.props = {
+        height: Number(chartProps.height || 400),
+        chartOptions: compiledChartOptions,
+      };
+
+      console.log("📊 Chart component created with props:", component);
     }
 
+    component = applyRuntimeBindings(component);
+    if (!validateComponentBindings(component)) return;
     onAdd(component);
   };
 
@@ -3166,6 +3875,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const removeFilterPanelInput = (inputIndex: number) => {
+    const input = tableConfig.filterPanel?.inputs?.[inputIndex];
+    if (
+      input?.id &&
+      runtimeOutputs.some(
+        (output) =>
+          output.source.kind === "tableFilter" && output.source.filterId === input.id,
+      )
+    ) {
+      alert("This filter is exposed as a component output. Delete that output before deleting the filter.");
+      return;
+    }
     setTableConfig((current) => ({
       ...current,
       filterPanel: {
@@ -3209,24 +3929,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     ]);
   };
 
-  const addTableToTab = (tabIndex: number, schema: string) => {
-    const updatedTabs = [...tabs];
-    const container = containers.find((item) => item.schemaName === schema);
-    updatedTabs[tabIndex].components.push({
-      id: `comp-${Date.now()}`,
-      type: "table",
-      order: updatedTabs[tabIndex].components.length + 1,
-      dataBinding: {
-        kind: "schema",
-        schemaName: schema,
-      },
-      table: {
-        columns: buildTableColumnsFromFields(container?.fields || []),
-      },
-    });
-    setTabs(updatedTabs);
-  };
-
   const removeTab = (tabIndex: number) => {
     setTabs(tabs.filter((_, i) => i !== tabIndex));
   };
@@ -3237,6 +3939,46 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       (comp) => comp.id !== componentId
     );
     setTabs(updatedTabs);
+  };
+
+  const tableBeingEdited =
+    tableEditorTarget?.componentId !== undefined
+      ? tabs[tableEditorTarget.tabIndex]?.components.find(
+          (component) => component.id === tableEditorTarget.componentId,
+        ) || null
+      : null;
+
+  const saveTableToTab = (component: ComponentBlock) => {
+    if (!tableEditorTarget) return;
+
+    setTabs((currentTabs) =>
+      currentTabs.map((tab, tabIndex) => {
+        if (tabIndex !== tableEditorTarget.tabIndex) return tab;
+
+        if (tableEditorTarget.componentId) {
+          return {
+            ...tab,
+            components: tab.components.map((currentComponent) =>
+              currentComponent.id === tableEditorTarget.componentId
+                ? component
+                : currentComponent,
+            ),
+          };
+        }
+
+        return {
+          ...tab,
+          components: [
+            ...tab.components,
+            {
+              ...component,
+              order: tab.components.length + 1,
+            },
+          ],
+        };
+      }),
+    );
+    setTableEditorTarget(null);
   };
 
   const currentAddButton =
@@ -3256,7 +3998,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         <div className="flex items-center justify-between px-8 py-5 border-b border-neutral-100">
           <div>
             <h3 className="text-lg font-semibold text-neutral-900">
-              {editingComponent ? "Edit Component" : "Add Component"}
+              {fixedComponentType === "table"
+                ? editingComponent
+                  ? "Edit Table"
+                  : "Add Table"
+                : editingComponent
+                  ? "Edit Component"
+                  : "Add Component"}
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
               Configure the component settings and data binding
@@ -3285,6 +4033,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6 bg-neutral-50/40">
           <div className="space-y-6">
+            {bindingIssues.some((issue) => !issue.parameter) && (
+              <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 p-3">
+                {bindingIssues
+                  .filter((issue) => !issue.parameter)
+                  .map((issue) => (
+                    <div key={`${issue.path}:${issue.code}`} className="text-xs text-red-700">
+                      {issue.message}
+                    </div>
+                  ))}
+              </div>
+            )}
+
             {/* Component Type */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border border-neutral-200 bg-white p-4">
               <div>
@@ -3294,6 +4054,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 <select
                   value={componentType}
                   onChange={(e) => setComponentType(e.target.value)}
+                  disabled={Boolean(fixedComponentType)}
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 >
                   <option value="table">Table</option>
@@ -3360,6 +4121,203 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Runtime State Key
+                    </label>
+                    <input
+                      type="text"
+                      value={stateKey}
+                      onChange={(e) => {
+                        setStateKeyTouched(true);
+                        setStateKey(e.target.value);
+                      }}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      placeholder="componentStateKey"
+                    />
+                  </div>
+
+                  {componentType === "table" && (
+                    <ComponentOutputsEditor
+                      page={page}
+                      component={draftRuntimeComponent}
+                      onChange={(component) =>
+                        setRuntimeOutputs(
+                          component.outputs as NonNullable<ComponentBlock["outputs"]>,
+                        )
+                      }
+                    />
+                  )}
+
+                  {CHART_TYPES.some((c) => c.value === componentType) && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                          Chart Source
+                        </label>
+                        <select
+                          value={tableSourceType === "schema" ? "pipeline" : tableSourceType}
+                          onChange={(e) => {
+                            const nextSource = e.target.value as "pipeline" | "workflow";
+                            setTableSourceType(nextSource);
+                            setPipelineName("");
+                            setWorkflowName("");
+                          }}
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        >
+                          <option value="pipeline">Pipeline request</option>
+                          <option value="workflow">Workflow request</option>
+                        </select>
+                      </div>
+
+                      {tableSourceType === "pipeline" && (
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Pipeline Name
+                            <span className="text-red-500 ml-0.5">*</span>
+                          </label>
+                          <select
+                            value={pipelineName}
+                            onChange={(e) => setPipelineName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="">
+                              {pipelineOptions.length > 0
+                                ? "Select a pipeline..."
+                                : "No data-returning pipelines"}
+                            </option>
+                            {pipelineOptions.map(({ pipeline }) => (
+                              <option key={pipeline.name} value={pipeline.name}>
+                                {pipeline.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {tableSourceType === "workflow" && (
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Workflow Name
+                            <span className="text-red-500 ml-0.5">*</span>
+                          </label>
+                          <select
+                            value={workflowName}
+                            onChange={(e) => setWorkflowName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="">
+                              {workflowOptions.length > 0
+                                ? "Select a workflow..."
+                                : "No data-returning workflows"}
+                            </option>
+                            {workflowOptions.map(({ workflow }) => (
+                              <option key={workflow.name} value={workflow.name}>
+                                {workflow.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {/* Dynamic Chart Options */}
+                      <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-neutral-50/50 p-4 rounded-xl border border-neutral-200 mt-2">
+                        <div className="md:col-span-2">
+                          <span className="text-sm font-semibold text-neutral-800">
+                            Chart Options (Props)
+                          </span>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Chart Height (px)
+                          </label>
+                          <input
+                            type="number"
+                            value={chartProps.height || 400}
+                            onChange={(e) => handleChartPropChange("height", Number(e.target.value))}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            placeholder="400"
+                            min={100}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Color Scheme
+                          </label>
+                          <select
+                            value={chartProps.colors?.scheme || "nivo"}
+                            onChange={(e) => handleChartPropChange("colors", { scheme: e.target.value })}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="nivo">nivo (Default)</option>
+                            <option value="category10">category10</option>
+                            <option value="accent">accent</option>
+                            <option value="dark2">dark2</option>
+                            <option value="paired">paired</option>
+                            <option value="pastel1">pastel1</option>
+                            <option value="pastel2">pastel2</option>
+                            <option value="set1">set1</option>
+                            <option value="set2">set2</option>
+                            <option value="set3">set3</option>
+                          </select>
+                        </div>
+                        
+                        {/* Specific fields depending on chart type */}
+                        {(CHART_SPECIFIC_OPTIONS[componentType] || []).map((field) => (
+                          <div key={field.name} className={field.type === "array" ? "md:col-span-2" : ""}>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                            </label>
+                            {field.type === "select" ? (
+                              <select
+                                value={chartProps[field.name] || field.defaultValue || ""}
+                                onChange={(e) => handleChartPropChange(field.name, e.target.value)}
+                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                              >
+                                {(field.options || []).map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : field.type === "boolean" ? (
+                              <label className="inline-flex items-center mt-3 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(chartProps[field.name] ?? field.defaultValue)}
+                                  onChange={(e) => handleChartPropChange(field.name, e.target.checked)}
+                                  className="w-4 h-4 text-violet-600 border-neutral-300 rounded focus:ring-violet-500"
+                                />
+                                <span className="ml-2 text-sm text-neutral-700">{field.label}</span>
+                              </label>
+                            ) : (
+                              <input
+                                type={field.type === "number" ? "number" : "text"}
+                                value={chartProps[field.name] ?? ""}
+                                onChange={(e) => handleChartPropChange(field.name, field.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}
+                                placeholder={field.placeholder}
+                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                              />
+                            )}
+                          </div>
+                        ))}
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Custom Chart Options (JSON)
+                          </label>
+                          <textarea
+                            value={customChartOptions}
+                            onChange={(e) => setCustomChartOptions(e.target.value)}
+                            className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder='{"margin": {"top": 40, "right": 80, "bottom": 80, "left": 80}}'
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {componentType === "table" && (
                     <>
@@ -3511,26 +4469,58 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                      Blocks
-                    </label>
-                    <select
-                      value={infoBlockItems.length}
-                      onChange={(e) =>
-                        setInfoBlockItems((current) =>
-                          resizeInfoBlockItems(Number(e.target.value), current),
-                        )
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    >
-                      {[1, 2, 3, 4, 5].map((count) => (
-                        <option key={count} value={count}>
-                          {count}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {infoBlocksSource !== "static" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Generation Mode
+                      </label>
+                      <select
+                        value={isDynamic ? "dynamic" : "static"}
+                        onChange={(e) => setIsDynamic(e.target.value === "dynamic")}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="static">Static blocks</option>
+                        <option value="dynamic">Dynamic (from array data)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {(!isDynamic || infoBlocksSource === "static") ? (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Blocks
+                      </label>
+                      <select
+                        value={infoBlockItems.length}
+                        onChange={(e) =>
+                          setInfoBlockItems((current) =>
+                            resizeInfoBlockItems(Number(e.target.value), current),
+                          )
+                        }
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        {[1, 2, 3, 4, 5].map((count) => (
+                          <option key={count} value={count}>
+                            {count}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Max Blocks (Limit)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={dynamicLimit}
+                        onChange={(e) => setDynamicLimit(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  )}
 
                   {infoBlocksSource !== "static" && (
                     <div>
@@ -3604,218 +4594,474 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {infoBlockItems.map((item, index) => {
-                    return (
-                      <div
-                        key={`info-block-editor-${index}`}
-                        className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
-                      >
-                      <div className="mb-3 text-sm font-semibold text-neutral-800">
-                        Block {index + 1}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          value={item.title || ""}
-                          onChange={(e) =>
-                            setInfoBlockItems((current) =>
-                              current.map((block, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...block, title: e.target.value }
-                                  : block,
-                              ),
-                            )
-                          }
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="Upper text"
-                        />
-                        <input
-                          type="text"
-                          value={item.value || ""}
-                          onChange={(e) =>
-                            setInfoBlockItems((current) =>
-                              current.map((block, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...block, value: e.target.value }
-                                  : block,
-                              ),
-                            )
-                          }
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="{{quantity}}"
-                        />
-                        <input
-                          type="text"
-                          value={item.footer || ""}
-                          onChange={(e) =>
-                            setInfoBlockItems((current) =>
-                              current.map((block, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...block, footer: e.target.value }
-                                  : block,
-                              ),
-                            )
-                          }
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="Lower text"
-                        />
-                        <input
-                          type="color"
-                          value={item.color || "#ffffff"}
-                          onChange={(e) =>
-                            setInfoBlockItems((current) =>
-                              current.map((block, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...block, color: e.target.value }
-                                  : block,
-                              ),
-                            )
-                          }
-                          className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                          title="Side color"
-                        />
-                        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                              Upper text color rules
+                {(!isDynamic || infoBlocksSource === "static") ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {infoBlockItems.map((item, index) => {
+                      return (
+                        <div
+                          key={`info-block-editor-${index}`}
+                          className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+                        >
+                        <div className="mb-3 text-sm font-semibold text-neutral-800">
+                          Block {index + 1}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={item.title || ""}
+                            onChange={(e) =>
+                              setInfoBlockItems((current) =>
+                                current.map((block, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...block, title: e.target.value }
+                                    : block,
+                                ),
+                              )
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="Upper text"
+                          />
+                          <input
+                            type="text"
+                            value={item.value || ""}
+                            onChange={(e) =>
+                              setInfoBlockItems((current) =>
+                                current.map((block, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...block, value: e.target.value }
+                                    : block,
+                                ),
+                              )
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="{{quantity}}"
+                          />
+                          <input
+                            type="text"
+                            value={item.footer || ""}
+                            onChange={(e) =>
+                              setInfoBlockItems((current) =>
+                                current.map((block, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...block, footer: e.target.value }
+                                    : block,
+                                ),
+                              )
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="Lower text"
+                          />
+                          <input
+                            type="color"
+                            value={item.color || "#ffffff"}
+                            onChange={(e) =>
+                              setInfoBlockItems((current) =>
+                                current.map((block, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...block, color: e.target.value }
+                                    : block,
+                                ),
+                              )
+                            }
+                            className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                            title="Side color"
+                          />
+                          <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                Upper text color rules
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  addInfoBlockColorRule(index, "titleColorRules")
+                                }
+                                className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                              >
+                                + Add rule
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                addInfoBlockColorRule(index, "titleColorRules")
-                              }
-                              className="text-xs font-medium text-violet-700 hover:text-violet-900"
-                            >
-                              + Add rule
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {(item.titleColorRules || []).map(
-                              (rule, ruleIndex) => (
-                                <div
-                                  key={ruleIndex}
-                                  className="grid grid-cols-[1fr_96px_auto] gap-2"
-                                >
-                                  <input
-                                    type="text"
-                                    value={rule.condition || ""}
-                                    onChange={(e) =>
-                                      updateInfoBlockColorRule(
-                                        index,
-                                        "titleColorRules",
-                                        ruleIndex,
-                                        { condition: e.target.value },
-                                      )
-                                    }
-                                    className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                    placeholder="{{high}} > 4 or default"
-                                  />
-                                  <input
-                                    type="color"
-                                    value={rule.color || "#16a34a"}
-                                    onChange={(e) =>
-                                      updateInfoBlockColorRule(
-                                        index,
-                                        "titleColorRules",
-                                        ruleIndex,
-                                        { color: e.target.value },
-                                      )
-                                    }
-                                    className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                                    title="Upper text color"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeInfoBlockColorRule(
-                                        index,
-                                        "titleColorRules",
-                                        ruleIndex,
-                                      )
-                                    }
-                                    className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                            <div className="space-y-2">
+                              {(item.titleColorRules || []).map(
+                                (rule, ruleIndex) => (
+                                  <div
+                                    key={ruleIndex}
+                                    className="grid grid-cols-[1fr_96px_auto] gap-2"
                                   >
-                                    <FiTrash2 size={14} />
-                                  </button>
-                                </div>
-                              ),
-                            )}
+                                    <input
+                                      type="text"
+                                      value={rule.condition || ""}
+                                      onChange={(e) =>
+                                        updateInfoBlockColorRule(
+                                          index,
+                                          "titleColorRules",
+                                          ruleIndex,
+                                          { condition: e.target.value },
+                                        )
+                                      }
+                                      className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      placeholder="{{high}} > 4 or default"
+                                    />
+                                    <input
+                                      type="color"
+                                      value={rule.color || "#16a34a"}
+                                      onChange={(e) =>
+                                        updateInfoBlockColorRule(
+                                          index,
+                                          "titleColorRules",
+                                          ruleIndex,
+                                          { color: e.target.value },
+                                        )
+                                      }
+                                      className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                      title="Upper text color"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeInfoBlockColorRule(
+                                          index,
+                                          "titleColorRules",
+                                          ruleIndex,
+                                        )
+                                      }
+                                      className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                    >
+                                      <FiTrash2 size={14} />
+                                    </button>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                          <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                Lower text color rules
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  addInfoBlockColorRule(index, "footerColorRules")
+                                }
+                                className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                              >
+                                + Add rule
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {(item.footerColorRules || []).map(
+                                (rule, ruleIndex) => (
+                                  <div
+                                    key={ruleIndex}
+                                    className="grid grid-cols-[1fr_96px_auto] gap-2"
+                                  >
+                                    <input
+                                      type="text"
+                                      value={rule.condition || ""}
+                                      onChange={(e) =>
+                                        updateInfoBlockColorRule(
+                                          index,
+                                          "footerColorRules",
+                                          ruleIndex,
+                                          { condition: e.target.value },
+                                        )
+                                      }
+                                      className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      placeholder="{{high}} > 4 or default"
+                                    />
+                                    <input
+                                      type="color"
+                                      value={rule.color || "#16a34a"}
+                                      onChange={(e) =>
+                                        updateInfoBlockColorRule(
+                                          index,
+                                          "footerColorRules",
+                                          ruleIndex,
+                                          { color: e.target.value },
+                                        )
+                                      }
+                                      className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                      title="Lower text color"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeInfoBlockColorRule(
+                                          index,
+                                          "footerColorRules",
+                                          ruleIndex,
+                                        )
+                                      }
+                                      className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                    >
+                                      <FiTrash2 size={14} />
+                                    </button>
+                                  </div>
+                                ),
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                              Lower text color rules
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                addInfoBlockColorRule(index, "footerColorRules")
-                              }
-                              className="text-xs font-medium text-violet-700 hover:text-violet-900"
-                            >
-                              + Add rule
-                            </button>
+                      </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-neutral-200 bg-violet-50/50 p-4">
+                    <div className="mb-3 text-sm font-semibold text-neutral-800 flex items-center justify-between">
+                      <span>Dynamic Block Template</span>
+                      <span className="text-xs font-normal text-neutral-500 font-mono">Maps over array items</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Upper text (e.g. {"{"}{"{"}categoryName{"}"}{"}"})
+                        </label>
+                        <input
+                          type="text"
+                          value={dynamicInfoBlockItem.title || ""}
+                          onChange={(e) =>
+                            setDynamicInfoBlockItem((current) => ({
+                              ...current,
+                              title: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Upper text template"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Value (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"})
+                        </label>
+                        <input
+                          type="text"
+                          value={dynamicInfoBlockItem.value || ""}
+                          onChange={(e) =>
+                            setDynamicInfoBlockItem((current) => ({
+                              ...current,
+                              value: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Value template"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Lower text (e.g. {"{"}{"{"}orderCount{"}"}{"}"} adet)
+                        </label>
+                        <input
+                          type="text"
+                          value={dynamicInfoBlockItem.footer || ""}
+                          onChange={(e) =>
+                            setDynamicInfoBlockItem((current) => ({
+                              ...current,
+                              footer: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                          placeholder="Lower text template"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Side color (hex, {"{"}{"{"}colorField{"}"}{"}"} or "random")
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={dynamicInfoBlockItem.color || ""}
+                            onChange={(e) =>
+                              setDynamicInfoBlockItem((current) => ({
+                                ...current,
+                                color: e.target.value,
+                              }))
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="e.g. #4f46e5, {{color}} or random"
+                          />
+                          <input
+                            type="color"
+                            value={dynamicInfoBlockItem.color?.startsWith("#") ? dynamicInfoBlockItem.color : "#4f46e5"}
+                            onChange={(e) =>
+                              setDynamicInfoBlockItem((current) => ({
+                                ...current,
+                                color: e.target.value,
+                              }))
+                            }
+                            className="h-[42px] w-[50px] cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                            Upper text color rules
                           </div>
-                          <div className="space-y-2">
-                            {(item.footerColorRules || []).map(
-                              (rule, ruleIndex) => (
-                                <div
-                                  key={ruleIndex}
-                                  className="grid grid-cols-[1fr_96px_auto] gap-2"
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDynamicInfoBlockItem((current) => ({
+                                ...current,
+                                titleColorRules: [
+                                  ...(current.titleColorRules || []),
+                                  createInfoBlockColorRule(),
+                                ],
+                              }))
+                            }
+                            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                          >
+                            + Add rule
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {(dynamicInfoBlockItem.titleColorRules || []).map(
+                            (rule, ruleIndex) => (
+                              <div
+                                key={ruleIndex}
+                                className="grid grid-cols-[1fr_96px_auto] gap-2"
+                              >
+                                <input
+                                  type="text"
+                                  value={rule.condition || ""}
+                                  onChange={(e) =>
+                                    setDynamicInfoBlockItem((current) => {
+                                      const rules = [
+                                        ...(current.titleColorRules || []),
+                                      ];
+                                      rules[ruleIndex] = {
+                                        ...rules[ruleIndex],
+                                        condition: e.target.value,
+                                      };
+                                      return { ...current, titleColorRules: rules };
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  placeholder="{{orderCount}} > 4 or default"
+                                />
+                                <input
+                                  type="color"
+                                  value={rule.color || "#16a34a"}
+                                  onChange={(e) =>
+                                    setDynamicInfoBlockItem((current) => {
+                                      const rules = [
+                                        ...(current.titleColorRules || []),
+                                      ];
+                                      rules[ruleIndex] = {
+                                        ...rules[ruleIndex],
+                                        color: e.target.value,
+                                      };
+                                      return { ...current, titleColorRules: rules };
+                                    })
+                                  }
+                                  className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDynamicInfoBlockItem((current) => ({
+                                      ...current,
+                                      titleColorRules: (
+                                        current.titleColorRules || []
+                                      ).filter((_, idx) => idx !== ruleIndex),
+                                    }))
+                                  }
+                                  className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
                                 >
-                                  <input
-                                    type="text"
-                                    value={rule.condition || ""}
-                                    onChange={(e) =>
-                                      updateInfoBlockColorRule(
-                                        index,
-                                        "footerColorRules",
-                                        ruleIndex,
-                                        { condition: e.target.value },
-                                      )
-                                    }
-                                    className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                    placeholder="{{high}} > 4 or default"
-                                  />
-                                  <input
-                                    type="color"
-                                    value={rule.color || "#16a34a"}
-                                    onChange={(e) =>
-                                      updateInfoBlockColorRule(
-                                        index,
-                                        "footerColorRules",
-                                        ruleIndex,
-                                        { color: e.target.value },
-                                      )
-                                    }
-                                    className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                                    title="Lower text color"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeInfoBlockColorRule(
-                                        index,
-                                        "footerColorRules",
-                                        ruleIndex,
-                                      )
-                                    }
-                                    className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
-                                  >
-                                    <FiTrash2 size={14} />
-                                  </button>
-                                </div>
-                              ),
-                            )}
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                            Lower text color rules
                           </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDynamicInfoBlockItem((current) => ({
+                                ...current,
+                                footerColorRules: [
+                                  ...(current.footerColorRules || []),
+                                  createInfoBlockColorRule(),
+                                ],
+                              }))
+                            }
+                            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                          >
+                            + Add rule
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {(dynamicInfoBlockItem.footerColorRules || []).map(
+                            (rule, ruleIndex) => (
+                              <div
+                                key={ruleIndex}
+                                className="grid grid-cols-[1fr_96px_auto] gap-2"
+                              >
+                                <input
+                                  type="text"
+                                  value={rule.condition || ""}
+                                  onChange={(e) =>
+                                    setDynamicInfoBlockItem((current) => {
+                                      const rules = [
+                                        ...(current.footerColorRules || []),
+                                      ];
+                                      rules[ruleIndex] = {
+                                        ...rules[ruleIndex],
+                                        condition: e.target.value,
+                                      };
+                                      return { ...current, footerColorRules: rules };
+                                    })
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  placeholder="{{orderCount}} > 4 or default"
+                                />
+                                <input
+                                  type="color"
+                                  value={rule.color || "#16a34a"}
+                                  onChange={(e) =>
+                                    setDynamicInfoBlockItem((current) => {
+                                      const rules = [
+                                        ...(current.footerColorRules || []),
+                                      ];
+                                      rules[ruleIndex] = {
+                                        ...rules[ruleIndex],
+                                        color: e.target.value,
+                                      };
+                                      return { ...current, footerColorRules: rules };
+                                    })
+                                  }
+                                  className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDynamicInfoBlockItem((current) => ({
+                                      ...current,
+                                      footerColorRules: (
+                                        current.footerColorRules || []
+                                      ).filter((_, idx) => idx !== ruleIndex),
+                                    }))
+                                  }
+                                  className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </div>
+                            ),
+                          )}
                         </div>
                       </div>
                     </div>
-                    );
-                  })}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -3857,29 +5103,61 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                      Blocks
-                    </label>
-                    <select
-                      value={distributionBlockItems.length}
-                      onChange={(e) =>
-                        setDistributionBlockItems((current) =>
-                          resizeDistributionBlockItems(
-                            Number(e.target.value),
-                            current,
-                          ),
-                        )
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    >
-                      {[1, 2, 3, 4, 5].map((count) => (
-                        <option key={count} value={count}>
-                          {count}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {distributionBlocksSource !== "static" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Generation Mode
+                      </label>
+                      <select
+                        value={isDynamic ? "dynamic" : "static"}
+                        onChange={(e) => setIsDynamic(e.target.value === "dynamic")}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="static">Static blocks</option>
+                        <option value="dynamic">Dynamic (from array data)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {(!isDynamic || distributionBlocksSource === "static") ? (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Blocks
+                      </label>
+                      <select
+                        value={distributionBlockItems.length}
+                        onChange={(e) =>
+                          setDistributionBlockItems((current) =>
+                            resizeDistributionBlockItems(
+                              Number(e.target.value),
+                              current,
+                            ),
+                          )
+                        }
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        {[1, 2, 3, 4, 5].map((count) => (
+                          <option key={count} value={count}>
+                            {count}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Max Blocks (Limit)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={dynamicLimit}
+                        onChange={(e) => setDynamicLimit(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  )}
 
                   {distributionBlocksSource !== "static" && (
                     <div>
@@ -3953,71 +5231,163 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {distributionBlockItems.map((item, index) => (
-                    <div
-                      key={`distribution-block-editor-${index}`}
-                      className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
-                    >
-                      <div className="mb-3 text-sm font-semibold text-neutral-800">
-                        Block {index + 1}
+                {(!isDynamic || distributionBlocksSource === "static") ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {distributionBlockItems.map((item, index) => (
+                      <div
+                        key={`distribution-block-editor-${index}`}
+                        className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+                      >
+                        <div className="mb-3 text-sm font-semibold text-neutral-800">
+                          Block {index + 1}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={item.label || ""}
+                            onChange={(e) =>
+                              updateDistributionBlockItem(index, {
+                                label: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder='{{high > 4 ? "↑ Strateji" : "Strateji"}}'
+                          />
+                          <input
+                            type="text"
+                            value={item.value || ""}
+                            onChange={(e) =>
+                              updateDistributionBlockItem(index, {
+                                value: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="{{strategyCount}}"
+                          />
+                          <input
+                            type="text"
+                            value={item.percent || ""}
+                            onChange={(e) =>
+                              updateDistributionBlockItem(index, {
+                                percent: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="{{strategyPercent}}"
+                          />
+                          <input
+                            type="color"
+                            value={item.color || "#4f46e5"}
+                            onChange={(e) =>
+                              updateDistributionBlockItem(index, {
+                                color: e.target.value,
+                              })
+                            }
+                            className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                            title="Block color"
+                          />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                    <div className="mb-3 text-sm font-semibold text-neutral-800 flex items-center justify-between">
+                      <span>Dynamic Row Template</span>
+                      <span className="text-xs font-normal text-neutral-500 font-mono">Generates rows from array items</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Label (e.g. {"{"}{"{"}categoryName{"}"}{"}"})
+                        </label>
                         <input
                           type="text"
-                          value={item.label || ""}
+                          value={dynamicDistributionBlockItem.label || ""}
                           onChange={(e) =>
-                            updateDistributionBlockItem(index, {
+                            setDynamicDistributionBlockItem((current) => ({
+                              ...current,
                               label: e.target.value,
-                            })
+                            }))
                           }
                           className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder='{{high > 4 ? "↑ Strateji" : "Strateji"}}'
+                          placeholder="Label template"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Value (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"})
+                        </label>
                         <input
                           type="text"
-                          value={item.value || ""}
+                          value={dynamicDistributionBlockItem.value || ""}
                           onChange={(e) =>
-                            updateDistributionBlockItem(index, {
+                            setDynamicDistributionBlockItem((current) => ({
+                              ...current,
                               value: e.target.value,
-                            })
+                            }))
                           }
                           className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="{{strategyCount}}"
+                          placeholder="Value template"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Percent (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"}% or {"{"}{"{"}percentField{"}"}{"}"})
+                        </label>
                         <input
                           type="text"
-                          value={item.percent || ""}
+                          value={dynamicDistributionBlockItem.percent || ""}
                           onChange={(e) =>
-                            updateDistributionBlockItem(index, {
+                            setDynamicDistributionBlockItem((current) => ({
+                              ...current,
                               percent: e.target.value,
-                            })
+                            }))
                           }
                           className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="{{strategyPercent}}"
+                          placeholder="Percent template"
                         />
-                        <input
-                          type="color"
-                          value={item.color || "#4f46e5"}
-                          onChange={(e) =>
-                            updateDistributionBlockItem(index, {
-                              color: e.target.value,
-                            })
-                          }
-                          className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                          title="Block color"
-                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                          Color (hex, {"{"}{"{"}colorField{"}"}{"}"} or "random")
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={dynamicDistributionBlockItem.color || ""}
+                            onChange={(e) =>
+                              setDynamicDistributionBlockItem((current) => ({
+                                ...current,
+                                color: e.target.value,
+                              }))
+                            }
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                            placeholder="e.g. #4f46e5, {{color}} or random"
+                          />
+                          <input
+                            type="color"
+                            value={dynamicDistributionBlockItem.color?.startsWith("#") ? dynamicDistributionBlockItem.color : "#4f46e5"}
+                            onChange={(e) =>
+                              setDynamicDistributionBlockItem((current) => ({
+                                ...current,
+                                color: e.target.value,
+                              }))
+                            }
+                            className="h-[42px] w-[50px] cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                          />
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
             {(componentType !== "tabPanel" || componentType === "tabPanel") && (
               <>
                 {/* Table Configuration */}
-                {(componentType === "table" || componentType === "tabPanel") && (
+                {componentType === "table" && (
                   <div className="space-y-5 border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -4131,6 +5501,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
                                         >
                                           <option value="field">Field</option>
+                                          <option value="number">Number</option>
+                                          <option value="currency">Currency (₺)</option>
+                                          <option value="percentage">Percentage (%)</option>
+                                          <option value="growthPercentage">Growth Percentage (↑ ↓)</option>
+                                          <option value="date">Date</option>
+                                          <option value="boolean">Boolean (Badge)</option>
+                                          <option value="image">Image</option>
+                                          <option value="badge">Badge / Enum</option>
+                                          <option value="array">Array (comma-separated)</option>
                                           <option value="computedLabel">
                                             Computed Label
                                           </option>
@@ -6931,49 +8310,134 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </div>
                 )}
 
-                {/* Pipeline Name (for charts) */}
-                {(CHART_TYPES.find((c) => c.value === componentType) ||
+                {/* Pipeline / Workflow Params */}
+                {(CHART_TYPES.some((c) => c.value === componentType) ||
                   (componentType === "table" &&
                     tableSourceType !== "schema") ||
                   (componentType === "infoBlocks" &&
                     infoBlocksSource !== "static") ||
                   (componentType === "distributionBlocks" &&
                     distributionBlocksSource !== "static")) && (
-                  <>
-                    {CHART_TYPES.find((c) => c.value === componentType) && (
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-2">
-                          Pipeline Name
-                          <span className="text-red-500 ml-0.5">*</span>
+                  <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+                    <div className="flex items-center justify-between border-b border-neutral-200 pb-2 mb-2">
+                      <span className="text-sm font-semibold text-neutral-800">
+                        Source Parameters
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedJson(!showAdvancedJson)}
+                        className="text-xs text-violet-600 hover:text-violet-700 font-medium hover:underline"
+                      >
+                        {showAdvancedJson ? "Hide Raw JSON" : "Edit Raw JSON"}
+                      </button>
+                    </div>
+
+                    <ParameterBindingsEditor
+                      page={page}
+                      componentId={editingComponent?.id || draftRuntimeComponent.id}
+                      value={structuredParameters}
+                      detectedParameterNames={Object.keys(paramsMap)}
+                      issues={bindingIssues}
+                      onChange={setStructuredParameters}
+                    />
+
+                    {/* Compatibility static parameter inputs */}
+                    <div className="space-y-3 rounded-lg border border-amber-100 bg-amber-50/40 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                        Compatibility: legacy static params
+                      </div>
+                      {Object.keys(paramsMap).length === 0 ? (
+                        <div className="text-xs text-neutral-500 italic py-1">
+                          No parameters configured. Select a pipeline or workflow above to automatically scan for parameters.
+                        </div>
+                      ) : (
+                        Object.entries(paramsMap).map(([key, val]) => {
+                          const isDetected = (() => {
+                            const detected: string[] = [];
+                            if (selectedPipeline) {
+                              detected.push(...extractPipelineParams(selectedPipeline));
+                            } else if (selectedWorkflow) {
+                              detected.push(...extractWorkflowParams(selectedWorkflow));
+                            }
+                            return detected.includes(key);
+                          })();
+
+                          return (
+                            <div key={key} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-neutral-200 shadow-sm">
+                              <div className="w-1/3 flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs font-mono font-bold text-neutral-700 truncate" title={key}>
+                                  {key}
+                                </span>
+                                {isDetected && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-medium bg-violet-50 text-violet-600 border border-violet-100 rounded">
+                                    Auto
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  value={val}
+                                  onChange={(e) => handleParamChange(key, e.target.value)}
+                                  placeholder="Value or {{ route.paramName }}"
+                                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+                                />
+                              </div>
+                              {!isDetected && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveParam(key)}
+                                  className="p-1 text-neutral-400 hover:text-red-500 rounded transition-all"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Add Custom parameter */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
+                      <input
+                        type="text"
+                        value={customParamKey}
+                        onChange={(e) => setCustomParamKey(e.target.value)}
+                        placeholder="Custom param name..."
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCustomParam();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomParam}
+                        className="px-3 py-1.5 bg-neutral-200 hover:bg-neutral-300 active:scale-95 text-neutral-700 text-xs font-medium rounded-md transition-all"
+                      >
+                        Add Custom
+                      </button>
+                    </div>
+
+                    {/* Raw JSON textarea (Advanced) */}
+                    {showAdvancedJson && (
+                      <div className="space-y-1.5 pt-2 border-t border-neutral-200">
+                        <label className="block text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                          Raw Source Parameters (JSON)
                         </label>
-                        <input
-                          type="text"
-                          value={pipelineName}
-                          onChange={(e) => setPipelineName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                          placeholder="Enter pipeline name"
+                        <textarea
+                          value={params}
+                          onChange={(e) => handleRawJsonChange(e.target.value)}
+                          className="w-full px-3 py-2 text-xs font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          placeholder='{"key": "value"}'
+                          rows={4}
                         />
                       </div>
                     )}
-
-                    {/* Pipeline Params */}
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Source Parameters (JSON)
-                      </label>
-                      <textarea
-                        value={params}
-                        onChange={(e) => setParams(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                        placeholder='{"key": "value", "filter": "active"}'
-                        rows={4}
-                      />
-                      <p className="text-xs text-neutral-500 mt-1">
-                        Optional parameters to pass to the pipeline (JSON
-                        format)
-                      </p>
-                    </div>
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -7247,22 +8711,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                         {/* Tables in Tab */}
                         <div className="space-y-2">
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                addTableToTab(index, e.target.value);
-                                e.target.value = "";
+                          {tab.components.length === 0 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTableEditorTarget({ tabIndex: index })
                               }
-                            }}
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white"
-                          >
-                            <option value="">+ Add table to this tab...</option>
-                            {schemas.map((schema) => (
-                              <option key={schema} value={schema}>
-                                {schema}
-                              </option>
-                            ))}
-                          </select>
+                              className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <FiPlus size={15} strokeWidth={2.5} />
+                              Add table to this tab
+                            </button>
+                          )}
 
                           {tab.components.length > 0 && (
                             <div className="space-y-1.5">
@@ -7280,15 +8740,31 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       {comp.dataBinding?.schemaName}
                                     </span>
                                   </div>
-                                  <button
-                                    onClick={() =>
-                                      removeTableFromTab(index, comp.id)
-                                    }
-                                    className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                    title="Remove table"
-                                  >
-                                    <FiTrash2 size={13} strokeWidth={2} />
-                                  </button>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setTableEditorTarget({
+                                          tabIndex: index,
+                                          componentId: comp.id,
+                                        })
+                                      }
+                                      className="p-1 text-violet-700 bg-violet-50 hover:bg-violet-100 rounded transition-colors"
+                                      title="Edit table"
+                                    >
+                                      <FiEdit2 size={13} strokeWidth={2} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeTableFromTab(index, comp.id)
+                                      }
+                                      className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                                      title="Remove table"
+                                    >
+                                      <FiTrash2 size={13} strokeWidth={2} />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -7342,13 +8818,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               (componentType === "distributionBlocks" &&
                 distributionBlocksSource === "workflow" &&
                 !workflowName) ||
+              (CHART_TYPES.some((c) => c.value === componentType) &&
+                tableSourceType === "pipeline" &&
+                !pipelineName) ||
+              (CHART_TYPES.some((c) => c.value === componentType) &&
+                tableSourceType === "workflow" &&
+                !workflowName) ||
               (componentType === "form" &&
                 formConfig.submit?.mode === "createMany" &&
                 !formConfig.submit.bulkObjectListKey) ||
               (componentType === "form" &&
                 formConfig.submit?.mode === "workflow" &&
                 (!formConfig.submit.workflowSchema ||
-                  !formConfig.submit.workflowName))
+                  !formConfig.submit.workflowName)) ||
+              isChartConfigInvalid()
             }
             className="px-5 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-violet-600 flex items-center gap-2"
           >
@@ -7372,12 +8855,30 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             ) : (
               <>
                 <FiPlus size={16} strokeWidth={2.5} />
-                <span>Add Component</span>
+                <span>
+                  {fixedComponentType === "table"
+                    ? "Add Table"
+                    : "Add Component"}
+                </span>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {tableEditorTarget && (
+        <ComponentModal
+          schemas={schemas}
+          containerOptions={containerOptions}
+          containers={containers}
+          page={page}
+          currentCellId={currentCellId}
+          editingComponent={tableBeingEdited}
+          fixedComponentType="table"
+          onClose={() => setTableEditorTarget(null)}
+          onAdd={saveTableToTab}
+        />
+      )}
 
       {/* Excel Upload Modal for Tabs */}
       <CellExcelUploadModal

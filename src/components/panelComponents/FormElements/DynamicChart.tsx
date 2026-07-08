@@ -31,9 +31,10 @@ export interface ChartConfig {
   additionalParams?: Record<string, unknown>;
   chartOptions?: Record<string, unknown>; // Nivo-specific options
   dataBinding?: {
-    kind: "pipeline";
-    schemaName: string;
-    pipelineName: string;
+    kind: "pipeline" | "workflow" | "schema" | "api";
+    schemaName?: string;
+    pipelineName?: string;
+    workflowName?: string;
     params?: Record<string, unknown>;
   };
 }
