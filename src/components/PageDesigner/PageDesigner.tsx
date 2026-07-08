@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiEdit2,
@@ -47,11 +47,31 @@ import type { OptionType } from "../../types";
 import { getIconByName } from "../../utils/menuIcons";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
+import ParameterBindingsEditor from "./ParameterBindingsEditor";
+import PageFilterModal from "./PageFilterModal";
+import type {
+  ComponentBlock as RuntimeComponentBlock,
+  PageModel as RuntimePageModel,
+  PageFilterDefinition,
+  ParameterBinding as RuntimeParameterBinding,
+} from "../../utils/api/page";
+import {
+  createRuntimeId,
+  dependentBindings,
+  ensurePageRuntimeIds,
+  isSafeRuntimeName,
+  type PageBindingIssue,
+  uniqueComponentStateKey,
+  validatePageBindings,
+} from "../../utils/pageBindings";
 
 interface PageDesignerProps {
   sections: GridSection[];
   onChange: (sections: GridSection[]) => void;
+  filters?: PageFilterDefinition[];
+  onFiltersChange?: (filters: PageFilterDefinition[]) => void;
 }
 
 const CHART_TYPES = [
@@ -916,6 +936,7 @@ const cleanFilterPanelInputs = (
   inputs
     .filter((field) => field.formKey.trim())
     .map((field) => ({
+      ...(field.id ? { id: field.id } : {}),
       formKey: field.formKey.trim(),
       type: field.type || "text",
       formKeyType: field.formKeyType || "string",
@@ -1173,6 +1194,8 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
   onChange,
+  filters = [],
+  onFiltersChange,
 }) => {
   const [selectedSection, setSelectedSection] = useState<number | null>(null);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
@@ -1183,6 +1206,31 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const [excelTargetSectionIndex, setExcelTargetSectionIndex] = useState<
     number | null
   >(null);
+  const [filterModal, setFilterModal] = useState<{
+    cellId: string;
+    filter: PageFilterDefinition | null;
+  } | null>(null);
+  const runtimePage = useMemo<RuntimePageModel>(
+    () => ({
+      name: "Designer",
+      filters,
+      sections: sections as unknown as RuntimePageModel["sections"],
+    }),
+    [filters, sections],
+  );
+  const isEnsuringRuntimeIds = useRef(false);
+
+  useEffect(() => {
+    if (isEnsuringRuntimeIds.current) {
+      isEnsuringRuntimeIds.current = false;
+      return;
+    }
+    const ensured = ensurePageRuntimeIds(runtimePage);
+    if (ensured.sections && ensured.sections !== runtimePage.sections) {
+      isEnsuringRuntimeIds.current = true;
+      onChange(ensured.sections as unknown as GridSection[]);
+    }
+  }, [onChange, runtimePage]);
 
   const containers = useGetContainers();
   const schemas = containers?.map((c: any) => c.schemaName || c.name) || [];
@@ -1191,6 +1239,32 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
       value: c.schemaName,
       label: c.schemaName,
     })) || [];
+  const allCellOptions = useMemo(
+    () =>
+      sections.flatMap((section, sectionIndex) =>
+        section.cells.map((cell, cellIndex) => ({
+          id: cell.id,
+          label: `Section ${sectionIndex + 1}, Cell ${cellIndex + 1}`,
+        })),
+      ),
+    [sections],
+  );
+  const savePageFilter = (next: PageFilterDefinition) => {
+    onFiltersChange?.(
+      filters.some((filter) => filter.id === next.id)
+        ? filters.map((filter) => (filter.id === next.id ? next : filter))
+        : [...filters, next],
+    );
+    setFilterModal(null);
+  };
+  const deletePageFilter = (filterId: string) => {
+    const dependents = dependentBindings(runtimePage, { kind: "pageFilter", filterId });
+    if (dependents.length > 0) {
+      alert("This page filter is used by component request parameters. Remove those bindings before deleting it.");
+      return;
+    }
+    onFiltersChange?.(filters.filter((filter) => filter.id !== filterId));
+  };
 
   // Add new section
   const addSection = () => {
@@ -1313,6 +1387,21 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   // Delete cell
   const deleteCell = (sectionIndex: number, cellId: string) => {
     const section = sections[sectionIndex];
+    if (filters.some((filter) => filter.placement.kind === "cell" && filter.placement.cellId === cellId)) {
+      alert("This cell contains page filters. Move or delete those filters before deleting the cell.");
+      return;
+    }
+    const cell = section.cells.find((candidate) => candidate.id === cellId);
+    const hasDependents = (cell?.components || []).some((component) =>
+      dependentBindings(runtimePage, {
+        kind: "component",
+        componentId: component.id,
+      }).length > 0,
+    );
+    if (hasDependents) {
+      alert("This cell contains component outputs used by request parameters. Remove those bindings before deleting the cell.");
+      return;
+    }
     updateSection(sectionIndex, {
       cells: section.cells.filter((c) => c.id !== cellId),
     });
@@ -1341,6 +1430,15 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     componentId: string
   ) => {
     const section = sections[sectionIndex];
+    if (
+      dependentBindings(runtimePage, {
+        kind: "component",
+        componentId,
+      }).length > 0
+    ) {
+      alert("This component has outputs used by request parameters. Remove those bindings before deleting the component.");
+      return;
+    }
     const cells = section.cells.map((cell) =>
       cell.id === cellId
         ? {
@@ -1463,6 +1561,8 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             schemas={schemas}
             containerOptions={containerOptions}
             containers={containers || []}
+            page={runtimePage}
+            filters={filters}
             onUpdateSection={(updates) =>
               updateSection(selectedSection, updates)
             }
@@ -1481,6 +1581,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             onUpdateComponent={(cellId, componentId, component) =>
               updateComponent(selectedSection, cellId, componentId, component)
             }
+            onAddPageFilter={(cellId) => setFilterModal({ cellId, filter: null })}
+            onEditPageFilter={(cellId, filter) => setFilterModal({ cellId, filter })}
+            onDeletePageFilter={deletePageFilter}
             selectedCell={selectedCell}
             setSelectedCell={setSelectedCell}
           />
@@ -1509,6 +1612,15 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
         onSuccess={handleCellExcelUploadSuccess}
         mode="cell"
       />
+      {filterModal && (
+        <PageFilterModal
+          filter={filterModal.filter}
+          defaultCellId={filterModal.cellId}
+          cells={allCellOptions}
+          onClose={() => setFilterModal(null)}
+          onSave={savePageFilter}
+        />
+      )}
     </div>
   );
 };
@@ -1520,6 +1632,8 @@ interface SectionEditorProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
   containers: ContainerModel[];
+  page: RuntimePageModel;
+  filters: PageFilterDefinition[];
   onUpdateSection: (updates: Partial<GridSection>) => void;
   onAddCell: () => void;
   onAddCellWithExcel: () => void;
@@ -1532,6 +1646,9 @@ interface SectionEditorProps {
     componentId: string,
     component: ComponentBlock
   ) => void;
+  onAddPageFilter: (cellId: string) => void;
+  onEditPageFilter: (cellId: string, filter: PageFilterDefinition) => void;
+  onDeletePageFilter: (filterId: string) => void;
   selectedCell: string | null;
   setSelectedCell: (cellId: string | null) => void;
 }
@@ -1542,6 +1659,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   schemas,
   containerOptions,
   containers,
+  page,
+  filters,
   onUpdateSection,
   onAddCell,
   onAddCellWithExcel,
@@ -1550,6 +1669,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onAddComponent,
   onDeleteComponent,
   onUpdateComponent,
+  onAddPageFilter,
+  onEditPageFilter,
+  onDeletePageFilter,
   selectedCell,
   setSelectedCell,
 }) => {
@@ -1665,12 +1787,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               <CellEditor
                 key={cell.id}
                 cell={cell}
+                filters={filters.filter(
+                  (filter) =>
+                    filter.placement.kind === "cell" &&
+                    filter.placement.cellId === cell.id,
+                )}
                 schemas={schemas}
                 isSelected={selectedCell === cell.id}
                 onSelect={() => setSelectedCell(cell.id)}
                 onUpdate={(updates) => onUpdateCell(cell.id, updates)}
                 onDelete={() => onDeleteCell(cell.id)}
                 onAddComponent={() => openComponentModal(cell.id)}
+                onAddPageFilter={() => onAddPageFilter(cell.id)}
+                onEditPageFilter={(filter) => onEditPageFilter(cell.id, filter)}
+                onDeletePageFilter={onDeletePageFilter}
                 onDeleteComponent={(componentId) =>
                   onDeleteComponent(cell.id, componentId)
                 }
@@ -1689,6 +1819,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           schemas={schemas}
           containerOptions={containerOptions}
           containers={containers}
+          page={page}
+          currentCellId={currentCellId}
           editingComponent={editingComponent}
           onClose={() => {
             setShowComponentModal(false);
@@ -1714,24 +1846,32 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 // Cell Editor Component
 interface CellEditorProps {
   cell: GridCell;
+  filters: PageFilterDefinition[];
   schemas: string[];
   isSelected: boolean;
   onSelect: () => void;
   onUpdate: (updates: Partial<GridCell>) => void;
   onDelete: () => void;
   onAddComponent: () => void;
+  onAddPageFilter: () => void;
+  onEditPageFilter: (filter: PageFilterDefinition) => void;
+  onDeletePageFilter: (filterId: string) => void;
   onDeleteComponent: (componentId: string) => void;
   onEditComponent: (component: ComponentBlock) => void;
 }
 
 const CellEditor: React.FC<CellEditorProps> = ({
   cell,
+  filters,
   schemas,
   isSelected,
   onSelect,
   onUpdate,
   onDelete,
   onAddComponent,
+  onAddPageFilter,
+  onEditPageFilter,
+  onDeletePageFilter,
   onDeleteComponent,
   onEditComponent,
 }) => {
@@ -1775,6 +1915,17 @@ const CellEditor: React.FC<CellEditorProps> = ({
           >
             <FiPlus size={13} />
             <span>Add</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddPageFilter();
+            }}
+            className="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-md transition-all flex items-center gap-1"
+            title="Add page filter"
+          >
+            <FiPlus size={13} />
+            <span>Filter</span>
           </button>
           <button
             onClick={(e) => {
@@ -1856,9 +2007,47 @@ const CellEditor: React.FC<CellEditorProps> = ({
 
       {/* Components List */}
       <div className="space-y-2">
+        {filters.map((filter) => (
+          <div
+            key={filter.id}
+            className="group/filter p-3 bg-violet-50 border border-violet-200 rounded-lg hover:border-violet-400 hover:shadow-sm transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-violet-900">
+                  {filter.label || filter.key}
+                </div>
+                <div className="text-[11px] text-violet-700 font-mono">
+                  {filter.key} · {filter.type}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onEditPageFilter(filter)}
+                  className="opacity-0 group-hover/filter:opacity-100 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-all flex items-center gap-1"
+                  title="Edit Page Filter"
+                >
+                  <FiEdit2 size={12} />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => onDeletePageFilter(filter.id)}
+                  className="opacity-0 group-hover/filter:opacity-100 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-all flex items-center gap-1"
+                  title="Delete Page Filter"
+                >
+                  <FiTrash2 size={12} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
         {cell.components.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-xs text-neutral-400 mb-2">No components</p>
+            <p className="text-xs text-neutral-400 mb-2">
+              {filters.length > 0 ? "No components" : "No components or filters"}
+            </p>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1867,6 +2056,15 @@ const CellEditor: React.FC<CellEditorProps> = ({
               className="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
             >
               Add your first component
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddPageFilter();
+              }}
+              className="ml-3 text-xs text-violet-700 hover:text-violet-900 font-medium"
+            >
+              Add page filter
             </button>
           </div>
         ) : (
@@ -1986,7 +2184,10 @@ interface ComponentModalProps {
   schemas: string[];
   containerOptions: { value: string; label: string }[];
   containers: ContainerModel[];
+  page: RuntimePageModel;
+  currentCellId: string;
   editingComponent: ComponentBlock | null;
+  fixedComponentType?: ComponentBlock["type"];
   onClose: () => void;
   onAdd: (component: ComponentBlock) => void;
 }
@@ -1995,12 +2196,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   schemas,
   containerOptions,
   containers,
+  page,
+  currentCellId,
   editingComponent,
+  fixedComponentType,
   onClose,
   onAdd,
 }) => {
   const { t } = useTranslation();
-  const [componentType, setComponentType] = useState<string>("table");
+  const [componentType, setComponentType] = useState<string>(
+    fixedComponentType || "table",
+  );
   const [schemaName, setSchemaName] = useState<string>("");
   const [tableSourceType, setTableSourceType] = useState<
     "schema" | "pipeline" | "workflow"
@@ -2018,8 +2224,21 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   });
   const [customChartOptions, setCustomChartOptions] = useState<string>("");
   const [paramsMap, setParamsMap] = useState<Record<string, string>>({});
+  const [structuredParameters, setStructuredParameters] = useState<
+    Record<string, RuntimeParameterBinding>
+  >({});
+  const [runtimeOutputs, setRuntimeOutputs] = useState<
+    NonNullable<ComponentBlock["outputs"]>
+  >([]);
+  const [stateKey, setStateKey] = useState<string>("");
+  const [stateKeyTouched, setStateKeyTouched] = useState(false);
+  const [bindingIssues, setBindingIssues] = useState<PageBindingIssue[]>([]);
   const [showAdvancedJson, setShowAdvancedJson] = useState<boolean>(false);
   const [customParamKey, setCustomParamKey] = useState<string>("");
+  const [tableEditorTarget, setTableEditorTarget] = useState<{
+    tabIndex: number;
+    componentId?: string;
+  } | null>(null);
 
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
     columns: [],
@@ -2028,6 +2247,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     addButton: undefined,
     actions: [],
   });
+  const draftRuntimeComponent = useMemo<RuntimeComponentBlock>(
+    () =>
+      ({
+        ...(editingComponent || {}),
+        id: editingComponent?.id || createRuntimeId("cmp"),
+        type: componentType,
+        title,
+        stateKey,
+        outputs: runtimeOutputs,
+        table: tableConfig,
+      }) as unknown as RuntimeComponentBlock,
+    [componentType, editingComponent, runtimeOutputs, stateKey, tableConfig, title],
+  );
   const [formConfig, setFormConfig] = useState<FormComponentConfig>(() =>
     buildDefaultFormConfig("", []),
   );
@@ -2171,6 +2403,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     if (editingComponent) {
       setComponentType(editingComponent.type);
       setTitle(editingComponent.title || "");
+      setRuntimeOutputs(editingComponent.outputs || []);
+      setStructuredParameters(
+        (editingComponent.dataBinding?.parameters || {}) as Record<
+          string,
+          RuntimeParameterBinding
+        >,
+      );
+      setStateKey(
+        editingComponent.stateKey ||
+          uniqueComponentStateKey(
+            page,
+            editingComponent.title || editingComponent.type,
+            editingComponent.type,
+          ),
+      );
+      setStateKeyTouched(!!editingComponent.stateKey);
+      setBindingIssues([]);
 
       if (editingComponent.dataBinding) {
         setTableSourceType(
@@ -2362,8 +2611,33 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setCustomChartOptions("");
       setParamsMap({});
       setParams("");
+      setStructuredParameters({});
+      setRuntimeOutputs([]);
+      setStateKey(uniqueComponentStateKey(page, "table", "table"));
+      setStateKeyTouched(false);
+      setBindingIssues([]);
     }
-  }, [editingComponent]);
+  }, [editingComponent, page]);
+
+  useEffect(() => {
+    if (stateKeyTouched || editingComponent?.stateKey) return;
+    setStateKey(uniqueComponentStateKey(page, title || componentType, componentType));
+  }, [componentType, editingComponent?.stateKey, page, stateKeyTouched, title]);
+
+  useEffect(() => {
+    if (componentType !== "table") return;
+    const inputs = tableConfig.filterPanel?.inputs;
+    if (!inputs?.some((input) => !input.id)) return;
+    setTableConfig((current) => ({
+      ...current,
+      filterPanel: {
+        ...current.filterPanel,
+        inputs: (current.filterPanel?.inputs || []).map((input) =>
+          input.id ? input : { ...input, id: createRuntimeId("tfl") },
+        ),
+      },
+    }));
+  }, [componentType, tableConfig.filterPanel?.inputs]);
 
   useEffect(() => {
     if (
@@ -2609,9 +2883,73 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     return false;
   };
 
+  const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
+    const next: ComponentBlock = {
+      ...component,
+      id: isSafeRuntimeName(component.id) ? component.id : createRuntimeId("cmp"),
+      stateKey:
+        stateKey.trim() ||
+        uniqueComponentStateKey(page, title || componentType, componentType),
+    };
+
+    if (runtimeOutputs.length > 0 || (editingComponent?.outputs?.length ?? 0) > 0) {
+      next.outputs = runtimeOutputs;
+    }
+
+    if (next.dataBinding) {
+      const parameterEntries = Object.entries(structuredParameters).filter(
+        ([parameter]) => parameter.trim(),
+      );
+      if (
+        parameterEntries.length > 0 ||
+        Object.keys(editingComponent?.dataBinding?.parameters || {}).length > 0
+      ) {
+        next.dataBinding = {
+          ...next.dataBinding,
+          parameters: Object.fromEntries(parameterEntries),
+        } as ComponentBlock["dataBinding"];
+      }
+    }
+
+    return next;
+  };
+
+  const pageWithSavedComponent = (component: ComponentBlock): RuntimePageModel => {
+    const runtimeComponent = component as unknown as NonNullable<
+      NonNullable<RuntimePageModel["sections"]>[number]["component"]
+    >;
+    const sections = (page.sections || []).map((section) => ({
+      ...section,
+      cells: (section.cells || []).map((cell) => {
+        if (cell.id !== currentCellId) return cell;
+        const components = editingComponent
+          ? (cell.components || []).map((candidate) =>
+              candidate.id === editingComponent.id ? runtimeComponent! : candidate,
+            )
+          : [...(cell.components || []), runtimeComponent!];
+        return { ...cell, components };
+      }),
+    }));
+    return { ...page, sections };
+  };
+
+  const validateComponentBindings = (component: ComponentBlock): boolean => {
+    const issues = validatePageBindings(pageWithSavedComponent(component));
+    const visibleIssues = issues.filter(
+      (issue) =>
+        issue.componentId === component.id ||
+        issue.path.includes(currentCellId),
+    );
+    setBindingIssues(visibleIssues);
+    return visibleIssues.length === 0;
+  };
+
   const handleAdd = () => {
-    const component: ComponentBlock = {
-      id: editingComponent?.id || `comp-${Date.now()}`,
+    let component: ComponentBlock = {
+      id:
+        editingComponent?.id && isSafeRuntimeName(editingComponent.id)
+          ? editingComponent.id
+          : createRuntimeId("cmp"),
       type: componentType as any,
       title,
       order: editingComponent?.order || 1,
@@ -2812,6 +3150,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       console.log("📊 Chart component created with props:", component);
     }
 
+    component = applyRuntimeBindings(component);
+    if (!validateComponentBindings(component)) return;
     onAdd(component);
   };
 
@@ -3535,6 +3875,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const removeFilterPanelInput = (inputIndex: number) => {
+    const input = tableConfig.filterPanel?.inputs?.[inputIndex];
+    if (
+      input?.id &&
+      runtimeOutputs.some(
+        (output) =>
+          output.source.kind === "tableFilter" && output.source.filterId === input.id,
+      )
+    ) {
+      alert("This filter is exposed as a component output. Delete that output before deleting the filter.");
+      return;
+    }
     setTableConfig((current) => ({
       ...current,
       filterPanel: {
@@ -3578,24 +3929,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     ]);
   };
 
-  const addTableToTab = (tabIndex: number, schema: string) => {
-    const updatedTabs = [...tabs];
-    const container = containers.find((item) => item.schemaName === schema);
-    updatedTabs[tabIndex].components.push({
-      id: `comp-${Date.now()}`,
-      type: "table",
-      order: updatedTabs[tabIndex].components.length + 1,
-      dataBinding: {
-        kind: "schema",
-        schemaName: schema,
-      },
-      table: {
-        columns: buildTableColumnsFromFields(container?.fields || []),
-      },
-    });
-    setTabs(updatedTabs);
-  };
-
   const removeTab = (tabIndex: number) => {
     setTabs(tabs.filter((_, i) => i !== tabIndex));
   };
@@ -3606,6 +3939,46 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       (comp) => comp.id !== componentId
     );
     setTabs(updatedTabs);
+  };
+
+  const tableBeingEdited =
+    tableEditorTarget?.componentId !== undefined
+      ? tabs[tableEditorTarget.tabIndex]?.components.find(
+          (component) => component.id === tableEditorTarget.componentId,
+        ) || null
+      : null;
+
+  const saveTableToTab = (component: ComponentBlock) => {
+    if (!tableEditorTarget) return;
+
+    setTabs((currentTabs) =>
+      currentTabs.map((tab, tabIndex) => {
+        if (tabIndex !== tableEditorTarget.tabIndex) return tab;
+
+        if (tableEditorTarget.componentId) {
+          return {
+            ...tab,
+            components: tab.components.map((currentComponent) =>
+              currentComponent.id === tableEditorTarget.componentId
+                ? component
+                : currentComponent,
+            ),
+          };
+        }
+
+        return {
+          ...tab,
+          components: [
+            ...tab.components,
+            {
+              ...component,
+              order: tab.components.length + 1,
+            },
+          ],
+        };
+      }),
+    );
+    setTableEditorTarget(null);
   };
 
   const currentAddButton =
@@ -3625,7 +3998,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         <div className="flex items-center justify-between px-8 py-5 border-b border-neutral-100">
           <div>
             <h3 className="text-lg font-semibold text-neutral-900">
-              {editingComponent ? "Edit Component" : "Add Component"}
+              {fixedComponentType === "table"
+                ? editingComponent
+                  ? "Edit Table"
+                  : "Add Table"
+                : editingComponent
+                  ? "Edit Component"
+                  : "Add Component"}
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
               Configure the component settings and data binding
@@ -3654,6 +4033,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6 bg-neutral-50/40">
           <div className="space-y-6">
+            {bindingIssues.some((issue) => !issue.parameter) && (
+              <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 p-3">
+                {bindingIssues
+                  .filter((issue) => !issue.parameter)
+                  .map((issue) => (
+                    <div key={`${issue.path}:${issue.code}`} className="text-xs text-red-700">
+                      {issue.message}
+                    </div>
+                  ))}
+              </div>
+            )}
+
             {/* Component Type */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border border-neutral-200 bg-white p-4">
               <div>
@@ -3663,6 +4054,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 <select
                   value={componentType}
                   onChange={(e) => setComponentType(e.target.value)}
+                  disabled={Boolean(fixedComponentType)}
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 >
                   <option value="table">Table</option>
@@ -3729,6 +4121,34 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                      Runtime State Key
+                    </label>
+                    <input
+                      type="text"
+                      value={stateKey}
+                      onChange={(e) => {
+                        setStateKeyTouched(true);
+                        setStateKey(e.target.value);
+                      }}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      placeholder="componentStateKey"
+                    />
+                  </div>
+
+                  {componentType === "table" && (
+                    <ComponentOutputsEditor
+                      page={page}
+                      component={draftRuntimeComponent}
+                      onChange={(component) =>
+                        setRuntimeOutputs(
+                          component.outputs as NonNullable<ComponentBlock["outputs"]>,
+                        )
+                      }
+                    />
+                  )}
 
                   {CHART_TYPES.some((c) => c.value === componentType) && (
                     <>
@@ -4967,7 +5387,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             {(componentType !== "tabPanel" || componentType === "tabPanel") && (
               <>
                 {/* Table Configuration */}
-                {(componentType === "table" || componentType === "tabPanel") && (
+                {componentType === "table" && (
                   <div className="space-y-5 border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -7912,8 +8332,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </button>
                     </div>
 
-                    {/* Key-Value Inputs */}
-                    <div className="space-y-3">
+                    <ParameterBindingsEditor
+                      page={page}
+                      componentId={editingComponent?.id || draftRuntimeComponent.id}
+                      value={structuredParameters}
+                      detectedParameterNames={Object.keys(paramsMap)}
+                      issues={bindingIssues}
+                      onChange={setStructuredParameters}
+                    />
+
+                    {/* Compatibility static parameter inputs */}
+                    <div className="space-y-3 rounded-lg border border-amber-100 bg-amber-50/40 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                        Compatibility: legacy static params
+                      </div>
                       {Object.keys(paramsMap).length === 0 ? (
                         <div className="text-xs text-neutral-500 italic py-1">
                           No parameters configured. Select a pipeline or workflow above to automatically scan for parameters.
@@ -8279,22 +8711,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                         {/* Tables in Tab */}
                         <div className="space-y-2">
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                addTableToTab(index, e.target.value);
-                                e.target.value = "";
+                          {tab.components.length === 0 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTableEditorTarget({ tabIndex: index })
                               }
-                            }}
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white"
-                          >
-                            <option value="">+ Add table to this tab...</option>
-                            {schemas.map((schema) => (
-                              <option key={schema} value={schema}>
-                                {schema}
-                              </option>
-                            ))}
-                          </select>
+                              className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <FiPlus size={15} strokeWidth={2.5} />
+                              Add table to this tab
+                            </button>
+                          )}
 
                           {tab.components.length > 0 && (
                             <div className="space-y-1.5">
@@ -8312,15 +8740,31 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       {comp.dataBinding?.schemaName}
                                     </span>
                                   </div>
-                                  <button
-                                    onClick={() =>
-                                      removeTableFromTab(index, comp.id)
-                                    }
-                                    className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                    title="Remove table"
-                                  >
-                                    <FiTrash2 size={13} strokeWidth={2} />
-                                  </button>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setTableEditorTarget({
+                                          tabIndex: index,
+                                          componentId: comp.id,
+                                        })
+                                      }
+                                      className="p-1 text-violet-700 bg-violet-50 hover:bg-violet-100 rounded transition-colors"
+                                      title="Edit table"
+                                    >
+                                      <FiEdit2 size={13} strokeWidth={2} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeTableFromTab(index, comp.id)
+                                      }
+                                      className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                                      title="Remove table"
+                                    >
+                                      <FiTrash2 size={13} strokeWidth={2} />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -8411,12 +8855,30 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             ) : (
               <>
                 <FiPlus size={16} strokeWidth={2.5} />
-                <span>Add Component</span>
+                <span>
+                  {fixedComponentType === "table"
+                    ? "Add Table"
+                    : "Add Component"}
+                </span>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {tableEditorTarget && (
+        <ComponentModal
+          schemas={schemas}
+          containerOptions={containerOptions}
+          containers={containers}
+          page={page}
+          currentCellId={currentCellId}
+          editingComponent={tableBeingEdited}
+          fixedComponentType="table"
+          onClose={() => setTableEditorTarget(null)}
+          onAdd={saveTableToTab}
+        />
+      )}
 
       {/* Excel Upload Modal for Tabs */}
       <CellExcelUploadModal

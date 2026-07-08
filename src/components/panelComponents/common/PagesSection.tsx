@@ -104,6 +104,7 @@ export const PagesSection: React.FC = () => {
         isAuthenticated: page.isAuthenticated,
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
+        filters: page.filters,
         sections: page.sections,
         subPage: page.subPage,
       },
@@ -130,11 +131,13 @@ export const PagesSection: React.FC = () => {
           isAuthenticated: editingPage.isAuthenticated,
           isAuthorized: editingPage.isAuthorized,
           authorizeRole: editingPage.authorizeRole,
+          filters: editingPage.filters,
           sections: sections,
         },
       });
       setEditingPage({
         ...editingPage,
+        filters: editingPage.filters,
         sections,
       });
     } catch (error) {
@@ -448,6 +451,7 @@ export const PagesSection: React.FC = () => {
                     })
                     .filter((g) => g !== null) || []) as any
                 }
+                filters={editingPage.filters || []}
                 onChange={(gridSections) => {
                   // Use flat structure for compatibility
                   const sections = gridSections.map((gridSection) => ({
@@ -456,6 +460,12 @@ export const PagesSection: React.FC = () => {
                   setEditingPage({
                     ...editingPage,
                     sections,
+                  });
+                }}
+                onFiltersChange={(filters) => {
+                  setEditingPage({
+                    ...editingPage,
+                    filters,
                   });
                 }}
               />
