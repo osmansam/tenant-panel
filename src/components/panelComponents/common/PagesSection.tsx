@@ -101,6 +101,7 @@ export const PagesSection: React.FC = () => {
         order: page.order,
         isGroupOnly: page.isGroupOnly,
         isOnSidebar: page.isOnSidebar,
+        isMainPage: page.isMainPage,
         isAuthenticated: page.isAuthenticated,
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
@@ -128,6 +129,7 @@ export const PagesSection: React.FC = () => {
           order: editingPage.order,
           isGroupOnly: editingPage.isGroupOnly,
           isOnSidebar: editingPage.isOnSidebar,
+          isMainPage: editingPage.isMainPage,
           isAuthenticated: editingPage.isAuthenticated,
           isAuthorized: editingPage.isAuthorized,
           authorizeRole: editingPage.authorizeRole,
@@ -162,9 +164,36 @@ export const PagesSection: React.FC = () => {
         order: page.order,
         isGroupOnly: page.isGroupOnly,
         isOnSidebar,
+        isMainPage: page.isMainPage,
         isAuthenticated: page.isAuthenticated,
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
+        filters: page.filters,
+        sections: page.sections,
+        subPage: page.subPage,
+      },
+    });
+  };
+
+  const handleMainPageChange = (page: PageModel, isMainPage: boolean) => {
+    const pageId = getPageId(page);
+    if (!pageId || page.isGroupOnly) return;
+
+    updatePage({
+      id: pageId,
+      payload: {
+        name: page.name,
+        icon: page.icon,
+        slug: page.slug,
+        parentPageId: page.parentPageId || "",
+        order: page.order,
+        isGroupOnly: page.isGroupOnly,
+        isOnSidebar: page.isOnSidebar,
+        isMainPage,
+        isAuthenticated: page.isAuthenticated,
+        isAuthorized: page.isAuthorized,
+        authorizeRole: page.authorizeRole,
+        filters: page.filters,
         sections: page.sections,
         subPage: page.subPage,
       },
@@ -261,6 +290,11 @@ export const PagesSection: React.FC = () => {
                             {t("Hidden from sidebar")}
                           </span>
                         )}
+                        {page.isMainPage && (
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {t("Main page")}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {(page.sections || []).length} {t("sections")} •
@@ -307,6 +341,18 @@ export const PagesSection: React.FC = () => {
                       className="h-3.5 w-3.5 rounded border-gray-300"
                     />
                     {t("Sidebar")}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={page.isMainPage === true}
+                      disabled={page.isGroupOnly === true}
+                      onChange={(e) =>
+                        handleMainPageChange(page, e.target.checked)
+                      }
+                      className="h-3.5 w-3.5 rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    {t("Main")}
                   </label>
                   <GenericButton
                     variant="outline"

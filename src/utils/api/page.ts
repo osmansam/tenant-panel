@@ -463,6 +463,7 @@ export interface PageModel {
   order?: number;
   isGroupOnly?: boolean;
   isOnSidebar?: boolean;
+  isMainPage?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
@@ -480,6 +481,7 @@ export interface CreatePagePayload {
   order?: number;
   isGroupOnly?: boolean;
   isOnSidebar?: boolean;
+  isMainPage?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
@@ -497,6 +499,7 @@ export interface UpdatePagePayload {
   order?: number;
   isGroupOnly?: boolean;
   isOnSidebar?: boolean;
+  isMainPage?: boolean;
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];

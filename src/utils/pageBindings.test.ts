@@ -317,6 +317,13 @@ describe("validation and dependencies", () => {
     expect(create.filters).toEqual(update.filters);
   });
 
+  it("persists main page selection in create and update payload contracts", () => {
+    const create: CreatePagePayload = { name: "Page", isMainPage: true };
+    const update: UpdatePagePayload = { isMainPage: true };
+    expect(create.isMainPage).toBe(true);
+    expect(update.isMainPage).toBe(create.isMainPage);
+  });
+
   it("validates page filters and pageFilter bindings", () => {
     const page: PageModel = {
       name: "Orders",

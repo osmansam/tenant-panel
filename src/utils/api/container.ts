@@ -210,6 +210,7 @@ export interface ContainerModel {
   dynamicApis: DynamicApiModel[];
   isAuthContainer?: boolean;
   isRegisterActive?: boolean;
+  isGoogleLoginActive?: boolean;
   populationArray?: Population[];
   populatedRoutes: string[];
   indexes?: Index[]; // MongoDB indexes for performance
@@ -253,6 +254,7 @@ export interface CreateContainerPayload {
   dynamicApis?: DynamicApiModel[];
   isAuthContainer?: boolean;
   isRegisterActive?: boolean;
+  isGoogleLoginActive?: boolean;
   populatedRoutes?: string[];
   indexes?: Index[];
   rowAccess?: RowAccessRule;
@@ -266,7 +268,9 @@ export interface UpdateContainerPayload {
   populatedRoutes?: string[];
   indexes?: Index[];
   rowAccess?: RowAccessRule;
+  isAuthContainer?: boolean;
   isRegisterActive?: boolean;
+  isGoogleLoginActive?: boolean;
 }
 
 export interface UpdateDynamicFunctionsPayload {
@@ -472,6 +476,8 @@ export function useContainers(enabled: boolean = true) {
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
     isRegisterActive:
       container.IsRegisterActive ?? container.isRegisterActive ?? false,
+    isGoogleLoginActive:
+      container.IsGoogleLoginActive ?? container.isGoogleLoginActive ?? false,
     populatedRoutes:
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,
@@ -549,6 +555,8 @@ export function useContainer(id: string, enabled: boolean = true) {
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
     isRegisterActive:
       container.IsRegisterActive ?? container.isRegisterActive ?? false,
+    isGoogleLoginActive:
+      container.IsGoogleLoginActive ?? container.isGoogleLoginActive ?? false,
     populatedRoutes:
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,
@@ -682,6 +690,48 @@ export function useUpdateContainer() {
       updateMutation.mutate(params);
     },
     isUpdating: updateMutation.isPending,
+  };
+}
+
+export function useCreateProjectAuthUser() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = useContainerContext();
+
+  const createMutation = useMutation({
+    mutationFn: async ({
+      schemaName,
+      payload,
+    }: {
+      schemaName: string;
+      payload: Record<string, string>;
+    }) => {
+      const path = `/${tenantSlug}/${projectSlug}/auth/register?schemaName=${encodeURIComponent(schemaName)}`;
+      const response = await axiosClient.post(path, payload);
+      return response.data;
+    },
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["dynamic", variables.schemaName],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [variables.schemaName],
+      });
+      toast.success(t("Auth user created successfully"));
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to create auth user";
+      toast.error(t(errorMessage));
+    },
+  });
+
+  return {
+    createAuthUser: createMutation.mutate,
+    isCreatingAuthUser: createMutation.isPending,
   };
 }
 

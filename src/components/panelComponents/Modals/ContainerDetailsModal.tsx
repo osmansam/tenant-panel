@@ -16,10 +16,18 @@ import {
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { ConfirmationDialog } from "../../../common/ConfirmationDialog";
+import { useGetSelection } from "../../../utils/dynamic";
+import {
+  buildAuthUserPayload,
+  canEnableGoogleLogin,
+  getAuthUserFormFields,
+  getAuthUserRoleField,
+} from "../../../utils/authContainerValidation";
 import {
   ContainerModel,
   Field,
   PipelineStage,
+  useCreateProjectAuthUser,
   useUpdateContainer,
   useUpdatePipelines,
 } from "../../../utils/api/container";
@@ -47,6 +55,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
+  const [authUserValues, setAuthUserValues] = useState<Record<string, string>>({});
+  const [authUserRole, setAuthUserRole] = useState("");
 
   // Pipeline management state
   const [isAddPipelineModalOpen, setIsAddPipelineModalOpen] = useState(false);
@@ -58,6 +68,19 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   const { updateContainer, isUpdating } = useUpdateContainer();
   const { updatePipelines, isUpdating: isPipelinesUpdating } =
     useUpdatePipelines();
+  const roleOptions = useGetSelection<Array<{ _id?: string; id?: string; name?: string }>>(
+    container?.isAuthContainer ? "role" : "",
+    container?.isAuthContainer ? "name" : "",
+  );
+  const authUserFormFields = useMemo(
+    () => getAuthUserFormFields(container?.fields || []),
+    [container?.fields],
+  );
+  const authUserRoleField = useMemo(
+    () => getAuthUserRoleField(container?.fields || []),
+    [container?.fields],
+  );
+  const { createAuthUser, isCreatingAuthUser } = useCreateProjectAuthUser();
 
   const copyToClipboard = useCallback(
     (text: string) => {
@@ -107,6 +130,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             populatedRoutes: container.populatedRoutes || [],
             indexes: container.indexes,
             rowAccess: container.rowAccess,
+            isAuthContainer: container.isAuthContainer,
+            isRegisterActive: container.isRegisterActive,
+            isGoogleLoginActive: container.isGoogleLoginActive,
           },
         });
         setIsAddFieldModalOpen(false);
@@ -140,6 +166,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           populatedRoutes: container.populatedRoutes || [],
           indexes: container.indexes,
           rowAccess: container.rowAccess,
+          isAuthContainer: container.isAuthContainer,
+          isRegisterActive: container.isRegisterActive,
+          isGoogleLoginActive: container.isGoogleLoginActive,
         },
       });
       setFieldToDelete(null);
@@ -159,10 +188,69 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         populatedRoutes: container.populatedRoutes || [],
         indexes: container.indexes,
         rowAccess: container.rowAccess,
+        isAuthContainer: container.isAuthContainer,
         isRegisterActive: !container.isRegisterActive,
+        isGoogleLoginActive: container.isGoogleLoginActive,
       },
     });
   }, [container, updateContainer]);
+
+  const handleToggleGoogleLoginActive = useCallback(() => {
+    if (!container?.id || !container.isAuthContainer) return;
+
+    const nextGoogleLoginActive = !container.isGoogleLoginActive;
+    if (
+      nextGoogleLoginActive &&
+      !canEnableGoogleLogin(container.fields || [])
+    ) {
+      toast.error(t("Add an email field before enabling Google login."));
+      return;
+    }
+
+    updateContainer({
+      id: container.id,
+      payload: {
+        schemaName: container.schemaName,
+        fields: container.fields,
+        routes: container.routes,
+        redis: container.redis,
+        populatedRoutes: container.populatedRoutes || [],
+        indexes: container.indexes,
+        rowAccess: container.rowAccess,
+        isAuthContainer: container.isAuthContainer,
+        isRegisterActive: container.isRegisterActive,
+        isGoogleLoginActive: nextGoogleLoginActive,
+      },
+    });
+  }, [container, t, updateContainer]);
+
+  const handleCreateAuthUser = useCallback(() => {
+    if (!container?.isAuthContainer || !container.schemaName) return;
+    const selectedRoleName = authUserRole || roleOptions[0]?.name || "admin";
+    const selectedRole = roleOptions.find(
+      (role) => (role.name || "").toLowerCase() === selectedRoleName.toLowerCase(),
+    );
+    const roleValue = selectedRole?._id || selectedRole?.id || selectedRoleName;
+
+    createAuthUser({
+      schemaName: container.schemaName,
+      payload: buildAuthUserPayload({
+        values: authUserValues,
+        roleFieldName: authUserRoleField?.name,
+        role: roleValue,
+      }),
+    });
+    setAuthUserValues({});
+    setAuthUserRole(roleOptions[0]?.name || "admin");
+  }, [
+    authUserRoleField?.name,
+    authUserValues,
+    authUserRole,
+    container?.isAuthContainer,
+    container?.schemaName,
+    createAuthUser,
+    roleOptions,
+  ]);
 
   const handleMoveFieldUp = useCallback(
     (index: number) => {
@@ -191,6 +279,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           populatedRoutes: container.populatedRoutes || [],
           indexes: container.indexes,
           rowAccess: container.rowAccess,
+          isAuthContainer: container.isAuthContainer,
+          isRegisterActive: container.isRegisterActive,
+          isGoogleLoginActive: container.isGoogleLoginActive,
         },
       });
     },
@@ -225,6 +316,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           populatedRoutes: container.populatedRoutes || [],
           indexes: container.indexes,
           rowAccess: container.rowAccess,
+          isAuthContainer: container.isAuthContainer,
+          isRegisterActive: container.isRegisterActive,
+          isGoogleLoginActive: container.isGoogleLoginActive,
         },
       });
     },
@@ -575,16 +669,97 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </span>
                     </div>
                     {container.isAuthContainer && (
-                      <div>
-                        <span className="text-gray-500">
-                          {t("Registration Active")}:
-                        </span>
-                        <span className="ml-2">
-                          <CheckSwitch
-                            checked={container.isRegisterActive || false}
-                            onChange={handleToggleRegisterActive}
-                          />
-                        </span>
+                      <div className="space-y-4 rounded-lg border border-green-200 bg-green-50 p-4 md:col-span-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
+                            <span className="text-gray-600">
+                              {t("Registration Active")}
+                            </span>
+                            <CheckSwitch
+                              checked={container.isRegisterActive || false}
+                              onChange={handleToggleRegisterActive}
+                            />
+                          </label>
+                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
+                            <span className="text-gray-600">
+                              {t("Google Login Active")}
+                            </span>
+                            <CheckSwitch
+                              checked={container.isGoogleLoginActive || false}
+                              onChange={handleToggleGoogleLoginActive}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="rounded-md bg-white p-3">
+                          <div className="mb-3">
+                            <h4 className="text-sm font-semibold text-gray-900">
+                              {t("Create auth user")}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              {t("Creates a user in this project's auth container.")}
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+                            {authUserFormFields.map((field) => {
+                              const fieldName = field.name;
+                              const lowerFieldName = fieldName.toLowerCase();
+                              const inputType =
+                                field.isHashed || lowerFieldName.includes("password")
+                                  ? "password"
+                                  : field.type === "number" || field.type === "int"
+                                    ? "number"
+                                    : "text";
+
+                              return (
+                                <input
+                                  key={fieldName}
+                                  value={authUserValues[fieldName] || ""}
+                                  onChange={(event) =>
+                                    setAuthUserValues((current) => ({
+                                      ...current,
+                                      [fieldName]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder={t(fieldName)}
+                                  type={inputType}
+                                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                />
+                              );
+                            })}
+                            {authUserRoleField && (
+                              <select
+                                value={authUserRole || roleOptions[0]?.name || "admin"}
+                                onChange={(event) => setAuthUserRole(event.target.value)}
+                                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                              >
+                                {(roleOptions.length > 0
+                                  ? roleOptions
+                                  : [{ name: "admin" }]
+                                ).map((role) => (
+                                  <option key={role._id || role.id || role.name} value={role.name || "admin"}>
+                                    {role.name || "admin"}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <GenericButton
+                              size="sm"
+                              onClick={handleCreateAuthUser}
+                              disabled={
+                                isCreatingAuthUser ||
+                                authUserFormFields.length === 0 ||
+                                authUserFormFields.some(
+                                  (field) =>
+                                    (field.tag === "required" || field.isLoginCredential) &&
+                                    !authUserValues[field.name]?.trim(),
+                                )
+                              }
+                            >
+                              {t("Create User")}
+                            </GenericButton>
+                          </div>
+                        </div>
                       </div>
                     )}
                     <div>
