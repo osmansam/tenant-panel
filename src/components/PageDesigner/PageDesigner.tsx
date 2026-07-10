@@ -66,6 +66,11 @@ import {
   uniqueComponentStateKey,
   validatePageBindings,
 } from "../../utils/pageBindings";
+import {
+  TABLE_ROW_ACTION_KIND_OPTIONS,
+  hydrateEmptyDesignerTableColumns,
+  mergeDesignerTableColumnsFromNames,
+} from "../../utils/pageDesignerTableConfig";
 
 interface PageDesignerProps {
   sections: GridSection[];
@@ -228,16 +233,6 @@ const ACTION_MODAL_TYPES: { value: TableActionModalType; label: string }[] = [
   { value: "none", label: "None" },
   { value: "confirm", label: "Confirm" },
   { value: "form", label: "Form" },
-];
-
-const ACTION_KIND_OPTIONS: {
-  value: TableActionConfig["kind"];
-  label: string;
-}[] = [
-  { value: "edit", label: "Edit" },
-  { value: "delete", label: "Delete" },
-  { value: "update", label: "Update" },
-  { value: "link", label: "Link" },
 ];
 
 const ACTION_INPUT_TYPES: { value: TableActionInputType; label: string }[] = [
@@ -504,6 +499,7 @@ const buildFilterPanelInputsFromFields = (
 const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
   {
     id: "default-edit",
+    key: "default-edit",
     kind: "edit",
     label: "Edit",
     icon: "FiEdit",
@@ -514,6 +510,7 @@ const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
   },
   {
     id: "default-delete",
+    key: "default-delete",
     kind: "delete",
     label: "Delete",
     icon: "HiOutlineTrash",
@@ -526,6 +523,7 @@ const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
 
 const buildDefaultCreateAction = (fields: Field[]): TableActionConfig => ({
   id: "default-create",
+  key: "default-create",
   kind: "create",
   label: "Add",
   buttonName: "Create",
@@ -797,9 +795,14 @@ const cleanTableActions = (
     .map((action, index) => {
       const constantValues =
         action.constantValues || parseJsonObject(action.constantValuesJson);
+      const actionId =
+        action.id?.trim() ||
+        action.key?.trim() ||
+        `${action.kind}-${index + 1}`;
       return {
         kind: action.kind,
-        id: action.id?.trim() || `${action.kind}-${index + 1}`,
+        id: actionId,
+        key: action.key?.trim() || actionId,
         ...(action.label?.trim() ? { label: action.label.trim() } : {}),
         ...(action.buttonName?.trim()
           ? { buttonName: action.buttonName.trim() }
@@ -919,6 +922,20 @@ const cleanTableActions = (
                 workflowName: action.submit.workflowName.trim(),
                 workflowSchema: action.submit.workflowSchema.trim(),
               },
+            }
+          : {}),
+        ...(action.path?.trim() ? { path: action.path.trim() } : {}),
+        ...(action.linkTemplate?.trim()
+          ? { linkTemplate: action.linkTemplate.trim() }
+          : {}),
+        ...(action.fields?.filter((f) => f.trim()).length
+          ? { fields: action.fields.map((f) => f.trim()).filter(Boolean) }
+          : {}),
+        ...(action.excludeFields?.filter((f) => f.trim()).length
+          ? {
+              excludeFields: action.excludeFields
+                .map((f) => f.trim())
+                .filter(Boolean),
             }
           : {}),
         ...(action.linkType ? { linkType: action.linkType } : {}),
@@ -1072,11 +1089,13 @@ const cleanTableConfig = (
       }
     : {}),
   ...(cleanTableActions(
-    tableConfig.addButton ? [tableConfig.addButton] : [],
+    tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
   )[0]
     ? {
         addButton: cleanTableActions(
-          tableConfig.addButton ? [tableConfig.addButton] : [],
+          tableConfig.addButton
+            ? [{ ...tableConfig.addButton, kind: "create" }]
+            : [],
         )[0],
       }
     : {}),
@@ -2642,8 +2661,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   useEffect(() => {
     if (
       !["table", "tabPanel"].includes(componentType) ||
+      tableSourceType !== "schema" ||
       !schemaName ||
-      editingComponent?.table
+      (tableConfig.columns && tableConfig.columns.length > 0)
     ) {
       return;
     }
@@ -2653,10 +2673,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => {
       if (current.columns && current.columns.length > 0) return current;
+      const hydrated = hydrateEmptyDesignerTableColumns(
+        current,
+        container.fields || [],
+      );
 
       return {
-        ...current,
-        columns: buildTableColumnsFromFields(container.fields || []),
+        ...hydrated,
         addButton:
           current.addButton ||
           hydrateSchemaAddButton(
@@ -2677,7 +2700,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               },
       };
     });
-  }, [componentType, containers, editingComponent?.table, schemaName]);
+  }, [
+    componentType,
+    containers,
+    schemaName,
+    tableConfig.columns,
+    tableSourceType,
+  ]);
 
   useEffect(() => {
     if (
@@ -2718,7 +2747,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => ({
       ...current,
-      columns: buildTableColumnsFromNames(selected.outputFields),
+      columns: mergeDesignerTableColumnsFromNames(
+        current.columns,
+        selected.outputFields,
+      ),
       actions: [],
     }));
   }, [componentType, pipelineName, pipelineOptions, tableSourceType]);
@@ -2738,7 +2770,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => ({
       ...current,
-      columns: buildTableColumnsFromNames(selected.outputFields),
+      columns: mergeDesignerTableColumnsFromNames(
+        current.columns,
+        selected.outputFields,
+      ),
       actions: [],
     }));
   }, [componentType, tableSourceType, workflowName, workflowOptions]);
@@ -2946,6 +2981,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const handleAdd = () => {
     let component: ComponentBlock = {
+      ...(editingComponent || {}),
       id:
         editingComponent?.id && isSafeRuntimeName(editingComponent.id)
           ? editingComponent.id
@@ -3018,7 +3054,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         filterField: groupedField,
       };
 
-      component.tabs = tabs;
+      const cleanedTabs = tabs.map((tab) => ({
+        ...tab,
+        components: (tab.components || []).map((comp) =>
+          comp.table
+            ? { ...comp, table: cleanTableConfig(comp.table) }
+            : comp,
+        ),
+      }));
+      component.tabs = cleanedTabs;
       if (
         cleanGroupBy.groupedSchemaName &&
         cleanGroupBy.groupedField &&
@@ -3029,7 +3073,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           kind: "schema",
           schemaName: cleanGroupBy.groupedSchemaName,
         };
-        component.table = cleanTableConfig(tableConfig);
+        const firstTabTable =
+          cleanedTabs.flatMap((tab) => tab.components || []).find((comp) => comp.table)?.table;
+        component.table = firstTabTable || cleanTableConfig(tableConfig);
         component.groupBy = cleanGroupBy;
       }
     } else if (componentType === "infoBlocks") {
@@ -3524,12 +3570,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig((current) => {
       const actions = current.actions || [];
       const nextOrder = actions.length + 1;
+      const actionId = `action-${Date.now()}`;
       return {
         ...current,
         actions: [
           ...actions,
           {
-            id: `action-${Date.now()}`,
+            id: actionId,
+            key: actionId,
             kind: "update",
             label: "Action",
             buttonName: "",
@@ -3978,11 +4026,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         };
       }),
     );
+    if (component.table) {
+      setTableConfig(component.table);
+    }
     setTableEditorTarget(null);
   };
 
-  const currentAddButton =
-    tableConfig.addButton || buildDefaultCreateAction(selectedFields);
+  const currentAddButton = {
+    ...(tableConfig.addButton || buildDefaultCreateAction(selectedFields)),
+    kind: "create" as const,
+  };
 
   return (
     <div
@@ -6704,7 +6757,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       On
                                     </label>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-3">
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Kind
+                                      </label>
+                                      <select
+                                        value="create"
+                                        disabled
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="create">Create</option>
+                                      </select>
+                                      <p className="mt-1 text-[11px] text-neutral-500">
+                                        Add Button always creates a new record or runs a create workflow.
+                                      </p>
+                                    </div>
                                     <div>
                                       <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                         Label
@@ -6742,6 +6810,47 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         }
                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                       />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Workflow / dynamic function
+                                      </label>
+                                      <select
+                                        value={
+                                          currentAddButton.submit?.workflowSchema &&
+                                          currentAddButton.submit?.workflowName
+                                            ? `${currentAddButton.submit.workflowSchema}::${currentAddButton.submit.workflowName}`
+                                            : ""
+                                        }
+                                        onChange={(e) => {
+                                          const [workflowSchema, workflowName] =
+                                            e.target.value.split("::");
+                                          updateTableAddButton({
+                                            submit:
+                                              workflowSchema && workflowName
+                                                ? { workflowSchema, workflowName }
+                                                : undefined,
+                                          });
+                                        }}
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="">
+                                          Regular dynamic create
+                                        </option>
+                                        {projectWorkflowOptions.map(({ schemaName, workflow }) => (
+                                          <option
+                                            key={`${schemaName}::${workflow.name}`}
+                                            value={`${schemaName}::${workflow.name}`}
+                                          >
+                                            {schemaName} / {workflow.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <p className="mt-1 text-[11px] text-neutral-500">
+                                        Select a workflow that contains a dynamic-function step.
+                                      </p>
                                     </div>
                                   </div>
 
@@ -7407,11 +7516,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       ? "confirm"
                                                       : action.modalType ||
                                                         "none",
+                                                formFields:
+                                                  (kind === "create" ||
+                                                    kind === "edit") &&
+                                                  action.formFields === undefined
+                                                    ? buildActionFormFieldsFromFields(
+                                                        selectedFields,
+                                                      )
+                                                    : action.formFields,
                                               });
                                             }}
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           >
-                                            {ACTION_KIND_OPTIONS.map((kind) => (
+                                            {TABLE_ROW_ACTION_KIND_OPTIONS.map((kind) => (
                                               <option
                                                 key={kind.value}
                                                 value={kind.value}
@@ -7627,7 +7744,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             }}
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           >
-                                            <option value="">Select workflow...</option>
+                                            <option value="">
+                                              Regular dynamic {action.kind === "edit" ? "edit" : "action"}
+                                            </option>
                                             {projectWorkflowOptions.map(({ schemaName, workflow }) => (
                                               <option
                                                 key={`${schemaName}::${workflow.name}`}

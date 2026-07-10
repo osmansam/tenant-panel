@@ -59,8 +59,10 @@ export const getConfiguredCreateAction = (
   tableConfig: TableComponentConfig | undefined,
   schemaActions?: TableActionConfig[],
 ): TableActionConfig | undefined =>
-  tableConfig?.addButton?.enabled !== false
-    ? tableConfig?.addButton
+  tableConfig?.addButton !== undefined
+    ? tableConfig.addButton.enabled !== false
+      ? tableConfig.addButton
+      : undefined
     : getConfiguredTableActions(tableConfig, schemaActions)?.find(
         (action) => action.kind === "create",
       );

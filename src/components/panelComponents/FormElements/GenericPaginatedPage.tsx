@@ -141,6 +141,17 @@ export default function GenericPaginatedPage({
     [container?.fields, dataBinding, schemaName, tableConfig],
   );
   const schemaActionsEnabled = actionsEnabled && tableBinding.kind === "schema";
+  const hasConfiguredRowActions = useMemo(
+    () =>
+      Array.isArray(tableConfig?.actions) &&
+      tableConfig.actions.some(
+        (action) => action.kind !== "create" && action.enabled !== false,
+      ),
+    [tableConfig?.actions],
+  );
+  const isActionsActive = Boolean(
+    actionsEnabled && (schemaActionsEnabled || hasConfiguredRowActions),
+  );
 
   // Generate mock data based on container fields (10 items)
   const mockItems = useMemo(() => {
@@ -663,10 +674,10 @@ export default function GenericPaginatedPage({
             ?.type !== "computedLabel",
         correspondingKey: f.name,
       }));
-    return schemaActionsEnabled
+    return isActionsActive
       ? [...baseCols, { key: t("Actions"), isSortable: false }]
       : baseCols;
-  }, [displayFields, t, schemaActionsEnabled, constantFilter, tableConfig]);
+  }, [displayFields, t, isActionsActive, constantFilter, tableConfig]);
 
   const { inputs, formKeys, constantFilterKeys } = useMemo(() => {
     const constantFilterKeys = constantFilter
@@ -1052,51 +1063,68 @@ export default function GenericPaginatedPage({
   );
 
   const addButton = useMemo(
-    () => ({
-      name: configuredCreateAction?.label || t("Add"),
-      isModal: true,
-      modal: (
-        <GenericAddEditPanel
-          isOpen={isAddOpen}
-          close={() => setIsAddOpen(false)}
-          inputs={createActionInputs}
-          formKeys={createActionFormKeys}
-          submitItem={handleSubmitItem}
-          buttonName={
-            configuredCreateAction?.buttonName ||
-            configuredCreateAction?.label ||
-            undefined
-          }
-          topClassName="flex flex-col gap-2"
-          itemToEdit={
-            constantFilter ||
-            Object.keys(createActionDefaults).length > 0 ||
-            Object.keys(createActionConstants).length > 0
-              ? {
-                  id: "",
-                  updates: {
-                    ...createActionDefaults,
-                    ...createActionConstants,
-                    ...(constantFilter || {}),
-                    _id: "",
-                  } as GenericItem,
-                }
-              : undefined
-          }
-        />
-      ),
-      isModalOpen: isAddOpen,
-      setIsModal: setIsAddOpen,
-      isPath: false,
-      icon: null,
-      className:
-        configuredCreateAction?.buttonClassName ||
-        configuredCreateAction?.className ||
-        "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
-    }),
+    () => {
+      if (!actionsEnabled) return undefined;
+      if (!configuredCreateAction) {
+        if (
+          !schemaActionsEnabled ||
+          tableConfig?.addButton?.enabled === false
+        ) {
+          return undefined;
+        }
+      }
+
+      const actionConfig = configuredCreateAction || { kind: "create" as const };
+
+      return {
+        name: actionConfig.label || t("Add"),
+        isModal: true,
+        modal: (
+          <GenericAddEditPanel
+            isOpen={isAddOpen}
+            close={() => setIsAddOpen(false)}
+            inputs={createActionInputs}
+            formKeys={createActionFormKeys}
+            submitItem={handleSubmitItem}
+            buttonName={
+              actionConfig.buttonName ||
+              actionConfig.label ||
+              undefined
+            }
+            topClassName="flex flex-col gap-2"
+            itemToEdit={
+              constantFilter ||
+              Object.keys(createActionDefaults).length > 0 ||
+              Object.keys(createActionConstants).length > 0
+                ? {
+                    id: "",
+                    updates: {
+                      ...createActionDefaults,
+                      ...createActionConstants,
+                      ...(constantFilter || {}),
+                      _id: "",
+                    } as GenericItem,
+                  }
+                : undefined
+            }
+          />
+        ),
+        isModalOpen: isAddOpen,
+        setIsModal: setIsAddOpen,
+        isPath: false,
+        icon: null,
+        className:
+          actionConfig.buttonClassName ||
+          actionConfig.className ||
+          "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
+      };
+    },
     [
       t,
+      actionsEnabled,
+      schemaActionsEnabled,
       configuredCreateAction,
+      tableConfig?.addButton?.enabled,
       isAddOpen,
       createActionInputs,
       createActionFormKeys,
@@ -1178,9 +1206,11 @@ export default function GenericPaginatedPage({
   ]);
 
   const actions = useMemo<ActionType<GenericItem>[]>(() => {
-    if (!schemaActionsEnabled) return [];
-    if (configuredActionDefinitions === undefined) return defaultActions;
-    if (configuredActionDefinitions.length === 0) return [];
+    if (!isActionsActive) return [];
+    if (configuredActionDefinitions === undefined || configuredActionDefinitions.length === 0) {
+      if (!schemaActionsEnabled) return [];
+      return defaultActions;
+    }
 
     return configuredActionDefinitions.map((actionConfig, index) => {
       const actionId = getActionId(actionConfig, index);
@@ -1343,6 +1373,7 @@ export default function GenericPaginatedPage({
     normalizeRowForSubmit,
     rowToAction,
     schemaActionsEnabled,
+    isActionsActive,
     t,
     updateDynamicItem,
   ]);
@@ -1893,7 +1924,7 @@ export default function GenericPaginatedPage({
           title={customTitle || t(humanize(schemaName))}
           addButton={addButton}
           isCollapsible={false}
-          isActionsActive={schemaActionsEnabled}
+          isActionsActive={isActionsActive}
           isSearch={false}
           outsideSortProps={outsideSort}
           {...(pagination && { pagination })}

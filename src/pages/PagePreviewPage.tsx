@@ -151,7 +151,9 @@ const RenderComponent: React.FC<{
             isHeader={false}
             tableConfig={tableConfig}
             dataBinding={resolvedDataBinding}
-            actionsEnabled={resolvedDataBinding.kind === "schema"}
+            actionsEnabled={["schema", "pipeline", "workflow"].includes(
+              resolvedDataBinding.kind,
+            )}
           />
         );
       }

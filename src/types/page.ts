@@ -260,6 +260,7 @@ export interface TableActionSubmitConfig {
 
 export interface TableActionConfig {
   id?: string;
+  key?: string;
   kind: TableActionKind;
   label?: string;
   buttonName?: string;
@@ -279,6 +280,7 @@ export interface TableActionConfig {
   confirmTitle?: string;
   confirmText?: string;
   submit?: TableActionSubmitConfig;
+  path?: string;
   linkTemplate?: string;
   linkType?: LinkType;
   className?: string;
