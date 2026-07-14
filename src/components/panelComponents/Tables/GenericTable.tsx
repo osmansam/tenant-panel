@@ -322,6 +322,7 @@ const GenericTable = <T,>({
   const headerScrollRef = useRef<HTMLDivElement | null>(null);
   const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const hasSelectionActions = Boolean(selectionActions?.length);
 
   // Derive sortConfig from sortConfigKey instead of maintaining separate state
   const sortConfig = sortConfigKey
@@ -671,7 +672,7 @@ const GenericTable = <T,>({
           }  ${rowClassNameFunction?.(row) ?? ""}`}
           style={rowStyleFunction?.(row)}
         >
-          {selectionActions && isSelectionActive && (
+          {hasSelectionActions && isSelectionActive && (
             <td className="w-6 h-6 mx-auto p-1">
               <div className="flex items-center justify-center">
                 <EnterpriseCheckbox
@@ -1046,7 +1047,7 @@ const GenericTable = <T,>({
               </div>
             )}
           </div>
-          {!(selectionActions && isSelectionActive) && (
+          {!(hasSelectionActions && isSelectionActive) && (
             <div className="hidden sm:flex flex-row flex-wrap gap-4 ml-auto relative z-10">
               {renderFilters(true)}
             </div>
@@ -1055,7 +1056,7 @@ const GenericTable = <T,>({
         <div className="flex flex-col bg-white border border-gray-100 shadow-sm rounded-lg relative z-0">
           <div className="flex flex-col sm:flex-row flex-wrap sm:flex-nowrap justify-between items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-6 border-b border-gray-200 py-3 sm:py-4">
             <div className="flex flex-row gap-2 items-center w-full sm:w-auto">
-              {selectionActions && (
+              {hasSelectionActions && (
                 <Tooltip
                   content={
                     isSelectionActive
@@ -1077,13 +1078,13 @@ const GenericTable = <T,>({
                 <H4 className="mr-auto text-base sm:text-lg">{title}</H4>
               )}
             </div>
-            {selectionActions &&
+            {hasSelectionActions &&
               isSelectionActive &&
               isActionsActive &&
               selectedRows.length > 0 &&
-              renderActionButtons({} as unknown as T, selectionActions)}
+              renderActionButtons({} as unknown as T, selectionActions || [])}
             <div className="flex flex-row flex-wrap gap-2 sm:gap-4 relative items-center w-full sm:w-auto sm:ml-auto justify-end">
-              {!(selectionActions && isSelectionActive) && (
+              {!(hasSelectionActions && isSelectionActive) && (
                 <>
                   {/* Alt filters (Total vs) */}
                   {renderFilters(false)}
@@ -1265,9 +1266,9 @@ const GenericTable = <T,>({
                 <table className="bg-white w-full">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                     <tr>
-                      {selectionActions && isSelectionActive && (
+                      {hasSelectionActions && isSelectionActive && (
                         <th className="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 shadow-sm px-4 py-3">
-                          {selectionActions && isSelectionActive && (
+                          {hasSelectionActions && isSelectionActive && (
                             <Tooltip content={t("Select All")} placement="top">
                               <div className="flex items-center justify-center">
                                 <EnterpriseCheckbox

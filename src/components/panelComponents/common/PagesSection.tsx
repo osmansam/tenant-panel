@@ -118,6 +118,7 @@ export const PagesSection: React.FC = () => {
     try {
       // Use flat structure (backward compatible with Go model)
       const sections = gridSections;
+      const filters = editingPage.filters ?? [];
 
       updatePage({
         id: editingPage._id || editingPage.id!,
@@ -133,13 +134,13 @@ export const PagesSection: React.FC = () => {
           isAuthenticated: editingPage.isAuthenticated,
           isAuthorized: editingPage.isAuthorized,
           authorizeRole: editingPage.authorizeRole,
-          filters: editingPage.filters,
+          filters,
           sections: sections,
         },
       });
       setEditingPage({
         ...editingPage,
-        filters: editingPage.filters,
+        filters,
         sections,
       });
     } catch (error) {
@@ -503,14 +504,14 @@ export const PagesSection: React.FC = () => {
                   const sections = gridSections.map((gridSection) => ({
                     ...gridSection,
                   }));
-                  setEditingPage({
-                    ...editingPage,
+                  setEditingPage((currentPage) => currentPage && {
+                    ...currentPage,
                     sections,
                   });
                 }}
                 onFiltersChange={(filters) => {
-                  setEditingPage({
-                    ...editingPage,
+                  setEditingPage((currentPage) => currentPage && {
+                    ...currentPage,
                     filters,
                   });
                 }}

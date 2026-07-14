@@ -64,18 +64,27 @@ export const mergeDesignerTableColumnsFromNames = (
       .map((column) => [column.field.trim(), column]),
   );
 
-  return fieldNames
+  const syncedFields = fieldNames
     .map((field) => field.trim())
     .filter(
       (field, index, all) =>
         field && !["_id", "id"].includes(field) && all.indexOf(field) === index,
-    )
-    .map(
-      (field) =>
-        existingByField.get(field) || {
-          field,
-          type: "field" as const,
-          displayName: "",
-        },
     );
+  const syncedFieldSet = new Set(syncedFields);
+
+  const syncedColumns = syncedFields.map(
+    (field) =>
+      existingByField.get(field) || {
+        field,
+        type: "field" as const,
+        displayName: "",
+      },
+  );
+
+  const customColumns = currentColumns.filter((column) => {
+    const field = column.field?.trim();
+    return field && !["_id", "id"].includes(field) && !syncedFieldSet.has(field);
+  });
+
+  return [...syncedColumns, ...customColumns];
 };

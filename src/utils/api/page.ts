@@ -5,6 +5,7 @@ import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetList } from "./factory";
+import { normalizePageRuntimeConfig } from "../pageBindings";
 
 // Type definitions based on Go models
 export type BindingKind =
@@ -19,6 +20,7 @@ export type RuntimeValueType =
   | "number"
   | "boolean"
   | "date"
+  | "monthYear"
   | "dateRange"
   | "stringArray"
   | "numberArray";
@@ -45,6 +47,7 @@ export interface PageFilterDefinition {
     | "today"
     | "yesterday"
     | "tomorrow"
+  | "currentMonthYear"
     | "thisWeek"
     | "lastWeek"
     | "thisMonth"
@@ -72,7 +75,7 @@ export type ParameterBinding =
   | {
       source: "pageFilter";
       filterId: string;
-      field?: "value" | "start" | "end" | "preset" | "timezone";
+      field?: "value" | "month" | "year" | "start" | "end" | "preset" | "timezone";
     }
   | { source: "pageVariable"; variableId: string }
   | {
@@ -235,6 +238,7 @@ export interface PageTableActionSubmitConfig {
   constantValues?: Record<string, unknown>;
   workflowName?: string;
   workflowSchema?: string;
+  functionName?: string;
 }
 
 export interface PageTableActionConfig {
@@ -271,6 +275,10 @@ export interface PageTableComponentConfig {
   cache?: PageTableCacheConfig;
   addButton?: PageTableActionConfig;
   actions?: PageTableActionConfig[];
+  bulkActions?: {
+    edit?: PageTableActionConfig;
+    delete?: PageTableActionConfig;
+  };
   filterPanel?: PageTableFilterPanelConfig;
 }
 
@@ -563,7 +571,7 @@ export function useCreatePage() {
   const createMutation = useMutation({
     mutationFn: async (payload: CreatePagePayload) => {
       const path = buildPagePath(tenantSlug, projectSlug);
-      const response = await axiosClient.post(path, payload);
+      const response = await axiosClient.post(path, normalizePageRuntimeConfig(payload));
       return response.data;
     },
     onSuccess: (response) => {
@@ -610,7 +618,7 @@ export function useUpdatePage() {
       payload: UpdatePagePayload;
     }) => {
       const path = buildPagePath(tenantSlug, projectSlug, `/${id}`);
-      const response = await axiosClient.patch(path, payload);
+      const response = await axiosClient.patch(path, normalizePageRuntimeConfig(payload));
       return response.data;
     },
     onSuccess: (response, variables) => {

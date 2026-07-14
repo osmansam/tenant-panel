@@ -608,6 +608,7 @@ export function useGetWorkflowData<T>(
       const response = await axiosClient.post<DynamicExecutionResponse<T>>(
         `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
           schemaName,
+          ...mergedParams,
         })}`,
         { record: mergedParams },
         {

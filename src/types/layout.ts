@@ -5,7 +5,7 @@
  * These types match the backend data structure for rendering dynamic pages.
  */
 
-import type { TableFilterPanelConfig } from "./page";
+import type { TableActionConfig, TableFilterPanelConfig } from "./page";
 
 /**
  * Data binding configuration for components
@@ -98,6 +98,12 @@ export interface TableComponentConfig {
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
   cache?: TableCacheConfig;
+  addButton?: TableActionConfig;
+  actions?: TableActionConfig[];
+  bulkActions?: {
+    edit?: TableActionConfig;
+    delete?: TableActionConfig;
+  };
   filterPanel?: TableFilterPanelConfig;
 }
 

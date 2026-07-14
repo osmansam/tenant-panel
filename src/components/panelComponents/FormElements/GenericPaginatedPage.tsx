@@ -152,6 +152,8 @@ export default function GenericPaginatedPage({
   const isActionsActive = Boolean(
     actionsEnabled && (schemaActionsEnabled || hasConfiguredRowActions),
   );
+  const bulkEditActionConfig = tableConfig?.bulkActions?.edit;
+  const bulkDeleteActionConfig = tableConfig?.bulkActions?.delete;
 
   // Generate mock data based on container fields (10 items)
   const mockItems = useMemo(() => {
@@ -1838,69 +1840,92 @@ export default function GenericPaginatedPage({
 
   const selectionActions = useMemo(
     () => [
-      {
-        name: t("Delete Selected"),
-        isButton: true,
-        buttonClassName:
-          "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
-        isModal: true,
-        className: "cursor-pointer",
-        isDisabled: !schemaActionsEnabled || !selectedRows?.length,
-        modal:
-          selectedRows?.length > 0 ? (
-            <ConfirmationDialog
-              isOpen={isBulkDeleteOpen}
-              close={() => setIsBulkDeleteOpen(false)}
-              confirm={handleBulkDeleteConfirm}
-              title={t("Delete Selected")}
-              text={t("Are you sure you want to delete the selected items?")}
-            />
-          ) : null,
-        isModalOpen: isBulkDeleteOpen,
-        setIsModal: setIsBulkDeleteOpen,
-        isPath: false,
-      },
-      {
-        name: t("Edit Selected"),
-        isButton: true,
-        buttonClassName:
-          "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
-        isModal: true,
-        className: "cursor-pointer",
-        modal: isBulkEditOpen ? (
-          <GenericAddEditPanel
-            isOpen={isBulkEditOpen}
-            close={handleBulkEditClose}
-            inputs={bulkEditInputs}
-            formKeys={bulkFormKeys}
-            setForm={handleBulkFormChange}
-            submitItem={() => {}}
-            isEditMode={false}
-            topClassName="flex flex-col gap-2"
-            generalClassName="overflow-visible"
-            buttonName={t("Edit")}
-            isSubmitButtonActive={isBulkStepTwo}
-            submitFunction={handleBulkEditSubmit}
-            additionalButtons={[
+      ...(bulkDeleteActionConfig && bulkDeleteActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkDeleteActionConfig.label || "Delete Selected"),
+              isButton: true,
+              buttonClassName:
+                bulkDeleteActionConfig.buttonClassName ||
+                "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
+              isModal: true,
+              className: "cursor-pointer",
+              isDisabled: !schemaActionsEnabled || !selectedRows?.length,
+              modal:
+                selectedRows?.length > 0 ? (
+                  <ConfirmationDialog
+                    isOpen={isBulkDeleteOpen}
+                    close={() => setIsBulkDeleteOpen(false)}
+                    confirm={handleBulkDeleteConfirm}
+                    title={t(
+                      bulkDeleteActionConfig.confirmTitle ||
+                        bulkDeleteActionConfig.label ||
+                        "Delete Selected",
+                    )}
+                    text={t(
+                      bulkDeleteActionConfig.confirmText ||
+                        "Are you sure you want to delete the selected items?",
+                    )}
+                  />
+                ) : null,
+              isModalOpen: isBulkDeleteOpen,
+              setIsModal: setIsBulkDeleteOpen,
+              isPath: false,
+            },
+          ]
+        : []),
+      ...(bulkEditActionConfig && bulkEditActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkEditActionConfig.label || "Edit Selected"),
+              isButton: true,
+              buttonClassName:
+                bulkEditActionConfig.buttonClassName ||
+                "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
+              isModal: true,
+              className: "cursor-pointer",
+              modal: isBulkEditOpen ? (
+                <GenericAddEditPanel
+                  isOpen={isBulkEditOpen}
+                  close={handleBulkEditClose}
+                  inputs={bulkEditInputs}
+                  formKeys={bulkFormKeys}
+                  setForm={handleBulkFormChange}
+                  submitItem={() => {}}
+                  isEditMode={false}
+                  topClassName="flex flex-col gap-2"
+                  generalClassName="overflow-visible"
+                  buttonName={t(
+                    bulkEditActionConfig.buttonName ||
+                      bulkEditActionConfig.label ||
+                      "Edit",
+                  )}
+                  isSubmitButtonActive={isBulkStepTwo}
+                  submitFunction={handleBulkEditSubmit}
+                  additionalButtons={[
               {
                 label: isBulkStepTwo ? t("Back") : t("Forward"),
                 onClick: handleBulkEditBackOrForward,
               },
-            ]}
-          />
-        ) : null,
-        isModalOpen: isBulkEditOpen,
-        setIsModal: setIsBulkEditOpen,
-        isPath: false,
-        isDisabled: !schemaActionsEnabled || !selectedRows?.length,
-      },
+                  ]}
+                />
+              ) : null,
+              isModalOpen: isBulkEditOpen,
+              setIsModal: setIsBulkEditOpen,
+              isPath: false,
+              isDisabled: !schemaActionsEnabled || !selectedRows?.length,
+            },
+          ]
+        : []),
     ],
     [
       t,
       schemaActionsEnabled,
       selectedRows,
+      bulkDeleteActionConfig,
       isBulkDeleteOpen,
       handleBulkDeleteConfirm,
+      bulkEditActionConfig,
       isBulkEditOpen,
       handleBulkEditClose,
       handleBulkFormChange,

@@ -208,6 +208,17 @@ export default function GenericUnpaginatedPage({
     },
     [],
   );
+  const executeWorkflow = useCallback(
+    (payload: {
+      workflowName: string;
+      workflowSchema?: string;
+      record: Record<string, unknown>;
+      oldRecord?: Record<string, unknown>;
+    }) => {
+      console.log("Preview mode: Execute workflow", payload);
+    },
+    [],
+  );
 
   const displayFields: Field[] = useMemo(() => {
     if (!container?.fields) return [];
@@ -819,6 +830,12 @@ export default function GenericUnpaginatedPage({
     () => getConfiguredTableActions(tableConfig, container?.frontend?.actions),
     [container?.frontend?.actions, tableConfig],
   );
+  const bulkEditActionConfig = tableConfig?.bulkActions?.edit;
+  const bulkDeleteActionConfig = tableConfig?.bulkActions?.delete;
+  const configuredBulkEditFields = bulkEditActionConfig?.formFields || [];
+  const bulkActionSelectionDataMap = useActionFormSelectionData(
+    bulkEditActionConfig ? [bulkEditActionConfig] : [],
+  );
   const actionSelectionDataMap = useActionFormSelectionData(
     configuredActionDefinitions || [],
   );
@@ -1117,8 +1134,17 @@ export default function GenericUnpaginatedPage({
   const [bulkSelectedKeys, setBulkSelectedKeys] = useState<string[]>([]);
   const [bulkForm, setBulkForm] = useState<Record<string, unknown>>({});
   const bulkFieldOptions = useMemo(
-    () =>
-      displayFields
+    () => {
+      if (configuredBulkEditFields.length) {
+        return configuredBulkEditFields
+          .filter((field) => field.formKey)
+          .map((field) => ({
+            value: field.formKey,
+            label: t(field.label || field.formKey),
+          }));
+      }
+
+      return displayFields
         .filter((f) => {
           const fieldType = (f.type || "").toLowerCase();
           return (
@@ -1130,12 +1156,24 @@ export default function GenericUnpaginatedPage({
         .map((f) => ({
           value: f.name,
           label: t(getFieldLabel(f)),
-        })),
-    [displayFields, t],
+        }));
+    },
+    [configuredBulkEditFields, displayFields, t],
   );
 
   const bulkFormKeys = useMemo(() => {
     if (isBulkStepTwo) {
+      if (configuredBulkEditFields.length) {
+        return buildActionFormKeys({
+          ...(bulkEditActionConfig || {
+            kind: "update",
+          }),
+          formFields: configuredBulkEditFields.filter((field) =>
+            bulkSelectedKeys.includes(field.formKey),
+          ),
+        } as TableActionConfig);
+      }
+
       // Step 2: only the selected fields
       return displayFields
         .filter((f) => bulkSelectedKeys.includes(f.name))
@@ -1147,7 +1185,13 @@ export default function GenericUnpaginatedPage({
       // Step 1: only the selector
       return [{ key: "bulkSelectedKeys", type: FormKeyTypeEnum.STRING }];
     }
-  }, [displayFields, bulkSelectedKeys, isBulkStepTwo]);
+  }, [
+    bulkEditActionConfig,
+    configuredBulkEditFields,
+    displayFields,
+    bulkSelectedKeys,
+    isBulkStepTwo,
+  ]);
 
   // Generate bulk edit inputs
   const bulkEditInputs = useMemo(() => {
@@ -1163,6 +1207,26 @@ export default function GenericUnpaginatedPage({
     };
 
     const chosen = new Set(bulkSelectedKeys);
+    if (configuredBulkEditFields.length) {
+      const valueInputs = buildActionFormInputs(
+        {
+          ...(bulkEditActionConfig || { kind: "update" }),
+          formFields: configuredBulkEditFields.filter((field) =>
+            chosen.has(field.formKey),
+          ),
+        } as TableActionConfig,
+        getActionId(bulkEditActionConfig || { kind: "update" }, 0),
+        null,
+        bulkActionSelectionDataMap,
+      ).map((input) => ({
+        ...input,
+        required: false,
+        isDisabled: !isBulkStepTwo,
+      }));
+
+      return [selectInput, ...valueInputs];
+    }
+
     const valueInputs = displayFields
       .filter((f) => chosen.has(f.name))
       .map((f) => {
@@ -1249,7 +1313,16 @@ export default function GenericUnpaginatedPage({
       });
 
     return [selectInput, ...valueInputs];
-  }, [t, bulkFieldOptions, isBulkStepTwo, displayFields, bulkSelectedKeys]);
+  }, [
+    t,
+    bulkFieldOptions,
+    isBulkStepTwo,
+    displayFields,
+    bulkSelectedKeys,
+    configuredBulkEditFields,
+    bulkEditActionConfig,
+    bulkActionSelectionDataMap,
+  ]);
 
   // Memoize handlers to prevent recreating selection actions
   const handleBulkEditSubmit = useCallback(() => {
@@ -1338,7 +1411,20 @@ export default function GenericUnpaginatedPage({
       _id: r._id,
       updates,
     }));
-    updateMultipleDynamicItem(items);
+    if (bulkEditActionConfig?.submit?.workflowName) {
+      executeWorkflow({
+        workflowName: bulkEditActionConfig.submit.workflowName,
+        workflowSchema: bulkEditActionConfig.submit.workflowSchema || schemaName,
+        record: {
+          selectedIds: (selectedRows as GenericItem[]).map((r) => r._id),
+          updates,
+          items,
+          functionName: bulkEditActionConfig.submit.functionName,
+        },
+      });
+    } else {
+      updateMultipleDynamicItem(items);
+    }
     setSelectedRows([]);
     setIsSelectionActive(false);
     setIsBulkStepTwo(false);
@@ -1350,7 +1436,10 @@ export default function GenericUnpaginatedPage({
     bulkForm,
     bulkSelectedKeys,
     bulkFormKeys,
+    bulkEditActionConfig,
     selectedRows,
+    schemaName,
+    executeWorkflow,
     updateMultipleDynamicItem,
     setSelectedRows,
     setIsSelectionActive,
@@ -1381,30 +1470,64 @@ export default function GenericUnpaginatedPage({
 
         // Initialize boolean fields to false for the selected fields
         const initialBulkValues: Record<string, unknown> = {};
-        displayFields
-          .filter((f) => selectedKeys.includes(f.name))
-          .forEach((f) => {
-            const m = fieldToInput(f);
-            if (m.formKeyType === FormKeyTypeEnum.BOOLEAN) {
-              initialBulkValues[f.name] = false;
+        if (configuredBulkEditFields.length) {
+          buildActionFormKeys({
+            ...(bulkEditActionConfig || { kind: "update" }),
+            formFields: configuredBulkEditFields.filter((field) =>
+              selectedKeys.includes(field.formKey),
+            ),
+          } as TableActionConfig).forEach((fieldKey) => {
+            if (fieldKey.type === FormKeyTypeEnum.BOOLEAN) {
+              initialBulkValues[fieldKey.key] = false;
             }
           });
+        } else {
+          displayFields
+            .filter((f) => selectedKeys.includes(f.name))
+            .forEach((f) => {
+              const m = fieldToInput(f);
+              if (m.formKeyType === FormKeyTypeEnum.BOOLEAN) {
+                initialBulkValues[f.name] = false;
+              }
+            });
+        }
 
         setBulkForm((prev) => ({ ...prev, ...initialBulkValues }));
         setIsBulkStepTwo(true);
       }
     }
-  }, [isBulkStepTwo, bulkForm, displayFields]);
+  }, [
+    isBulkStepTwo,
+    bulkForm,
+    bulkEditActionConfig,
+    configuredBulkEditFields,
+    displayFields,
+  ]);
 
   const handleBulkDeleteConfirm = useCallback(() => {
-    deleteMultipleDynamicItem(
-      selectedRows.map((r) => ({ _id: (r as GenericItem)._id })),
-    );
+    const items = selectedRows.map((r) => ({ _id: (r as GenericItem)._id }));
+    if (bulkDeleteActionConfig?.submit?.workflowName) {
+      executeWorkflow({
+        workflowName: bulkDeleteActionConfig.submit.workflowName,
+        workflowSchema:
+          bulkDeleteActionConfig.submit.workflowSchema || schemaName,
+        record: {
+          selectedIds: items.map((item) => item._id),
+          items,
+          functionName: bulkDeleteActionConfig.submit.functionName,
+        },
+      });
+    } else {
+      deleteMultipleDynamicItem(items);
+    }
     setSelectedRows([]);
     setIsSelectionActive(false);
     setIsBulkDeleteOpen(false);
   }, [
     selectedRows,
+    bulkDeleteActionConfig,
+    schemaName,
+    executeWorkflow,
     deleteMultipleDynamicItem,
     setSelectedRows,
     setIsSelectionActive,
@@ -1521,11 +1644,14 @@ export default function GenericUnpaginatedPage({
 
   const selectionActions = useMemo(
     () => [
-      {
-        name: t("Delete Selected"),
+      ...(bulkDeleteActionConfig && bulkDeleteActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkDeleteActionConfig?.label || "Delete Selected"),
         isButton: true,
         buttonClassName:
-          "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
+                bulkDeleteActionConfig?.buttonClassName ||
+                "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
         isModal: true,
         className: "cursor-pointer",
         isDisabled: !actionsEnabled || !selectedRows?.length,
@@ -1535,19 +1661,31 @@ export default function GenericUnpaginatedPage({
               isOpen={isBulkDeleteOpen}
               close={() => setIsBulkDeleteOpen(false)}
               confirm={handleBulkDeleteConfirm}
-              title={t("Delete Selected")}
-              text={t("Are you sure you want to delete the selected items?")}
+                    title={t(
+                      bulkDeleteActionConfig?.confirmTitle ||
+                        bulkDeleteActionConfig?.label ||
+                        "Delete Selected",
+                    )}
+                    text={t(
+                      bulkDeleteActionConfig?.confirmText ||
+                        "Are you sure you want to delete the selected items?",
+                    )}
             />
           ) : null,
         isModalOpen: isBulkDeleteOpen,
         setIsModal: setIsBulkDeleteOpen,
         isPath: false,
-      },
-      {
-        name: t("Edit Selected"),
+            },
+          ]
+        : []),
+      ...(bulkEditActionConfig && bulkEditActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkEditActionConfig?.label || "Edit Selected"),
         isButton: true,
         buttonClassName:
-          "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
+                bulkEditActionConfig?.buttonClassName ||
+                "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
         isModal: true,
         className: "cursor-pointer",
         modal: isBulkEditOpen ? (
@@ -1561,7 +1699,11 @@ export default function GenericUnpaginatedPage({
             isEditMode={false}
             topClassName="flex flex-col gap-2"
             generalClassName="overflow-visible"
-            buttonName={t("Edit")}
+                  buttonName={t(
+                    bulkEditActionConfig?.buttonName ||
+                      bulkEditActionConfig?.label ||
+                      "Edit",
+                  )}
             isSubmitButtonActive={isBulkStepTwo}
             submitFunction={handleBulkEditSubmit}
             additionalButtons={[
@@ -1576,14 +1718,18 @@ export default function GenericUnpaginatedPage({
         setIsModal: setIsBulkEditOpen,
         isPath: false,
         isDisabled: !actionsEnabled || !selectedRows?.length,
-      },
+            },
+          ]
+        : []),
     ],
     [
       t,
       actionsEnabled,
       selectedRows,
+      bulkDeleteActionConfig,
       isBulkDeleteOpen,
       handleBulkDeleteConfirm,
+      bulkEditActionConfig,
       isBulkEditOpen,
       handleBulkEditClose,
       handleBulkFormChange,
