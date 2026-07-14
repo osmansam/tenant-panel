@@ -14,6 +14,10 @@ export interface Project {
   slug: string;
   description?: string; // Not in API response but might be added later
   isActive: boolean; // API uses isActive instead of status
+  isTemplate?: boolean;
+  templateScope?: "tenant" | "global";
+  templateIncludeItems?: boolean;
+  templateDescription?: string;
   status?: "active" | "inactive" | "archived"; // Keep for compatibility
   createdAt: string;
   updatedAt: string;
@@ -24,6 +28,8 @@ export interface Project {
 export interface CreateProjectPayload {
   name: string;
   slug: string;
+  templateProjectId?: string;
+  includeTemplateItems?: boolean;
 }
 
 export interface UpdateProjectPayload {
@@ -31,6 +37,25 @@ export interface UpdateProjectPayload {
   description?: string;
   status?: "active" | "inactive" | "archived";
   settings?: Record<string, any>;
+}
+
+export interface UpdateProjectTemplatePayload {
+  isTemplate: boolean;
+  templateIncludeItems?: boolean;
+  templateDescription?: string;
+}
+
+export function getProjectId(project: Partial<Project>): string {
+  const rawProject = project as Record<string, any>;
+  const rawId = rawProject.id || rawProject._id;
+  if (typeof rawId === "string") return rawId;
+  if (rawId && typeof rawId === "object" && "hex" in rawId) {
+    return String((rawId as { hex: string }).hex);
+  }
+  if (rawId && typeof rawId === "object" && "$oid" in rawId) {
+    return String((rawId as { $oid: string }).$oid);
+  }
+  return rawId ? String(rawId) : "";
 }
 
 // Constants
@@ -54,7 +79,11 @@ export function useProjects(enabled: boolean = true) {
 
   // Extract projects array from nested response structure and map id to _id for factory compatibility
   const projects = response?.data?.projects || [];
-  return projects.map((project) => ({ ...project, _id: project.id }));
+  return projects.map((project) => ({
+    ...project,
+    id: getProjectId(project),
+    _id: getProjectId(project),
+  }));
 }
 
 export function useProject(id: string, enabled: boolean = true) {
@@ -63,6 +92,21 @@ export function useProject(id: string, enabled: boolean = true) {
     ["project", id],
     enabled && !!id
   );
+}
+
+export function useProjectTemplates(enabled: boolean = true) {
+  const response = useGet<{
+    status: number;
+    message: string;
+    data: { templates: Project[] };
+  }>(`${BASE_QUERY}/templates`, [...QUERY_KEY, "templates"], enabled);
+
+  const templates = response?.data?.templates || [];
+  return templates.map((project) => ({
+    ...project,
+    id: getProjectId(project),
+    _id: getProjectId(project),
+  }));
 }
 
 export function useProjectMutations() {
@@ -107,6 +151,55 @@ export function useCreateProject() {
       createMutation.mutate(payload);
     },
     isCreating: createMutation.isPending,
+  };
+}
+
+export function useUpdateProjectTemplate() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateProjectTemplatePayload;
+    }) => {
+      const response = await axiosClient.patch(
+        `${BASE_QUERY}/${id}/template`,
+        payload
+      );
+      return response.data;
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, "templates"] });
+      const message = response?.message || "Project template updated successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      console.error("Project template update failed:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update project template";
+      toast.error(t(errorMessage));
+    },
+  });
+
+  return {
+    updateProjectTemplate: (
+      id: string,
+      payload: UpdateProjectTemplatePayload
+    ) => {
+      if (!id || id === "undefined" || id === "[object Object]") {
+        toast.error(t("Invalid project ID"));
+        return;
+      }
+      updateMutation.mutate({ id, payload });
+    },
+    isUpdatingTemplate: updateMutation.isPending,
   };
 }
 

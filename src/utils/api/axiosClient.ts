@@ -30,7 +30,11 @@ export const ACCESS_TOKEN = "jwt";
 
 axiosClient.interceptors.request.use(
   async (req) => {
-    const accessToken = Cookies.get(ACCESS_TOKEN);
+    const isTenantProjectManagementRequest =
+      typeof req.url === "string" && req.url.startsWith("/tenant/projects");
+    const accessToken = isTenantProjectManagementRequest
+      ? localStorage.getItem("tenantToken") || Cookies.get(ACCESS_TOKEN)
+      : Cookies.get(ACCESS_TOKEN);
 
     if (accessToken) {
       (req.headers as AxiosHeaders).set(

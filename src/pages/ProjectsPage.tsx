@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
@@ -6,9 +6,12 @@ import { useTenant } from "../hooks/useTenant";
 import { useSwitchToProject } from "../utils/api/auth";
 import {
   CreateProjectPayload,
+  getProjectId,
   getProjectStatusDisplay,
   useCreateProject,
+  useProjectTemplates,
   useProjects,
+  useUpdateProjectTemplate,
 } from "../utils/api/project";
 
 const ProjectsPage: React.FC = () => {
@@ -19,13 +22,27 @@ const ProjectsPage: React.FC = () => {
     slug: "",
   });
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const [templateChoiceProject, setTemplateChoiceProject] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // API hooks
   const projectsData = useProjects(true);
   const projects = Array.isArray(projectsData) ? projectsData : [];
+  const projectTemplatesData = useProjectTemplates(true);
+  const projectTemplates = Array.isArray(projectTemplatesData)
+    ? projectTemplatesData
+    : [];
   const { createProject, isCreating } = useCreateProject();
+  const { updateProjectTemplate, isUpdatingTemplate } =
+    useUpdateProjectTemplate();
   const { switchToProject, isSwitching } = useSwitchToProject();
-  const { currentTenant } = useTenant();
+  const { currentTenant, hasRole, isTenantOwner } = useTenant();
+  const canManageTenantTemplates =
+    isTenantOwner(currentTenant?.id) ||
+    hasRole("tenant_owner") ||
+    hasRole("tenant_admin");
 
   // Since useProjects returns data directly from factory, we need to handle loading state differently
   const isLoading = !projectsData;
@@ -45,10 +62,77 @@ const ProjectsPage: React.FC = () => {
         .replace(/\s+/g, "-")
         .replace(/[^a-z0-9-]/g, "");
 
-    createProject({ name: createForm.name, slug });
+    createProject({
+      name: createForm.name,
+      slug,
+      ...(createForm.templateProjectId
+        ? {
+            templateProjectId: createForm.templateProjectId,
+            includeTemplateItems: !!createForm.includeTemplateItems,
+          }
+        : {}),
+    });
     setIsCreateModalOpen(false);
     setCreateForm({ name: "", slug: "" });
   };
+
+  const resetCreateForm = () => {
+    setCreateForm({ name: "", slug: "" });
+  };
+
+  const handleTemplateSelection = (templateProjectId: string) => {
+    const selectedTemplate = projectTemplates.find(
+      (project) => getProjectId(project) === templateProjectId,
+    );
+    setCreateForm((prev) => ({
+      ...prev,
+      templateProjectId: templateProjectId || undefined,
+      includeTemplateItems: templateProjectId
+        ? !!selectedTemplate?.templateIncludeItems
+        : undefined,
+    }));
+  };
+
+  const handleToggleProjectTemplate = (
+    projectId: string,
+    isTemplate: boolean,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (isTemplate) {
+      const project = projects.find(
+        (item) => getProjectId(item) === projectId,
+      );
+      setTemplateChoiceProject({
+        id: projectId,
+        name: project?.name || t("Project"),
+      });
+      return;
+    }
+    updateProjectTemplate(projectId, {
+      isTemplate,
+      templateIncludeItems: false,
+    });
+  };
+
+  const closeTemplateChoiceModal = () => {
+    setTemplateChoiceProject(null);
+  };
+
+  const confirmTemplateChoice = (templateIncludeItems: boolean) => {
+    if (!templateChoiceProject) return;
+    updateProjectTemplate(templateChoiceProject.id, {
+      isTemplate: true,
+      templateIncludeItems,
+    });
+    closeTemplateChoiceModal();
+  };
+
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      resetCreateForm();
+    }
+  }, [isCreateModalOpen]);
 
   const handleSwitchToProject = (projectId: string) => {
     switchToProject({ projectId });
@@ -183,7 +267,7 @@ const ProjectsPage: React.FC = () => {
                 t,
               );
               const isActive = project.isActive;
-              const projectId = project.id || project._id || `project-${index}`;
+              const projectId = getProjectId(project) || `project-${index}`;
               const isHovered = hoveredProject === projectId;
 
               return (
@@ -222,6 +306,13 @@ const ProjectsPage: React.FC = () => {
 
                       {/* Status dot */}
                       <div className="flex items-center gap-1.5">
+                        {project.isTemplate && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                            {project.templateScope === "global"
+                              ? t("Global Template")
+                              : t("Template")}
+                          </span>
+                        )}
                         <div
                           className={`w-1.5 h-1.5 rounded-full ${
                             isActive ? "bg-emerald-500" : "bg-neutral-300"
@@ -291,6 +382,33 @@ const ProjectsPage: React.FC = () => {
                             {t("Open")}
                           </button>
                         )}
+                        {canManageTenantTemplates &&
+                          project.templateScope !== "global" && (
+                            <button
+                              onClick={(e) =>
+                                handleToggleProjectTemplate(
+                                  projectId,
+                                  !project.isTemplate,
+                                  e,
+                                )
+                              }
+                              disabled={isUpdatingTemplate}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors ${
+                                project.isTemplate
+                                  ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                              }`}
+                              title={
+                                project.isTemplate
+                                  ? t("Remove Template")
+                                  : t("Use as Template")
+                              }
+                            >
+                              {project.isTemplate
+                                ? t("Template")
+                                : t("Make Template")}
+                            </button>
+                          )}
                       </div>
                       <span className="text-[11px] text-neutral-400 font-medium">
                         {new Date(project.createdAt).toLocaleDateString(
@@ -326,7 +444,6 @@ const ProjectsPage: React.FC = () => {
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsCreateModalOpen(false);
-              setCreateForm({ name: "", slug: "" });
             }
           }}
         >
@@ -344,7 +461,6 @@ const ProjectsPage: React.FC = () => {
               <button
                 onClick={() => {
                   setIsCreateModalOpen(false);
-                  setCreateForm({ name: "", slug: "" });
                 }}
                 className="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 active:scale-95"
               >
@@ -423,6 +539,59 @@ const ProjectsPage: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              {projectTemplates.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    {t("Template Project")}
+                    <span className="text-neutral-400 text-xs ml-1.5">
+                      ({t("optional")})
+                    </span>
+                  </label>
+                  <select
+                    value={createForm.templateProjectId || ""}
+                    onChange={(e) => handleTemplateSelection(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+                  >
+                    <option value="">{t("Start from scratch")}</option>
+                    {projectTemplates.map((template) => (
+                      <option
+                        key={getProjectId(template)}
+                        value={getProjectId(template)}
+                      >
+                        {template.name}
+                        {template.templateScope === "global"
+                          ? ` (${t("Global")})`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {createForm.templateProjectId && (
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-3">
+                  <span>
+                    <span className="block text-sm font-medium text-neutral-800">
+                      {t("Include template items")}
+                    </span>
+                    <span className="block text-xs text-neutral-500 mt-0.5">
+                      {t("Copy existing data records with new IDs")}
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={!!createForm.includeTemplateItems}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        includeTemplateItems: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  />
+                </label>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -431,7 +600,6 @@ const ProjectsPage: React.FC = () => {
                 variant="ghost"
                 onClick={() => {
                   setIsCreateModalOpen(false);
-                  setCreateForm({ name: "", slug: "" });
                 }}
                 disabled={isCreating}
               >
@@ -444,6 +612,59 @@ const ProjectsPage: React.FC = () => {
                 isLoading={isCreating}
               >
                 {isCreating ? t("Creating...") : t("Create Project")}
+              </GenericButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {templateChoiceProject && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeTemplateChoiceModal();
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in">
+            <div className="px-6 py-5 border-b border-neutral-100">
+              <h2 className="text-base font-semibold text-neutral-900">
+                {t("Use project as template")}
+              </h2>
+              <p className="text-sm text-neutral-500 mt-1">
+                {templateChoiceProject.name}
+              </p>
+            </div>
+
+            <div className="px-6 py-5">
+              <p className="text-sm text-neutral-700 leading-relaxed">
+                {t(
+                  "Choose whether this template should include the current data records by default.",
+                )}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 px-6 py-4 border-t border-neutral-100 bg-neutral-50/50 rounded-b-2xl">
+              <GenericButton
+                variant="ghost"
+                onClick={closeTemplateChoiceModal}
+                disabled={isUpdatingTemplate}
+              >
+                {t("Cancel")}
+              </GenericButton>
+              <GenericButton
+                variant="secondary"
+                onClick={() => confirmTemplateChoice(false)}
+                disabled={isUpdatingTemplate}
+              >
+                {t("Create without items")}
+              </GenericButton>
+              <GenericButton
+                variant="primary"
+                onClick={() => confirmTemplateChoice(true)}
+                disabled={isUpdatingTemplate}
+                isLoading={isUpdatingTemplate}
+              >
+                {t("Create with items")}
               </GenericButton>
             </div>
           </div>
