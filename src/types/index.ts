@@ -72,6 +72,10 @@ export type Project = {
   name: string;
   slug: string;
   isActive: boolean;
+  isTemplate?: boolean;
+  templateScope?: "tenant" | "global";
+  templateIncludeItems?: boolean;
+  templateDescription?: string;
   createdAt: string;
   updatedAt: string;
 };

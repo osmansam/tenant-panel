@@ -72,6 +72,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     container?.isAuthContainer ? "role" : "",
     container?.isAuthContainer ? "name" : "",
   );
+  const getRoleOptionId = useCallback(
+    (role?: { _id?: string; id?: string; name?: string }) => role?._id || role?.id || "",
+    [],
+  );
   const authUserFormFields = useMemo(
     () => getAuthUserFormFields(container?.fields || []),
     [container?.fields],
@@ -226,22 +230,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
   const handleCreateAuthUser = useCallback(() => {
     if (!container?.isAuthContainer || !container.schemaName) return;
-    const selectedRoleName = authUserRole || roleOptions[0]?.name || "admin";
-    const selectedRole = roleOptions.find(
-      (role) => (role.name || "").toLowerCase() === selectedRoleName.toLowerCase(),
-    );
-    const roleValue = selectedRole?._id || selectedRole?.id || selectedRoleName;
+    const selectedRoleId = authUserRole || getRoleOptionId(roleOptions[0]);
 
     createAuthUser({
       schemaName: container.schemaName,
       payload: buildAuthUserPayload({
         values: authUserValues,
         roleFieldName: authUserRoleField?.name,
-        role: roleValue,
+        role: selectedRoleId,
       }),
     });
     setAuthUserValues({});
-    setAuthUserRole(roleOptions[0]?.name || "admin");
+    setAuthUserRole(getRoleOptionId(roleOptions[0]));
   }, [
     authUserRoleField?.name,
     authUserValues,
@@ -249,6 +249,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     container?.isAuthContainer,
     container?.schemaName,
     createAuthUser,
+    getRoleOptionId,
     roleOptions,
   ]);
 
@@ -729,18 +730,21 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             })}
                             {authUserRoleField && (
                               <select
-                                value={authUserRole || roleOptions[0]?.name || "admin"}
+                                value={authUserRole || getRoleOptionId(roleOptions[0])}
                                 onChange={(event) => setAuthUserRole(event.target.value)}
                                 className="rounded-md border border-gray-300 px-3 py-2 text-sm"
                               >
-                                {(roleOptions.length > 0
-                                  ? roleOptions
-                                  : [{ name: "admin" }]
-                                ).map((role) => (
-                                  <option key={role._id || role.id || role.name} value={role.name || "admin"}>
+                                {roleOptions.length > 0 ? (
+                                  roleOptions.map((role) => (
+                                  <option key={getRoleOptionId(role)} value={getRoleOptionId(role)}>
                                     {role.name || "admin"}
                                   </option>
-                                ))}
+                                  ))
+                                ) : (
+                                  <option value="">
+                                    {t("No roles found")}
+                                  </option>
+                                )}
                               </select>
                             )}
                             <GenericButton
@@ -749,6 +753,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               disabled={
                                 isCreatingAuthUser ||
                                 authUserFormFields.length === 0 ||
+                                (!!authUserRoleField && !roleOptions.length) ||
                                 authUserFormFields.some(
                                   (field) =>
                                     (field.tag === "required" || field.isLoginCredential) &&

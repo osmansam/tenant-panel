@@ -141,6 +141,19 @@ export default function GenericPaginatedPage({
     [container?.fields, dataBinding, schemaName, tableConfig],
   );
   const schemaActionsEnabled = actionsEnabled && tableBinding.kind === "schema";
+  const hasConfiguredRowActions = useMemo(
+    () =>
+      Array.isArray(tableConfig?.actions) &&
+      tableConfig.actions.some(
+        (action) => action.kind !== "create" && action.enabled !== false,
+      ),
+    [tableConfig?.actions],
+  );
+  const isActionsActive = Boolean(
+    actionsEnabled && (schemaActionsEnabled || hasConfiguredRowActions),
+  );
+  const bulkEditActionConfig = tableConfig?.bulkActions?.edit;
+  const bulkDeleteActionConfig = tableConfig?.bulkActions?.delete;
 
   // Generate mock data based on container fields (10 items)
   const mockItems = useMemo(() => {
@@ -663,10 +676,10 @@ export default function GenericPaginatedPage({
             ?.type !== "computedLabel",
         correspondingKey: f.name,
       }));
-    return schemaActionsEnabled
+    return isActionsActive
       ? [...baseCols, { key: t("Actions"), isSortable: false }]
       : baseCols;
-  }, [displayFields, t, schemaActionsEnabled, constantFilter, tableConfig]);
+  }, [displayFields, t, isActionsActive, constantFilter, tableConfig]);
 
   const { inputs, formKeys, constantFilterKeys } = useMemo(() => {
     const constantFilterKeys = constantFilter
@@ -1052,51 +1065,68 @@ export default function GenericPaginatedPage({
   );
 
   const addButton = useMemo(
-    () => ({
-      name: configuredCreateAction?.label || t("Add"),
-      isModal: true,
-      modal: (
-        <GenericAddEditPanel
-          isOpen={isAddOpen}
-          close={() => setIsAddOpen(false)}
-          inputs={createActionInputs}
-          formKeys={createActionFormKeys}
-          submitItem={handleSubmitItem}
-          buttonName={
-            configuredCreateAction?.buttonName ||
-            configuredCreateAction?.label ||
-            undefined
-          }
-          topClassName="flex flex-col gap-2"
-          itemToEdit={
-            constantFilter ||
-            Object.keys(createActionDefaults).length > 0 ||
-            Object.keys(createActionConstants).length > 0
-              ? {
-                  id: "",
-                  updates: {
-                    ...createActionDefaults,
-                    ...createActionConstants,
-                    ...(constantFilter || {}),
-                    _id: "",
-                  } as GenericItem,
-                }
-              : undefined
-          }
-        />
-      ),
-      isModalOpen: isAddOpen,
-      setIsModal: setIsAddOpen,
-      isPath: false,
-      icon: null,
-      className:
-        configuredCreateAction?.buttonClassName ||
-        configuredCreateAction?.className ||
-        "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
-    }),
+    () => {
+      if (!actionsEnabled) return undefined;
+      if (!configuredCreateAction) {
+        if (
+          !schemaActionsEnabled ||
+          tableConfig?.addButton?.enabled === false
+        ) {
+          return undefined;
+        }
+      }
+
+      const actionConfig = configuredCreateAction || { kind: "create" as const };
+
+      return {
+        name: actionConfig.label || t("Add"),
+        isModal: true,
+        modal: (
+          <GenericAddEditPanel
+            isOpen={isAddOpen}
+            close={() => setIsAddOpen(false)}
+            inputs={createActionInputs}
+            formKeys={createActionFormKeys}
+            submitItem={handleSubmitItem}
+            buttonName={
+              actionConfig.buttonName ||
+              actionConfig.label ||
+              undefined
+            }
+            topClassName="flex flex-col gap-2"
+            itemToEdit={
+              constantFilter ||
+              Object.keys(createActionDefaults).length > 0 ||
+              Object.keys(createActionConstants).length > 0
+                ? {
+                    id: "",
+                    updates: {
+                      ...createActionDefaults,
+                      ...createActionConstants,
+                      ...(constantFilter || {}),
+                      _id: "",
+                    } as GenericItem,
+                  }
+                : undefined
+            }
+          />
+        ),
+        isModalOpen: isAddOpen,
+        setIsModal: setIsAddOpen,
+        isPath: false,
+        icon: null,
+        className:
+          actionConfig.buttonClassName ||
+          actionConfig.className ||
+          "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
+      };
+    },
     [
       t,
+      actionsEnabled,
+      schemaActionsEnabled,
       configuredCreateAction,
+      tableConfig?.addButton?.enabled,
       isAddOpen,
       createActionInputs,
       createActionFormKeys,
@@ -1178,9 +1208,11 @@ export default function GenericPaginatedPage({
   ]);
 
   const actions = useMemo<ActionType<GenericItem>[]>(() => {
-    if (!schemaActionsEnabled) return [];
-    if (configuredActionDefinitions === undefined) return defaultActions;
-    if (configuredActionDefinitions.length === 0) return [];
+    if (!isActionsActive) return [];
+    if (configuredActionDefinitions === undefined || configuredActionDefinitions.length === 0) {
+      if (!schemaActionsEnabled) return [];
+      return defaultActions;
+    }
 
     return configuredActionDefinitions.map((actionConfig, index) => {
       const actionId = getActionId(actionConfig, index);
@@ -1343,6 +1375,7 @@ export default function GenericPaginatedPage({
     normalizeRowForSubmit,
     rowToAction,
     schemaActionsEnabled,
+    isActionsActive,
     t,
     updateDynamicItem,
   ]);
@@ -1807,69 +1840,92 @@ export default function GenericPaginatedPage({
 
   const selectionActions = useMemo(
     () => [
-      {
-        name: t("Delete Selected"),
-        isButton: true,
-        buttonClassName:
-          "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
-        isModal: true,
-        className: "cursor-pointer",
-        isDisabled: !schemaActionsEnabled || !selectedRows?.length,
-        modal:
-          selectedRows?.length > 0 ? (
-            <ConfirmationDialog
-              isOpen={isBulkDeleteOpen}
-              close={() => setIsBulkDeleteOpen(false)}
-              confirm={handleBulkDeleteConfirm}
-              title={t("Delete Selected")}
-              text={t("Are you sure you want to delete the selected items?")}
-            />
-          ) : null,
-        isModalOpen: isBulkDeleteOpen,
-        setIsModal: setIsBulkDeleteOpen,
-        isPath: false,
-      },
-      {
-        name: t("Edit Selected"),
-        isButton: true,
-        buttonClassName:
-          "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
-        isModal: true,
-        className: "cursor-pointer",
-        modal: isBulkEditOpen ? (
-          <GenericAddEditPanel
-            isOpen={isBulkEditOpen}
-            close={handleBulkEditClose}
-            inputs={bulkEditInputs}
-            formKeys={bulkFormKeys}
-            setForm={handleBulkFormChange}
-            submitItem={() => {}}
-            isEditMode={false}
-            topClassName="flex flex-col gap-2"
-            generalClassName="overflow-visible"
-            buttonName={t("Edit")}
-            isSubmitButtonActive={isBulkStepTwo}
-            submitFunction={handleBulkEditSubmit}
-            additionalButtons={[
+      ...(bulkDeleteActionConfig && bulkDeleteActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkDeleteActionConfig.label || "Delete Selected"),
+              isButton: true,
+              buttonClassName:
+                bulkDeleteActionConfig.buttonClassName ||
+                "px-2 ml-auto bg-red-500 hover:text-red-500 hover:border-red-500 sm:px-3 py-1 h-fit w-fit  text-white  hover:bg-white  transition-transform  border  rounded-md cursor-pointer",
+              isModal: true,
+              className: "cursor-pointer",
+              isDisabled: !schemaActionsEnabled || !selectedRows?.length,
+              modal:
+                selectedRows?.length > 0 ? (
+                  <ConfirmationDialog
+                    isOpen={isBulkDeleteOpen}
+                    close={() => setIsBulkDeleteOpen(false)}
+                    confirm={handleBulkDeleteConfirm}
+                    title={t(
+                      bulkDeleteActionConfig.confirmTitle ||
+                        bulkDeleteActionConfig.label ||
+                        "Delete Selected",
+                    )}
+                    text={t(
+                      bulkDeleteActionConfig.confirmText ||
+                        "Are you sure you want to delete the selected items?",
+                    )}
+                  />
+                ) : null,
+              isModalOpen: isBulkDeleteOpen,
+              setIsModal: setIsBulkDeleteOpen,
+              isPath: false,
+            },
+          ]
+        : []),
+      ...(bulkEditActionConfig && bulkEditActionConfig.enabled !== false
+        ? [
+            {
+              name: t(bulkEditActionConfig.label || "Edit Selected"),
+              isButton: true,
+              buttonClassName:
+                bulkEditActionConfig.buttonClassName ||
+                "px-2 ml-auto bg-blue-500 hover:text-blue-500 hover:border-blue-500 sm:px-3 py-1 h-fit w-fit text-white hover:bg-white transition-transform border rounded-md cursor-pointer",
+              isModal: true,
+              className: "cursor-pointer",
+              modal: isBulkEditOpen ? (
+                <GenericAddEditPanel
+                  isOpen={isBulkEditOpen}
+                  close={handleBulkEditClose}
+                  inputs={bulkEditInputs}
+                  formKeys={bulkFormKeys}
+                  setForm={handleBulkFormChange}
+                  submitItem={() => {}}
+                  isEditMode={false}
+                  topClassName="flex flex-col gap-2"
+                  generalClassName="overflow-visible"
+                  buttonName={t(
+                    bulkEditActionConfig.buttonName ||
+                      bulkEditActionConfig.label ||
+                      "Edit",
+                  )}
+                  isSubmitButtonActive={isBulkStepTwo}
+                  submitFunction={handleBulkEditSubmit}
+                  additionalButtons={[
               {
                 label: isBulkStepTwo ? t("Back") : t("Forward"),
                 onClick: handleBulkEditBackOrForward,
               },
-            ]}
-          />
-        ) : null,
-        isModalOpen: isBulkEditOpen,
-        setIsModal: setIsBulkEditOpen,
-        isPath: false,
-        isDisabled: !schemaActionsEnabled || !selectedRows?.length,
-      },
+                  ]}
+                />
+              ) : null,
+              isModalOpen: isBulkEditOpen,
+              setIsModal: setIsBulkEditOpen,
+              isPath: false,
+              isDisabled: !schemaActionsEnabled || !selectedRows?.length,
+            },
+          ]
+        : []),
     ],
     [
       t,
       schemaActionsEnabled,
       selectedRows,
+      bulkDeleteActionConfig,
       isBulkDeleteOpen,
       handleBulkDeleteConfirm,
+      bulkEditActionConfig,
       isBulkEditOpen,
       handleBulkEditClose,
       handleBulkFormChange,
@@ -1893,7 +1949,7 @@ export default function GenericPaginatedPage({
           title={customTitle || t(humanize(schemaName))}
           addButton={addButton}
           isCollapsible={false}
-          isActionsActive={schemaActionsEnabled}
+          isActionsActive={isActionsActive}
           isSearch={false}
           outsideSortProps={outsideSort}
           {...(pagination && { pagination })}

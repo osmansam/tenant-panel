@@ -49,6 +49,12 @@ interface LocatedPageFilter {
   path: string;
 }
 
+type RuntimeConfigPage = {
+  filters?: PageFilterDefinition[];
+  sections?: Section[];
+  subPage?: RuntimeConfigPage;
+}
+
 class InvalidPageGraphError extends Error {
   constructor(
     readonly code: "invalid_page_structure" | "cyclic_page_reference",
@@ -66,11 +72,13 @@ const VALUE_TYPES = new Set<RuntimeValueType>([
   "number",
   "boolean",
   "date",
+  "monthYear",
   "dateRange",
   "stringArray",
   "numberArray",
 ]);
 const DATE_DEFAULT_PRESETS = new Set(["today", "yesterday", "tomorrow"]);
+const MONTH_YEAR_DEFAULT_PRESETS = new Set(["currentMonthYear"]);
 const DATE_RANGE_DEFAULT_PRESETS = new Set([
   "today",
   "yesterday",
@@ -86,9 +94,13 @@ export function createRuntimeId(prefix: RuntimeIdPrefix): string {
   return `${prefix}_${crypto.randomUUID().split("-").join("")}`;
 }
 
-function mapArray<T>(items: T[] | undefined, mapper: (item: T, index: number) => T): T[] | undefined {
+function mapArray<T>(
+  items: T[] | undefined,
+  mapper: (item: T, index: number) => T,
+): T[] | undefined {
   if (!items) return items;
-  if (!Array.isArray(items)) throw new InvalidPageGraphError("invalid_page_structure");
+  if (!Array.isArray(items))
+    throw new InvalidPageGraphError("invalid_page_structure");
   let changed = false;
   const next = items.map((item, index) => {
     const mapped = mapper(item, index);
@@ -121,12 +133,17 @@ function mapComponent(
   }
   const prior = seen.get(component);
   if (prior) return prior;
-  if (active.has(component)) throw new InvalidPageGraphError("cyclic_page_reference");
+  if (active.has(component))
+    throw new InvalidPageGraphError("cyclic_page_reference");
   active.add(component);
   const tabs = mapArray(component.tabs, (tab) => {
     assertObjectNode(tab);
-    const components = mapArray(tab.components, (child) => mapComponent(child, updater, active, seen));
-    return components === tab.components ? tab : { ...tab, components: components! };
+    const components = mapArray(tab.components, (child) =>
+      mapComponent(child, updater, active, seen),
+    );
+    return components === tab.components
+      ? tab
+      : { ...tab, components: components! };
   });
   const nested = tabs === component.tabs ? component : { ...component, tabs };
   const result = updater(nested);
@@ -147,7 +164,8 @@ function mapSection(
   }
   const prior = seenSections.get(section);
   if (prior) return prior;
-  if (active.has(section)) throw new InvalidPageGraphError("cyclic_page_reference");
+  if (active.has(section))
+    throw new InvalidPageGraphError("cyclic_page_reference");
   active.add(section);
   const component = section.component
     ? mapComponent(section.component, updater, new WeakSet(), seenComponents)
@@ -155,8 +173,12 @@ function mapSection(
   const mapCells = (cells: Section["cells"]) =>
     mapArray(cells, (cell) => {
       assertObjectNode(cell);
-      const components = mapArray(cell.components, (child) => mapComponent(child, updater, new WeakSet(), seenComponents));
-      return components === cell.components ? cell : { ...cell, components: components! };
+      const components = mapArray(cell.components, (child) =>
+        mapComponent(child, updater, new WeakSet(), seenComponents),
+      );
+      return components === cell.components
+        ? cell
+        : { ...cell, components: components! };
     });
   const flatCells = mapCells(section.cells);
   const gridCells = mapCells(section.grid?.cells);
@@ -166,7 +188,9 @@ function mapSection(
       : section.grid;
   const pageTabs = mapArray(section.tabs?.tabs, (tab) => {
     assertObjectNode(tab);
-    const sections = mapArray(tab.sections, (child) => mapSection(child, updater, active, seenComponents, seenSections));
+    const sections = mapArray(tab.sections, (child) =>
+      mapSection(child, updater, active, seenComponents, seenSections),
+    );
     return sections === tab.sections ? tab : { ...tab, sections: sections! };
   });
   const tabs =
@@ -198,12 +222,17 @@ function mapPage(
   if (!page || typeof page !== "object") {
     throw new InvalidPageGraphError("invalid_page_structure");
   }
-  if (active.has(page)) throw new InvalidPageGraphError("cyclic_page_reference");
+  if (active.has(page))
+    throw new InvalidPageGraphError("cyclic_page_reference");
   const prior = seen.get(page);
   if (prior) return prior;
   active.add(page);
-  const sections = mapArray(page.sections, (section) => mapSection(section, updater));
-  const subPage = page.subPage ? mapPage(page.subPage, updater, seen, active) : page.subPage;
+  const sections = mapArray(page.sections, (section) =>
+    mapSection(section, updater),
+  );
+  const subPage = page.subPage
+    ? mapPage(page.subPage, updater, seen, active)
+    : page.subPage;
   const result =
     sections === page.sections && subPage === page.subPage
       ? page
@@ -225,7 +254,8 @@ function collectComponents(page: PageModel): LocatedComponent[] {
     if (!component || typeof component !== "object") {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    if (activeComponents.has(component)) throw new InvalidPageGraphError("cyclic_page_reference");
+    if (activeComponents.has(component))
+      throw new InvalidPageGraphError("cyclic_page_reference");
     if (!component || seenComponents.has(component)) return;
     activeComponents.add(component);
     seenComponents.add(component);
@@ -241,7 +271,10 @@ function collectComponents(page: PageModel): LocatedComponent[] {
       assertObjectNode(tab);
       assertOptionalArray(tab.components);
       tab.components?.forEach((child, childIndex) =>
-        visitComponent(child, `${path}.tabs[${tabIndex}].components[${childIndex}]`),
+        visitComponent(
+          child,
+          `${path}.tabs[${tabIndex}].components[${childIndex}]`,
+        ),
       );
     });
     activeComponents.delete(component);
@@ -250,19 +283,27 @@ function collectComponents(page: PageModel): LocatedComponent[] {
     if (!section || typeof section !== "object") {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    if (activeSections.has(section)) throw new InvalidPageGraphError("cyclic_page_reference");
+    if (activeSections.has(section))
+      throw new InvalidPageGraphError("cyclic_page_reference");
     if (seenSections.has(section)) return;
     activeSections.add(section);
     seenSections.add(section);
-    if (section.component) visitComponent(section.component, `${path}.component`);
-    if (section.grid?.cells !== undefined && !Array.isArray(section.grid.cells)) {
+    if (section.component)
+      visitComponent(section.component, `${path}.component`);
+    if (
+      section.grid?.cells !== undefined &&
+      !Array.isArray(section.grid.cells)
+    ) {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
     section.grid?.cells?.forEach((cell, cellIndex) => {
       assertObjectNode(cell);
       assertOptionalArray(cell.components);
       cell.components?.forEach((component, componentIndex) =>
-        visitComponent(component, `${path}.grid.cells[${cellIndex}].components[${componentIndex}]`),
+        visitComponent(
+          component,
+          `${path}.grid.cells[${cellIndex}].components[${componentIndex}]`,
+        ),
       );
     });
     if (section.cells !== undefined && !Array.isArray(section.cells)) {
@@ -272,7 +313,10 @@ function collectComponents(page: PageModel): LocatedComponent[] {
       assertObjectNode(cell);
       assertOptionalArray(cell.components);
       cell.components?.forEach((component, componentIndex) =>
-        visitComponent(component, `${path}.cells[${cellIndex}].components[${componentIndex}]`),
+        visitComponent(
+          component,
+          `${path}.cells[${cellIndex}].components[${componentIndex}]`,
+        ),
       );
     });
     if (section.tabs?.tabs !== undefined && !Array.isArray(section.tabs.tabs)) {
@@ -282,7 +326,10 @@ function collectComponents(page: PageModel): LocatedComponent[] {
       assertObjectNode(tab);
       assertOptionalArray(tab.sections);
       tab.sections?.forEach((child, sectionIndex) =>
-        visitSection(child, `${path}.tabs.tabs[${tabIndex}].sections[${sectionIndex}]`),
+        visitSection(
+          child,
+          `${path}.tabs.tabs[${tabIndex}].sections[${sectionIndex}]`,
+        ),
       );
     });
     activeSections.delete(section);
@@ -291,14 +338,17 @@ function collectComponents(page: PageModel): LocatedComponent[] {
     if (!current || typeof current !== "object") {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    if (activePages.has(current)) throw new InvalidPageGraphError("cyclic_page_reference");
+    if (activePages.has(current))
+      throw new InvalidPageGraphError("cyclic_page_reference");
     if (seenPages.has(current)) return;
     activePages.add(current);
     seenPages.add(current);
     if (current.sections !== undefined && !Array.isArray(current.sections)) {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    current.sections?.forEach((section, index) => visitSection(section, `${path}.sections[${index}]`));
+    current.sections?.forEach((section, index) =>
+      visitSection(section, `${path}.sections[${index}]`),
+    );
     if (current.subPage) visitPage(current.subPage, `${path}.subPage`);
     activePages.delete(current);
   };
@@ -314,13 +364,19 @@ function collectPageVariables(page: PageModel): LocatedVariables[] {
     if (!current || typeof current !== "object") {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    if (active.has(current)) throw new InvalidPageGraphError("cyclic_page_reference");
+    if (active.has(current))
+      throw new InvalidPageGraphError("cyclic_page_reference");
     if (seen.has(current)) return;
     active.add(current);
     seen.add(current);
     if (current.variables !== undefined) {
-      if (!Array.isArray(current.variables)) throw new InvalidPageGraphError("invalid_page_structure");
-      if (current.variables.some((variable) => !variable || typeof variable !== "object")) {
+      if (!Array.isArray(current.variables))
+        throw new InvalidPageGraphError("invalid_page_structure");
+      if (
+        current.variables.some(
+          (variable) => !variable || typeof variable !== "object",
+        )
+      ) {
         throw new InvalidPageGraphError("invalid_page_structure");
       }
       result.push({ variables: current.variables, path });
@@ -340,12 +396,14 @@ function collectPageFilters(page: PageModel): LocatedPageFilter[] {
     if (!current || typeof current !== "object") {
       throw new InvalidPageGraphError("invalid_page_structure");
     }
-    if (active.has(current)) throw new InvalidPageGraphError("cyclic_page_reference");
+    if (active.has(current))
+      throw new InvalidPageGraphError("cyclic_page_reference");
     if (seen.has(current)) return;
     active.add(current);
     seen.add(current);
     if (current.filters !== undefined) {
-      if (!Array.isArray(current.filters)) throw new InvalidPageGraphError("invalid_page_structure");
+      if (!Array.isArray(current.filters))
+        throw new InvalidPageGraphError("invalid_page_structure");
       current.filters.forEach((filter, index) => {
         assertObjectNode(filter);
         result.push({ filter, path: `${path}.filters[${index}]` });
@@ -358,19 +416,63 @@ function collectPageFilters(page: PageModel): LocatedPageFilter[] {
   return result;
 }
 
-function collectCellIds(page: PageModel): Set<string> {
+function collectCellIds(page: RuntimeConfigPage): Set<string> {
   const cellIds = new Set<string>();
   const visitSection = (section: Section) => {
-    for (const cell of section.grid?.cells ?? []) if (cell.id) cellIds.add(cell.id);
+    for (const cell of section.grid?.cells ?? [])
+      if (cell.id) cellIds.add(cell.id);
     for (const cell of section.cells ?? []) if (cell.id) cellIds.add(cell.id);
-    for (const tab of section.tabs?.tabs ?? []) for (const nested of tab.sections ?? []) visitSection(nested);
+    for (const tab of section.tabs?.tabs ?? [])
+      for (const nested of tab.sections ?? []) visitSection(nested);
   };
   for (const section of page.sections ?? []) visitSection(section);
   return cellIds;
 }
 
+function normalizePageFilters(
+  filters: PageFilterDefinition[] | undefined,
+  cellIds: Set<string>,
+): PageFilterDefinition[] | undefined {
+  if (!filters) return filters;
+  let changed = false;
+  const normalized = filters.map((filter) => {
+    let next = filter;
+    if (
+      filter.type === "monthYear" &&
+      filter.defaultPreset !== undefined &&
+      !MONTH_YEAR_DEFAULT_PRESETS.has(filter.defaultPreset)
+    ) {
+      next = { ...next, defaultPreset: "currentMonthYear" };
+    }
+    if (!filter.placement || filter.placement.kind === undefined) {
+      next = { ...next, placement: { kind: "navbar" } };
+    } else if (
+      filter.placement.kind === "cell" &&
+      (!filter.placement.cellId || !cellIds.has(filter.placement.cellId))
+    ) {
+      next = { ...next, placement: { kind: "navbar" } };
+    }
+    changed ||= next !== filter;
+    return next;
+  });
+  return changed ? normalized : filters;
+}
+
+export function normalizePageRuntimeConfig<T extends RuntimeConfigPage>(page: T): T {
+  const visit = (current: RuntimeConfigPage): RuntimeConfigPage => {
+    const filters = normalizePageFilters(current.filters, collectCellIds(current));
+    const subPage = current.subPage ? visit(current.subPage) : current.subPage;
+    if (filters === current.filters && subPage === current.subPage) return current;
+    return { ...current, filters, subPage };
+  };
+  return visit(page) as T;
+}
+
 function allVariables(page: PageModel) {
-  const variables: Array<{ variable: NonNullable<PageModel["variables"]>[number]; path: string }> = [];
+  const variables: Array<{
+    variable: NonNullable<PageModel["variables"]>[number];
+    path: string;
+  }> = [];
   for (const located of collectPageVariables(page)) {
     located.variables.forEach((variable, index) =>
       variables.push({ variable, path: `${located.path}.variables[${index}]` }),
@@ -379,7 +481,9 @@ function allVariables(page: PageModel) {
   return variables;
 }
 
-function filtersOf(component: ComponentBlock): PageTableActionFormFieldConfig[] {
+function filtersOf(
+  component: ComponentBlock,
+): PageTableActionFormFieldConfig[] {
   return component.table?.filterPanel?.inputs ?? [];
 }
 
@@ -392,9 +496,15 @@ function nextUniqueId(prefix: RuntimeIdPrefix, used: Set<string>): string {
 
 export function ensurePageRuntimeIds(page: PageModel): PageModel {
   const components = collectComponents(page);
-  const usedComponents = new Set(components.map(({ component }) => component.id).filter(Boolean));
+  const usedComponents = new Set(
+    components.map(({ component }) => component.id).filter(Boolean),
+  );
   const usedFilters = new Set(
-    components.flatMap(({ component }) => filtersOf(component).map((filter) => filter.id)).filter(Boolean) as string[],
+    components
+      .flatMap(({ component }) =>
+        filtersOf(component).map((filter) => filter.id),
+      )
+      .filter(Boolean) as string[],
   );
   return mapPage(page, (component) => {
     let next = component;
@@ -422,7 +532,9 @@ export function ensurePageRuntimeIds(page: PageModel): PageModel {
   });
 }
 
-export function outputTypeForFilter(filter: PageTableActionFormFieldConfig): RuntimeValueType {
+export function outputTypeForFilter(
+  filter: PageTableActionFormFieldConfig,
+): RuntimeValueType {
   const valueType = (filter.formKeyType || filter.type || "").toLowerCase();
   if (filter.isMultiple) {
     return ["number", "numberarray", "intarray"].includes(valueType)
@@ -431,12 +543,16 @@ export function outputTypeForFilter(filter: PageTableActionFormFieldConfig): Run
   }
   if (valueType === "number") return "number";
   if (valueType === "boolean" || valueType === "checkbox") return "boolean";
-  if (valueType === "numberarray" || valueType === "intarray") return "numberArray";
+  if (valueType === "numberarray" || valueType === "intarray")
+    return "numberArray";
   if (valueType === "stringarray") return "stringArray";
   return "string";
 }
 
-export function uniqueOutputKey(component: ComponentBlock, requested: string): string {
+export function uniqueOutputKey(
+  component: ComponentBlock,
+  requested: string,
+): string {
   const base = requested.trim() || "output";
   const keys = new Set((component.outputs ?? []).map((output) => output.key));
   if (!keys.has(base)) return base;
@@ -458,7 +574,9 @@ function safeRuntimeAlias(requested: string, fallback: string): string {
     )
     .join("");
   const normalized = candidate || fallback;
-  return /^[A-Za-z_]/.test(normalized) ? normalized : `${fallback}${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+  return /^[A-Za-z_]/.test(normalized)
+    ? normalized
+    : `${fallback}${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
 }
 
 export function uniqueComponentStateKey(
@@ -468,7 +586,9 @@ export function uniqueComponentStateKey(
 ): string {
   const base = safeRuntimeAlias(requested, fallback);
   const keys = new Set(
-    collectComponents(page).map(({ component }) => component.stateKey).filter(Boolean),
+    collectComponents(page)
+      .map(({ component }) => component.stateKey)
+      .filter(Boolean),
   );
   if (!keys.has(base)) return base;
   let suffix = 2;
@@ -482,12 +602,18 @@ export function exposeTableFilter(
   filterId: string,
   key: string,
 ): PageModel {
-  const located = collectComponents(page).find(({ component }) => component.id === componentId);
+  const located = collectComponents(page).find(
+    ({ component }) => component.id === componentId,
+  );
   if (!located || located.component.type !== "table") return page;
-  const filter = filtersOf(located.component).find((candidate) => candidate.id === filterId);
+  const filter = filtersOf(located.component).find(
+    (candidate) => candidate.id === filterId,
+  );
   if (!filter) return page;
   const used = new Set(
-    collectComponents(page).flatMap(({ component }) => (component.outputs ?? []).map((output) => output.id)),
+    collectComponents(page).flatMap(({ component }) =>
+      (component.outputs ?? []).map((output) => output.id),
+    ),
   );
   return mapPage(page, (component) => {
     if (component !== located.component) return component;
@@ -511,9 +637,13 @@ export function renameOutput(
   return mapPage(page, (component) => {
     if (component.id !== componentId) return component;
     const outputs = mapArray(component.outputs, (output) =>
-      output.id === outputId && output.key !== key ? { ...output, key } : output,
+      output.id === outputId && output.key !== key
+        ? { ...output, key }
+        : output,
     );
-    return outputs === component.outputs ? component : { ...component, outputs };
+    return outputs === component.outputs
+      ? component
+      : { ...component, outputs };
   });
 }
 
@@ -522,15 +652,22 @@ function bindingMatches(
   target: BindingTarget,
   seen: WeakSet<object>,
 ): boolean {
-  if (!binding || typeof binding !== "object" || seen.has(binding)) return false;
+  if (!binding || typeof binding !== "object" || seen.has(binding))
+    return false;
   seen.add(binding);
   if (target.kind === "component" && binding.source === "componentOutput") {
     return binding.componentId === target.componentId;
   }
   if (target.kind === "output" && binding.source === "componentOutput") {
-    return binding.componentId === target.componentId && binding.outputId === target.outputId;
+    return (
+      binding.componentId === target.componentId &&
+      binding.outputId === target.outputId
+    );
   }
-  if ((target.kind === "filter" || target.kind === "pageFilter") && binding.source === "pageFilter") {
+  if (
+    (target.kind === "filter" || target.kind === "pageFilter") &&
+    binding.source === "pageFilter"
+  ) {
     return binding.filterId === target.filterId;
   }
   if (target.kind === "variable" && binding.source === "pageVariable") {
@@ -541,7 +678,10 @@ function bindingMatches(
     : false;
 }
 
-export function dependentBindings(page: PageModel, target: BindingTarget): BindingLocation[] {
+export function dependentBindings(
+  page: PageModel,
+  target: BindingTarget,
+): BindingLocation[] {
   const result: BindingLocation[] = [];
   let components: LocatedComponent[];
   try {
@@ -554,7 +694,8 @@ export function dependentBindings(page: PageModel, target: BindingTarget): Bindi
     const parameters = component.dataBinding?.parameters;
     if (!parameters || typeof parameters !== "object") continue;
     for (const parameter of Object.keys(parameters).sort()) {
-      if (!Object.prototype.hasOwnProperty.call(parameters, parameter)) continue;
+      if (!Object.prototype.hasOwnProperty.call(parameters, parameter))
+        continue;
       const binding = parameters[parameter];
       if (bindingMatches(binding, target, new WeakSet())) {
         result.push({
@@ -569,7 +710,10 @@ export function dependentBindings(page: PageModel, target: BindingTarget): Bindi
   return result;
 }
 
-export function formatBindingLabel(page: PageModel, binding: ParameterBinding): string {
+export function formatBindingLabel(
+  page: PageModel,
+  binding: ParameterBinding,
+): string {
   try {
     collectComponents(page);
     collectPageVariables(page);
@@ -594,28 +738,38 @@ function formatBindingLabelInner(
     const component = collectComponents(page).find(
       (candidate) => candidate.component.id === binding.componentId,
     )?.component;
-    const output = component?.outputs?.find((candidate) => candidate.id === binding.outputId);
-    if (!component || !output) return `invalid component output (${binding.componentId}.${binding.outputId})`;
+    const output = component?.outputs?.find(
+      (candidate) => candidate.id === binding.outputId,
+    );
+    if (!component || !output)
+      return `invalid component output (${binding.componentId}.${binding.outputId})`;
     return [component.stateKey || component.id, output.key, binding.field]
       .filter(Boolean)
       .join(".");
   }
   if (binding.source === "pageVariable") {
-    const matches = allVariables(page).filter(({ variable }) => variable.id === binding.variableId);
+    const matches = allVariables(page).filter(
+      ({ variable }) => variable.id === binding.variableId,
+    );
     if (matches.length > 1) return `ambiguous variable (${binding.variableId})`;
     const variable = matches[0]?.variable;
     return variable ? variable.key : `invalid variable (${binding.variableId})`;
   }
   if (binding.source === "pageFilter") {
-    const filter = collectPageFilters(page).find(({ filter }) => filter.id === binding.filterId)?.filter;
+    const filter = collectPageFilters(page).find(
+      ({ filter }) => filter.id === binding.filterId,
+    )?.filter;
     return filter
       ? `${filter.key}${binding.field ? `.${binding.field}` : ""}`
       : `invalid page filter (${binding.filterId})`;
   }
-  if (binding.source === "system") return `system.${binding.value}${binding.field ? `.${binding.field}` : ""}`;
+  if (binding.source === "system")
+    return `system.${binding.value}${binding.field ? `.${binding.field}` : ""}`;
   if (binding.source === "derived") {
     const input = formatBindingLabelInner(page, binding.input, seen);
-    return input === "invalid binding" ? input : `${binding.transform}(${input})`;
+    return input === "invalid binding"
+      ? input
+      : `${binding.transform}(${input})`;
   }
   return "invalid binding";
 }
@@ -630,15 +784,21 @@ function issue(
 }
 
 export function isSafeRuntimeName(value: unknown): value is string {
-  return typeof value === "string" && SAFE_NAME.test(value) && !UNSAFE_NAMES.has(value);
+  return (
+    typeof value === "string" &&
+    SAFE_NAME.test(value) &&
+    !UNSAFE_NAMES.has(value)
+  );
 }
 
 function isJsonSafe(value: unknown, seen = new WeakSet<object>()): boolean {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return true;
   if (typeof value === "number") return Number.isFinite(value);
   if (typeof value !== "object" || seen.has(value)) return false;
   seen.add(value);
-  if (Array.isArray(value)) return value.every((item) => isJsonSafe(item, seen));
+  if (Array.isArray(value))
+    return value.every((item) => isJsonSafe(item, seen));
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return false;
   return Object.keys(value).every((key) =>
@@ -646,26 +806,44 @@ function isJsonSafe(value: unknown, seen = new WeakSet<object>()): boolean {
   );
 }
 
-function matchesRuntimeValueType(value: unknown, type: RuntimeValueType): boolean {
+function matchesRuntimeValueType(
+  value: unknown,
+  type: RuntimeValueType,
+): boolean {
   if (value === null) return true;
   if (type === "string") return typeof value === "string";
-  if (type === "number") return typeof value === "number" && Number.isFinite(value);
+  if (type === "number")
+    return typeof value === "number" && Number.isFinite(value);
   if (type === "boolean") return typeof value === "boolean";
-  if (type === "date") return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  if (type === "date")
+    return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  if (type === "monthYear")
+    return typeof value === "string" && /^(0[1-9]|1[0-2])-\d{4}$/.test(value);
   if (type === "stringArray") {
-    return Array.isArray(value) && value.every((item) => typeof item === "string");
+    return (
+      Array.isArray(value) && value.every((item) => typeof item === "string")
+    );
   }
   if (type === "numberArray") {
-    return Array.isArray(value) && value.every((item) => typeof item === "number" && Number.isFinite(item));
+    return (
+      Array.isArray(value) &&
+      value.every((item) => typeof item === "number" && Number.isFinite(item))
+    );
   }
   if (type === "dateRange") {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return false;
     const allowed = new Set(["start", "end", "preset", "timezone"]);
     const record = value as Record<string, unknown>;
-    return Object.keys(record).every((key) => allowed.has(key)) &&
+    return (
+      Object.keys(record).every((key) => allowed.has(key)) &&
       ["start", "end", "preset", "timezone"].every(
-        (key) => record[key] === undefined || record[key] === null || typeof record[key] === "string",
-      );
+        (key) =>
+          record[key] === undefined ||
+          record[key] === null ||
+          typeof record[key] === "string",
+      )
+    );
   }
   return false;
 }
@@ -680,69 +858,166 @@ function validateBinding(
   componentById: Map<string, ComponentBlock>,
   pageFilterById: Map<string, PageFilterDefinition>,
 ): PageBindingIssue[] {
-  const extra = { componentId: location.componentId, parameter: location.parameter };
+  const extra = {
+    componentId: location.componentId,
+    parameter: location.parameter,
+  };
   if (!binding || typeof binding !== "object") {
-    return [issue("invalid_binding", "Binding must be an object.", location.path, extra)];
+    return [
+      issue(
+        "invalid_binding",
+        "Binding must be an object.",
+        location.path,
+        extra,
+      ),
+    ];
   }
   if (binding.source === "static") {
     return isJsonSafe(binding.value)
       ? []
-      : [issue("invalid_static_value", "Static value must be JSON-safe.", location.path, extra)];
+      : [
+          issue(
+            "invalid_static_value",
+            "Static value must be JSON-safe.",
+            location.path,
+            extra,
+          ),
+        ];
   }
   if (binding.source === "pageFilter") {
     if (!binding.filterId || !pageFilterById.has(binding.filterId)) {
       return [
-        issue("missing_page_filter", "Page filter binding points to a missing filter.", location.path, {
-          ...extra,
-          target: { kind: "pageFilter", filterId: binding.filterId },
-        }),
+        issue(
+          "missing_page_filter",
+          "Page filter binding points to a missing filter.",
+          location.path,
+          {
+            ...extra,
+            target: { kind: "pageFilter", filterId: binding.filterId },
+          },
+        ),
       ];
     }
-    if (binding.field && !["value", "start", "end", "preset", "timezone"].includes(binding.field)) {
-      return [issue("invalid_binding_field", "Page filter field is invalid.", location.path, extra)];
-    }
     const filter = pageFilterById.get(binding.filterId);
-    if (filter?.type !== "dateRange" && binding.field) {
-      return [issue("invalid_binding_field", "Only date-range page filters allow a field.", location.path, extra)];
+    if (filter?.type === "dateRange") {
+      if (
+        binding.field &&
+        !["value", "start", "end", "preset", "timezone"].includes(binding.field)
+      ) {
+        return [
+          issue(
+            "invalid_binding_field",
+            "Date-range page filter field is invalid.",
+            location.path,
+            extra,
+          ),
+        ];
+      }
+    } else if (filter?.type === "monthYear") {
+      if (
+        binding.field &&
+        !["value", "month", "year"].includes(binding.field)
+      ) {
+        return [
+          issue(
+            "invalid_binding_field",
+            "Month-year page filter field is invalid.",
+            location.path,
+            extra,
+          ),
+        ];
+      }
+    } else if (binding.field) {
+      return [
+        issue(
+          "invalid_binding_field",
+          "This page filter type does not allow a field.",
+          location.path,
+          extra,
+        ),
+      ];
     }
     return [];
   }
   if (binding.source !== "componentOutput") {
-    return [issue("unsupported_binding_source", `Binding source "${String(binding.source)}" is not supported.`, location.path, extra)];
+    return [
+      issue(
+        "unsupported_binding_source",
+        `Binding source "${String(binding.source)}" is not supported.`,
+        location.path,
+        extra,
+      ),
+    ];
   }
   if (binding.componentId === location.componentId) {
     return [
-      issue("self_binding_component_output", "A component cannot bind a request parameter to its own output.", location.path, {
-        ...extra,
-        target: { kind: "component", componentId: binding.componentId },
-      }),
+      issue(
+        "self_binding_component_output",
+        "A component cannot bind a request parameter to its own output.",
+        location.path,
+        {
+          ...extra,
+          target: { kind: "component", componentId: binding.componentId },
+        },
+      ),
     ];
   }
   const component = componentById.get(binding.componentId);
   if (!component) {
     return [
-      issue("missing_binding_component", "Referenced component does not exist.", location.path, {
-        ...extra,
-        target: { kind: "component", componentId: binding.componentId },
-      }),
+      issue(
+        "missing_binding_component",
+        "Referenced component does not exist.",
+        location.path,
+        {
+          ...extra,
+          target: { kind: "component", componentId: binding.componentId },
+        },
+      ),
     ];
   }
-  const output = component.outputs?.find((candidate) => candidate.id === binding.outputId);
+  const output = component.outputs?.find(
+    (candidate) => candidate.id === binding.outputId,
+  );
   if (!output) {
     return [
-      issue("missing_binding_output", "Referenced output does not exist.", location.path, {
-        ...extra,
-        target: { kind: "output", componentId: binding.componentId, outputId: binding.outputId },
-      }),
+      issue(
+        "missing_binding_output",
+        "Referenced output does not exist.",
+        location.path,
+        {
+          ...extra,
+          target: {
+            kind: "output",
+            componentId: binding.componentId,
+            outputId: binding.outputId,
+          },
+        },
+      ),
     ];
   }
   if (output.type === "dateRange") {
-    return !binding.field || ["start", "end", "preset", "timezone"].includes(binding.field)
+    return !binding.field ||
+      ["start", "end", "preset", "timezone"].includes(binding.field)
       ? []
-      : [issue("invalid_binding_field", "Date-range field is invalid.", location.path, extra)];
+      : [
+          issue(
+            "invalid_binding_field",
+            "Date-range field is invalid.",
+            location.path,
+            extra,
+          ),
+        ];
   }
   return binding.field
-    ? [issue("invalid_binding_field", "Scalar and array outputs do not allow a field.", location.path, extra)]
+    ? [
+        issue(
+          "invalid_binding_field",
+          "Scalar and array outputs do not allow a field.",
+          location.path,
+          extra,
+        ),
+      ]
     : [];
 }
 
@@ -761,8 +1036,12 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
     }
     throw error;
   }
-  const variables = variablePages.flatMap(({ variables: pageVariables, path }) =>
-    pageVariables.map((variable, index) => ({ variable, path: `${path}.variables[${index}]` })),
+  const variables = variablePages.flatMap(
+    ({ variables: pageVariables, path }) =>
+      pageVariables.map((variable, index) => ({
+        variable,
+        path: `${path}.variables[${index}]`,
+      })),
   );
   const runtimeConfigured =
     variables.length > 0 ||
@@ -778,19 +1057,57 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
     const variableKeys = new Set<string>();
     for (const [index, variable] of pageVariables.entries()) {
       const path = `${pagePath}.variables[${index}]`;
-      if (!variable.id) issues.push(issue("missing_variable_id", "Variable requires an id.", path));
-      else if (variableIds.has(variable.id)) issues.push(issue("duplicate_variable_id", "Variable id must be unique within its page.", path));
+      if (!variable.id)
+        issues.push(
+          issue("missing_variable_id", "Variable requires an id.", path),
+        );
+      else if (variableIds.has(variable.id))
+        issues.push(
+          issue(
+            "duplicate_variable_id",
+            "Variable id must be unique within its page.",
+            path,
+          ),
+        );
       else {
-      if (!isSafeRuntimeName(variable.id)) issues.push(issue("invalid_variable_id", "Variable id is invalid.", path));
+        if (!isSafeRuntimeName(variable.id))
+          issues.push(
+            issue("invalid_variable_id", "Variable id is invalid.", path),
+          );
         variableIds.add(variable.id);
       }
-      if (!variable.key) issues.push(issue("missing_variable_key", "Variable requires a key.", path));
-      else if (variableKeys.has(variable.key)) issues.push(issue("duplicate_variable_key", "Variable key must be unique within its page.", path));
-      else if (!isSafeRuntimeName(variable.key)) issues.push(issue("invalid_variable_key", "Variable key is invalid.", path));
+      if (!variable.key)
+        issues.push(
+          issue("missing_variable_key", "Variable requires a key.", path),
+        );
+      else if (variableKeys.has(variable.key))
+        issues.push(
+          issue(
+            "duplicate_variable_key",
+            "Variable key must be unique within its page.",
+            path,
+          ),
+        );
+      else if (!isSafeRuntimeName(variable.key))
+        issues.push(
+          issue("invalid_variable_key", "Variable key is invalid.", path),
+        );
       else variableKeys.add(variable.key);
-      if (!VALUE_TYPES.has(variable.type)) issues.push(issue("invalid_variable_type", "Variable type is invalid.", path));
-      else if (hasOwnProperty(variable, "initialValue") && !matchesRuntimeValueType(variable.initialValue, variable.type)) {
-        issues.push(issue("invalid_variable_initial_value", "Variable initial value does not match its declared type.", path));
+      if (!VALUE_TYPES.has(variable.type))
+        issues.push(
+          issue("invalid_variable_type", "Variable type is invalid.", path),
+        );
+      else if (
+        hasOwnProperty(variable, "initialValue") &&
+        !matchesRuntimeValueType(variable.initialValue, variable.type)
+      ) {
+        issues.push(
+          issue(
+            "invalid_variable_initial_value",
+            "Variable initial value does not match its declared type.",
+            path,
+          ),
+        );
       }
     }
   }
@@ -800,55 +1117,128 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
   const cellIds = collectCellIds(page);
   for (const { filter, path } of pageFilters) {
     if (!filter.id) {
-      issues.push(issue("missing_page_filter_id", "Page filter requires an id.", path));
+      issues.push(
+        issue("missing_page_filter_id", "Page filter requires an id.", path),
+      );
     } else if (pageFilterById.has(filter.id)) {
-      issues.push(issue("duplicate_page_filter_id", "Page filter id must be unique.", path, {
-        target: { kind: "pageFilter", filterId: filter.id },
-      }));
+      issues.push(
+        issue(
+          "duplicate_page_filter_id",
+          "Page filter id must be unique.",
+          path,
+          {
+            target: { kind: "pageFilter", filterId: filter.id },
+          },
+        ),
+      );
     } else {
-      if (!isSafeRuntimeName(filter.id)) issues.push(issue("invalid_page_filter_id", "Page filter id is invalid.", path));
+      if (!isSafeRuntimeName(filter.id))
+        issues.push(
+          issue("invalid_page_filter_id", "Page filter id is invalid.", path),
+        );
       pageFilterById.set(filter.id, filter);
     }
     if (!filter.key) {
-      issues.push(issue("missing_page_filter_key", "Page filter requires a key.", path));
+      issues.push(
+        issue("missing_page_filter_key", "Page filter requires a key.", path),
+      );
     } else if (pageFilterKeys.has(filter.key)) {
-      issues.push(issue("duplicate_page_filter_key", "Page filter key must be unique.", path));
+      issues.push(
+        issue(
+          "duplicate_page_filter_key",
+          "Page filter key must be unique.",
+          path,
+        ),
+      );
     } else if (!isSafeRuntimeName(filter.key)) {
-      issues.push(issue("invalid_page_filter_key", "Page filter key is invalid.", path));
+      issues.push(
+        issue("invalid_page_filter_key", "Page filter key is invalid.", path),
+      );
     } else {
       pageFilterKeys.add(filter.key);
     }
     if (!VALUE_TYPES.has(filter.type)) {
-      issues.push(issue("invalid_page_filter_type", "Page filter type is invalid.", path));
-    } else if (hasOwnProperty(filter, "defaultValue") && !matchesRuntimeValueType(filter.defaultValue, filter.type)) {
-      issues.push(issue("invalid_page_filter_default_value", "Page filter default value does not match its declared type.", path));
+      issues.push(
+        issue("invalid_page_filter_type", "Page filter type is invalid.", path),
+      );
+    } else if (
+      hasOwnProperty(filter, "defaultValue") &&
+      !matchesRuntimeValueType(filter.defaultValue, filter.type)
+    ) {
+      issues.push(
+        issue(
+          "invalid_page_filter_default_value",
+          "Page filter default value does not match its declared type.",
+          path,
+        ),
+      );
     }
     if (
       filter.defaultPreset !== undefined &&
       !(
-        (filter.type === "date" && DATE_DEFAULT_PRESETS.has(filter.defaultPreset)) ||
-        (filter.type === "dateRange" && DATE_RANGE_DEFAULT_PRESETS.has(filter.defaultPreset))
+        (filter.type === "date" &&
+          DATE_DEFAULT_PRESETS.has(filter.defaultPreset)) ||
+        (filter.type === "monthYear" &&
+          MONTH_YEAR_DEFAULT_PRESETS.has(filter.defaultPreset)) ||
+        (filter.type === "dateRange" &&
+          DATE_RANGE_DEFAULT_PRESETS.has(filter.defaultPreset))
       )
     ) {
-      issues.push(issue("invalid_page_filter_default_preset", "Page filter default preset is invalid.", path));
+      issues.push(
+        issue(
+          "invalid_page_filter_default_preset",
+          "Page filter default preset is invalid.",
+          path,
+        ),
+      );
     }
     if (
       filter.arraySerialization !== undefined &&
       filter.arraySerialization !== "comma" &&
       filter.arraySerialization !== "repeat"
     ) {
-      issues.push(issue("invalid_page_filter_array_serialization", "Page filter array serialization is invalid.", path));
+      issues.push(
+        issue(
+          "invalid_page_filter_array_serialization",
+          "Page filter array serialization is invalid.",
+          path,
+        ),
+      );
     }
     if (!filter.placement || typeof filter.placement !== "object") {
-      issues.push(issue("invalid_page_filter_placement", "Page filter placement is invalid.", path));
+      issues.push(
+        issue(
+          "invalid_page_filter_placement",
+          "Page filter placement is invalid.",
+          path,
+        ),
+      );
     } else if (filter.placement.kind === "cell") {
       if (!filter.placement.cellId) {
-        issues.push(issue("missing_page_filter_cell", "Cell page filter placement requires a cell.", path));
+        issues.push(
+          issue(
+            "missing_page_filter_cell",
+            "Cell page filter placement requires a cell.",
+            path,
+          ),
+        );
       } else if (!cellIds.has(filter.placement.cellId)) {
-        issues.push(issue("missing_page_filter_cell", "Cell page filter placement points to a missing cell.", path));
+        issues.push(
+          issue(
+            "missing_page_filter_cell",
+            "Cell page filter placement points to a missing cell.",
+            path,
+          ),
+        );
       }
     } else if (filter.placement.kind !== "navbar") {
-      issues.push(issue("invalid_page_filter_placement", "Page filter placement is invalid.", path));
+      issues.push(
+        issue(
+          "invalid_page_filter_placement",
+          "Page filter placement is invalid.",
+          path,
+        ),
+      );
     }
   }
 
@@ -859,34 +1249,70 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
 
   for (const { component, path } of components) {
     if (!component.id) {
-      if (runtimeConfigured) issues.push(issue("missing_component_id", "Component requires an id.", path));
+      if (runtimeConfigured)
+        issues.push(
+          issue("missing_component_id", "Component requires an id.", path),
+        );
     } else if (componentIds.has(component.id)) {
-      issues.push(issue("duplicate_component_id", "Component id must be unique.", path, { componentId: component.id }));
+      issues.push(
+        issue("duplicate_component_id", "Component id must be unique.", path, {
+          componentId: component.id,
+        }),
+      );
     } else {
       if (!isSafeRuntimeName(component.id)) {
-        issues.push(issue("invalid_component_id", "Component id is invalid.", path, {
-          componentId: component.id,
-        }));
+        issues.push(
+          issue("invalid_component_id", "Component id is invalid.", path, {
+            componentId: component.id,
+          }),
+        );
       }
       componentIds.add(component.id);
       componentById.set(component.id, component);
     }
     if (component.stateKey) {
-      if (stateKeys.has(component.stateKey)) issues.push(issue("duplicate_state_key", "Component state key must be unique.", path, { componentId: component.id }));
-      else if (!isSafeRuntimeName(component.stateKey)) issues.push(issue("invalid_state_key", "Component state key is invalid.", path, { componentId: component.id }));
+      if (stateKeys.has(component.stateKey))
+        issues.push(
+          issue(
+            "duplicate_state_key",
+            "Component state key must be unique.",
+            path,
+            { componentId: component.id },
+          ),
+        );
+      else if (!isSafeRuntimeName(component.stateKey))
+        issues.push(
+          issue("invalid_state_key", "Component state key is invalid.", path, {
+            componentId: component.id,
+          }),
+        );
       else stateKeys.add(component.stateKey);
     }
     for (const [index, filter] of filtersOf(component).entries()) {
       const filterPath = `${path}.table.filterPanel.inputs[${index}]`;
       if (!filter.id) {
-        if (runtimeConfigured) issues.push(issue("missing_filter_id", "Filter requires an id.", filterPath, { componentId: component.id }));
+        if (runtimeConfigured)
+          issues.push(
+            issue("missing_filter_id", "Filter requires an id.", filterPath, {
+              componentId: component.id,
+            }),
+          );
       } else if (filterIds.has(filter.id)) {
-        issues.push(issue("duplicate_filter_id", "Filter id must be unique.", filterPath, { componentId: component.id }));
+        issues.push(
+          issue(
+            "duplicate_filter_id",
+            "Filter id must be unique.",
+            filterPath,
+            { componentId: component.id },
+          ),
+        );
       } else {
         if (!isSafeRuntimeName(filter.id)) {
-          issues.push(issue("invalid_filter_id", "Filter id is invalid.", filterPath, {
-            componentId: component.id,
-          }));
+          issues.push(
+            issue("invalid_filter_id", "Filter id is invalid.", filterPath, {
+              componentId: component.id,
+            }),
+          );
         }
         filterIds.add(filter.id);
       }
@@ -895,21 +1321,52 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
     const localOutputIds = new Set<string>();
     for (const [index, output] of (component.outputs ?? []).entries()) {
       const outputPath = `${path}.outputs[${index}]`;
-      if (!output.id) issues.push(issue("missing_output_id", "Output requires an id.", outputPath, { componentId: component.id }));
-      else if (localOutputIds.has(output.id)) issues.push(issue("duplicate_output_id", "Output id must be unique within its component.", outputPath, { componentId: component.id }));
+      if (!output.id)
+        issues.push(
+          issue("missing_output_id", "Output requires an id.", outputPath, {
+            componentId: component.id,
+          }),
+        );
+      else if (localOutputIds.has(output.id))
+        issues.push(
+          issue(
+            "duplicate_output_id",
+            "Output id must be unique within its component.",
+            outputPath,
+            { componentId: component.id },
+          ),
+        );
       else {
         if (!isSafeRuntimeName(output.id)) {
-          issues.push(issue("invalid_output_id", "Output id is invalid.", outputPath, {
-            componentId: component.id,
-          }));
+          issues.push(
+            issue("invalid_output_id", "Output id is invalid.", outputPath, {
+              componentId: component.id,
+            }),
+          );
         }
         localOutputIds.add(output.id);
       }
-      if (!output.key) issues.push(issue("missing_output_key", "Output requires a key.", outputPath, { componentId: component.id }));
+      if (!output.key)
+        issues.push(
+          issue("missing_output_key", "Output requires a key.", outputPath, {
+            componentId: component.id,
+          }),
+        );
       else if (localKeys.has(output.key)) {
-        issues.push(issue("duplicate_output_key", "Output key must be unique within its component.", outputPath, { componentId: component.id }));
+        issues.push(
+          issue(
+            "duplicate_output_key",
+            "Output key must be unique within its component.",
+            outputPath,
+            { componentId: component.id },
+          ),
+        );
       } else if (!isSafeRuntimeName(output.key)) {
-        issues.push(issue("invalid_output_key", "Output key is invalid.", outputPath, { componentId: component.id }));
+        issues.push(
+          issue("invalid_output_key", "Output key is invalid.", outputPath, {
+            componentId: component.id,
+          }),
+        );
       } else {
         localKeys.add(output.key);
       }
@@ -919,26 +1376,46 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
   for (const { component, path } of components) {
     for (const [index, output] of (component.outputs ?? []).entries()) {
       const outputPath = `${path}.outputs[${index}]`;
-      const source = output.source as ComponentOutputDefinition["source"] | undefined;
+      const source = output.source as
+        | ComponentOutputDefinition["source"]
+        | undefined;
       let expected: RuntimeValueType | undefined;
       let tableSource = false;
       if (!VALUE_TYPES.has(output.type)) {
-        issues.push(issue("invalid_output_type", "Output type is invalid.", outputPath, {
-          componentId: component.id,
-        }));
+        issues.push(
+          issue("invalid_output_type", "Output type is invalid.", outputPath, {
+            componentId: component.id,
+          }),
+        );
       }
       if (!source || typeof source !== "object" || !("kind" in source)) {
-        issues.push(issue("unsupported_output_source", "Output source is not supported.", outputPath, {
-          componentId: component.id,
-        }));
+        issues.push(
+          issue(
+            "unsupported_output_source",
+            "Output source is not supported.",
+            outputPath,
+            {
+              componentId: component.id,
+            },
+          ),
+        );
       } else if (source.kind === "tableFilter") {
         tableSource = true;
-        const filter = filtersOf(component).find((candidate) => candidate.id === source.filterId);
+        const filter = filtersOf(component).find(
+          (candidate) => candidate.id === source.filterId,
+        );
         if (!filter) {
-          issues.push(issue("missing_output_filter", "Referenced filter does not exist.", outputPath, {
-            componentId: component.id,
-            target: { kind: "filter", filterId: source.filterId },
-          }));
+          issues.push(
+            issue(
+              "missing_output_filter",
+              "Referenced filter does not exist.",
+              outputPath,
+              {
+                componentId: component.id,
+                target: { kind: "filter", filterId: source.filterId },
+              },
+            ),
+          );
         } else expected = outputTypeForFilter(filter);
       } else if (source.kind === "tableSelectedIds") {
         tableSource = true;
@@ -946,23 +1423,44 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
       } else if (source.kind === "tableSearch") {
         tableSource = true;
         expected = "string";
-      }
-      else {
-        issues.push(issue("unsupported_output_source", "Output source is not supported.", outputPath, {
-          componentId: component.id,
-        }));
+      } else {
+        issues.push(
+          issue(
+            "unsupported_output_source",
+            "Output source is not supported.",
+            outputPath,
+            {
+              componentId: component.id,
+            },
+          ),
+        );
       }
       if (tableSource && component.type !== "table") {
-        issues.push(issue("incompatible_output_source", "Table output source requires a table component.", outputPath, { componentId: component.id }));
+        issues.push(
+          issue(
+            "incompatible_output_source",
+            "Table output source requires a table component.",
+            outputPath,
+            { componentId: component.id },
+          ),
+        );
       }
       if (expected && output.type !== expected) {
-        issues.push(issue("output_type_mismatch", `Output type must be "${expected}".`, outputPath, { componentId: component.id }));
+        issues.push(
+          issue(
+            "output_type_mismatch",
+            `Output type must be "${expected}".`,
+            outputPath,
+            { componentId: component.id },
+          ),
+        );
       }
     }
     const parameters = component.dataBinding?.parameters;
     if (!parameters || typeof parameters !== "object") continue;
     for (const parameter of Object.keys(parameters).sort()) {
-      if (!Object.prototype.hasOwnProperty.call(parameters, parameter)) continue;
+      if (!Object.prototype.hasOwnProperty.call(parameters, parameter))
+        continue;
       const location: BindingLocation = {
         componentId: component.id,
         parameter,
@@ -970,12 +1468,26 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
         binding: parameters[parameter],
       };
       if (!isSafeRuntimeName(parameter)) {
-        issues.push(issue("invalid_parameter_name", "Parameter name is invalid.", location.path, {
-          componentId: component.id,
-          parameter,
-        }));
+        issues.push(
+          issue(
+            "invalid_parameter_name",
+            "Parameter name is invalid.",
+            location.path,
+            {
+              componentId: component.id,
+              parameter,
+            },
+          ),
+        );
       }
-      issues.push(...validateBinding(parameters[parameter], location, componentById, pageFilterById));
+      issues.push(
+        ...validateBinding(
+          parameters[parameter],
+          location,
+          componentById,
+          pageFilterById,
+        ),
+      );
     }
   }
   return issues;

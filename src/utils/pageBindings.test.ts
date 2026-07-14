@@ -12,6 +12,7 @@ import {
   ensurePageRuntimeIds,
   exposeTableFilter,
   formatBindingLabel,
+  normalizePageRuntimeConfig,
   uniqueComponentStateKey,
   renameOutput,
   validatePageBindings,
@@ -412,6 +413,43 @@ describe("validation and dependencies", () => {
     ];
 
     expect(validatePageBindings(page).map((issue) => issue.code)).toContain("missing_page_filter_cell");
+  });
+
+  it("normalizes tenant panel page filters before page requests", () => {
+    const page: PageModel = {
+      name: "Reports",
+      filters: [
+        {
+          id: "pfl_date",
+          key: "date",
+          label: "Date",
+          type: "date",
+          defaultPreset: "today",
+          placement: { kind: "cell", cellId: "missing-cell" },
+        },
+        {
+          id: "pfl_month",
+          key: "month",
+          label: "Month",
+          type: "monthYear",
+          defaultPreset: "today",
+          placement: { kind: "cell", cellId: "cell-main" },
+        },
+      ],
+      sections: [
+        {
+          columns: 1,
+          cells: [{ id: "cell-main", row: 1, column: 1, components: [] }],
+        },
+      ],
+    };
+
+    const normalized = normalizePageRuntimeConfig(page);
+
+    expect(normalized).not.toBe(page);
+    expect(normalized.filters?.[0].placement).toEqual({ kind: "navbar" });
+    expect(normalized.filters?.[1].defaultPreset).toBe("currentMonthYear");
+    expect(validatePageBindings(normalized)).toEqual([]);
   });
 
   it("validates variable initial values without exposing their values", () => {

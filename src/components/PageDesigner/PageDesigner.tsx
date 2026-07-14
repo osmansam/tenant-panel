@@ -9,31 +9,32 @@ import {
   FiUpload,
 } from "react-icons/fi";
 import { MdBarChart, MdTab, MdTableChart } from "react-icons/md";
+import type { OptionType } from "../../types";
 import {
   ComponentBlock,
   DistributionBlockItemConfig,
   DistributionBlocksConfig,
   FormComponentConfig,
   FormFieldConfig,
+  GridCell,
+  GridSection,
   GroupBy,
   InfoBlockColorRule,
   InfoBlockItemConfig,
   InfoBlocksConfig,
   InfoBlocksSource,
   LinkType,
-  GridCell,
-  GridSection,
   RowClassConfig,
+  TabPanelTab,
   TableActionConfig,
   TableActionFormFieldConfig,
   TableActionFormKeyType,
   TableActionInputType,
-  TableActionOptionsSource,
   TableActionModalType,
+  TableActionOptionsSource,
   TableColumnConfig,
   TableComponentConfig,
   TableFilterPanelInputConfig,
-  TabPanelTab,
 } from "../../types/page";
 import {
   ContainerModel,
@@ -43,29 +44,33 @@ import {
   WorkflowStep,
   useGetContainers,
 } from "../../utils/api/container";
-import type { OptionType } from "../../types";
-import { getIconByName } from "../../utils/menuIcons";
-import SelectInput from "../panelComponents/FormElements/SelectInput";
-import { CellExcelUploadModal } from "./CellExcelUploadModal";
-import ComponentOutputsEditor from "./ComponentOutputsEditor";
-import FormComponentEditor from "./FormComponentEditor";
-import ParameterBindingsEditor from "./ParameterBindingsEditor";
-import PageFilterModal from "./PageFilterModal";
 import type {
+  PageFilterDefinition,
   ComponentBlock as RuntimeComponentBlock,
   PageModel as RuntimePageModel,
-  PageFilterDefinition,
   ParameterBinding as RuntimeParameterBinding,
 } from "../../utils/api/page";
+import { getIconByName } from "../../utils/menuIcons";
 import {
   createRuntimeId,
   dependentBindings,
   ensurePageRuntimeIds,
   isSafeRuntimeName,
-  type PageBindingIssue,
   uniqueComponentStateKey,
   validatePageBindings,
+  type PageBindingIssue,
 } from "../../utils/pageBindings";
+import {
+  TABLE_ROW_ACTION_KIND_OPTIONS,
+  hydrateEmptyDesignerTableColumns,
+  mergeDesignerTableColumnsFromNames,
+} from "../../utils/pageDesignerTableConfig";
+import SelectInput from "../panelComponents/FormElements/SelectInput";
+import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import ComponentOutputsEditor from "./ComponentOutputsEditor";
+import FormComponentEditor from "./FormComponentEditor";
+import PageFilterModal from "./PageFilterModal";
+import ParameterBindingsEditor from "./ParameterBindingsEditor";
 
 interface PageDesignerProps {
   sections: GridSection[];
@@ -105,50 +110,197 @@ interface OptionField {
 
 const CHART_SPECIFIC_OPTIONS: Record<string, OptionField[]> = {
   barChart: [
-    { name: "indexBy", label: "Index By (X-Axis Field)", type: "text", required: true, placeholder: "e.g. monthName" },
-    { name: "keys", label: "Series Keys (Y-Axis Fields)", type: "array", required: true, placeholder: "e.g. totalQuantitySold, orderCount" },
-    { name: "groupMode", label: "Group Mode", type: "select", options: ["stacked", "grouped"], defaultValue: "stacked" },
-    { name: "layout", label: "Layout", type: "select", options: ["vertical", "horizontal"], defaultValue: "vertical" },
-    { name: "padding", label: "Padding between bars", type: "number", defaultValue: 0.3 }
+    {
+      name: "indexBy",
+      label: "Index By (X-Axis Field)",
+      type: "text",
+      required: true,
+      placeholder: "e.g. monthName",
+    },
+    {
+      name: "keys",
+      label: "Series Keys (Y-Axis Fields)",
+      type: "array",
+      required: true,
+      placeholder: "e.g. totalQuantitySold, orderCount",
+    },
+    {
+      name: "groupMode",
+      label: "Group Mode",
+      type: "select",
+      options: ["stacked", "grouped"],
+      defaultValue: "stacked",
+    },
+    {
+      name: "layout",
+      label: "Layout",
+      type: "select",
+      options: ["vertical", "horizontal"],
+      defaultValue: "vertical",
+    },
+    {
+      name: "padding",
+      label: "Padding between bars",
+      type: "number",
+      defaultValue: 0.3,
+    },
   ],
   lineChart: [
-    { name: "curve", label: "Curve Type", type: "select", options: ["linear", "cardinal", "catmullRom", "monotoneX", "step"], defaultValue: "linear" },
-    { name: "enableArea", label: "Enable Area Fill", type: "boolean", defaultValue: false },
-    { name: "useMesh", label: "Enable Interactive Mesh", type: "boolean", defaultValue: true }
+    {
+      name: "curve",
+      label: "Curve Type",
+      type: "select",
+      options: ["linear", "cardinal", "catmullRom", "monotoneX", "step"],
+      defaultValue: "linear",
+    },
+    {
+      name: "enableArea",
+      label: "Enable Area Fill",
+      type: "boolean",
+      defaultValue: false,
+    },
+    {
+      name: "useMesh",
+      label: "Enable Interactive Mesh",
+      type: "boolean",
+      defaultValue: true,
+    },
   ],
   pieChart: [
-    { name: "id", label: "Slice ID Property", type: "text", placeholder: "e.g. categoryName" },
-    { name: "value", label: "Slice Value Property", type: "text", placeholder: "e.g. totalQuantitySold" },
-    { name: "innerRadius", label: "Inner Radius (0-1 for donut)", type: "number", defaultValue: 0.5 },
-    { name: "padAngle", label: "Padding Angle", type: "number", defaultValue: 0.7 },
-    { name: "cornerRadius", label: "Corner Radius", type: "number", defaultValue: 3 }
+    {
+      name: "id",
+      label: "Slice ID Property",
+      type: "text",
+      placeholder: "e.g. categoryName",
+    },
+    {
+      name: "value",
+      label: "Slice Value Property",
+      type: "text",
+      placeholder: "e.g. totalQuantitySold",
+    },
+    {
+      name: "innerRadius",
+      label: "Inner Radius (0-1 for donut)",
+      type: "number",
+      defaultValue: 0.5,
+    },
+    {
+      name: "padAngle",
+      label: "Padding Angle",
+      type: "number",
+      defaultValue: 0.7,
+    },
+    {
+      name: "cornerRadius",
+      label: "Corner Radius",
+      type: "number",
+      defaultValue: 3,
+    },
   ],
   radarChart: [
-    { name: "indexBy", label: "Index By Field", type: "text", required: true, placeholder: "e.g. monthName" },
-    { name: "keys", label: "Series Keys", type: "array", required: true, placeholder: "e.g. totalQuantitySold" },
-    { name: "curve", label: "Curve Type", type: "select", options: ["linearClosed", "catmullRomClosed"], defaultValue: "linearClosed" }
+    {
+      name: "indexBy",
+      label: "Index By Field",
+      type: "text",
+      required: true,
+      placeholder: "e.g. monthName",
+    },
+    {
+      name: "keys",
+      label: "Series Keys",
+      type: "array",
+      required: true,
+      placeholder: "e.g. totalQuantitySold",
+    },
+    {
+      name: "curve",
+      label: "Curve Type",
+      type: "select",
+      options: ["linearClosed", "catmullRomClosed"],
+      defaultValue: "linearClosed",
+    },
   ],
   heatmapChart: [
-    { name: "indexBy", label: "Index By Field", type: "text", required: true, placeholder: "e.g. monthName" },
-    { name: "keys", label: "Series Keys", type: "array", required: true, placeholder: "e.g. totalQuantitySold" },
-    { name: "forceSquare", label: "Force Square Cells", type: "boolean", defaultValue: false }
+    {
+      name: "indexBy",
+      label: "Index By Field",
+      type: "text",
+      required: true,
+      placeholder: "e.g. monthName",
+    },
+    {
+      name: "keys",
+      label: "Series Keys",
+      type: "array",
+      required: true,
+      placeholder: "e.g. totalQuantitySold",
+    },
+    {
+      name: "forceSquare",
+      label: "Force Square Cells",
+      type: "boolean",
+      defaultValue: false,
+    },
   ],
   calendarChart: [
-    { name: "from", label: "From Date (YYYY-MM-DD)", type: "text", placeholder: "e.g. 2026-01-01" },
-    { name: "to", label: "To Date (YYYY-MM-DD)", type: "text", placeholder: "e.g. 2026-12-31" },
-    { name: "emptyColor", label: "Empty Cell Color", type: "text", defaultValue: "#eeeeee" }
+    {
+      name: "from",
+      label: "From Date (YYYY-MM-DD)",
+      type: "text",
+      placeholder: "e.g. 2026-01-01",
+    },
+    {
+      name: "to",
+      label: "To Date (YYYY-MM-DD)",
+      type: "text",
+      placeholder: "e.g. 2026-12-31",
+    },
+    {
+      name: "emptyColor",
+      label: "Empty Cell Color",
+      type: "text",
+      defaultValue: "#eeeeee",
+    },
   ],
   treemapChart: [
-    { name: "identity", label: "Identity Property", type: "text", defaultValue: "id" },
-    { name: "value", label: "Value Property", type: "text", defaultValue: "value" }
+    {
+      name: "identity",
+      label: "Identity Property",
+      type: "text",
+      defaultValue: "id",
+    },
+    {
+      name: "value",
+      label: "Value Property",
+      type: "text",
+      defaultValue: "value",
+    },
   ],
   waffleChart: [
-    { name: "total", label: "Total Waffle Cells", type: "number", required: true, defaultValue: 100 },
-    { name: "rows", label: "Waffle Rows", type: "number", required: true, defaultValue: 10 },
-    { name: "columns", label: "Waffle Columns", type: "number", required: true, defaultValue: 10 }
-  ]
+    {
+      name: "total",
+      label: "Total Waffle Cells",
+      type: "number",
+      required: true,
+      defaultValue: 100,
+    },
+    {
+      name: "rows",
+      label: "Waffle Rows",
+      type: "number",
+      required: true,
+      defaultValue: 10,
+    },
+    {
+      name: "columns",
+      label: "Waffle Columns",
+      type: "number",
+      required: true,
+      defaultValue: 10,
+    },
+  ],
 };
-
 
 const INFO_BLOCK_SOURCES: { value: InfoBlocksSource; label: string }[] = [
   { value: "static", label: "Static values" },
@@ -223,21 +375,10 @@ const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: "phone", label: "Phone" },
 ];
 
-
 const ACTION_MODAL_TYPES: { value: TableActionModalType; label: string }[] = [
   { value: "none", label: "None" },
   { value: "confirm", label: "Confirm" },
   { value: "form", label: "Form" },
-];
-
-const ACTION_KIND_OPTIONS: {
-  value: TableActionConfig["kind"];
-  label: string;
-}[] = [
-  { value: "edit", label: "Edit" },
-  { value: "delete", label: "Delete" },
-  { value: "update", label: "Update" },
-  { value: "link", label: "Link" },
 ];
 
 const ACTION_INPUT_TYPES: { value: TableActionInputType; label: string }[] = [
@@ -261,7 +402,12 @@ const formKeyTypeForActionInput = (
 ): TableActionFormKeyType => {
   if (isMultiple) return "stringArray";
   if (type === "number") return "number";
-  if (type === "date" || type === "time" || type === "hour" || type === "monthYear") {
+  if (
+    type === "date" ||
+    type === "time" ||
+    type === "hour" ||
+    type === "monthYear"
+  ) {
     return "date";
   }
   if (type === "checkbox") return "boolean";
@@ -313,6 +459,7 @@ type TableSettingsTab =
   | "cellClasses"
   | "rows"
   | "actions"
+  | "bulkActions"
   | "filterInputs";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
@@ -321,6 +468,7 @@ const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "cellClasses", label: "Cell Classes" },
   { value: "rows", label: "Row Classes" },
   { value: "actions", label: "Actions" },
+  { value: "bulkActions", label: "Bulk Actions" },
   { value: "filterInputs", label: "Filter Inputs" },
 ];
 
@@ -337,8 +485,8 @@ const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
             template: field.frontend.linkTemplate,
             labelField: field.frontend.linkLabelField,
             type: field.frontend.linkType || "external",
-      }
-      : undefined,
+          }
+        : undefined,
     }));
 
 const actionInputTypeFromField = (field: Field): TableActionInputType => {
@@ -392,7 +540,10 @@ const buildActionFormFieldsFromFields = (
         staticOptionsJson:
           field.enumList && field.enumList.length > 0
             ? JSON.stringify(
-                field.enumList.map((value) => ({ value, label: String(value) })),
+                field.enumList.map((value) => ({
+                  value,
+                  label: String(value),
+                })),
                 null,
                 2,
               )
@@ -410,12 +561,14 @@ const flattenFormFields = (fields: Field[]): Field[] =>
   );
 
 const buildFormFieldsFromFields = (fields: Field[]): FormFieldConfig[] =>
-  buildActionFormFieldsFromFields(flattenFormFields(fields)).map((field, index) => ({
-    ...field,
-    area: "left",
-    order: index + 1,
-    width: "full",
-  }));
+  buildActionFormFieldsFromFields(flattenFormFields(fields)).map(
+    (field, index) => ({
+      ...field,
+      area: "left",
+      order: index + 1,
+      width: "full",
+    }),
+  );
 
 const buildDefaultFormConfig = (
   schemaName: string,
@@ -459,7 +612,9 @@ const buildFilterPanelInputsFromFields = (
       const fieldType = (field.type || "").toLowerCase();
       const baseInputType = actionInputTypeFromField(field);
       const isBoolean = fieldType.includes("bool");
-      const inputType: TableActionInputType = isBoolean ? "select" : baseInputType;
+      const inputType: TableActionInputType = isBoolean
+        ? "select"
+        : baseInputType;
       const isMultiple =
         fieldType === "objectidarray" ||
         fieldType === "stringarray" ||
@@ -504,6 +659,7 @@ const buildFilterPanelInputsFromFields = (
 const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
   {
     id: "default-edit",
+    key: "default-edit",
     kind: "edit",
     label: "Edit",
     icon: "FiEdit",
@@ -514,6 +670,7 @@ const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
   },
   {
     id: "default-delete",
+    key: "default-delete",
     kind: "delete",
     label: "Delete",
     icon: "HiOutlineTrash",
@@ -526,6 +683,7 @@ const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
 
 const buildDefaultCreateAction = (fields: Field[]): TableActionConfig => ({
   id: "default-create",
+  key: "default-create",
   kind: "create",
   label: "Add",
   buttonName: "Create",
@@ -534,6 +692,32 @@ const buildDefaultCreateAction = (fields: Field[]): TableActionConfig => ({
   enabled: true,
   modalType: "form",
   formFields: buildActionFormFieldsFromFields(fields),
+});
+
+const buildDefaultBulkEditAction = (fields: Field[]): TableActionConfig => ({
+  id: "bulk-edit",
+  key: "bulk-edit",
+  kind: "update",
+  label: "Edit Selected",
+  buttonName: "Edit",
+  icon: "FiEdit",
+  order: 1,
+  enabled: true,
+  modalType: "form",
+  formFields: buildActionFormFieldsFromFields(fields),
+});
+
+const buildDefaultBulkDeleteAction = (): TableActionConfig => ({
+  id: "bulk-delete",
+  key: "bulk-delete",
+  kind: "delete",
+  label: "Delete Selected",
+  icon: "HiOutlineTrash",
+  order: 2,
+  enabled: true,
+  modalType: "confirm",
+  confirmTitle: "Delete Selected",
+  confirmText: "Are you sure you want to delete the selected items?",
 });
 
 const hydrateSchemaEditActionFields = (
@@ -560,7 +744,10 @@ const hydrateSchemaAddButton = (
 const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
   fields
     .map((field) => field.trim())
-    .filter((field, index, all) => field && !["_id", "id"].includes(field) && all.indexOf(field) === index)
+    .filter(
+      (field, index, all) =>
+        field && !["_id", "id"].includes(field) && all.indexOf(field) === index,
+    )
     .map((field) => ({ field, type: "field", displayName: "" }));
 
 const normalizeOutputFields = (value: unknown): string[] => {
@@ -637,25 +824,29 @@ const extractPipelineParams = (pipeline: PipelineStage | null): string[] => {
   if (!pipeline) return [];
   const jsonStr = pipeline.pipelineJson || (pipeline as any).pipelineJSON || "";
   if (!jsonStr) return [];
-  
+
   const paramsSet = new Set<string>();
-  
+
   // 1. Match {{paramName}}
   const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
   let match;
   while ((match = rePlaceholders.exec(jsonStr)) !== null) {
     const p = match[1];
-    if (!["tenantID", "projectID"].includes(p) && !p.startsWith("projectCollection:") && !p.startsWith("collection:")) {
+    if (
+      !["tenantID", "projectID"].includes(p) &&
+      !p.startsWith("projectCollection:") &&
+      !p.startsWith("collection:")
+    ) {
       paramsSet.add(p);
     }
   }
-  
+
   // 2. Match {"$param": "paramName"}
   const reDollarParam = /\{\s*"\$param"\s*:\s*"([A-Za-z0-9_-]+)"\s*\}/g;
   while ((match = reDollarParam.exec(jsonStr)) !== null) {
     paramsSet.add(match[1]);
   }
-  
+
   return Array.from(paramsSet);
 };
 
@@ -664,13 +855,17 @@ const extractWorkflowParams = (workflow: any | null): string[] => {
   try {
     const jsonStr = JSON.stringify(workflow);
     const paramsSet = new Set<string>();
-    
+
     // Match {{placeholder}}
     const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
     let match;
     while ((match = rePlaceholders.exec(jsonStr)) !== null) {
       const p = match[1];
-      if (!["tenantID", "projectID"].includes(p) && !p.startsWith("projectCollection:") && !p.startsWith("collection:")) {
+      if (
+        !["tenantID", "projectID"].includes(p) &&
+        !p.startsWith("projectCollection:") &&
+        !p.startsWith("collection:")
+      ) {
         paramsSet.add(p);
       }
     }
@@ -680,20 +875,22 @@ const extractWorkflowParams = (workflow: any | null): string[] => {
   }
 };
 
-
 const flattenWorkflowSteps = (steps: WorkflowStep[] = []): WorkflowStep[] =>
   steps.flatMap((step) => [
     step,
     ...flattenWorkflowSteps(step.steps || []),
     ...flattenWorkflowSteps(step.elseSteps || []),
-    ...((step.branches || []).flatMap((branch) =>
+    ...(step.branches || []).flatMap((branch) =>
       flattenWorkflowSteps(branch.steps || []),
-    )),
+    ),
   ]);
 
-const workflowStepId = (step: WorkflowStep): string => step.name || (step as any).id || "";
+const workflowStepId = (step: WorkflowStep): string =>
+  step.name || (step as any).id || "";
 
-const configOutputFields = (config: Record<string, any> | undefined): string[] =>
+const configOutputFields = (
+  config: Record<string, any> | undefined,
+): string[] =>
   normalizeOutputFields(
     config?.outputFields || config?.returnFields || config?.fields,
   );
@@ -702,7 +899,10 @@ const schemaFieldNames = (
   containers: ContainerModel[],
   schemaName: string | undefined,
 ): string[] =>
-  (containers.find((container) => container.schemaName === schemaName)?.fields || [])
+  (
+    containers.find((container) => container.schemaName === schemaName)
+      ?.fields || []
+  )
     .map((field) => field.name)
     .filter(Boolean);
 
@@ -716,24 +916,34 @@ const inferWorkflowStepFields = (
   if (explicit.length > 0) return explicit;
 
   if (step.config?.projection && typeof step.config.projection === "object") {
-    const projected = inferFieldsFromProjectStage({ $project: step.config.projection });
+    const projected = inferFieldsFromProjectStage({
+      $project: step.config.projection,
+    });
     if (projected.length > 0) return projected;
   }
 
   if (Array.isArray(step.config?.pipeline)) {
     for (let index = step.config.pipeline.length - 1; index >= 0; index -= 1) {
-      const projected = inferFieldsFromPipelineStage(step.config.pipeline[index]);
+      const projected = inferFieldsFromPipelineStage(
+        step.config.pipeline[index],
+      );
       if (projected.length > 0) return projected;
     }
   }
 
-  if (typeof step.config?.value === "object" && !Array.isArray(step.config.value)) {
+  if (
+    typeof step.config?.value === "object" &&
+    !Array.isArray(step.config.value)
+  ) {
     const keys = Object.keys(step.config.value).filter((key) => key !== "_id");
     if (keys.length > 0) return keys;
   }
 
   if (["find_records", "get_record"].includes(step.type)) {
-    return schemaFieldNames(containers, step.targetSchema || fallbackSchemaName);
+    return schemaFieldNames(
+      containers,
+      step.targetSchema || fallbackSchemaName,
+    );
   }
 
   return [];
@@ -750,24 +960,38 @@ const inferWorkflowOutputFields = (
   if (explicit.length > 0) return explicit;
 
   const steps = flattenWorkflowSteps(workflow.steps || []);
-  const returnStep = steps.find((step) => step.type === "return" && step.isActive !== false);
+  const returnStep = steps.find(
+    (step) => step.type === "return" && step.isActive !== false,
+  );
   if (returnStep) {
-    const fromReturn = inferWorkflowStepFields(returnStep, containers, fallbackSchemaName);
+    const fromReturn = inferWorkflowStepFields(
+      returnStep,
+      containers,
+      fallbackSchemaName,
+    );
     if (fromReturn.length > 0) return fromReturn;
 
     const value = returnStep.config?.value;
     if (typeof value === "string") {
       const match = value.match(/^\{\{\s*([^.}]+)(?:\.items)?\s*\}\}$/);
       if (match) {
-        const referenced = steps.find((step) => workflowStepId(step) === match[1]);
-        const inferred = inferWorkflowStepFields(referenced, containers, fallbackSchemaName);
+        const referenced = steps.find(
+          (step) => workflowStepId(step) === match[1],
+        );
+        const inferred = inferWorkflowStepFields(
+          referenced,
+          containers,
+          fallbackSchemaName,
+        );
         if (inferred.length > 0) return inferred;
       }
     }
   }
 
   if (workflow.returnStep) {
-    const referenced = steps.find((step) => workflowStepId(step) === workflow.returnStep);
+    const referenced = steps.find(
+      (step) => workflowStepId(step) === workflow.returnStep,
+    );
     return inferWorkflowStepFields(referenced, containers, fallbackSchemaName);
   }
 
@@ -777,7 +1001,9 @@ const inferWorkflowOutputFields = (
 const cleanRules = (rules: RowClassConfig[] = []): RowClassConfig[] =>
   rules.filter((rule) => rule.condition.trim() || rule.className.trim());
 
-const parseJsonObject = (value?: string): Record<string, unknown> | undefined => {
+const parseJsonObject = (
+  value?: string,
+): Record<string, unknown> | undefined => {
   if (!value?.trim()) return undefined;
   try {
     const parsed = JSON.parse(value);
@@ -797,9 +1023,14 @@ const cleanTableActions = (
     .map((action, index) => {
       const constantValues =
         action.constantValues || parseJsonObject(action.constantValuesJson);
+      const actionId =
+        action.id?.trim() ||
+        action.key?.trim() ||
+        `${action.kind}-${index + 1}`;
       return {
         kind: action.kind,
-        id: action.id?.trim() || `${action.kind}-${index + 1}`,
+        id: actionId,
+        key: action.key?.trim() || actionId,
         ...(action.label?.trim() ? { label: action.label.trim() } : {}),
         ...(action.buttonName?.trim()
           ? { buttonName: action.buttonName.trim() }
@@ -829,7 +1060,8 @@ const cleanTableActions = (
                     ? { requiredCondition: field.requiredCondition.trim() }
                     : {}),
                   ...(field.isMultiple ? { isMultiple: true } : {}),
-                  ...(isActionNumberInput(field.type) && field.isNumberButtonsActive
+                  ...(isActionNumberInput(field.type) &&
+                  field.isNumberButtonsActive
                     ? { isNumberButtonsActive: true }
                     : {}),
                   ...(field.optionsSource
@@ -860,7 +1092,8 @@ const cleanTableActions = (
                           .filter(Boolean),
                       }
                     : {}),
-                  ...(field.defaultValue !== undefined && field.defaultValue !== ""
+                  ...(field.defaultValue !== undefined &&
+                  field.defaultValue !== ""
                     ? { defaultValue: field.defaultValue }
                     : {}),
                   ...(field.min !== undefined ? { min: field.min } : {}),
@@ -913,16 +1146,42 @@ const cleanTableActions = (
         ...(action.confirmText?.trim()
           ? { confirmText: action.confirmText.trim() }
           : {}),
-        ...(action.submit?.workflowName?.trim() && action.submit?.workflowSchema?.trim()
+        ...(action.submit?.workflowName?.trim() ||
+        action.submit?.functionName?.trim()
           ? {
               submit: {
-                workflowName: action.submit.workflowName.trim(),
-                workflowSchema: action.submit.workflowSchema.trim(),
+                ...(action.submit.workflowName?.trim()
+                  ? {
+                      workflowName: action.submit.workflowName.trim(),
+                      ...(action.submit.workflowSchema?.trim()
+                        ? { workflowSchema: action.submit.workflowSchema.trim() }
+                        : {}),
+                    }
+                  : {}),
+                ...(action.submit.functionName?.trim()
+                  ? { functionName: action.submit.functionName.trim() }
+                  : {}),
               },
             }
           : {}),
+        ...(action.path?.trim() ? { path: action.path.trim() } : {}),
+        ...(action.linkTemplate?.trim()
+          ? { linkTemplate: action.linkTemplate.trim() }
+          : {}),
+        ...(action.fields?.filter((f) => f.trim()).length
+          ? { fields: action.fields.map((f) => f.trim()).filter(Boolean) }
+          : {}),
+        ...(action.excludeFields?.filter((f) => f.trim()).length
+          ? {
+              excludeFields: action.excludeFields
+                .map((f) => f.trim())
+                .filter(Boolean),
+            }
+          : {}),
         ...(action.linkType ? { linkType: action.linkType } : {}),
-        ...(action.className?.trim() ? { className: action.className.trim() } : {}),
+        ...(action.className?.trim()
+          ? { className: action.className.trim() }
+          : {}),
         ...(action.buttonClassName?.trim()
           ? { buttonClassName: action.buttonClassName.trim() }
           : {}),
@@ -1022,8 +1281,7 @@ const cleanTableConfig = (
                 ? { maxField: column.progressBar.maxField.trim() }
                 : {}),
               color: column.progressBar?.color?.trim() || "#4d9f24",
-              trackColor:
-                column.progressBar?.trackColor?.trim() || "#e7e5df",
+              trackColor: column.progressBar?.trackColor?.trim() || "#e7e5df",
               height: Number(column.progressBar?.height ?? 12),
               width: Number(column.progressBar?.width ?? 260),
               showValue: column.progressBar?.showValue !== false,
@@ -1072,11 +1330,13 @@ const cleanTableConfig = (
       }
     : {}),
   ...(cleanTableActions(
-    tableConfig.addButton ? [tableConfig.addButton] : [],
+    tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
   )[0]
     ? {
         addButton: cleanTableActions(
-          tableConfig.addButton ? [tableConfig.addButton] : [],
+          tableConfig.addButton
+            ? [{ ...tableConfig.addButton, kind: "create" }]
+            : [],
         )[0],
       }
     : {}),
@@ -1089,6 +1349,38 @@ const cleanTableConfig = (
             (action) => action.kind !== "create",
           ),
         ),
+      }
+    : {}),
+  ...(tableConfig.bulkActions !== undefined
+    ? {
+        bulkActions: {
+          ...(cleanTableActions(
+            tableConfig.bulkActions.edit
+              ? [{ ...tableConfig.bulkActions.edit, kind: "update" }]
+              : [],
+          )[0]
+            ? {
+                edit: cleanTableActions(
+                  tableConfig.bulkActions.edit
+                    ? [{ ...tableConfig.bulkActions.edit, kind: "update" }]
+                    : [],
+                )[0],
+              }
+            : {}),
+          ...(cleanTableActions(
+            tableConfig.bulkActions.delete
+              ? [{ ...tableConfig.bulkActions.delete, kind: "delete" }]
+              : [],
+          )[0]
+            ? {
+                delete: cleanTableActions(
+                  tableConfig.bulkActions.delete
+                    ? [{ ...tableConfig.bulkActions.delete, kind: "delete" }]
+                    : [],
+                )[0],
+              }
+            : {}),
+        },
       }
     : {}),
   ...(tableConfig.filterPanel !== undefined
@@ -1124,7 +1416,9 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
       area: field.area || "main",
       width: field.width || "full",
       order: Number(field.order ?? index + 1),
-      invalidateKeys: field.invalidateKeys?.map((key) => key.trim()).filter(Boolean),
+      invalidateKeys: field.invalidateKeys
+        ?.map((key) => key.trim())
+        .filter(Boolean),
     })),
   objectLists: (form.objectLists || [])
     .filter((objectList) => objectList.key.trim())
@@ -1149,9 +1443,15 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
             label: objectList.addAction.label?.trim() || "Add Item",
             area: objectList.addAction.area || "left",
             targetObjectList: objectList.key.trim(),
-            sourceFields: (objectList.addAction.sourceFields || []).filter(Boolean),
-            clearSourceFields: (objectList.addAction.clearSourceFields || []).filter(Boolean),
-            preserveSourceFields: (objectList.addAction.preserveSourceFields || []).filter(Boolean),
+            sourceFields: (objectList.addAction.sourceFields || []).filter(
+              Boolean,
+            ),
+            clearSourceFields: (
+              objectList.addAction.clearSourceFields || []
+            ).filter(Boolean),
+            preserveSourceFields: (
+              objectList.addAction.preserveSourceFields || []
+            ).filter(Boolean),
             enabled: objectList.addAction.enabled !== false,
           }
         : undefined,
@@ -1258,9 +1558,14 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     setFilterModal(null);
   };
   const deletePageFilter = (filterId: string) => {
-    const dependents = dependentBindings(runtimePage, { kind: "pageFilter", filterId });
+    const dependents = dependentBindings(runtimePage, {
+      kind: "pageFilter",
+      filterId,
+    });
     if (dependents.length > 0) {
-      alert("This page filter is used by component request parameters. Remove those bindings before deleting it.");
+      alert(
+        "This page filter is used by component request parameters. Remove those bindings before deleting it.",
+      );
       return;
     }
     onFiltersChange?.(filters.filter((filter) => filter.id !== filterId));
@@ -1334,7 +1639,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   // Handle Excel upload success for cells
   const handleCellExcelUploadSuccess = (
     schemaName: string,
-    component: ComponentBlock
+    component: ComponentBlock,
   ) => {
     if (excelTargetSectionIndex === null) return;
 
@@ -1375,11 +1680,11 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const updateCell = (
     sectionIndex: number,
     cellId: string,
-    updates: Partial<GridCell>
+    updates: Partial<GridCell>,
   ) => {
     const section = sections[sectionIndex];
     const cells = section.cells.map((cell) =>
-      cell.id === cellId ? { ...cell, ...updates } : cell
+      cell.id === cellId ? { ...cell, ...updates } : cell,
     );
     updateSection(sectionIndex, { cells });
   };
@@ -1387,19 +1692,30 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   // Delete cell
   const deleteCell = (sectionIndex: number, cellId: string) => {
     const section = sections[sectionIndex];
-    if (filters.some((filter) => filter.placement.kind === "cell" && filter.placement.cellId === cellId)) {
-      alert("This cell contains page filters. Move or delete those filters before deleting the cell.");
+    if (
+      filters.some(
+        (filter) =>
+          filter.placement.kind === "cell" &&
+          filter.placement.cellId === cellId,
+      )
+    ) {
+      alert(
+        "This cell contains page filters. Move or delete those filters before deleting the cell.",
+      );
       return;
     }
     const cell = section.cells.find((candidate) => candidate.id === cellId);
-    const hasDependents = (cell?.components || []).some((component) =>
-      dependentBindings(runtimePage, {
-        kind: "component",
-        componentId: component.id,
-      }).length > 0,
+    const hasDependents = (cell?.components || []).some(
+      (component) =>
+        dependentBindings(runtimePage, {
+          kind: "component",
+          componentId: component.id,
+        }).length > 0,
     );
     if (hasDependents) {
-      alert("This cell contains component outputs used by request parameters. Remove those bindings before deleting the cell.");
+      alert(
+        "This cell contains component outputs used by request parameters. Remove those bindings before deleting the cell.",
+      );
       return;
     }
     updateSection(sectionIndex, {
@@ -1412,13 +1728,13 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const addComponentToCell = (
     sectionIndex: number,
     cellId: string,
-    component: ComponentBlock
+    component: ComponentBlock,
   ) => {
     const section = sections[sectionIndex];
     const cells = section.cells.map((cell) =>
       cell.id === cellId
         ? { ...cell, components: [...cell.components, component] }
-        : cell
+        : cell,
     );
     updateSection(sectionIndex, { cells });
   };
@@ -1427,7 +1743,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const deleteComponent = (
     sectionIndex: number,
     cellId: string,
-    componentId: string
+    componentId: string,
   ) => {
     const section = sections[sectionIndex];
     if (
@@ -1436,7 +1752,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
         componentId,
       }).length > 0
     ) {
-      alert("This component has outputs used by request parameters. Remove those bindings before deleting the component.");
+      alert(
+        "This component has outputs used by request parameters. Remove those bindings before deleting the component.",
+      );
       return;
     }
     const cells = section.cells.map((cell) =>
@@ -1445,7 +1763,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             ...cell,
             components: cell.components.filter((c) => c.id !== componentId),
           }
-        : cell
+        : cell,
     );
     updateSection(sectionIndex, { cells });
   };
@@ -1455,7 +1773,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     sectionIndex: number,
     cellId: string,
     componentId: string,
-    updatedComponent: ComponentBlock
+    updatedComponent: ComponentBlock,
   ) => {
     const section = sections[sectionIndex];
     const cells = section.cells.map((cell) =>
@@ -1463,10 +1781,10 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
         ? {
             ...cell,
             components: cell.components.map((c) =>
-              c.id === componentId ? updatedComponent : c
+              c.id === componentId ? updatedComponent : c,
             ),
           }
-        : cell
+        : cell,
     );
     updateSection(sectionIndex, { cells });
   };
@@ -1581,8 +1899,12 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             onUpdateComponent={(cellId, componentId, component) =>
               updateComponent(selectedSection, cellId, componentId, component)
             }
-            onAddPageFilter={(cellId) => setFilterModal({ cellId, filter: null })}
-            onEditPageFilter={(cellId, filter) => setFilterModal({ cellId, filter })}
+            onAddPageFilter={(cellId) =>
+              setFilterModal({ cellId, filter: null })
+            }
+            onEditPageFilter={(cellId, filter) =>
+              setFilterModal({ cellId, filter })
+            }
             onDeletePageFilter={deletePageFilter}
             selectedCell={selectedCell}
             setSelectedCell={setSelectedCell}
@@ -1644,7 +1966,7 @@ interface SectionEditorProps {
   onUpdateComponent: (
     cellId: string,
     componentId: string,
-    component: ComponentBlock
+    component: ComponentBlock,
   ) => void;
   onAddPageFilter: (cellId: string) => void;
   onEditPageFilter: (cellId: string, filter: PageFilterDefinition) => void;
@@ -2046,7 +2368,9 @@ const CellEditor: React.FC<CellEditorProps> = ({
         {cell.components.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-xs text-neutral-400 mb-2">
-              {filters.length > 0 ? "No components" : "No components or filters"}
+              {filters.length > 0
+                ? "No components"
+                : "No components or filters"}
             </p>
             <button
               onClick={(e) => {
@@ -2258,7 +2582,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         outputs: runtimeOutputs,
         table: tableConfig,
       }) as unknown as RuntimeComponentBlock,
-    [componentType, editingComponent, runtimeOutputs, stateKey, tableConfig, title],
+    [
+      componentType,
+      editingComponent,
+      runtimeOutputs,
+      stateKey,
+      tableConfig,
+      title,
+    ],
   );
   const [formConfig, setFormConfig] = useState<FormComponentConfig>(() =>
     buildDefaultFormConfig("", []),
@@ -2278,24 +2609,26 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const [isDynamic, setIsDynamic] = useState<boolean>(false);
   const [dynamicLimit, setDynamicLimit] = useState<number>(50);
-  const [dynamicInfoBlockItem, setDynamicInfoBlockItem] = useState<InfoBlockItemConfig>({
-    title: "",
-    value: "{{value}}",
-    footer: "",
-    color: "",
-    titleColorRules: [],
-    footerColorRules: [],
-  });
-  const [dynamicDistributionBlockItem, setDynamicDistributionBlockItem] = useState<DistributionBlockItemConfig>({
-    label: "",
-    value: "",
-    percent: "",
-    color: "",
-  });
+  const [dynamicInfoBlockItem, setDynamicInfoBlockItem] =
+    useState<InfoBlockItemConfig>({
+      title: "",
+      value: "{{value}}",
+      footer: "",
+      color: "",
+      titleColorRules: [],
+      footerColorRules: [],
+    });
+  const [dynamicDistributionBlockItem, setDynamicDistributionBlockItem] =
+    useState<DistributionBlockItemConfig>({
+      label: "",
+      value: "",
+      percent: "",
+      color: "",
+    });
 
   const selectedContainer = useMemo(
     () => containers.find((container) => container.schemaName === schemaName),
-    [containers, schemaName]
+    [containers, schemaName],
   );
   const selectedFields = selectedContainer?.fields || [];
   const availableFormFields = useMemo(
@@ -2330,8 +2663,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const selectedGroupByContainer = useMemo(
     () =>
       containers.find(
-        (container) =>
-          container.schemaName === groupBy.sourceSchemaName,
+        (container) => container.schemaName === groupBy.sourceSchemaName,
       ),
     [containers, groupBy.sourceSchemaName],
   );
@@ -2375,6 +2707,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           .map((workflow) => ({
             schemaName: container.schemaName,
             workflow,
+          })),
+      ),
+    [containers],
+  );
+  const projectFunctionOptions = useMemo(
+    () =>
+      containers.flatMap((container) =>
+        (container.dynamicFunctions || [])
+          .filter((dynamicFunction) => dynamicFunction.isActive !== false)
+          .map((dynamicFunction) => ({
+            schemaName: container.schemaName,
+            dynamicFunction,
           })),
       ),
     [containers],
@@ -2426,12 +2770,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           editingComponent.dataBinding.kind === "pipeline" ||
             editingComponent.dataBinding.kind === "workflow"
             ? editingComponent.dataBinding.kind
-            : "schema"
+            : "schema",
         );
         setSchemaName(editingComponent.dataBinding.schemaName || "");
         setPipelineName(editingComponent.dataBinding.pipelineName || "");
         setWorkflowName(editingComponent.dataBinding.workflowName || "");
-        
+
         const initialParams = editingComponent.dataBinding.params || {};
         const map: Record<string, string> = {};
         for (const [k, v] of Object.entries(initialParams)) {
@@ -2442,31 +2786,39 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         setParams(
           editingComponent.dataBinding.params
             ? JSON.stringify(editingComponent.dataBinding.params, null, 2)
-            : ""
+            : "",
         );
       }
 
       if (CHART_TYPES.some((c) => c.value === editingComponent.type)) {
         const props = editingComponent.props || {};
         const chartOptions = props.chartOptions || {};
-        
+
         setChartProps({
           height: props.height || 400,
           ...chartOptions,
         });
-        
-        const specificFields = CHART_SPECIFIC_OPTIONS[editingComponent.type] || [];
-        const specificKeys = ["height", "colors", ...specificFields.map((f) => f.name)];
-        
+
+        const specificFields =
+          CHART_SPECIFIC_OPTIONS[editingComponent.type] || [];
+        const specificKeys = [
+          "height",
+          "colors",
+          ...specificFields.map((f) => f.name),
+        ];
+
         const restOptions: Record<string, any> = {};
         for (const [k, v] of Object.entries(chartOptions)) {
           if (!specificKeys.includes(k)) {
             restOptions[k] = v;
           }
         }
-        setCustomChartOptions(Object.keys(restOptions).length > 0 ? JSON.stringify(restOptions, null, 2) : "");
+        setCustomChartOptions(
+          Object.keys(restOptions).length > 0
+            ? JSON.stringify(restOptions, null, 2)
+            : "",
+        );
       }
-
 
       setTabs(editingComponent.tabs || []);
       setGroupBy(editingComponent.groupBy || EMPTY_GROUP_BY);
@@ -2476,7 +2828,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           | undefined;
         const nextSource =
           infoBlocks?.source ||
-          (editingComponent.dataBinding?.kind as InfoBlocksSource | undefined) ||
+          (editingComponent.dataBinding?.kind as
+            | InfoBlocksSource
+            | undefined) ||
           "static";
         setInfoBlocksSource(nextSource);
         setInfoBlockItems(
@@ -2487,15 +2841,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         );
         setIsDynamic(infoBlocks?.isDynamic || false);
         setDynamicLimit(infoBlocks?.dynamicLimit || 50);
-        setDynamicInfoBlockItem(infoBlocks?.dynamicItem || { title: "", value: "{{value}}", footer: "", color: "" });
+        setDynamicInfoBlockItem(
+          infoBlocks?.dynamicItem || {
+            title: "",
+            value: "{{value}}",
+            footer: "",
+            color: "",
+          },
+        );
       }
       if (editingComponent.type === "distributionBlocks") {
-        const distributionBlocks = editingComponent.props?.distributionBlocks as
-          | DistributionBlocksConfig
-          | undefined;
+        const distributionBlocks = editingComponent.props
+          ?.distributionBlocks as DistributionBlocksConfig | undefined;
         const nextSource =
           distributionBlocks?.source ||
-          (editingComponent.dataBinding?.kind as InfoBlocksSource | undefined) ||
+          (editingComponent.dataBinding?.kind as
+            | InfoBlocksSource
+            | undefined) ||
           "static";
         setDistributionBlocksSource(nextSource);
         setDistributionBlockItems(
@@ -2506,7 +2868,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         );
         setIsDynamic(distributionBlocks?.isDynamic || false);
         setDynamicLimit(distributionBlocks?.dynamicLimit || 50);
-        setDynamicDistributionBlockItem(distributionBlocks?.dynamicItem || { label: "", value: "", percent: "", color: "" });
+        setDynamicDistributionBlockItem(
+          distributionBlocks?.dynamicItem || {
+            label: "",
+            value: "",
+            percent: "",
+            color: "",
+          },
+        );
       }
       if (
         editingComponent.type === "tabPanel" &&
@@ -2557,7 +2926,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 )
               : editingComponent.table.addButton,
           actions:
-            editingComponent.table.actions && editingComponent.table.actions.length
+            editingComponent.table.actions &&
+            editingComponent.table.actions.length
               ? editingSourceType === "schema"
                 ? hydrateSchemaEditActionFields(
                     editingComponent.table.actions,
@@ -2602,8 +2972,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setFormConfig(buildDefaultFormConfig("", []));
       setIsDynamic(false);
       setDynamicLimit(50);
-      setDynamicInfoBlockItem({ title: "", value: "{{value}}", footer: "", color: "" });
-      setDynamicDistributionBlockItem({ label: "", value: "", percent: "", color: "" });
+      setDynamicInfoBlockItem({
+        title: "",
+        value: "{{value}}",
+        footer: "",
+        color: "",
+      });
+      setDynamicDistributionBlockItem({
+        label: "",
+        value: "",
+        percent: "",
+        color: "",
+      });
       setChartProps({
         height: 400,
         colors: { scheme: "nivo" },
@@ -2621,7 +3001,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   useEffect(() => {
     if (stateKeyTouched || editingComponent?.stateKey) return;
-    setStateKey(uniqueComponentStateKey(page, title || componentType, componentType));
+    setStateKey(
+      uniqueComponentStateKey(page, title || componentType, componentType),
+    );
   }, [componentType, editingComponent?.stateKey, page, stateKeyTouched, title]);
 
   useEffect(() => {
@@ -2642,8 +3024,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   useEffect(() => {
     if (
       !["table", "tabPanel"].includes(componentType) ||
+      tableSourceType !== "schema" ||
       !schemaName ||
-      editingComponent?.table
+      (tableConfig.columns && tableConfig.columns.length > 0)
     ) {
       return;
     }
@@ -2653,10 +3036,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => {
       if (current.columns && current.columns.length > 0) return current;
+      const hydrated = hydrateEmptyDesignerTableColumns(
+        current,
+        container.fields || [],
+      );
 
       return {
-        ...current,
-        columns: buildTableColumnsFromFields(container.fields || []),
+        ...hydrated,
         addButton:
           current.addButton ||
           hydrateSchemaAddButton(
@@ -2666,25 +3052,32 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           ),
         actions:
           current.actions && current.actions.length > 0
-            ? hydrateSchemaEditActionFields(current.actions, container.fields || [])
+            ? hydrateSchemaEditActionFields(
+                current.actions,
+                container.fields || [],
+              )
             : getDefaultActionsForSource("schema", container.fields || []),
         filterPanel:
           current.filterPanel !== undefined &&
           current.filterPanel.inputs !== undefined
             ? current.filterPanel
             : {
-                inputs: buildFilterPanelInputsFromFields(container.fields || []),
+                inputs: buildFilterPanelInputsFromFields(
+                  container.fields || [],
+                ),
               },
       };
     });
-  }, [componentType, containers, editingComponent?.table, schemaName]);
+  }, [
+    componentType,
+    containers,
+    schemaName,
+    tableConfig.columns,
+    tableSourceType,
+  ]);
 
   useEffect(() => {
-    if (
-      componentType !== "form" ||
-      !schemaName ||
-      editingComponent?.form
-    ) {
+    if (componentType !== "form" || !schemaName || editingComponent?.form) {
       return;
     }
     const container = containers.find((item) => item.schemaName === schemaName);
@@ -2698,7 +3091,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   }, [componentType, containers, editingComponent?.form, schemaName]);
 
   useEffect(() => {
-    if (CHART_TYPES.some((c) => c.value === componentType) && tableSourceType === "schema") {
+    if (
+      CHART_TYPES.some((c) => c.value === componentType) &&
+      tableSourceType === "schema"
+    ) {
       setTableSourceType("pipeline");
     }
   }, [componentType, tableSourceType]);
@@ -2718,8 +3114,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => ({
       ...current,
-      columns: buildTableColumnsFromNames(selected.outputFields),
-      actions: [],
+      columns: mergeDesignerTableColumnsFromNames(
+        current.columns,
+        selected.outputFields,
+      ),
     }));
   }, [componentType, pipelineName, pipelineOptions, tableSourceType]);
 
@@ -2738,21 +3136,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     setTableConfig((current) => ({
       ...current,
-      columns: buildTableColumnsFromNames(selected.outputFields),
-      actions: [],
+      columns: mergeDesignerTableColumnsFromNames(
+        current.columns,
+        selected.outputFields,
+      ),
     }));
   }, [componentType, tableSourceType, workflowName, workflowOptions]);
 
   const selectedPipeline = useMemo(() => {
     const activeName = pipelineName;
     if (!activeName) return null;
-    return pipelineOptions.find(({ pipeline }) => pipeline.name === activeName)?.pipeline || null;
+    return (
+      pipelineOptions.find(({ pipeline }) => pipeline.name === activeName)
+        ?.pipeline || null
+    );
   }, [pipelineName, pipelineOptions]);
 
   const selectedWorkflow = useMemo(() => {
     const activeName = workflowName;
     if (!activeName) return null;
-    return workflowOptions.find(({ workflow }) => workflow.name === activeName)?.workflow || null;
+    return (
+      workflowOptions.find(({ workflow }) => workflow.name === activeName)
+        ?.workflow || null
+    );
   }, [workflowName, workflowOptions]);
 
   useEffect(() => {
@@ -2762,7 +3168,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     } else if (selectedWorkflow) {
       detectedParams.push(...extractWorkflowParams(selectedWorkflow));
     }
-    
+
     if (detectedParams.length > 0) {
       setParamsMap((prev) => {
         const next = { ...prev };
@@ -2808,7 +3214,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     const cleanedParams: Record<string, any> = {};
     for (const [k, v] of Object.entries(map)) {
       if (v === "") continue;
-      
+
       if (/^\d+$/.test(v)) {
         cleanedParams[k] = parseInt(v, 10);
       } else if (/^\d+\.\d+$/.test(v)) {
@@ -2819,7 +3225,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         cleanedParams[k] = false;
       } else {
         try {
-          if ((v.startsWith("{") && v.endsWith("}")) || (v.startsWith("[") && v.endsWith("]"))) {
+          if (
+            (v.startsWith("{") && v.endsWith("}")) ||
+            (v.startsWith("[") && v.endsWith("]"))
+          ) {
             cleanedParams[k] = JSON.parse(v);
           } else {
             cleanedParams[k] = v;
@@ -2841,7 +3250,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         for (const [k, v] of Object.entries(parsed)) {
           nextMap[k] = typeof v === "object" ? JSON.stringify(v) : String(v);
         }
-        
+
         const detectedParams: string[] = [];
         if (selectedPipeline) {
           detectedParams.push(...extractPipelineParams(selectedPipeline));
@@ -2853,7 +3262,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             nextMap[p] = "";
           }
         }
-        
+
         setParamsMap(nextMap);
       }
     } catch {
@@ -2870,7 +3279,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const isChartConfigInvalid = (): boolean => {
     if (!CHART_TYPES.some((c) => c.value === componentType)) return false;
-    
+
     const specificFields = CHART_SPECIFIC_OPTIONS[componentType] || [];
     for (const field of specificFields) {
       if (field.required) {
@@ -2886,13 +3295,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
     const next: ComponentBlock = {
       ...component,
-      id: isSafeRuntimeName(component.id) ? component.id : createRuntimeId("cmp"),
+      id: isSafeRuntimeName(component.id)
+        ? component.id
+        : createRuntimeId("cmp"),
       stateKey:
         stateKey.trim() ||
         uniqueComponentStateKey(page, title || componentType, componentType),
     };
 
-    if (runtimeOutputs.length > 0 || (editingComponent?.outputs?.length ?? 0) > 0) {
+    if (
+      runtimeOutputs.length > 0 ||
+      (editingComponent?.outputs?.length ?? 0) > 0
+    ) {
       next.outputs = runtimeOutputs;
     }
 
@@ -2914,7 +3328,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     return next;
   };
 
-  const pageWithSavedComponent = (component: ComponentBlock): RuntimePageModel => {
+  const pageWithSavedComponent = (
+    component: ComponentBlock,
+  ): RuntimePageModel => {
     const runtimeComponent = component as unknown as NonNullable<
       NonNullable<RuntimePageModel["sections"]>[number]["component"]
     >;
@@ -2924,7 +3340,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         if (cell.id !== currentCellId) return cell;
         const components = editingComponent
           ? (cell.components || []).map((candidate) =>
-              candidate.id === editingComponent.id ? runtimeComponent! : candidate,
+              candidate.id === editingComponent.id
+                ? runtimeComponent!
+                : candidate,
             )
           : [...(cell.components || []), runtimeComponent!];
         return { ...cell, components };
@@ -2946,6 +3364,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const handleAdd = () => {
     let component: ComponentBlock = {
+      ...(editingComponent || {}),
       id:
         editingComponent?.id && isSafeRuntimeName(editingComponent.id)
           ? editingComponent.id
@@ -2997,10 +3416,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         groupBy.groupByObjectId ||
         ""
       ).trim();
-      const sourceSchemaName = (
-        groupBy.sourceSchemaName ||
-        ""
-      ).trim();
+      const sourceSchemaName = (groupBy.sourceSchemaName || "").trim();
       const sourceValueField = (groupBy.sourceValueField || "_id").trim();
       const sourceLabelField = (
         groupBy.sourceLabelField ||
@@ -3018,7 +3434,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         filterField: groupedField,
       };
 
-      component.tabs = tabs;
+      const cleanedTabs = tabs.map((tab) => ({
+        ...tab,
+        components: (tab.components || []).map((comp) =>
+          comp.table ? { ...comp, table: cleanTableConfig(comp.table) } : comp,
+        ),
+      }));
+      component.tabs = cleanedTabs;
       if (
         cleanGroupBy.groupedSchemaName &&
         cleanGroupBy.groupedField &&
@@ -3029,7 +3451,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           kind: "schema",
           schemaName: cleanGroupBy.groupedSchemaName,
         };
-        component.table = cleanTableConfig(tableConfig);
+        const firstTabTable = cleanedTabs
+          .flatMap((tab) => tab.components || [])
+          .find((comp) => comp.table)?.table;
+        component.table = firstTabTable || cleanTableConfig(tableConfig);
         component.groupBy = cleanGroupBy;
       }
     } else if (componentType === "infoBlocks") {
@@ -3119,7 +3544,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       for (const field of specificFields) {
         const val = chartProps[field.name];
         if (val === undefined || val === "") continue;
-        
+
         if (field.type === "array") {
           compiledChartOptions[field.name] = String(val)
             .split(",")
@@ -3216,7 +3641,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const updateTableComputedLabelRule = (
     fieldName: string,
     ruleIndex: number,
-    updates: Partial<NonNullable<TableColumnConfig["computedLabelRules"]>[number]>,
+    updates: Partial<
+      NonNullable<TableColumnConfig["computedLabelRules"]>[number]
+    >,
   ) => {
     setTableConfig((current) => ({
       ...current,
@@ -3369,7 +3796,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       ...current,
       columns: (current.columns || []).map((column) =>
         column.field === fieldName
-          ? { ...column, link: { type: "external", ...column.link, ...updates } }
+          ? {
+              ...column,
+              link: { type: "external", ...column.link, ...updates },
+            }
           : column,
       ),
     }));
@@ -3524,12 +3954,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig((current) => {
       const actions = current.actions || [];
       const nextOrder = actions.length + 1;
+      const actionId = `action-${Date.now()}`;
       return {
         ...current,
         actions: [
           ...actions,
           {
-            id: `action-${Date.now()}`,
+            id: actionId,
+            key: actionId,
             kind: "update",
             label: "Action",
             buttonName: "",
@@ -3567,6 +3999,30 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
+  const updateTableBulkAction = (
+    actionKey: "edit" | "delete",
+    updates: Partial<TableActionConfig>,
+  ) => {
+    setTableConfig((current) => {
+      const defaults = {
+        edit:
+          current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields),
+        delete:
+          current.bulkActions?.delete || buildDefaultBulkDeleteAction(),
+      };
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          [actionKey]: {
+            ...defaults[actionKey],
+            ...updates,
+          },
+        },
+      };
+    });
+  };
+
   const removeTableAction = (actionIndex: number) => {
     setTableConfig((current) => ({
       ...current,
@@ -3575,7 +4031,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       ),
     }));
   };
-
 
   const addActionFieldOverride = (actionIndex: number) => {
     setTableConfig((current) => ({
@@ -3639,7 +4094,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         index === actionIndex
           ? {
               ...action,
-              modalType: action.modalType === "none" ? "form" : action.modalType,
+              modalType:
+                action.modalType === "none" ? "form" : action.modalType,
               formFields: [
                 ...(action.formFields || []),
                 {
@@ -3682,10 +4138,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
-  const removeActionFormField = (
-    actionIndex: number,
-    fieldIndex: number,
-  ) => {
+  const removeActionFormField = (actionIndex: number, fieldIndex: number) => {
     setTableConfig((current) => ({
       ...current,
       actions: (current.actions || []).map((action, index) =>
@@ -3703,7 +4156,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const addAddButtonFormField = () => {
     setTableConfig((current) => {
-      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      const addButton =
+        current.addButton || buildDefaultCreateAction(selectedFields);
       return {
         ...current,
         addButton: {
@@ -3739,7 +4193,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     updates: Partial<TableActionFormFieldConfig>,
   ) => {
     setTableConfig((current) => {
-      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      const addButton =
+        current.addButton || buildDefaultCreateAction(selectedFields);
       const formFields = [...(addButton.formFields || [])];
       formFields[fieldIndex] = { ...formFields[fieldIndex], ...updates };
       return {
@@ -3751,7 +4206,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   const removeAddButtonFormField = (fieldIndex: number) => {
     setTableConfig((current) => {
-      const addButton = current.addButton || buildDefaultCreateAction(selectedFields);
+      const addButton =
+        current.addButton || buildDefaultCreateAction(selectedFields);
       return {
         ...current,
         addButton: {
@@ -3759,6 +4215,81 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           formFields: (addButton.formFields || []).filter(
             (_, currentIndex) => currentIndex !== fieldIndex,
           ),
+        },
+      };
+    });
+  };
+
+  const updateBulkEditFormField = (
+    fieldIndex: number,
+    updates: Partial<TableActionFormFieldConfig>,
+  ) => {
+    setTableConfig((current) => {
+      const edit =
+        current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields);
+      const formFields = [...(edit.formFields || [])];
+      formFields[fieldIndex] = { ...formFields[fieldIndex], ...updates };
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          edit: { ...edit, formFields },
+        },
+      };
+    });
+  };
+
+  const addBulkEditFormField = () => {
+    setTableConfig((current) => {
+      const edit =
+        current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields);
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          edit: {
+            ...edit,
+            modalType: "form",
+            formFields: [
+              ...(edit.formFields || []),
+              {
+                formKey: "",
+                type: "text",
+                formKeyType: "string",
+                label: "",
+                placeholder: "",
+                required: false,
+                isDisabled: false,
+                requiredCondition: "",
+                disabledCondition: "",
+                optionsSource: "static",
+                staticOptionsJson: "[]",
+                sourceSchemaName: "",
+                sourceValueField: "_id",
+                sourceLabelField: "",
+                sourceFilterCondition: "",
+              },
+            ],
+          },
+        },
+      };
+    });
+  };
+
+  const removeBulkEditFormField = (fieldIndex: number) => {
+    setTableConfig((current) => {
+      const edit =
+        current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields);
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          edit: {
+            ...edit,
+            formFields: (edit.formFields || []).filter(
+              (_, currentIndex) => currentIndex !== fieldIndex,
+            ),
+          },
         },
       };
     });
@@ -3880,10 +4411,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       input?.id &&
       runtimeOutputs.some(
         (output) =>
-          output.source.kind === "tableFilter" && output.source.filterId === input.id,
+          output.source.kind === "tableFilter" &&
+          output.source.filterId === input.id,
       )
     ) {
-      alert("This filter is exposed as a component output. Delete that output before deleting the filter.");
+      alert(
+        "This filter is exposed as a component output. Delete that output before deleting the filter.",
+      );
       return;
     }
     setTableConfig((current) => ({
@@ -3916,7 +4450,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   // Handle Excel upload success for tabs
   const handleTabExcelUploadSuccess = (
     schemaName: string,
-    component: ComponentBlock
+    component: ComponentBlock,
   ) => {
     const newTabId = `tab-${Date.now()}`;
     setTabs([
@@ -3936,7 +4470,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const removeTableFromTab = (tabIndex: number, componentId: string) => {
     const updatedTabs = [...tabs];
     updatedTabs[tabIndex].components = updatedTabs[tabIndex].components.filter(
-      (comp) => comp.id !== componentId
+      (comp) => comp.id !== componentId,
     );
     setTabs(updatedTabs);
   };
@@ -3978,11 +4512,25 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         };
       }),
     );
+    if (component.table) {
+      setTableConfig(component.table);
+    }
     setTableEditorTarget(null);
   };
 
-  const currentAddButton =
-    tableConfig.addButton || buildDefaultCreateAction(selectedFields);
+  const currentAddButton = {
+    ...(tableConfig.addButton || buildDefaultCreateAction(selectedFields)),
+    kind: "create" as const,
+  };
+  const currentBulkEditAction = {
+    ...(tableConfig.bulkActions?.edit ||
+      buildDefaultBulkEditAction(selectedFields)),
+    kind: "update" as const,
+  };
+  const currentBulkDeleteAction = {
+    ...(tableConfig.bulkActions?.delete || buildDefaultBulkDeleteAction()),
+    kind: "delete" as const,
+  };
 
   return (
     <div
@@ -4038,7 +4586,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 {bindingIssues
                   .filter((issue) => !issue.parameter)
                   .map((issue) => (
-                    <div key={`${issue.path}:${issue.code}`} className="text-xs text-red-700">
+                    <div
+                      key={`${issue.path}:${issue.code}`}
+                      className="text-xs text-red-700"
+                    >
                       {issue.message}
                     </div>
                   ))}
@@ -4061,7 +4612,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   <option value="form">Form</option>
                   <option value="tabPanel">Tab Panel</option>
                   <option value="infoBlocks">Information Blocks</option>
-                  <option value="distributionBlocks">Distribution Blocks</option>
+                  <option value="distributionBlocks">
+                    Distribution Blocks
+                  </option>
                   {CHART_TYPES.map((chart) => (
                     <option key={chart.value} value={chart.value}>
                       {chart.label}
@@ -4073,353 +4626,436 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               {componentType !== "tabPanel" &&
                 componentType !== "infoBlocks" &&
                 componentType !== "distributionBlocks" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                      placeholder="Optional component title"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                        placeholder="Optional component title"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                      Schema Name
-                      <span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={schemaName}
-                      onChange={(e) => {
-                        setSchemaName(e.target.value);
-                        if (componentType === "table") {
-                          resetTableColumnsForSchema(e.target.value);
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Schema Name
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={schemaName}
+                        onChange={(e) => {
+                          setSchemaName(e.target.value);
+                          if (componentType === "table") {
+                            resetTableColumnsForSchema(e.target.value);
+                          }
+                          if (componentType === "form") {
+                            const container = containers.find(
+                              (item) => item.schemaName === e.target.value,
+                            );
+                            setFormConfig(
+                              buildDefaultFormConfig(
+                                e.target.value,
+                                container?.fields || [],
+                              ),
+                            );
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Select a schema...</option>
+                        {containerOptions.map((container) => (
+                          <option key={container.value} value={container.value}>
+                            {container.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                        Runtime State Key
+                      </label>
+                      <input
+                        type="text"
+                        value={stateKey}
+                        onChange={(e) => {
+                          setStateKeyTouched(true);
+                          setStateKey(e.target.value);
+                        }}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                        placeholder="componentStateKey"
+                      />
+                    </div>
+
+                    {componentType === "table" && (
+                      <ComponentOutputsEditor
+                        page={page}
+                        component={draftRuntimeComponent}
+                        onChange={(component) =>
+                          setRuntimeOutputs(
+                            component.outputs as NonNullable<
+                              ComponentBlock["outputs"]
+                            >,
+                          )
                         }
-                        if (componentType === "form") {
-                          const container = containers.find(
-                            (item) => item.schemaName === e.target.value,
-                          );
-                          setFormConfig(
-                            buildDefaultFormConfig(
-                              e.target.value,
-                              container?.fields || [],
-                            ),
-                          );
-                        }
-                      }}
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    >
-                      <option value="">Select a schema...</option>
-                      {containerOptions.map((container) => (
-                        <option key={container.value} value={container.value}>
-                          {container.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      />
+                    )}
 
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                      Runtime State Key
-                    </label>
-                    <input
-                      type="text"
-                      value={stateKey}
-                      onChange={(e) => {
-                        setStateKeyTouched(true);
-                        setStateKey(e.target.value);
-                      }}
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                      placeholder="componentStateKey"
-                    />
-                  </div>
-
-                  {componentType === "table" && (
-                    <ComponentOutputsEditor
-                      page={page}
-                      component={draftRuntimeComponent}
-                      onChange={(component) =>
-                        setRuntimeOutputs(
-                          component.outputs as NonNullable<ComponentBlock["outputs"]>,
-                        )
-                      }
-                    />
-                  )}
-
-                  {CHART_TYPES.some((c) => c.value === componentType) && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                          Chart Source
-                        </label>
-                        <select
-                          value={tableSourceType === "schema" ? "pipeline" : tableSourceType}
-                          onChange={(e) => {
-                            const nextSource = e.target.value as "pipeline" | "workflow";
-                            setTableSourceType(nextSource);
-                            setPipelineName("");
-                            setWorkflowName("");
-                          }}
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                        >
-                          <option value="pipeline">Pipeline request</option>
-                          <option value="workflow">Workflow request</option>
-                        </select>
-                      </div>
-
-                      {tableSourceType === "pipeline" && (
+                    {CHART_TYPES.some((c) => c.value === componentType) && (
+                      <>
                         <div>
                           <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Pipeline Name
-                            <span className="text-red-500 ml-0.5">*</span>
+                            Chart Source
                           </label>
                           <select
-                            value={pipelineName}
-                            onChange={(e) => setPipelineName(e.target.value)}
+                            value={
+                              tableSourceType === "schema"
+                                ? "pipeline"
+                                : tableSourceType
+                            }
+                            onChange={(e) => {
+                              const nextSource = e.target.value as
+                                | "pipeline"
+                                | "workflow";
+                              setTableSourceType(nextSource);
+                              setPipelineName("");
+                              setWorkflowName("");
+                            }}
                             className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                           >
-                            <option value="">
-                              {pipelineOptions.length > 0
-                                ? "Select a pipeline..."
-                                : "No data-returning pipelines"}
-                            </option>
-                            {pipelineOptions.map(({ pipeline }) => (
-                              <option key={pipeline.name} value={pipeline.name}>
-                                {pipeline.name}
-                              </option>
-                            ))}
+                            <option value="pipeline">Pipeline request</option>
+                            <option value="workflow">Workflow request</option>
                           </select>
                         </div>
-                      )}
 
-                      {tableSourceType === "workflow" && (
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Workflow Name
-                            <span className="text-red-500 ml-0.5">*</span>
-                          </label>
-                          <select
-                            value={workflowName}
-                            onChange={(e) => setWorkflowName(e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                          >
-                            <option value="">
-                              {workflowOptions.length > 0
-                                ? "Select a workflow..."
-                                : "No data-returning workflows"}
-                            </option>
-                            {workflowOptions.map(({ workflow }) => (
-                              <option key={workflow.name} value={workflow.name}>
-                                {workflow.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {/* Dynamic Chart Options */}
-                      <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-neutral-50/50 p-4 rounded-xl border border-neutral-200 mt-2">
-                        <div className="md:col-span-2">
-                          <span className="text-sm font-semibold text-neutral-800">
-                            Chart Options (Props)
-                          </span>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Chart Height (px)
-                          </label>
-                          <input
-                            type="number"
-                            value={chartProps.height || 400}
-                            onChange={(e) => handleChartPropChange("height", Number(e.target.value))}
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                            placeholder="400"
-                            min={100}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Color Scheme
-                          </label>
-                          <select
-                            value={chartProps.colors?.scheme || "nivo"}
-                            onChange={(e) => handleChartPropChange("colors", { scheme: e.target.value })}
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                          >
-                            <option value="nivo">nivo (Default)</option>
-                            <option value="category10">category10</option>
-                            <option value="accent">accent</option>
-                            <option value="dark2">dark2</option>
-                            <option value="paired">paired</option>
-                            <option value="pastel1">pastel1</option>
-                            <option value="pastel2">pastel2</option>
-                            <option value="set1">set1</option>
-                            <option value="set2">set2</option>
-                            <option value="set3">set3</option>
-                          </select>
-                        </div>
-                        
-                        {/* Specific fields depending on chart type */}
-                        {(CHART_SPECIFIC_OPTIONS[componentType] || []).map((field) => (
-                          <div key={field.name} className={field.type === "array" ? "md:col-span-2" : ""}>
+                        {tableSourceType === "pipeline" && (
+                          <div>
                             <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                              {field.label}
-                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                              Pipeline Name
+                              <span className="text-red-500 ml-0.5">*</span>
                             </label>
-                            {field.type === "select" ? (
-                              <select
-                                value={chartProps[field.name] || field.defaultValue || ""}
-                                onChange={(e) => handleChartPropChange(field.name, e.target.value)}
-                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            <select
+                              value={pipelineName}
+                              onChange={(e) => setPipelineName(e.target.value)}
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="">
+                                {pipelineOptions.length > 0
+                                  ? "Select a pipeline..."
+                                  : "No data-returning pipelines"}
+                              </option>
+                              {pipelineOptions.map(({ pipeline }) => (
+                                <option
+                                  key={pipeline.name}
+                                  value={pipeline.name}
+                                >
+                                  {pipeline.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {tableSourceType === "workflow" && (
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Workflow Name
+                              <span className="text-red-500 ml-0.5">*</span>
+                            </label>
+                            <select
+                              value={workflowName}
+                              onChange={(e) => setWorkflowName(e.target.value)}
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="">
+                                {workflowOptions.length > 0
+                                  ? "Select a workflow..."
+                                  : "No data-returning workflows"}
+                              </option>
+                              {workflowOptions.map(({ workflow }) => (
+                                <option
+                                  key={workflow.name}
+                                  value={workflow.name}
+                                >
+                                  {workflow.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {/* Dynamic Chart Options */}
+                        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-neutral-50/50 p-4 rounded-xl border border-neutral-200 mt-2">
+                          <div className="md:col-span-2">
+                            <span className="text-sm font-semibold text-neutral-800">
+                              Chart Options (Props)
+                            </span>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Chart Height (px)
+                            </label>
+                            <input
+                              type="number"
+                              value={chartProps.height || 400}
+                              onChange={(e) =>
+                                handleChartPropChange(
+                                  "height",
+                                  Number(e.target.value),
+                                )
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                              placeholder="400"
+                              min={100}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Color Scheme
+                            </label>
+                            <select
+                              value={chartProps.colors?.scheme || "nivo"}
+                              onChange={(e) =>
+                                handleChartPropChange("colors", {
+                                  scheme: e.target.value,
+                                })
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="nivo">nivo (Default)</option>
+                              <option value="category10">category10</option>
+                              <option value="accent">accent</option>
+                              <option value="dark2">dark2</option>
+                              <option value="paired">paired</option>
+                              <option value="pastel1">pastel1</option>
+                              <option value="pastel2">pastel2</option>
+                              <option value="set1">set1</option>
+                              <option value="set2">set2</option>
+                              <option value="set3">set3</option>
+                            </select>
+                          </div>
+
+                          {/* Specific fields depending on chart type */}
+                          {(CHART_SPECIFIC_OPTIONS[componentType] || []).map(
+                            (field) => (
+                              <div
+                                key={field.name}
+                                className={
+                                  field.type === "array" ? "md:col-span-2" : ""
+                                }
                               >
-                                {(field.options || []).map((opt) => (
-                                  <option key={opt} value={opt}>
-                                    {opt}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : field.type === "boolean" ? (
-                              <label className="inline-flex items-center mt-3 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(chartProps[field.name] ?? field.defaultValue)}
-                                  onChange={(e) => handleChartPropChange(field.name, e.target.checked)}
-                                  className="w-4 h-4 text-violet-600 border-neutral-300 rounded focus:ring-violet-500"
-                                />
-                                <span className="ml-2 text-sm text-neutral-700">{field.label}</span>
-                              </label>
-                            ) : (
-                              <input
-                                type={field.type === "number" ? "number" : "text"}
-                                value={chartProps[field.name] ?? ""}
-                                onChange={(e) => handleChartPropChange(field.name, field.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}
-                                placeholder={field.placeholder}
-                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                              />
+                                <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                                  {field.label}
+                                  {field.required && (
+                                    <span className="text-red-500 ml-0.5">
+                                      *
+                                    </span>
+                                  )}
+                                </label>
+                                {field.type === "select" ? (
+                                  <select
+                                    value={
+                                      chartProps[field.name] ||
+                                      field.defaultValue ||
+                                      ""
+                                    }
+                                    onChange={(e) =>
+                                      handleChartPropChange(
+                                        field.name,
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                                  >
+                                    {(field.options || []).map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : field.type === "boolean" ? (
+                                  <label className="inline-flex items-center mt-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(
+                                        chartProps[field.name] ??
+                                        field.defaultValue,
+                                      )}
+                                      onChange={(e) =>
+                                        handleChartPropChange(
+                                          field.name,
+                                          e.target.checked,
+                                        )
+                                      }
+                                      className="w-4 h-4 text-violet-600 border-neutral-300 rounded focus:ring-violet-500"
+                                    />
+                                    <span className="ml-2 text-sm text-neutral-700">
+                                      {field.label}
+                                    </span>
+                                  </label>
+                                ) : (
+                                  <input
+                                    type={
+                                      field.type === "number"
+                                        ? "number"
+                                        : "text"
+                                    }
+                                    value={chartProps[field.name] ?? ""}
+                                    onChange={(e) =>
+                                      handleChartPropChange(
+                                        field.name,
+                                        field.type === "number"
+                                          ? e.target.value === ""
+                                            ? ""
+                                            : Number(e.target.value)
+                                          : e.target.value,
+                                      )
+                                    }
+                                    placeholder={field.placeholder}
+                                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                                  />
+                                )}
+                              </div>
+                            ),
+                          )}
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Custom Chart Options (JSON)
+                            </label>
+                            <textarea
+                              value={customChartOptions}
+                              onChange={(e) =>
+                                setCustomChartOptions(e.target.value)
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                              placeholder='{"margin": {"top": 40, "right": 80, "bottom": 80, "left": 80}}'
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {componentType === "table" && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                            Table Source
+                          </label>
+                          <select
+                            value={tableSourceType}
+                            onChange={(e) => {
+                              setTableSourceType(
+                                e.target.value as
+                                  | "schema"
+                                  | "pipeline"
+                                  | "workflow",
+                              );
+                              setPipelineName("");
+                              setWorkflowName("");
+                              if (e.target.value === "schema") {
+                                resetTableColumnsForSchema(schemaName);
+                              } else {
+                                setTableConfig((current) => ({
+                                  ...current,
+                                  columns: [],
+                                  actions: [],
+                                }));
+                              }
+                            }}
+                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          >
+                            <option value="schema">Schema rows</option>
+                            <option value="pipeline">Pipeline request</option>
+                            <option value="workflow">Workflow request</option>
+                          </select>
+                        </div>
+
+                        {tableSourceType === "pipeline" && (
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Pipeline Name
+                              <span className="text-red-500 ml-0.5">*</span>
+                            </label>
+                            <select
+                              value={pipelineName}
+                              onChange={(e) => setPipelineName(e.target.value)}
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="">
+                                {pipelineOptions.length > 0
+                                  ? "Select a pipeline..."
+                                  : "No data-returning pipelines"}
+                              </option>
+                              {pipelineOptions.map(({ pipeline }) => (
+                                <option
+                                  key={pipeline.name}
+                                  value={pipeline.name}
+                                >
+                                  {pipeline.name}
+                                </option>
+                              ))}
+                            </select>
+                            {pipelineName && (
+                              <p className="mt-1 text-xs text-neutral-500">
+                                Output fields:{" "}
+                                {pipelineOptions
+                                  .find(
+                                    ({ pipeline }) =>
+                                      pipeline.name === pipelineName,
+                                  )
+                                  ?.outputFields.join(", ")}
+                              </p>
                             )}
                           </div>
-                        ))}
+                        )}
 
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Custom Chart Options (JSON)
-                          </label>
-                          <textarea
-                            value={customChartOptions}
-                            onChange={(e) => setCustomChartOptions(e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                            placeholder='{"margin": {"top": 40, "right": 80, "bottom": 80, "left": 80}}'
-                            rows={3}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {componentType === "table" && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                          Table Source
-                        </label>
-                        <select
-                          value={tableSourceType}
-                          onChange={(e) => {
-                            setTableSourceType(
-                              e.target.value as "schema" | "pipeline" | "workflow",
-                            );
-                            setPipelineName("");
-                            setWorkflowName("");
-                            if (e.target.value === "schema") {
-                              resetTableColumnsForSchema(schemaName);
-                            } else {
-                              setTableConfig((current) => ({
-                                ...current,
-                                columns: [],
-                                actions: [],
-                              }));
-                            }
-                          }}
-                          className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                        >
-                          <option value="schema">Schema rows</option>
-                          <option value="pipeline">Pipeline request</option>
-                          <option value="workflow">Workflow request</option>
-                        </select>
-                      </div>
-
-                      {tableSourceType === "pipeline" && (
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Pipeline Name
-                            <span className="text-red-500 ml-0.5">*</span>
-                          </label>
-                          <select
-                            value={pipelineName}
-                            onChange={(e) => setPipelineName(e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                          >
-                            <option value="">
-                              {pipelineOptions.length > 0
-                                ? "Select a pipeline..."
-                                : "No data-returning pipelines"}
-                            </option>
-                            {pipelineOptions.map(({ pipeline }) => (
-                              <option key={pipeline.name} value={pipeline.name}>
-                                {pipeline.name}
+                        {tableSourceType === "workflow" && (
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Workflow Name
+                              <span className="text-red-500 ml-0.5">*</span>
+                            </label>
+                            <select
+                              value={workflowName}
+                              onChange={(e) => setWorkflowName(e.target.value)}
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="">
+                                {workflowOptions.length > 0
+                                  ? "Select a workflow..."
+                                  : "No data-returning workflows"}
                               </option>
-                            ))}
-                          </select>
-                          {pipelineName && (
-                            <p className="mt-1 text-xs text-neutral-500">
-                              Output fields:{" "}
-                              {pipelineOptions
-                                .find(({ pipeline }) => pipeline.name === pipelineName)
-                                ?.outputFields.join(", ")}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {tableSourceType === "workflow" && (
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
-                            Workflow Name
-                            <span className="text-red-500 ml-0.5">*</span>
-                          </label>
-                          <select
-                            value={workflowName}
-                            onChange={(e) => setWorkflowName(e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                          >
-                            <option value="">
-                              {workflowOptions.length > 0
-                                ? "Select a workflow..."
-                                : "No data-returning workflows"}
-                            </option>
-                            {workflowOptions.map(({ workflow }) => (
-                              <option key={workflow.name} value={workflow.name}>
-                                {workflow.name}
-                              </option>
-                            ))}
-                          </select>
-                          {workflowName && (
-                            <p className="mt-1 text-xs text-neutral-500">
-                              Output fields:{" "}
-                              {workflowOptions
-                                .find(({ workflow }) => workflow.name === workflowName)
-                                ?.outputFields.join(", ")}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
+                              {workflowOptions.map(({ workflow }) => (
+                                <option
+                                  key={workflow.name}
+                                  value={workflow.name}
+                                >
+                                  {workflow.name}
+                                </option>
+                              ))}
+                            </select>
+                            {workflowName && (
+                              <p className="mt-1 text-xs text-neutral-500">
+                                Output fields:{" "}
+                                {workflowOptions
+                                  .find(
+                                    ({ workflow }) =>
+                                      workflow.name === workflowName,
+                                  )
+                                  ?.outputFields.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
             </div>
 
             {componentType === "form" && (
@@ -4476,16 +5112,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </label>
                       <select
                         value={isDynamic ? "dynamic" : "static"}
-                        onChange={(e) => setIsDynamic(e.target.value === "dynamic")}
+                        onChange={(e) =>
+                          setIsDynamic(e.target.value === "dynamic")
+                        }
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                       >
                         <option value="static">Static blocks</option>
-                        <option value="dynamic">Dynamic (from array data)</option>
+                        <option value="dynamic">
+                          Dynamic (from array data)
+                        </option>
                       </select>
                     </div>
                   )}
 
-                  {(!isDynamic || infoBlocksSource === "static") ? (
+                  {!isDynamic || infoBlocksSource === "static" ? (
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
                         Blocks
@@ -4494,7 +5134,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         value={infoBlockItems.length}
                         onChange={(e) =>
                           setInfoBlockItems((current) =>
-                            resizeInfoBlockItems(Number(e.target.value), current),
+                            resizeInfoBlockItems(
+                              Number(e.target.value),
+                              current,
+                            ),
                           )
                         }
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
@@ -4516,7 +5159,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         min={1}
                         max={100}
                         value={dynamicLimit}
-                        onChange={(e) => setDynamicLimit(Math.max(1, Number(e.target.value)))}
+                        onChange={(e) =>
+                          setDynamicLimit(Math.max(1, Number(e.target.value)))
+                        }
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                       />
                     </div>
@@ -4594,7 +5239,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   )}
                 </div>
 
-                {(!isDynamic || infoBlocksSource === "static") ? (
+                {!isDynamic || infoBlocksSource === "static" ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {infoBlockItems.map((item, index) => {
                       return (
@@ -4602,208 +5247,214 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                           key={`info-block-editor-${index}`}
                           className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
                         >
-                        <div className="mb-3 text-sm font-semibold text-neutral-800">
-                          Block {index + 1}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            value={item.title || ""}
-                            onChange={(e) =>
-                              setInfoBlockItems((current) =>
-                                current.map((block, itemIndex) =>
-                                  itemIndex === index
-                                    ? { ...block, title: e.target.value }
-                                    : block,
-                                ),
-                              )
-                            }
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                            placeholder="Upper text"
-                          />
-                          <input
-                            type="text"
-                            value={item.value || ""}
-                            onChange={(e) =>
-                              setInfoBlockItems((current) =>
-                                current.map((block, itemIndex) =>
-                                  itemIndex === index
-                                    ? { ...block, value: e.target.value }
-                                    : block,
-                                ),
-                              )
-                            }
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                            placeholder="{{quantity}}"
-                          />
-                          <input
-                            type="text"
-                            value={item.footer || ""}
-                            onChange={(e) =>
-                              setInfoBlockItems((current) =>
-                                current.map((block, itemIndex) =>
-                                  itemIndex === index
-                                    ? { ...block, footer: e.target.value }
-                                    : block,
-                                ),
-                              )
-                            }
-                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                            placeholder="Lower text"
-                          />
-                          <input
-                            type="color"
-                            value={item.color || "#ffffff"}
-                            onChange={(e) =>
-                              setInfoBlockItems((current) =>
-                                current.map((block, itemIndex) =>
-                                  itemIndex === index
-                                    ? { ...block, color: e.target.value }
-                                    : block,
-                                ),
-                              )
-                            }
-                            className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                            title="Side color"
-                          />
-                          <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                                Upper text color rules
+                          <div className="mb-3 text-sm font-semibold text-neutral-800">
+                            Block {index + 1}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={item.title || ""}
+                              onChange={(e) =>
+                                setInfoBlockItems((current) =>
+                                  current.map((block, itemIndex) =>
+                                    itemIndex === index
+                                      ? { ...block, title: e.target.value }
+                                      : block,
+                                  ),
+                                )
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                              placeholder="Upper text"
+                            />
+                            <input
+                              type="text"
+                              value={item.value || ""}
+                              onChange={(e) =>
+                                setInfoBlockItems((current) =>
+                                  current.map((block, itemIndex) =>
+                                    itemIndex === index
+                                      ? { ...block, value: e.target.value }
+                                      : block,
+                                  ),
+                                )
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                              placeholder="{{quantity}}"
+                            />
+                            <input
+                              type="text"
+                              value={item.footer || ""}
+                              onChange={(e) =>
+                                setInfoBlockItems((current) =>
+                                  current.map((block, itemIndex) =>
+                                    itemIndex === index
+                                      ? { ...block, footer: e.target.value }
+                                      : block,
+                                  ),
+                                )
+                              }
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                              placeholder="Lower text"
+                            />
+                            <input
+                              type="color"
+                              value={item.color || "#ffffff"}
+                              onChange={(e) =>
+                                setInfoBlockItems((current) =>
+                                  current.map((block, itemIndex) =>
+                                    itemIndex === index
+                                      ? { ...block, color: e.target.value }
+                                      : block,
+                                  ),
+                                )
+                              }
+                              className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                              title="Side color"
+                            />
+                            <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between gap-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                  Upper text color rules
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    addInfoBlockColorRule(
+                                      index,
+                                      "titleColorRules",
+                                    )
+                                  }
+                                  className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                >
+                                  + Add rule
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  addInfoBlockColorRule(index, "titleColorRules")
-                                }
-                                className="text-xs font-medium text-violet-700 hover:text-violet-900"
-                              >
-                                + Add rule
-                              </button>
-                            </div>
-                            <div className="space-y-2">
-                              {(item.titleColorRules || []).map(
-                                (rule, ruleIndex) => (
-                                  <div
-                                    key={ruleIndex}
-                                    className="grid grid-cols-[1fr_96px_auto] gap-2"
-                                  >
-                                    <input
-                                      type="text"
-                                      value={rule.condition || ""}
-                                      onChange={(e) =>
-                                        updateInfoBlockColorRule(
-                                          index,
-                                          "titleColorRules",
-                                          ruleIndex,
-                                          { condition: e.target.value },
-                                        )
-                                      }
-                                      className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                      placeholder="{{high}} > 4 or default"
-                                    />
-                                    <input
-                                      type="color"
-                                      value={rule.color || "#16a34a"}
-                                      onChange={(e) =>
-                                        updateInfoBlockColorRule(
-                                          index,
-                                          "titleColorRules",
-                                          ruleIndex,
-                                          { color: e.target.value },
-                                        )
-                                      }
-                                      className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                                      title="Upper text color"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeInfoBlockColorRule(
-                                          index,
-                                          "titleColorRules",
-                                          ruleIndex,
-                                        )
-                                      }
-                                      className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                              <div className="space-y-2">
+                                {(item.titleColorRules || []).map(
+                                  (rule, ruleIndex) => (
+                                    <div
+                                      key={ruleIndex}
+                                      className="grid grid-cols-[1fr_96px_auto] gap-2"
                                     >
-                                      <FiTrash2 size={14} />
-                                    </button>
-                                  </div>
-                                ),
-                              )}
+                                      <input
+                                        type="text"
+                                        value={rule.condition || ""}
+                                        onChange={(e) =>
+                                          updateInfoBlockColorRule(
+                                            index,
+                                            "titleColorRules",
+                                            ruleIndex,
+                                            { condition: e.target.value },
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="{{high}} > 4 or default"
+                                      />
+                                      <input
+                                        type="color"
+                                        value={rule.color || "#16a34a"}
+                                        onChange={(e) =>
+                                          updateInfoBlockColorRule(
+                                            index,
+                                            "titleColorRules",
+                                            ruleIndex,
+                                            { color: e.target.value },
+                                          )
+                                        }
+                                        className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                        title="Upper text color"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeInfoBlockColorRule(
+                                            index,
+                                            "titleColorRules",
+                                            ruleIndex,
+                                          )
+                                        }
+                                        className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                      >
+                                        <FiTrash2 size={14} />
+                                      </button>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                            <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between gap-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                  Lower text color rules
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    addInfoBlockColorRule(
+                                      index,
+                                      "footerColorRules",
+                                    )
+                                  }
+                                  className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                >
+                                  + Add rule
+                                </button>
+                              </div>
+                              <div className="space-y-2">
+                                {(item.footerColorRules || []).map(
+                                  (rule, ruleIndex) => (
+                                    <div
+                                      key={ruleIndex}
+                                      className="grid grid-cols-[1fr_96px_auto] gap-2"
+                                    >
+                                      <input
+                                        type="text"
+                                        value={rule.condition || ""}
+                                        onChange={(e) =>
+                                          updateInfoBlockColorRule(
+                                            index,
+                                            "footerColorRules",
+                                            ruleIndex,
+                                            { condition: e.target.value },
+                                          )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="{{high}} > 4 or default"
+                                      />
+                                      <input
+                                        type="color"
+                                        value={rule.color || "#16a34a"}
+                                        onChange={(e) =>
+                                          updateInfoBlockColorRule(
+                                            index,
+                                            "footerColorRules",
+                                            ruleIndex,
+                                            { color: e.target.value },
+                                          )
+                                        }
+                                        className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
+                                        title="Lower text color"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeInfoBlockColorRule(
+                                            index,
+                                            "footerColorRules",
+                                            ruleIndex,
+                                          )
+                                        }
+                                        className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
+                                      >
+                                        <FiTrash2 size={14} />
+                                      </button>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                                Lower text color rules
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  addInfoBlockColorRule(index, "footerColorRules")
-                                }
-                                className="text-xs font-medium text-violet-700 hover:text-violet-900"
-                              >
-                                + Add rule
-                              </button>
-                            </div>
-                            <div className="space-y-2">
-                              {(item.footerColorRules || []).map(
-                                (rule, ruleIndex) => (
-                                  <div
-                                    key={ruleIndex}
-                                    className="grid grid-cols-[1fr_96px_auto] gap-2"
-                                  >
-                                    <input
-                                      type="text"
-                                      value={rule.condition || ""}
-                                      onChange={(e) =>
-                                        updateInfoBlockColorRule(
-                                          index,
-                                          "footerColorRules",
-                                          ruleIndex,
-                                          { condition: e.target.value },
-                                        )
-                                      }
-                                      className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                      placeholder="{{high}} > 4 or default"
-                                    />
-                                    <input
-                                      type="color"
-                                      value={rule.color || "#16a34a"}
-                                      onChange={(e) =>
-                                        updateInfoBlockColorRule(
-                                          index,
-                                          "footerColorRules",
-                                          ruleIndex,
-                                          { color: e.target.value },
-                                        )
-                                      }
-                                      className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
-                                      title="Lower text color"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeInfoBlockColorRule(
-                                          index,
-                                          "footerColorRules",
-                                          ruleIndex,
-                                        )
-                                      }
-                                      className="rounded-lg bg-red-50 px-2 text-red-700 hover:bg-red-100"
-                                    >
-                                      <FiTrash2 size={14} />
-                                    </button>
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          </div>
                         </div>
-                      </div>
                       );
                     })}
                   </div>
@@ -4811,12 +5462,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   <div className="rounded-xl border border-neutral-200 bg-violet-50/50 p-4">
                     <div className="mb-3 text-sm font-semibold text-neutral-800 flex items-center justify-between">
                       <span>Dynamic Block Template</span>
-                      <span className="text-xs font-normal text-neutral-500 font-mono">Maps over array items</span>
+                      <span className="text-xs font-normal text-neutral-500 font-mono">
+                        Maps over array items
+                      </span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Upper text (e.g. {"{"}{"{"}categoryName{"}"}{"}"})
+                          Upper text (e.g. {"{"}
+                          {"{"}categoryName{"}"}
+                          {"}"})
                         </label>
                         <input
                           type="text"
@@ -4833,7 +5488,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Value (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"})
+                          Value (e.g. {"{"}
+                          {"{"}totalQuantitySold{"}"}
+                          {"}"})
                         </label>
                         <input
                           type="text"
@@ -4850,7 +5507,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Lower text (e.g. {"{"}{"{"}orderCount{"}"}{"}"} adet)
+                          Lower text (e.g. {"{"}
+                          {"{"}orderCount{"}"}
+                          {"}"} adet)
                         </label>
                         <input
                           type="text"
@@ -4867,7 +5526,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Side color (hex, {"{"}{"{"}colorField{"}"}{"}"} or "random")
+                          Side color (hex, {"{"}
+                          {"{"}colorField{"}"}
+                          {"}"} or "random")
                         </label>
                         <div className="flex gap-2">
                           <input
@@ -4884,7 +5545,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                           />
                           <input
                             type="color"
-                            value={dynamicInfoBlockItem.color?.startsWith("#") ? dynamicInfoBlockItem.color : "#4f46e5"}
+                            value={
+                              dynamicInfoBlockItem.color?.startsWith("#")
+                                ? dynamicInfoBlockItem.color
+                                : "#4f46e5"
+                            }
                             onChange={(e) =>
                               setDynamicInfoBlockItem((current) => ({
                                 ...current,
@@ -4935,7 +5600,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         ...rules[ruleIndex],
                                         condition: e.target.value,
                                       };
-                                      return { ...current, titleColorRules: rules };
+                                      return {
+                                        ...current,
+                                        titleColorRules: rules,
+                                      };
                                     })
                                   }
                                   className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
@@ -4953,7 +5621,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         ...rules[ruleIndex],
                                         color: e.target.value,
                                       };
-                                      return { ...current, titleColorRules: rules };
+                                      return {
+                                        ...current,
+                                        titleColorRules: rules,
+                                      };
                                     })
                                   }
                                   className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
@@ -5017,7 +5688,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         ...rules[ruleIndex],
                                         condition: e.target.value,
                                       };
-                                      return { ...current, footerColorRules: rules };
+                                      return {
+                                        ...current,
+                                        footerColorRules: rules,
+                                      };
                                     })
                                   }
                                   className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
@@ -5035,7 +5709,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         ...rules[ruleIndex],
                                         color: e.target.value,
                                       };
-                                      return { ...current, footerColorRules: rules };
+                                      return {
+                                        ...current,
+                                        footerColorRules: rules,
+                                      };
                                     })
                                   }
                                   className="h-[38px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
@@ -5110,16 +5787,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </label>
                       <select
                         value={isDynamic ? "dynamic" : "static"}
-                        onChange={(e) => setIsDynamic(e.target.value === "dynamic")}
+                        onChange={(e) =>
+                          setIsDynamic(e.target.value === "dynamic")
+                        }
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                       >
                         <option value="static">Static blocks</option>
-                        <option value="dynamic">Dynamic (from array data)</option>
+                        <option value="dynamic">
+                          Dynamic (from array data)
+                        </option>
                       </select>
                     </div>
                   )}
 
-                  {(!isDynamic || distributionBlocksSource === "static") ? (
+                  {!isDynamic || distributionBlocksSource === "static" ? (
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
                         Blocks
@@ -5153,7 +5834,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         min={1}
                         max={100}
                         value={dynamicLimit}
-                        onChange={(e) => setDynamicLimit(Math.max(1, Number(e.target.value)))}
+                        onChange={(e) =>
+                          setDynamicLimit(Math.max(1, Number(e.target.value)))
+                        }
                         className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                       />
                     </div>
@@ -5231,7 +5914,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   )}
                 </div>
 
-                {(!isDynamic || distributionBlocksSource === "static") ? (
+                {!isDynamic || distributionBlocksSource === "static" ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {distributionBlockItems.map((item, index) => (
                       <div
@@ -5294,12 +5977,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                     <div className="mb-3 text-sm font-semibold text-neutral-800 flex items-center justify-between">
                       <span>Dynamic Row Template</span>
-                      <span className="text-xs font-normal text-neutral-500 font-mono">Generates rows from array items</span>
+                      <span className="text-xs font-normal text-neutral-500 font-mono">
+                        Generates rows from array items
+                      </span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Label (e.g. {"{"}{"{"}categoryName{"}"}{"}"})
+                          Label (e.g. {"{"}
+                          {"{"}categoryName{"}"}
+                          {"}"})
                         </label>
                         <input
                           type="text"
@@ -5316,7 +6003,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Value (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"})
+                          Value (e.g. {"{"}
+                          {"{"}totalQuantitySold{"}"}
+                          {"}"})
                         </label>
                         <input
                           type="text"
@@ -5333,7 +6022,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Percent (e.g. {"{"}{"{"}totalQuantitySold{"}"}{"}"}% or {"{"}{"{"}percentField{"}"}{"}"})
+                          Percent (e.g. {"{"}
+                          {"{"}totalQuantitySold{"}"}
+                          {"}"}% or {"{"}
+                          {"{"}percentField{"}"}
+                          {"}"})
                         </label>
                         <input
                           type="text"
@@ -5350,7 +6043,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                          Color (hex, {"{"}{"{"}colorField{"}"}{"}"} or "random")
+                          Color (hex, {"{"}
+                          {"{"}colorField{"}"}
+                          {"}"} or "random")
                         </label>
                         <div className="flex gap-2">
                           <input
@@ -5367,7 +6062,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                           />
                           <input
                             type="color"
-                            value={dynamicDistributionBlockItem.color?.startsWith("#") ? dynamicDistributionBlockItem.color : "#4f46e5"}
+                            value={
+                              dynamicDistributionBlockItem.color?.startsWith(
+                                "#",
+                              )
+                                ? dynamicDistributionBlockItem.color
+                                : "#4f46e5"
+                            }
                             onChange={(e) =>
                               setDynamicDistributionBlockItem((current) => ({
                                 ...current,
@@ -5449,140 +6150,164 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                   <FiPlus size={14} />
                                   Add output field
                                 </button>
-                                {(tableConfig.columns || []).map((column) => (
-                                  <div
-                                    key={column.field}
-                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
-                                  >
-                                    <div className="grid grid-cols-[minmax(160px,0.8fr)_minmax(150px,0.7fr)_1fr_auto] gap-4">
-                                      <div>
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Field
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={column.field}
-                                          onChange={(e) =>
-                                            updateTableColumn(column.field, {
-                                              field: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Type
-                                        </label>
-                                        <select
-                                          value={column.type || "field"}
-                                          onChange={(e) => {
-                                            const nextType = e.target
-                                              .value as TableColumnConfig["type"];
-                                            updateTableColumn(column.field, {
-                                              type: nextType,
-                                              ...(nextType === "progressBar" &&
-                                              !column.progressBar
-                                                ? {
-                                                    progressBar: {
-                                                      sourceField: column.field,
-                                                      max: 8,
-                                                      color: "#4d9f24",
-                                                      trackColor: "#e7e5df",
-                                                      height: 12,
-                                                      width: 260,
-                                                      showValue: true,
-                                                      colorRules: [],
-                                                    },
-                                                  }
-                                                : {}),
-                                            });
-                                          }}
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
-                                        >
-                                          <option value="field">Field</option>
-                                          <option value="number">Number</option>
-                                          <option value="currency">Currency (₺)</option>
-                                          <option value="percentage">Percentage (%)</option>
-                                          <option value="growthPercentage">Growth Percentage (↑ ↓)</option>
-                                          <option value="date">Date</option>
-                                          <option value="boolean">Boolean (Badge)</option>
-                                          <option value="image">Image</option>
-                                          <option value="badge">Badge / Enum</option>
-                                          <option value="array">Array (comma-separated)</option>
-                                          <option value="computedLabel">
-                                            Computed Label
-                                          </option>
-                                          <option value="progressBar">
-                                            Progress Bar
-                                          </option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Display Name
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={column.displayName || ""}
-                                          onChange={(e) =>
-                                            updateTableColumn(column.field, {
-                                              displayName: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          placeholder={column.field}
-                                        />
-                                      </div>
-                                      <div className="flex items-end">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            removeTableColumn(column.field)
-                                          }
-                                          className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
-                                          title="Remove field"
-                                        >
-                                          <FiTrash2 size={16} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                    {(column.type || "field") ===
-                                      "computedLabel" && (
-                                      <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-                                        <div className="grid grid-cols-[1fr_auto] gap-3">
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Fallback Value
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={column.fallbackValue || ""}
-                                              onChange={(e) =>
-                                                updateTableColumn(column.field, {
-                                                  fallbackValue: e.target.value,
-                                                })
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="Optional"
-                                            />
-                                          </div>
-                                          <div className="flex items-end">
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                addTableComputedLabelRule(
-                                                  column.field,
-                                                )
-                                              }
-                                              className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
-                                            >
-                                              Add rule
-                                            </button>
-                                          </div>
+                                {(tableConfig.columns || []).map(
+                                  (column, columnIndex) => (
+                                    <div
+                                      key={`column-${columnIndex}`}
+                                      className="border border-neutral-200 rounded-xl p-4 space-y-3"
+                                    >
+                                      <div className="grid grid-cols-[minmax(160px,0.8fr)_minmax(150px,0.7fr)_1fr_auto] gap-4">
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Field
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.field}
+                                            onChange={(e) =>
+                                              updateTableColumn(column.field, {
+                                                field: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          />
                                         </div>
-                                        {(column.computedLabelRules || []).map(
-                                          (rule, ruleIndex) => (
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Type
+                                          </label>
+                                          <select
+                                            value={column.type || "field"}
+                                            onChange={(e) => {
+                                              const nextType = e.target
+                                                .value as TableColumnConfig["type"];
+                                              updateTableColumn(column.field, {
+                                                type: nextType,
+                                                ...(nextType ===
+                                                  "progressBar" &&
+                                                !column.progressBar
+                                                  ? {
+                                                      progressBar: {
+                                                        sourceField:
+                                                          column.field,
+                                                        max: 8,
+                                                        color: "#4d9f24",
+                                                        trackColor: "#e7e5df",
+                                                        height: 12,
+                                                        width: 260,
+                                                        showValue: true,
+                                                        colorRules: [],
+                                                      },
+                                                    }
+                                                  : {}),
+                                              });
+                                            }}
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                          >
+                                            <option value="field">Field</option>
+                                            <option value="number">
+                                              Number
+                                            </option>
+                                            <option value="currency">
+                                              Currency (₺)
+                                            </option>
+                                            <option value="percentage">
+                                              Percentage (%)
+                                            </option>
+                                            <option value="growthPercentage">
+                                              Growth Percentage (↑ ↓)
+                                            </option>
+                                            <option value="date">Date</option>
+                                            <option value="boolean">
+                                              Boolean (Badge)
+                                            </option>
+                                            <option value="image">Image</option>
+                                            <option value="badge">
+                                              Badge / Enum
+                                            </option>
+                                            <option value="array">
+                                              Array (comma-separated)
+                                            </option>
+                                            <option value="computedLabel">
+                                              Computed Label
+                                            </option>
+                                            <option value="progressBar">
+                                              Progress Bar
+                                            </option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Display Name
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.displayName || ""}
+                                            onChange={(e) =>
+                                              updateTableColumn(column.field, {
+                                                displayName: e.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder={column.field}
+                                          />
+                                        </div>
+                                        <div className="flex items-end">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableColumn(column.field)
+                                            }
+                                            className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                            title="Remove field"
+                                          >
+                                            <FiTrash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      {(column.type || "field") ===
+                                        "computedLabel" && (
+                                        <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                          <div className="grid grid-cols-[1fr_auto] gap-3">
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Fallback Value
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  column.fallbackValue || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      fallbackValue:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="Optional"
+                                              />
+                                            </div>
+                                            <div className="flex items-end">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  addTableComputedLabelRule(
+                                                    column.field,
+                                                  )
+                                                }
+                                                className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                                              >
+                                                Add rule
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {(
+                                            column.computedLabelRules || []
+                                          ).map((rule, ruleIndex) => (
                                             <div
                                               key={ruleIndex}
                                               className="grid grid-cols-[1fr_1fr_auto] gap-2"
@@ -5629,407 +6354,429 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 <FiTrash2 size={14} />
                                               </button>
                                             </div>
-                                          ),
-                                        )}
-                                      </div>
-                                    )}
-                                    {(column.type || "field") ===
-                                      "progressBar" && (
-                                      <div className="space-y-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Source Field
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={
-                                                column.progressBar
-                                                  ?.sourceField || column.field
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    sourceField: e.target.value,
-                                                  },
-                                                )
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="stock"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Max
-                                            </label>
-                                            <input
-                                              type="number"
-                                              value={
-                                                column.progressBar?.max ?? 8
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    max:
-                                                      e.target.value === ""
-                                                        ? undefined
-                                                        : Number(
-                                                            e.target.value,
-                                                          ),
-                                                  },
-                                                )
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              min={0}
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Max Field
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={
-                                                column.progressBar?.maxField ||
-                                                ""
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    maxField: e.target.value,
-                                                  },
-                                                )
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="Optional"
-                                            />
-                                          </div>
-                                          <label className="flex items-end gap-2 pb-2 text-sm text-neutral-700">
-                                            <input
-                                              type="checkbox"
-                                              checked={
-                                                column.progressBar
-                                                  ?.showValue !== false
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    showValue:
-                                                      e.target.checked,
-                                                  },
-                                                )
-                                              }
-                                            />
-                                            Show value
-                                          </label>
+                                          ))}
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Default Color
+                                      )}
+                                      {(column.type || "field") ===
+                                        "progressBar" && (
+                                        <div className="space-y-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Source Field
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  column.progressBar
+                                                    ?.sourceField ||
+                                                  column.field
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      sourceField:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="stock"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Max
+                                              </label>
+                                              <input
+                                                type="number"
+                                                value={
+                                                  column.progressBar?.max ?? 8
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      max:
+                                                        e.target.value === ""
+                                                          ? undefined
+                                                          : Number(
+                                                              e.target.value,
+                                                            ),
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                min={0}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Max Field
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  column.progressBar
+                                                    ?.maxField || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      maxField: e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="Optional"
+                                              />
+                                            </div>
+                                            <label className="flex items-end gap-2 pb-2 text-sm text-neutral-700">
+                                              <input
+                                                type="checkbox"
+                                                checked={
+                                                  column.progressBar
+                                                    ?.showValue !== false
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      showValue:
+                                                        e.target.checked,
+                                                    },
+                                                  )
+                                                }
+                                              />
+                                              Show value
                                             </label>
-                                            <input
-                                              type="color"
-                                              value={
-                                                column.progressBar?.color ||
-                                                "#4d9f24"
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  { color: e.target.value },
-                                                )
-                                              }
-                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
-                                            />
                                           </div>
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Track Color
-                                            </label>
-                                            <input
-                                              type="color"
-                                              value={
-                                                column.progressBar
-                                                  ?.trackColor || "#e7e5df"
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    trackColor:
-                                                      e.target.value,
-                                                  },
-                                                )
-                                              }
-                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
-                                            />
+                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Default Color
+                                              </label>
+                                              <input
+                                                type="color"
+                                                value={
+                                                  column.progressBar?.color ||
+                                                  "#4d9f24"
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    { color: e.target.value },
+                                                  )
+                                                }
+                                                className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Track Color
+                                              </label>
+                                              <input
+                                                type="color"
+                                                value={
+                                                  column.progressBar
+                                                    ?.trackColor || "#e7e5df"
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      trackColor:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Height
+                                              </label>
+                                              <input
+                                                type="number"
+                                                value={
+                                                  column.progressBar?.height ??
+                                                  12
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      height: Number(
+                                                        e.target.value,
+                                                      ),
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                min={4}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Width
+                                              </label>
+                                              <input
+                                                type="number"
+                                                value={
+                                                  column.progressBar?.width ??
+                                                  260
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableProgressBar(
+                                                    column.field,
+                                                    {
+                                                      width: Number(
+                                                        e.target.value,
+                                                      ),
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                min={80}
+                                              />
+                                            </div>
                                           </div>
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Height
-                                            </label>
-                                            <input
-                                              type="number"
-                                              value={
-                                                column.progressBar?.height ?? 12
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    height: Number(
-                                                      e.target.value,
-                                                    ),
-                                                  },
-                                                )
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              min={4}
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                              Width
-                                            </label>
-                                            <input
-                                              type="number"
-                                              value={
-                                                column.progressBar?.width ?? 260
-                                              }
-                                              onChange={(e) =>
-                                                updateTableProgressBar(
-                                                  column.field,
-                                                  {
-                                                    width: Number(
-                                                      e.target.value,
-                                                    ),
-                                                  },
-                                                )
-                                              }
-                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              min={80}
-                                            />
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                          <div className="text-xs font-semibold text-neutral-700">
-                                            Color Rules
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              addTableProgressBarColorRule(
-                                                column.field,
-                                              )
-                                            }
-                                            className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
-                                          >
-                                            Add rule
-                                          </button>
-                                        </div>
-                                        {(
-                                          column.progressBar?.colorRules || []
-                                        ).map((rule, ruleIndex) => (
-                                          <div
-                                            key={ruleIndex}
-                                            className="grid grid-cols-[1fr_120px_auto] gap-2"
-                                          >
-                                            <input
-                                              type="text"
-                                              value={rule.condition || ""}
-                                              onChange={(e) =>
-                                                updateTableProgressBarColorRule(
-                                                  column.field,
-                                                  ruleIndex,
-                                                  {
-                                                    condition: e.target.value,
-                                                  },
-                                                )
-                                              }
-                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="stock < 2"
-                                            />
-                                            <input
-                                              type="color"
-                                              value={rule.color || "#4d9f24"}
-                                              onChange={(e) =>
-                                                updateTableProgressBarColorRule(
-                                                  column.field,
-                                                  ruleIndex,
-                                                  { color: e.target.value },
-                                                )
-                                              }
-                                              className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
-                                            />
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-xs font-semibold text-neutral-700">
+                                              Color Rules
+                                            </div>
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                removeTableProgressBarColorRule(
+                                                addTableProgressBarColorRule(
                                                   column.field,
-                                                  ruleIndex,
                                                 )
                                               }
-                                              className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
-                                              title="Remove rule"
+                                              className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
                                             >
-                                              <FiTrash2 size={14} />
+                                              Add rule
                                             </button>
                                           </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
+                                          {(
+                                            column.progressBar?.colorRules || []
+                                          ).map((rule, ruleIndex) => (
+                                            <div
+                                              key={ruleIndex}
+                                              className="grid grid-cols-[1fr_120px_auto] gap-2"
+                                            >
+                                              <input
+                                                type="text"
+                                                value={rule.condition || ""}
+                                                onChange={(e) =>
+                                                  updateTableProgressBarColorRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    {
+                                                      condition: e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="stock < 2"
+                                              />
+                                              <input
+                                                type="color"
+                                                value={rule.color || "#4d9f24"}
+                                                onChange={(e) =>
+                                                  updateTableProgressBarColorRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    { color: e.target.value },
+                                                  )
+                                                }
+                                                className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-2"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeTableProgressBarColorRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                  )
+                                                }
+                                                className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                                title="Remove rule"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             )}
 
                             {activeTableSettingsTab === "links" && (
                               <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
-                                {(tableConfig.columns || []).map((column) => (
-                                  <div
-                                    key={column.field}
-                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
-                                  >
-                                    <div className="text-xs font-semibold text-neutral-700">
-                                      {column.displayName || column.field}
+                                {(tableConfig.columns || []).map(
+                                  (column, columnIndex) => (
+                                    <div
+                                      key={`column-${columnIndex}`}
+                                      className="border border-neutral-200 rounded-xl p-4 space-y-3"
+                                    >
+                                      <div className="text-xs font-semibold text-neutral-700">
+                                        {column.displayName || column.field}
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Link Type
+                                          </label>
+                                          <select
+                                            value={
+                                              column.link?.type || "external"
+                                            }
+                                            onChange={(e) =>
+                                              updateTableColumnLink(
+                                                column.field,
+                                                {
+                                                  type: e.target
+                                                    .value as LinkType,
+                                                },
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                          >
+                                            {LINK_TYPES.map((linkType) => (
+                                              <option
+                                                key={linkType.value}
+                                                value={linkType.value}
+                                              >
+                                                {linkType.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="col-span-2">
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Link Template
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.link?.template || ""}
+                                            onChange={(e) =>
+                                              updateTableColumnLink(
+                                                column.field,
+                                                {
+                                                  template: e.target.value,
+                                                },
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="https://example.com/{{value}}"
+                                          />
+                                        </div>
+                                        <div className="col-span-3">
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Link Label Field
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              column.link?.labelField || ""
+                                            }
+                                            onChange={(e) =>
+                                              updateTableColumnLink(
+                                                column.field,
+                                                {
+                                                  labelField: e.target.value,
+                                                },
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="Optional field name for link text"
+                                          />
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-3">
-                                      <div>
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Link Type
-                                        </label>
-                                        <select
-                                          value={column.link?.type || "external"}
-                                          onChange={(e) =>
-                                            updateTableColumnLink(column.field, {
-                                              type: e.target.value as LinkType,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
-                                        >
-                                          {LINK_TYPES.map((linkType) => (
-                                            <option
-                                              key={linkType.value}
-                                              value={linkType.value}
-                                            >
-                                              {linkType.label}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div className="col-span-2">
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Link Template
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={column.link?.template || ""}
-                                          onChange={(e) =>
-                                            updateTableColumnLink(column.field, {
-                                              template: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          placeholder="https://example.com/{{value}}"
-                                        />
-                                      </div>
-                                      <div className="col-span-3">
-                                        <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                                          Link Label Field
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={column.link?.labelField || ""}
-                                          onChange={(e) =>
-                                            updateTableColumnLink(column.field, {
-                                              labelField: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          placeholder="Optional field name for link text"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                                  ),
+                                )}
                               </div>
                             )}
 
                             {activeTableSettingsTab === "cellClasses" && (
                               <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
-                                {(tableConfig.columns || []).map((column) => (
-                                  <div
-                                    key={column.field}
-                                    className="border border-neutral-200 rounded-xl p-4 space-y-3"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="text-xs font-semibold text-neutral-700">
-                                        {column.displayName || column.field}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          addTableColumnRule(column.field)
-                                        }
-                                        className="text-xs font-medium text-violet-700 hover:text-violet-900"
-                                      >
-                                        + Add rule
-                                      </button>
-                                    </div>
-                                    {(column.cellClassName || []).map(
-                                      (rule, ruleIndex) => (
-                                        <div
-                                          key={ruleIndex}
-                                          className="grid grid-cols-[1fr_1fr_auto] gap-2"
-                                        >
-                                          <input
-                                            type="text"
-                                            value={rule.condition}
-                                            onChange={(e) =>
-                                              updateTableColumnRule(
-                                                column.field,
-                                                ruleIndex,
-                                                { condition: e.target.value },
-                                              )
-                                            }
-                                            className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            placeholder="status = 'active'"
-                                          />
-                                          <input
-                                            type="text"
-                                            value={rule.className}
-                                            onChange={(e) =>
-                                              updateTableColumnRule(
-                                                column.field,
-                                                ruleIndex,
-                                                { className: e.target.value },
-                                              )
-                                            }
-                                            className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            placeholder="text-green-600"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              removeTableColumnRule(
-                                                column.field,
-                                                ruleIndex,
-                                              )
-                                            }
-                                            className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                          >
-                                            <FiTrash2 size={14} />
-                                          </button>
+                                {(tableConfig.columns || []).map(
+                                  (column, columnIndex) => (
+                                    <div
+                                      key={`column-${columnIndex}`}
+                                      className="border border-neutral-200 rounded-xl p-4 space-y-3"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-xs font-semibold text-neutral-700">
+                                          {column.displayName || column.field}
                                         </div>
-                                      ),
-                                    )}
-                                  </div>
-                                ))}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            addTableColumnRule(column.field)
+                                          }
+                                          className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                        >
+                                          + Add rule
+                                        </button>
+                                      </div>
+                                      {(column.cellClassName || []).map(
+                                        (rule, ruleIndex) => (
+                                          <div
+                                            key={ruleIndex}
+                                            className="grid grid-cols-[1fr_1fr_auto] gap-2"
+                                          >
+                                            <input
+                                              type="text"
+                                              value={rule.condition}
+                                              onChange={(e) =>
+                                                updateTableColumnRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                  { condition: e.target.value },
+                                                )
+                                              }
+                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="status = 'active'"
+                                            />
+                                            <input
+                                              type="text"
+                                              value={rule.className}
+                                              onChange={(e) =>
+                                                updateTableColumnRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                  { className: e.target.value },
+                                                )
+                                              }
+                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="text-green-600"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                removeTableColumnRule(
+                                                  column.field,
+                                                  ruleIndex,
+                                                )
+                                              }
+                                              className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                            >
+                                              <FiTrash2 size={14} />
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             )}
 
@@ -6096,7 +6843,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       Filter Panel Inputs
                                     </label>
                                     <p className="mt-1 text-xs text-neutral-500">
-                                      Use defaults from the selected source or customize the list manually.
+                                      Use defaults from the selected source or
+                                      customize the list manually.
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -6138,9 +6886,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="text"
                                             value={field.formKey}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                formKey: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  formKey: e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="field name"
@@ -6153,33 +6904,38 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           <select
                                             value={field.type}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                type: e.target
-                                                  .value as TableActionInputType,
-                                                formKeyType:
-                                                  formKeyTypeForActionInput(
-                                                    e.target
-                                                      .value as TableActionInputType,
-                                                    field.isMultiple,
-                                                  ),
-                                                isNumberButtonsActive:
-                                                  isActionNumberInput(
-                                                    e.target.value,
-                                                  )
-                                                    ? field.isNumberButtonsActive
-                                                    : false,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  type: e.target
+                                                    .value as TableActionInputType,
+                                                  formKeyType:
+                                                    formKeyTypeForActionInput(
+                                                      e.target
+                                                        .value as TableActionInputType,
+                                                      field.isMultiple,
+                                                    ),
+                                                  isNumberButtonsActive:
+                                                    isActionNumberInput(
+                                                      e.target.value,
+                                                    )
+                                                      ? field.isNumberButtonsActive
+                                                      : false,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           >
-                                            {ACTION_INPUT_TYPES.map((inputType) => (
-                                              <option
-                                                key={inputType.value}
-                                                value={inputType.value}
-                                              >
-                                                {inputType.label}
-                                              </option>
-                                            ))}
+                                            {ACTION_INPUT_TYPES.map(
+                                              (inputType) => (
+                                                <option
+                                                  key={inputType.value}
+                                                  value={inputType.value}
+                                                >
+                                                  {inputType.label}
+                                                </option>
+                                              ),
+                                            )}
                                           </select>
                                         </label>
                                         <button
@@ -6202,9 +6958,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="text"
                                             value={field.label || ""}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                label: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  label: e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="label"
@@ -6218,9 +6977,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="text"
                                             value={field.placeholder || ""}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                placeholder: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  placeholder: e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="placeholder"
@@ -6232,11 +6994,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </span>
                                           <input
                                             type="text"
-                                            value={field.disabledCondition || ""}
+                                            value={
+                                              field.disabledCondition || ""
+                                            }
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                disabledCondition: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  disabledCondition:
+                                                    e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="disabled condition"
@@ -6248,11 +7016,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </span>
                                           <input
                                             type="text"
-                                            value={field.requiredCondition || ""}
+                                            value={
+                                              field.requiredCondition || ""
+                                            }
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                requiredCondition: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  requiredCondition:
+                                                    e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="required condition"
@@ -6266,9 +7040,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="checkbox"
                                             checked={!!field.required}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                required: e.target.checked,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  required: e.target.checked,
+                                                },
+                                              )
                                             }
                                           />
                                           Required
@@ -6278,9 +7055,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="checkbox"
                                             checked={!!field.isDisabled}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                isDisabled: e.target.checked,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  isDisabled: e.target.checked,
+                                                },
+                                              )
                                             }
                                           />
                                           Disabled
@@ -6290,14 +7070,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             type="checkbox"
                                             checked={!!field.isMultiple}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                isMultiple: e.target.checked,
-                                                formKeyType:
-                                                  formKeyTypeForActionInput(
-                                                    field.type,
-                                                    e.target.checked,
-                                                  ),
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  isMultiple: e.target.checked,
+                                                  formKeyType:
+                                                    formKeyTypeForActionInput(
+                                                      field.type,
+                                                      e.target.checked,
+                                                    ),
+                                                },
+                                              )
                                             }
                                           />
                                           Multiple
@@ -6328,11 +7111,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </span>
                                           <input
                                             type="text"
-                                            value={String(field.defaultValue ?? "")}
+                                            value={String(
+                                              field.defaultValue ?? "",
+                                            )}
                                             onChange={(e) =>
-                                              updateFilterPanelInput(fieldIndex, {
-                                                defaultValue: e.target.value,
-                                              })
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  defaultValue: e.target.value,
+                                                },
+                                              )
                                             }
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             placeholder="default value"
@@ -6349,7 +7137,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               </span>
                                               <select
                                                 value={
-                                                  field.optionsSource || "static"
+                                                  field.optionsSource ||
+                                                  "static"
                                                 }
                                                 onChange={(e) =>
                                                   updateFilterPanelInput(
@@ -6394,7 +7183,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   )
                                                 }
                                                 disabled={
-                                                  field.optionsSource !== "schema"
+                                                  field.optionsSource !==
+                                                  "schema"
                                                 }
                                                 className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
                                               >
@@ -6417,7 +7207,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               </span>
                                               <select
                                                 value={
-                                                  field.sourceValueField || "_id"
+                                                  field.sourceValueField ||
+                                                  "_id"
                                                 }
                                                 onChange={(e) =>
                                                   updateFilterPanelInput(
@@ -6436,20 +7227,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
                                               >
                                                 <option value="_id">_id</option>
-                                                {(containers.find(
-                                                  (container) =>
-                                                    container.schemaName ===
-                                                    field.sourceSchemaName,
-                                                )?.fields || []).map(
-                                                  (sourceField) => (
-                                                    <option
-                                                      key={sourceField.name}
-                                                      value={sourceField.name}
-                                                    >
-                                                      {sourceField.name}
-                                                    </option>
-                                                  ),
-                                                )}
+                                                {(
+                                                  containers.find(
+                                                    (container) =>
+                                                      container.schemaName ===
+                                                      field.sourceSchemaName,
+                                                  )?.fields || []
+                                                ).map((sourceField) => (
+                                                  <option
+                                                    key={sourceField.name}
+                                                    value={sourceField.name}
+                                                  >
+                                                    {sourceField.name}
+                                                  </option>
+                                                ))}
                                               </select>
                                             </label>
                                             <label className="space-y-1">
@@ -6480,20 +7271,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   Label field...
                                                 </option>
                                                 <option value="_id">_id</option>
-                                                {(containers.find(
-                                                  (container) =>
-                                                    container.schemaName ===
-                                                    field.sourceSchemaName,
-                                                )?.fields || []).map(
-                                                  (sourceField) => (
-                                                    <option
-                                                      key={sourceField.name}
-                                                      value={sourceField.name}
-                                                    >
-                                                      {sourceField.name}
-                                                    </option>
-                                                  ),
-                                                )}
+                                                {(
+                                                  containers.find(
+                                                    (container) =>
+                                                      container.schemaName ===
+                                                      field.sourceSchemaName,
+                                                  )?.fields || []
+                                                ).map((sourceField) => (
+                                                  <option
+                                                    key={sourceField.name}
+                                                    value={sourceField.name}
+                                                  >
+                                                    {sourceField.name}
+                                                  </option>
+                                                ))}
                                               </select>
                                             </label>
                                           </div>
@@ -6504,7 +7295,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             <input
                                               type="text"
                                               value={
-                                                field.sourceFilterCondition || ""
+                                                field.sourceFilterCondition ||
+                                                ""
                                               }
                                               onChange={(e) =>
                                                 updateFilterPanelInput(
@@ -6522,7 +7314,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           <SelectInput
                                             label="Invalidate keys"
                                             options={(
-                                              tableConfig.filterPanel?.inputs || []
+                                              tableConfig.filterPanel?.inputs ||
+                                              []
                                             )
                                               .filter(
                                                 (candidate, candidateIndex) =>
@@ -6536,34 +7329,36 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   candidate.label ||
                                                   candidate.formKey,
                                               }))}
-                                            value={(field.invalidateKeys || []).map(
-                                              (key) => {
-                                                const candidate = (
-                                                  tableConfig.filterPanel
-                                                    ?.inputs || []
-                                                ).find(
-                                                  (input) =>
-                                                    input.formKey === key,
-                                                );
-                                                return {
-                                                  value: key,
-                                                  label:
-                                                    candidate?.label || key,
-                                                };
-                                              },
-                                            )}
+                                            value={(
+                                              field.invalidateKeys || []
+                                            ).map((key) => {
+                                              const candidate = (
+                                                tableConfig.filterPanel
+                                                  ?.inputs || []
+                                              ).find(
+                                                (input) =>
+                                                  input.formKey === key,
+                                              );
+                                              return {
+                                                value: key,
+                                                label: candidate?.label || key,
+                                              };
+                                            })}
                                             onChange={(selectedOptions) => {
                                               const selected = Array.isArray(
                                                 selectedOptions,
                                               )
                                                 ? selectedOptions
                                                 : [];
-                                              updateFilterPanelInput(fieldIndex, {
-                                                invalidateKeys: selected.map(
-                                                  (option: OptionType) =>
-                                                    String(option.value),
-                                                ),
-                                              });
+                                              updateFilterPanelInput(
+                                                fieldIndex,
+                                                {
+                                                  invalidateKeys: selected.map(
+                                                    (option: OptionType) =>
+                                                      String(option.value),
+                                                  ),
+                                                },
+                                              );
                                             }}
                                             isMultiple
                                             isAutoFill={false}
@@ -6684,16 +7479,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         Add Button
                                       </h4>
                                       <p className="text-xs text-blue-700">
-                                        Controls the top table add button, not row actions.
+                                        Controls the top table add button, not
+                                        row actions.
                                       </p>
                                     </div>
                                     <label className="flex h-9 items-center gap-2 text-xs text-neutral-700">
                                       <input
                                         type="checkbox"
                                         checked={
-                                          (tableConfig.addButton ||
-                                            buildDefaultCreateAction(selectedFields))
-                                            .enabled !== false
+                                          (
+                                            tableConfig.addButton ||
+                                            buildDefaultCreateAction(
+                                              selectedFields,
+                                            )
+                                          ).enabled !== false
                                         }
                                         onChange={(e) =>
                                           updateTableAddButton({
@@ -6704,7 +7503,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       On
                                     </label>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-3">
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Kind
+                                      </label>
+                                      <select
+                                        value="create"
+                                        disabled
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="create">Create</option>
+                                      </select>
+                                      <p className="mt-1 text-[11px] text-neutral-500">
+                                        Add Button always creates a new record
+                                        or runs a create workflow.
+                                      </p>
+                                    </div>
                                     <div>
                                       <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                         Label
@@ -6712,9 +7527,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       <input
                                         type="text"
                                         value={
-                                          (tableConfig.addButton ||
-                                            buildDefaultCreateAction(selectedFields))
-                                            .label || ""
+                                          (
+                                            tableConfig.addButton ||
+                                            buildDefaultCreateAction(
+                                              selectedFields,
+                                            )
+                                          ).label || ""
                                         }
                                         onChange={(e) =>
                                           updateTableAddButton({
@@ -6731,9 +7549,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       <input
                                         type="text"
                                         value={
-                                          (tableConfig.addButton ||
-                                            buildDefaultCreateAction(selectedFields))
-                                            .buttonName || ""
+                                          (
+                                            tableConfig.addButton ||
+                                            buildDefaultCreateAction(
+                                              selectedFields,
+                                            )
+                                          ).buttonName || ""
                                         }
                                         onChange={(e) =>
                                           updateTableAddButton({
@@ -6742,6 +7563,54 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         }
                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                       />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Workflow / dynamic function
+                                      </label>
+                                      <select
+                                        value={
+                                          currentAddButton.submit
+                                            ?.workflowSchema &&
+                                          currentAddButton.submit?.workflowName
+                                            ? `${currentAddButton.submit.workflowSchema}::${currentAddButton.submit.workflowName}`
+                                            : ""
+                                        }
+                                        onChange={(e) => {
+                                          const [workflowSchema, workflowName] =
+                                            e.target.value.split("::");
+                                          updateTableAddButton({
+                                            submit:
+                                              workflowSchema && workflowName
+                                                ? {
+                                                    workflowSchema,
+                                                    workflowName,
+                                                  }
+                                                : undefined,
+                                          });
+                                        }}
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="">
+                                          Regular dynamic create
+                                        </option>
+                                        {projectWorkflowOptions.map(
+                                          ({ schemaName, workflow }) => (
+                                            <option
+                                              key={`${schemaName}::${workflow.name}`}
+                                              value={`${schemaName}::${workflow.name}`}
+                                            >
+                                              {schemaName} / {workflow.name}
+                                            </option>
+                                          ),
+                                        )}
+                                      </select>
+                                      <p className="mt-1 text-[11px] text-neutral-500">
+                                        Select a workflow that contains a
+                                        dynamic-function step.
+                                      </p>
                                     </div>
                                   </div>
 
@@ -6972,7 +7841,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               />
                                               Multiple
                                             </label>
-                                            {isActionNumberInput(field.type) && (
+                                            {isActionNumberInput(
+                                              field.type,
+                                            ) && (
                                               <label className="flex items-center gap-2 text-xs text-neutral-700">
                                                 <input
                                                   type="checkbox"
@@ -7109,7 +7980,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   </span>
                                                   <select
                                                     value={
-                                                      field.sourceSchemaName || ""
+                                                      field.sourceSchemaName ||
+                                                      ""
                                                     }
                                                     onChange={(e) =>
                                                       updateAddButtonFormField(
@@ -7117,7 +7989,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         {
                                                           sourceSchemaName:
                                                             e.target.value,
-                                                          sourceValueField: "_id",
+                                                          sourceValueField:
+                                                            "_id",
                                                           sourceLabelField: "",
                                                         },
                                                       )
@@ -7197,7 +8070,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   </span>
                                                   <select
                                                     value={
-                                                      field.sourceLabelField || ""
+                                                      field.sourceLabelField ||
+                                                      ""
                                                     }
                                                     onChange={(e) =>
                                                       updateAddButtonFormField(
@@ -7299,11 +8173,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   };
                                                 })}
                                                 onChange={(selectedOptions) => {
-                                                  const selected = Array.isArray(
-                                                    selectedOptions,
-                                                  )
-                                                    ? selectedOptions
-                                                    : [];
+                                                  const selected =
+                                                    Array.isArray(
+                                                      selectedOptions,
+                                                    )
+                                                      ? selectedOptions
+                                                      : [];
                                                   updateAddButtonFormField(
                                                     fieldIndex,
                                                     {
@@ -7385,7 +8260,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       ? "Edit"
                                                       : kind === "delete"
                                                         ? "Delete"
-                                                        : action.label || "Action",
+                                                        : action.label ||
+                                                          "Action",
                                                 buttonName:
                                                   kind === "create"
                                                     ? "Create"
@@ -7407,18 +8283,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       ? "confirm"
                                                       : action.modalType ||
                                                         "none",
+                                                formFields:
+                                                  (kind === "create" ||
+                                                    kind === "edit") &&
+                                                  action.formFields ===
+                                                    undefined
+                                                    ? buildActionFormFieldsFromFields(
+                                                        selectedFields,
+                                                      )
+                                                    : action.formFields,
                                               });
                                             }}
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           >
-                                            {ACTION_KIND_OPTIONS.map((kind) => (
-                                              <option
-                                                key={kind.value}
-                                                value={kind.value}
-                                              >
-                                                {kind.label}
-                                              </option>
-                                            ))}
+                                            {TABLE_ROW_ACTION_KIND_OPTIONS.map(
+                                              (kind) => (
+                                                <option
+                                                  key={kind.value}
+                                                  value={kind.value}
+                                                >
+                                                  {kind.label}
+                                                </option>
+                                              ),
+                                            )}
                                           </select>
                                         </div>
                                         <div>
@@ -7482,7 +8369,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </label>
                                           <input
                                             type="number"
-                                            value={action.order ?? actionIndex + 1}
+                                            value={
+                                              action.order ?? actionIndex + 1
+                                            }
                                             onChange={(e) =>
                                               updateTableAction(actionIndex, {
                                                 order: Number(e.target.value),
@@ -7531,7 +8420,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               )}
                                             </div>
                                             <select
-                                              value={action.icon || "MdTouchApp"}
+                                              value={
+                                                action.icon || "MdTouchApp"
+                                              }
                                               onChange={(e) =>
                                                 updateTableAction(actionIndex, {
                                                   icon: e.target.value,
@@ -7539,14 +8430,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               }
                                               className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                             >
-                                              {ACTION_ICON_OPTIONS.map((icon) => (
-                                                <option
-                                                  key={icon.value}
-                                                  value={icon.value}
-                                                >
-                                                  {icon.label}
-                                                </option>
-                                              ))}
+                                              {ACTION_ICON_OPTIONS.map(
+                                                (icon) => (
+                                                  <option
+                                                    key={icon.value}
+                                                    value={icon.value}
+                                                  >
+                                                    {icon.label}
+                                                  </option>
+                                                ),
+                                              )}
                                             </select>
                                           </div>
                                         </div>
@@ -7600,7 +8493,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           }
                                           onChange={(e) =>
                                             updateTableAction(actionIndex, {
-                                              constantValuesJson: e.target.value,
+                                              constantValuesJson:
+                                                e.target.value,
                                               constantValues: undefined,
                                             })
                                           }
@@ -7616,26 +8510,38 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 : ""
                                             }
                                             onChange={(e) => {
-                                              const [workflowSchema, workflowName] =
-                                                e.target.value.split("::");
+                                              const [
+                                                workflowSchema,
+                                                workflowName,
+                                              ] = e.target.value.split("::");
                                               updateTableAction(actionIndex, {
                                                 submit:
                                                   workflowSchema && workflowName
-                                                    ? { workflowSchema, workflowName }
+                                                    ? {
+                                                        workflowSchema,
+                                                        workflowName,
+                                                      }
                                                     : undefined,
                                               });
                                             }}
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                                           >
-                                            <option value="">Select workflow...</option>
-                                            {projectWorkflowOptions.map(({ schemaName, workflow }) => (
-                                              <option
-                                                key={`${schemaName}::${workflow.name}`}
-                                                value={`${schemaName}::${workflow.name}`}
-                                              >
-                                                {schemaName} / {workflow.name}
-                                              </option>
-                                            ))}
+                                            <option value="">
+                                              Regular dynamic{" "}
+                                              {action.kind === "edit"
+                                                ? "edit"
+                                                : "action"}
+                                            </option>
+                                            {projectWorkflowOptions.map(
+                                              ({ schemaName, workflow }) => (
+                                                <option
+                                                  key={`${schemaName}::${workflow.name}`}
+                                                  value={`${schemaName}::${workflow.name}`}
+                                                >
+                                                  {schemaName} / {workflow.name}
+                                                </option>
+                                              ),
+                                            )}
                                           </select>
                                           <input
                                             type="text"
@@ -7696,7 +8602,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       updateActionFormField(
                                                         actionIndex,
                                                         fieldIndex,
-                                                        { formKey: e.target.value },
+                                                        {
+                                                          formKey:
+                                                            e.target.value,
+                                                        },
                                                       )
                                                     }
                                                     className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
@@ -7714,10 +8623,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         actionIndex,
                                                         fieldIndex,
                                                         {
-                                                          type: e.target.value as TableActionInputType,
+                                                          type: e.target
+                                                            .value as TableActionInputType,
                                                           formKeyType:
                                                             formKeyTypeForActionInput(
-                                                              e.target.value as TableActionInputType,
+                                                              e.target
+                                                                .value as TableActionInputType,
                                                               field.isMultiple,
                                                             ),
                                                           isNumberButtonsActive:
@@ -7735,7 +8646,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       (inputType) => (
                                                         <option
                                                           key={inputType.value}
-                                                          value={inputType.value}
+                                                          value={
+                                                            inputType.value
+                                                          }
                                                         >
                                                           {inputType.label}
                                                         </option>
@@ -7768,7 +8681,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       updateActionFormField(
                                                         actionIndex,
                                                         fieldIndex,
-                                                        { label: e.target.value },
+                                                        {
+                                                          label: e.target.value,
+                                                        },
                                                       )
                                                     }
                                                     className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
@@ -7781,7 +8696,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   </span>
                                                   <input
                                                     type="text"
-                                                    value={field.placeholder || ""}
+                                                    value={
+                                                      field.placeholder || ""
+                                                    }
                                                     onChange={(e) =>
                                                       updateActionFormField(
                                                         actionIndex,
@@ -7803,7 +8720,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   <input
                                                     type="text"
                                                     value={
-                                                      field.disabledCondition || ""
+                                                      field.disabledCondition ||
+                                                      ""
                                                     }
                                                     onChange={(e) =>
                                                       updateActionFormField(
@@ -7826,7 +8744,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   <input
                                                     type="text"
                                                     value={
-                                                      field.requiredCondition || ""
+                                                      field.requiredCondition ||
+                                                      ""
                                                     }
                                                     onChange={(e) =>
                                                       updateActionFormField(
@@ -7900,7 +8819,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   />
                                                   Multiple
                                                 </label>
-                                                {isActionNumberInput(field.type) && (
+                                                {isActionNumberInput(
+                                                  field.type,
+                                                ) && (
                                                   <label className="flex items-center gap-2 text-xs text-neutral-700">
                                                     <input
                                                       type="checkbox"
@@ -7946,7 +8867,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 </label>
                                               </div>
 
-                                              {isActionNumberInput(field.type) && (
+                                              {isActionNumberInput(
+                                                field.type,
+                                              ) && (
                                                 <div className="grid grid-cols-2 gap-2">
                                                   <label className="space-y-1">
                                                     <span className="text-xs font-medium text-neutral-600">
@@ -7962,7 +8885,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                           {
                                                             min: e.target.value
                                                               ? Number(
-                                                                  e.target.value,
+                                                                  e.target
+                                                                    .value,
                                                                 )
                                                               : undefined,
                                                           },
@@ -7986,7 +8910,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                           {
                                                             max: e.target.value
                                                               ? Number(
-                                                                  e.target.value,
+                                                                  e.target
+                                                                    .value,
                                                                 )
                                                               : undefined,
                                                           },
@@ -8028,7 +8953,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                           (source) => (
                                                             <option
                                                               key={source.value}
-                                                              value={source.value}
+                                                              value={
+                                                                source.value
+                                                              }
                                                             >
                                                               {source.label}
                                                             </option>
@@ -8041,30 +8968,49 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         Source schema
                                                       </span>
                                                       <select
-                                                        value={field.sourceSchemaName || ""}
+                                                        value={
+                                                          field.sourceSchemaName ||
+                                                          ""
+                                                        }
                                                         onChange={(e) =>
                                                           updateActionFormField(
                                                             actionIndex,
                                                             fieldIndex,
                                                             {
-                                                              sourceSchemaName: e.target.value,
-                                                              sourceValueField: "_id",
-                                                              sourceLabelField: "",
+                                                              sourceSchemaName:
+                                                                e.target.value,
+                                                              sourceValueField:
+                                                                "_id",
+                                                              sourceLabelField:
+                                                                "",
                                                             },
                                                           )
                                                         }
-                                                        disabled={field.optionsSource !== "schema"}
+                                                        disabled={
+                                                          field.optionsSource !==
+                                                          "schema"
+                                                        }
                                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
                                                       >
-                                                        <option value="">Source schema...</option>
-                                                        {containers.map((container) => (
-                                                          <option
-                                                            key={container.schemaName}
-                                                            value={container.schemaName}
-                                                          >
-                                                            {container.schemaName}
-                                                          </option>
-                                                        ))}
+                                                        <option value="">
+                                                          Source schema...
+                                                        </option>
+                                                        {containers.map(
+                                                          (container) => (
+                                                            <option
+                                                              key={
+                                                                container.schemaName
+                                                              }
+                                                              value={
+                                                                container.schemaName
+                                                              }
+                                                            >
+                                                              {
+                                                                container.schemaName
+                                                              }
+                                                            </option>
+                                                          ),
+                                                        )}
                                                       </select>
                                                     </label>
                                                     <label className="space-y-1">
@@ -8072,22 +9018,45 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         Value field
                                                       </span>
                                                       <select
-                                                        value={field.sourceValueField || "_id"}
+                                                        value={
+                                                          field.sourceValueField ||
+                                                          "_id"
+                                                        }
                                                         onChange={(e) =>
                                                           updateActionFormField(
                                                             actionIndex,
                                                             fieldIndex,
                                                             {
-                                                              sourceValueField: e.target.value,
+                                                              sourceValueField:
+                                                                e.target.value,
                                                             },
                                                           )
                                                         }
-                                                        disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                        disabled={
+                                                          field.optionsSource !==
+                                                            "schema" ||
+                                                          !field.sourceSchemaName
+                                                        }
                                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
                                                       >
-                                                        <option value="_id">_id</option>
-                                                        {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
-                                                          <option key={sourceField.name} value={sourceField.name}>
+                                                        <option value="_id">
+                                                          _id
+                                                        </option>
+                                                        {(
+                                                          containers.find(
+                                                            (container) =>
+                                                              container.schemaName ===
+                                                              field.sourceSchemaName,
+                                                          )?.fields || []
+                                                        ).map((sourceField) => (
+                                                          <option
+                                                            key={
+                                                              sourceField.name
+                                                            }
+                                                            value={
+                                                              sourceField.name
+                                                            }
+                                                          >
                                                             {sourceField.name}
                                                           </option>
                                                         ))}
@@ -8098,23 +9067,48 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                         Label field
                                                       </span>
                                                       <select
-                                                        value={field.sourceLabelField || ""}
+                                                        value={
+                                                          field.sourceLabelField ||
+                                                          ""
+                                                        }
                                                         onChange={(e) =>
                                                           updateActionFormField(
                                                             actionIndex,
                                                             fieldIndex,
                                                             {
-                                                              sourceLabelField: e.target.value,
+                                                              sourceLabelField:
+                                                                e.target.value,
                                                             },
                                                           )
                                                         }
-                                                        disabled={field.optionsSource !== "schema" || !field.sourceSchemaName}
+                                                        disabled={
+                                                          field.optionsSource !==
+                                                            "schema" ||
+                                                          !field.sourceSchemaName
+                                                        }
                                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
                                                       >
-                                                        <option value="">Label field...</option>
-                                                        <option value="_id">_id</option>
-                                                        {(containers.find((container) => container.schemaName === field.sourceSchemaName)?.fields || []).map((sourceField) => (
-                                                          <option key={sourceField.name} value={sourceField.name}>
+                                                        <option value="">
+                                                          Label field...
+                                                        </option>
+                                                        <option value="_id">
+                                                          _id
+                                                        </option>
+                                                        {(
+                                                          containers.find(
+                                                            (container) =>
+                                                              container.schemaName ===
+                                                              field.sourceSchemaName,
+                                                          )?.fields || []
+                                                        ).map((sourceField) => (
+                                                          <option
+                                                            key={
+                                                              sourceField.name
+                                                            }
+                                                            value={
+                                                              sourceField.name
+                                                            }
+                                                          >
                                                             {sourceField.name}
                                                           </option>
                                                         ))}
@@ -8147,34 +9141,64 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   </label>
                                                   <SelectInput
                                                     label="Invalidate keys"
-                                                    options={(action.formFields || [])
-                                                      .filter((candidate, candidateIndex) =>
-                                                        candidateIndex !== fieldIndex && candidate.formKey.trim(),
+                                                    options={(
+                                                      action.formFields || []
+                                                    )
+                                                      .filter(
+                                                        (
+                                                          candidate,
+                                                          candidateIndex,
+                                                        ) =>
+                                                          candidateIndex !==
+                                                            fieldIndex &&
+                                                          candidate.formKey.trim(),
                                                       )
                                                       .map((candidate) => ({
-                                                        value: candidate.formKey,
-                                                        label: candidate.label || candidate.formKey,
+                                                        value:
+                                                          candidate.formKey,
+                                                        label:
+                                                          candidate.label ||
+                                                          candidate.formKey,
                                                       }))}
-                                                    value={(field.invalidateKeys || []).map((key) => {
-                                                      const candidate = (action.formFields || []).find(
-                                                        (formField) => formField.formKey === key,
+                                                    value={(
+                                                      field.invalidateKeys || []
+                                                    ).map((key) => {
+                                                      const candidate = (
+                                                        action.formFields || []
+                                                      ).find(
+                                                        (formField) =>
+                                                          formField.formKey ===
+                                                          key,
                                                       );
                                                       return {
                                                         value: key,
-                                                        label: candidate?.label || key,
+                                                        label:
+                                                          candidate?.label ||
+                                                          key,
                                                       };
                                                     })}
-                                                    onChange={(selectedOptions) => {
-                                                      const selected = Array.isArray(selectedOptions)
-                                                        ? selectedOptions
-                                                        : [];
+                                                    onChange={(
+                                                      selectedOptions,
+                                                    ) => {
+                                                      const selected =
+                                                        Array.isArray(
+                                                          selectedOptions,
+                                                        )
+                                                          ? selectedOptions
+                                                          : [];
                                                       updateActionFormField(
                                                         actionIndex,
                                                         fieldIndex,
                                                         {
-                                                          invalidateKeys: selected.map((option: OptionType) =>
-                                                            String(option.value),
-                                                          ),
+                                                          invalidateKeys:
+                                                            selected.map(
+                                                              (
+                                                                option: OptionType,
+                                                              ) =>
+                                                                String(
+                                                                  option.value,
+                                                                ),
+                                                            ),
                                                         },
                                                       );
                                                     }}
@@ -8220,7 +9244,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              addActionFieldOverride(actionIndex)
+                                              addActionFieldOverride(
+                                                actionIndex,
+                                              )
                                             }
                                             className="text-xs font-medium text-violet-700 hover:text-violet-900"
                                           >
@@ -8303,6 +9329,360 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 )}
                               </div>
                             )}
+
+                            {activeTableSettingsTab === "bulkActions" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                {[
+                                  {
+                                    key: "edit" as const,
+                                    title: "Bulk Edit",
+                                    description:
+                                      "Controls the selected-row edit operation and the fields users can choose.",
+                                    action: currentBulkEditAction,
+                                  },
+                                  {
+                                    key: "delete" as const,
+                                    title: "Bulk Delete",
+                                    description:
+                                      "Controls the selected-row delete operation.",
+                                    action: currentBulkDeleteAction,
+                                  },
+                                ].map(({ key, title, description, action }) => (
+                                  <div
+                                    key={key}
+                                    className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4"
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div>
+                                        <h4 className="text-sm font-semibold text-neutral-900">
+                                          {title}
+                                        </h4>
+                                        <p className="text-xs text-neutral-500">
+                                          {description}
+                                        </p>
+                                      </div>
+                                      <label className="flex h-9 items-center gap-2 text-xs text-neutral-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={action.enabled !== false}
+                                          onChange={(e) =>
+                                            updateTableBulkAction(key, {
+                                              enabled: e.target.checked,
+                                            })
+                                          }
+                                        />
+                                        On
+                                      </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                      <label className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-600">
+                                          Label
+                                        </span>
+                                        <input
+                                          type="text"
+                                          value={action.label || ""}
+                                          onChange={(e) =>
+                                            updateTableBulkAction(key, {
+                                              label: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                      </label>
+                                      <label className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-600">
+                                          Button text
+                                        </span>
+                                        <input
+                                          type="text"
+                                          value={action.buttonName || ""}
+                                          onChange={(e) =>
+                                            updateTableBulkAction(key, {
+                                              buttonName: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder={key === "edit" ? "Edit" : ""}
+                                        />
+                                      </label>
+                                      <label className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-600">
+                                          Icon
+                                        </span>
+                                        <select
+                                          value={
+                                            action.icon ||
+                                            (key === "edit"
+                                              ? "FiEdit"
+                                              : "HiOutlineTrash")
+                                          }
+                                          onChange={(e) =>
+                                            updateTableBulkAction(key, {
+                                              icon: e.target.value,
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        >
+                                          {ACTION_ICON_OPTIONS.map((icon) => (
+                                            <option
+                                              key={icon.value}
+                                              value={icon.value}
+                                            >
+                                              {icon.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                      <label className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-600">
+                                          Workflow
+                                        </span>
+                                        <select
+                                          value={
+                                            action.submit?.workflowName
+                                              ? `${action.submit.workflowSchema || schemaName}::${action.submit.workflowName}`
+                                              : ""
+                                          }
+                                          onChange={(e) => {
+                                            const [
+                                              workflowSchema,
+                                              workflowName,
+                                            ] = e.target.value.split("::");
+                                            updateTableBulkAction(key, {
+                                              submit: {
+                                                ...action.submit,
+                                                workflowSchema:
+                                                  workflowSchema || undefined,
+                                                workflowName:
+                                                  workflowName || undefined,
+                                              },
+                                            });
+                                          }}
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        >
+                                          <option value="">
+                                            Built-in bulk {key}
+                                          </option>
+                                          {projectWorkflowOptions.map(
+                                            ({ schemaName, workflow }) => (
+                                              <option
+                                                key={`${key}-workflow-${schemaName}::${workflow.name}`}
+                                                value={`${schemaName}::${workflow.name}`}
+                                              >
+                                                {schemaName} / {workflow.name}
+                                              </option>
+                                            ),
+                                          )}
+                                        </select>
+                                      </label>
+                                      <label className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-600">
+                                          Function
+                                        </span>
+                                        <select
+                                          value={action.submit?.functionName || ""}
+                                          onChange={(e) =>
+                                            updateTableBulkAction(key, {
+                                              submit: {
+                                                ...action.submit,
+                                                functionName:
+                                                  e.target.value || undefined,
+                                              },
+                                            })
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        >
+                                          <option value="">
+                                            No direct function
+                                          </option>
+                                          {projectFunctionOptions.map(
+                                            ({ schemaName, dynamicFunction }) => (
+                                              <option
+                                                key={`${key}-function-${schemaName}::${dynamicFunction.name}`}
+                                                value={dynamicFunction.name}
+                                              >
+                                                {schemaName} /{" "}
+                                                {dynamicFunction.name}
+                                              </option>
+                                            ),
+                                          )}
+                                        </select>
+                                      </label>
+                                    </div>
+
+                                    {key === "delete" && (
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <input
+                                          type="text"
+                                          value={action.confirmTitle || ""}
+                                          onChange={(e) =>
+                                            updateTableBulkAction("delete", {
+                                              confirmTitle: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Confirm title"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={action.confirmText || ""}
+                                          onChange={(e) =>
+                                            updateTableBulkAction("delete", {
+                                              confirmText: e.target.value,
+                                            })
+                                          }
+                                          className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                          placeholder="Confirm text"
+                                        />
+                                      </div>
+                                    )}
+
+                                    {key === "edit" && (
+                                      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-semibold text-neutral-700">
+                                            Bulk Edit Fields
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={addBulkEditFormField}
+                                            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+                                          >
+                                            + Add field
+                                          </button>
+                                        </div>
+                                        {(currentBulkEditAction.formFields || []).map(
+                                          (field, fieldIndex) => (
+                                            <div
+                                              key={fieldIndex}
+                                              className="grid grid-cols-[1fr_150px_1fr_auto] gap-2"
+                                            >
+                                              <select
+                                                value={field.formKey}
+                                                onChange={(e) => {
+                                                  const selectedField =
+                                                    selectedFields.find(
+                                                      (candidate) =>
+                                                        candidate.name ===
+                                                        e.target.value,
+                                                    );
+                                                  const nextType =
+                                                    selectedField
+                                                      ? actionInputTypeFromField(
+                                                          selectedField,
+                                                        )
+                                                      : field.type;
+                                                  updateBulkEditFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      formKey: e.target.value,
+                                                      type: nextType,
+                                                      formKeyType:
+                                                        formKeyTypeForActionInput(
+                                                          nextType,
+                                                          field.isMultiple,
+                                                        ),
+                                                      label:
+                                                        selectedField?.frontend
+                                                          ?.displayName ||
+                                                        e.target.value,
+                                                      placeholder:
+                                                        selectedField?.frontend
+                                                          ?.displayName ||
+                                                        e.target.value,
+                                                    },
+                                                  );
+                                                }}
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              >
+                                                <option value="">Field</option>
+                                                {selectedFields
+                                                  .filter(
+                                                    (candidate) =>
+                                                      candidate.name &&
+                                                      !["_id", "id"].includes(
+                                                        candidate.name,
+                                                      ) &&
+                                                      !candidate.equation,
+                                                  )
+                                                  .map((candidate) => (
+                                                    <option
+                                                      key={candidate.name}
+                                                      value={candidate.name}
+                                                    >
+                                                      {candidate.frontend
+                                                        ?.displayName ||
+                                                        candidate.name}
+                                                    </option>
+                                                  ))}
+                                              </select>
+                                              <select
+                                                value={field.type}
+                                                onChange={(e) =>
+                                                  updateBulkEditFormField(
+                                                    fieldIndex,
+                                                    {
+                                                      type: e.target
+                                                        .value as TableActionInputType,
+                                                      formKeyType:
+                                                        formKeyTypeForActionInput(
+                                                          e.target
+                                                            .value as TableActionInputType,
+                                                          field.isMultiple,
+                                                        ),
+                                                    },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              >
+                                                {ACTION_INPUT_TYPES.map(
+                                                  (inputType) => (
+                                                    <option
+                                                      key={inputType.value}
+                                                      value={inputType.value}
+                                                    >
+                                                      {inputType.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                              <input
+                                                type="text"
+                                                value={field.label || ""}
+                                                onChange={(e) =>
+                                                  updateBulkEditFormField(
+                                                    fieldIndex,
+                                                    { label: e.target.value },
+                                                  )
+                                                }
+                                                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="Label"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeBulkEditFormField(
+                                                    fieldIndex,
+                                                  )
+                                                }
+                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -8312,8 +9692,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                 {/* Pipeline / Workflow Params */}
                 {(CHART_TYPES.some((c) => c.value === componentType) ||
-                  (componentType === "table" &&
-                    tableSourceType !== "schema") ||
+                  (componentType === "table" && tableSourceType !== "schema") ||
                   (componentType === "infoBlocks" &&
                     infoBlocksSource !== "static") ||
                   (componentType === "distributionBlocks" &&
@@ -8334,7 +9713,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                     <ParameterBindingsEditor
                       page={page}
-                      componentId={editingComponent?.id || draftRuntimeComponent.id}
+                      componentId={
+                        editingComponent?.id || draftRuntimeComponent.id
+                      }
                       value={structuredParameters}
                       detectedParameterNames={Object.keys(paramsMap)}
                       issues={bindingIssues}
@@ -8348,24 +9729,35 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       </div>
                       {Object.keys(paramsMap).length === 0 ? (
                         <div className="text-xs text-neutral-500 italic py-1">
-                          No parameters configured. Select a pipeline or workflow above to automatically scan for parameters.
+                          No parameters configured. Select a pipeline or
+                          workflow above to automatically scan for parameters.
                         </div>
                       ) : (
                         Object.entries(paramsMap).map(([key, val]) => {
                           const isDetected = (() => {
                             const detected: string[] = [];
                             if (selectedPipeline) {
-                              detected.push(...extractPipelineParams(selectedPipeline));
+                              detected.push(
+                                ...extractPipelineParams(selectedPipeline),
+                              );
                             } else if (selectedWorkflow) {
-                              detected.push(...extractWorkflowParams(selectedWorkflow));
+                              detected.push(
+                                ...extractWorkflowParams(selectedWorkflow),
+                              );
                             }
                             return detected.includes(key);
                           })();
 
                           return (
-                            <div key={key} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-neutral-200 shadow-sm">
+                            <div
+                              key={key}
+                              className="flex items-center gap-3 bg-white p-2 rounded-lg border border-neutral-200 shadow-sm"
+                            >
                               <div className="w-1/3 flex items-center gap-1.5 min-w-0">
-                                <span className="text-xs font-mono font-bold text-neutral-700 truncate" title={key}>
+                                <span
+                                  className="text-xs font-mono font-bold text-neutral-700 truncate"
+                                  title={key}
+                                >
                                   {key}
                                 </span>
                                 {isDetected && (
@@ -8378,7 +9770,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 <input
                                   type="text"
                                   value={val}
-                                  onChange={(e) => handleParamChange(key, e.target.value)}
+                                  onChange={(e) =>
+                                    handleParamChange(key, e.target.value)
+                                  }
                                   placeholder="Value or {{ route.paramName }}"
                                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-transparent"
                                 />
@@ -8475,7 +9869,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         Group By
                       </label>
                       <p className="text-xs text-neutral-500 mt-1">
-                        Optional. Uses the first table tab as the template for dynamic tabs.
+                        Optional. Uses the first table tab as the template for
+                        dynamic tabs.
                       </p>
                     </div>
                     {(groupBy.groupedSchemaName ||
@@ -8642,7 +10037,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         Source label field
                       </label>
                       <select
-                        value={groupBy.sourceLabelField || groupBy.groupByField || ""}
+                        value={
+                          groupBy.sourceLabelField || groupBy.groupByField || ""
+                        }
                         onChange={(e) =>
                           setGroupBy((current) => ({
                             ...current,

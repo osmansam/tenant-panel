@@ -17,6 +17,7 @@ const TYPE_OPTIONS: RuntimeValueType[] = [
   "number",
   "boolean",
   "date",
+  "monthYear",
   "dateRange",
   "stringArray",
   "numberArray",
@@ -30,6 +31,7 @@ const dateInputValue = (value: unknown): string => {
 
 type DefaultMode = "none" | "static" | "preset";
 const DATE_PRESETS = ["today", "yesterday", "tomorrow"] as const;
+const MONTH_YEAR_PRESETS = ["currentMonthYear"] as const;
 const DATE_RANGE_PRESETS = [
   "today",
   "yesterday",
@@ -40,7 +42,10 @@ const DATE_RANGE_PRESETS = [
   "thisYear",
   "lastYear",
 ] as const;
-type DefaultPreset = (typeof DATE_PRESETS)[number] | (typeof DATE_RANGE_PRESETS)[number];
+type DefaultPreset =
+  | (typeof DATE_PRESETS)[number]
+  | (typeof MONTH_YEAR_PRESETS)[number]
+  | (typeof DATE_RANGE_PRESETS)[number];
 
 export const PageFilterModal: React.FC<PageFilterModalProps> = ({
   filter,
@@ -50,7 +55,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
   onSave,
 }) => {
   const [key, setKey] = useState(filter?.key ?? "filter");
-  const [label, setLabel] = useState(filter?.label ?? "Filter");
+  const [label, setLabel] = useState(filter?.label ?? "");
   const [type, setType] = useState<RuntimeValueType>(filter?.type ?? "string");
   const [arraySerialization, setArraySerialization] = useState<"comma" | "repeat">(
     filter?.arraySerialization ?? "comma",
@@ -63,7 +68,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
         : "none",
   );
   const [defaultPreset, setDefaultPreset] = useState<DefaultPreset>(
-    filter?.defaultPreset ?? "today",
+    filter?.defaultPreset ?? (filter?.type === "monthYear" ? "currentMonthYear" : "today"),
   );
   const [placementKind, setPlacementKind] = useState<"navbar" | "cell">(
     filter?.placement.kind ?? "cell",
@@ -95,7 +100,18 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
     return defaultValue;
   }, [defaultMode, defaultValue, type]);
   const presetOptions =
-    type === "date" ? DATE_PRESETS : type === "dateRange" ? DATE_RANGE_PRESETS : [];
+    type === "date"
+      ? DATE_PRESETS
+      : type === "monthYear"
+        ? MONTH_YEAR_PRESETS
+        : type === "dateRange"
+          ? DATE_RANGE_PRESETS
+          : [];
+  const effectiveDefaultPreset = (
+    (presetOptions as readonly string[]).includes(defaultPreset)
+      ? defaultPreset
+      : presetOptions[0]
+  ) as DefaultPreset;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
@@ -149,7 +165,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
             >
               <option value="none">No default</option>
               <option value="static">Static value</option>
-              {(type === "date" || type === "dateRange") && (
+              {(type === "date" || type === "monthYear" || type === "dateRange") && (
                 <option value="preset">Preset</option>
               )}
             </select>
@@ -166,12 +182,12 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
               />
             </label>
           )}
-          {defaultMode === "preset" && (type === "date" || type === "dateRange") && (
+          {defaultMode === "preset" && (type === "date" || type === "monthYear" || type === "dateRange") && (
             <label className="block text-sm font-medium text-neutral-700">
               Default preset
               <select
                 className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-                value={defaultPreset}
+                value={effectiveDefaultPreset}
                 onChange={(event) => setDefaultPreset(event.target.value as DefaultPreset)}
               >
                 {presetOptions.map((option) => (
@@ -235,13 +251,13 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
               onSave({
                 id: filter?.id ?? createRuntimeId("pfl"),
                 key: key.trim(),
-                label: label.trim() || key.trim(),
+                label: label.trim(),
                 type,
                 ...(defaultMode === "static" && normalizedDefaultValue !== undefined
                   ? { defaultValue: normalizedDefaultValue }
                   : {}),
-                ...(defaultMode === "preset" && (type === "date" || type === "dateRange")
-                  ? { defaultPreset }
+                ...(defaultMode === "preset" && (type === "date" || type === "monthYear" || type === "dateRange")
+                  ? { defaultPreset: effectiveDefaultPreset }
                   : {}),
                 ...((type === "stringArray" || type === "numberArray")
                   ? { arraySerialization }

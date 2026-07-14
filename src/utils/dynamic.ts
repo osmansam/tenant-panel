@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { FormElementsState } from "../types";
+import { useCurrentProject } from "../hooks/useCurrentProject";
+import { useTenant } from "../hooks/useTenant";
 import { useGet, useMutationApi } from "../utils/api/factory";
 import { axiosClient } from "./api/axiosClient";
 
@@ -608,6 +610,7 @@ export function useGetWorkflowData<T>(
       const response = await axiosClient.post<DynamicExecutionResponse<T>>(
         `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
           schemaName,
+          ...mergedParams,
         })}`,
         { record: mergedParams },
         {
@@ -635,13 +638,21 @@ export function useGetSelection<T>(
   fieldName: string,
   valueField?: string,
 ) {
+  const { currentTenant } = useTenant();
+  const { currentProject } = useCurrentProject();
   // Only enable the request if both schemaName and fieldName are provided
   const enabled = Boolean(schemaName && fieldName);
 
-  const path = `${BASE}/selection?${qs({ schemaName, fieldName, valueField })}`;
+  const scopedBase =
+    currentTenant?.slug && currentProject?.slug
+      ? `/${currentTenant.slug}/${currentProject.slug}${BASE}`
+      : BASE;
+  const path = `${scopedBase}/selection?${qs({ schemaName, fieldName, valueField })}`;
 
   const queryKey = [
     "dynamic",
+    currentTenant?.slug || "",
+    currentProject?.slug || "",
     schemaName || "",
     "selection",
     fieldName || "",

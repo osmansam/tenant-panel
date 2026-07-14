@@ -176,6 +176,16 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
             const selectedValue = selectedOutput
               ? outputOptionValue(selectedOutput)
               : "";
+            const selectedPageFilter =
+              binding.source === "pageFilter"
+                ? pageFilters.find((filter) => filter.id === binding.filterId)
+                : undefined;
+            const pageFilterFieldOptions =
+              selectedPageFilter?.type === "dateRange"
+                ? ["start", "end", "preset", "timezone"]
+                : selectedPageFilter?.type === "monthYear"
+                  ? ["month", "year"]
+                  : [];
 
             return (
               <div
@@ -307,16 +317,13 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                       <option value="">Select page filter...</option>
                       {pageFilters.map((filter) => (
                         <option key={filter.id} value={filter.id}>
-                          {filter.label || filter.key}
+                          {(filter.label || "").trim() || filter.key}
                         </option>
                       ))}
                     </select>
                     <select
                       value={binding.field ?? ""}
-                      disabled={
-                        pageFilters.find((filter) => filter.id === binding.filterId)?.type !==
-                        "dateRange"
-                      }
+                      disabled={pageFilterFieldOptions.length === 0}
                       onChange={(event) =>
                         updateParameter(name, {
                           source: "pageFilter",
@@ -325,6 +332,8 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                             ? {
                                 field: event.target.value as
                                   | "value"
+                                  | "month"
+                                  | "year"
                                   | "start"
                                   | "end"
                                   | "preset"
@@ -336,10 +345,11 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                       className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-neutral-100 disabled:text-neutral-400"
                     >
                       <option value="">Whole value</option>
-                      <option value="start">start</option>
-                      <option value="end">end</option>
-                      <option value="preset">preset</option>
-                      <option value="timezone">timezone</option>
+                      {pageFilterFieldOptions.map((field) => (
+                        <option key={field} value={field}>
+                          {field}
+                        </option>
+                      ))}
                     </select>
                     <button
                       type="button"
