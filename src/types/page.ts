@@ -177,6 +177,19 @@ export interface TableRowsConfig {
   className?: RowClassConfig[];
 }
 
+export interface TableNestedRowColumnConfig {
+  field: string;
+  displayName?: string;
+  type?: TableColumnType;
+}
+
+export interface TableNestedRowsConfig {
+  enabled?: boolean;
+  field?: string;
+  header?: string;
+  columns?: TableNestedRowColumnConfig[];
+}
+
 export interface TableCacheConfig {
   invalidateKeys?: string[];
 }
@@ -299,6 +312,7 @@ export interface TableActionConfig {
 export interface TableComponentConfig {
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
+  nestedRows?: TableNestedRowsConfig;
   cache?: TableCacheConfig;
   addButton?: TableActionConfig;
   actions?: TableActionConfig[];

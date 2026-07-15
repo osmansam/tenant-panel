@@ -44,6 +44,10 @@ const FIELD_TYPES = [
   { value: "enum", label: "Enum" },
 ];
 
+const CHILD_FIELD_TYPES = FIELD_TYPES.filter(
+  (option) => option.value !== "object" && option.value !== "array"
+);
+
 // Common validation rules
 const VALIDATION_RULES = {
   string: [
@@ -106,6 +110,21 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const [enumValues, setEnumValues] = useState<string>("");
   const [equation, setEquation] = useState<string>("");
   const [childFields, setChildFields] = useState<Field[]>([]);
+  const [childFieldDraft, setChildFieldDraft] = useState<Partial<Field>>({
+    name: "",
+    type: "string",
+    tag: "",
+    unique: false,
+    isSearchable: true,
+    enumList: [],
+  });
+  const [childEnumValues, setChildEnumValues] = useState<string>("");
+  const [editingChildFieldIndex, setEditingChildFieldIndex] = useState<
+    number | null
+  >(null);
+
+  const canHaveChildFields =
+    fieldData.type === "object" || fieldData.type === "array";
 
   // Population settings state
   const [populationFieldName, setPopulationFieldName] = useState<string>("");
@@ -169,10 +188,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
         setDisplayLabel(editField.populationSettings.displayLabel || "");
       }
 
-      // Set child fields if any
-      if (editField.children) {
-        setChildFields(editField.children);
-      }
+      setChildFields(editField.children || []);
+      resetChildFieldDraft();
     } else {
       // Reset to default when not editing
       setFieldData({
@@ -190,6 +207,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       setEnumValues("");
       setEquation("");
       setChildFields([]);
+      resetChildFieldDraft();
       setPopulationFieldName("");
       setPopulatedFields([]);
       setDisplayFields([]);
@@ -225,6 +243,106 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   const handleFieldChange = (field: string, value: any) => {
     setFieldData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const resetChildFieldDraft = () => {
+    setChildFieldDraft({
+      name: "",
+      type: "string",
+      tag: "",
+      unique: false,
+      isSearchable: true,
+      enumList: [],
+    });
+    setChildEnumValues("");
+    setEditingChildFieldIndex(null);
+  };
+
+  const handleChildFieldDraftChange = (field: string, value: any) => {
+    setChildFieldDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const parseEnumText = (value: string): string[] =>
+    value
+      .split("|")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const handleSaveChildField = () => {
+    const name = childFieldDraft.name?.trim();
+    const type = childFieldDraft.type?.trim();
+
+    if (!name) {
+      toast.error(t("Child field name is required"));
+      return;
+    }
+
+    if (!type) {
+      toast.error(t("Child field type is required"));
+      return;
+    }
+
+    const duplicate = childFields.some(
+      (field, index) =>
+        field.name === name && index !== editingChildFieldIndex
+    );
+
+    if (duplicate) {
+      toast.error(t("Child field name already exists"));
+      return;
+    }
+
+    const nextField: Field = {
+      name,
+      type,
+      tag: childFieldDraft.tag || "",
+      unique: childFieldDraft.unique || false,
+      isSearchable: childFieldDraft.isSearchable || false,
+      isLoginCredential: false,
+      isHashed: false,
+      isForceDelete: false,
+      enumList:
+        type === "enum" && childEnumValues
+          ? parseEnumText(childEnumValues)
+          : undefined,
+    };
+
+    setChildFields((prev) => {
+      if (editingChildFieldIndex === null) {
+        return [...prev, nextField];
+      }
+
+      return prev.map((field, index) =>
+        index === editingChildFieldIndex ? nextField : field
+      );
+    });
+
+    resetChildFieldDraft();
+  };
+
+  const handleEditChildField = (index: number) => {
+    const field = childFields[index];
+    if (!field) return;
+
+    setChildFieldDraft({
+      name: field.name,
+      type: field.type,
+      tag: field.tag || "",
+      unique: field.unique || false,
+      isSearchable: field.isSearchable || false,
+      enumList: field.enumList,
+    });
+    setChildEnumValues(field.enumList?.join("|") || "");
+    setEditingChildFieldIndex(index);
+  };
+
+  const handleRemoveChildField = (index: number) => {
+    setChildFields((prev) =>
+      prev.filter((_field, fieldIndex) => fieldIndex !== index)
+    );
+    if (editingChildFieldIndex === index) {
+      resetChildFieldDraft();
+    }
   };
 
   const addValidationRule = () => {
@@ -350,7 +468,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       isForceDelete: fieldData.isForceDelete || false,
       enumList: processedEnumList.length > 0 ? processedEnumList : undefined,
       equation: equation?.trim() ? equation.trim() : undefined,
-      children: childFields.length > 0 ? childFields : undefined,
+      children:
+        canHaveChildFields && childFields.length > 0 ? childFields : undefined,
       objectSchemaName: fieldData.objectSchemaName,
       populationSettings: populationSettings,
     };
@@ -376,6 +495,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     setEnumValues("");
     setEquation("");
     setChildFields([]);
+    resetChildFieldDraft();
     setPopulationFieldName("");
     setPopulatedFields([]);
     setDisplayFields([]);
@@ -441,7 +561,12 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     value: string;
                     label: string;
                   } | null;
-                  handleFieldChange("type", selectedValue?.value || "");
+                  const nextType = selectedValue?.value || "";
+                  handleFieldChange("type", nextType);
+                  if (nextType !== "object" && nextType !== "array") {
+                    setChildFields([]);
+                    resetChildFieldDraft();
+                  }
                 }}
                 options={FIELD_TYPES}
                 requiredField={true}
@@ -520,6 +645,176 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     "Define a formula to auto-calculate this field's value using other field names"
                   )}
                 </p>
+              </div>
+            )}
+
+            {/* Child Fields (for object/array types) */}
+            {canHaveChildFields && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {t("Child Fields")}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {fieldData.type === "array"
+                        ? t(
+                            "Each child field describes one object inside this array"
+                          )
+                        : t("Child fields describe the nested object structure")}
+                    </p>
+                  </div>
+                  {editingChildFieldIndex !== null && (
+                    <GenericButton
+                      variant="outline"
+                      size="sm"
+                      onClick={resetChildFieldDraft}
+                    >
+                      {t("Cancel Edit")}
+                    </GenericButton>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3">
+                  <TextInput
+                    label={t("Child Field Name")}
+                    type="text"
+                    value={childFieldDraft.name || ""}
+                    onChange={(value: string) =>
+                      handleChildFieldDraftChange("name", value)
+                    }
+                    placeholder="e.g., quantity"
+                  />
+                  <SelectInput
+                    label={t("Child Field Type")}
+                    value={
+                      CHILD_FIELD_TYPES.find(
+                        (option) => option.value === childFieldDraft.type
+                      ) || null
+                    }
+                    onChange={(value) => {
+                      const selectedValue = value as {
+                        value: string;
+                        label: string;
+                      } | null;
+                      handleChildFieldDraftChange(
+                        "type",
+                        selectedValue?.value || ""
+                      );
+                      if (selectedValue?.value !== "enum") {
+                        setChildEnumValues("");
+                      }
+                    }}
+                    options={CHILD_FIELD_TYPES}
+                    customControlBackgroundColor="white"
+                  />
+                  <TextInput
+                    label={t("Validation Tag")}
+                    type="text"
+                    value={childFieldDraft.tag || ""}
+                    onChange={(value: string) =>
+                      handleChildFieldDraftChange("tag", value)
+                    }
+                    placeholder="e.g., required,positive"
+                  />
+                  {childFieldDraft.type === "enum" && (
+                    <TextInput
+                      label={t("Enum Values")}
+                      type="text"
+                      value={childEnumValues}
+                      onChange={setChildEnumValues}
+                      placeholder="small|medium|large"
+                    />
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("Unique")}
+                    </label>
+                    <CheckSwitch
+                      checked={childFieldDraft.unique || false}
+                      onChange={() =>
+                        handleChildFieldDraftChange(
+                          "unique",
+                          !childFieldDraft.unique
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("Searchable")}
+                    </label>
+                    <CheckSwitch
+                      checked={childFieldDraft.isSearchable || false}
+                      onChange={() =>
+                        handleChildFieldDraftChange(
+                          "isSearchable",
+                          !childFieldDraft.isSearchable
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    <GenericButton
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSaveChildField}
+                      iconLeft={<FiPlus size={12} />}
+                    >
+                      {editingChildFieldIndex === null
+                        ? t("Add Child Field")
+                        : t("Update Child Field")}
+                    </GenericButton>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {childFields.map((childField, index) => (
+                    <div
+                      key={`${childField.name}-${index}`}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {childField.name}
+                          </span>
+                          <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                            {childField.type}
+                          </span>
+                        </div>
+                        {childField.tag && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {t("Tag")}: {childField.tag}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GenericButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditChildField(index)}
+                        >
+                          {t("Edit")}
+                        </GenericButton>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveChildField(index)}
+                          className="p-1.5 text-red-500 hover:text-red-700"
+                          title={t("Remove Child Field")}
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {childFields.length === 0 && (
+                    <p className="text-sm text-gray-500 italic">
+                      {t("No child fields added")}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

@@ -79,6 +79,15 @@ const FormComponentEditor = ({
       .filter((workflow) => workflow.isActive !== false)
       .map((workflow) => ({ schemaName: container.schemaName, workflow })),
   );
+  const workflowBodyOptions = [
+    { key: "items", label: "Items" },
+    ...(value.objectLists || [])
+      .filter((objectList) => objectList.key !== "items")
+      .map((objectList) => ({
+        key: objectList.key,
+        label: objectList.title || objectList.key,
+      })),
+  ];
   const requestPreview = buildFormSubmitRequestPreview(value);
 
   const addCustomField = () => {
@@ -318,40 +327,67 @@ const FormComponentEditor = ({
           )}
 
           {submitMode === "workflow" && (
-            <label className="text-xs font-semibold text-neutral-600 md:col-span-2">
-              Workflow
-              <select
-                value={
-                  value.submit?.workflowSchema && value.submit.workflowName
-                    ? `${value.submit.workflowSchema}::${value.submit.workflowName}`
-                    : ""
-                }
-                onChange={(event) => {
-                  const [workflowSchema, workflowName] =
-                    event.target.value.split("::");
-                  onChange({
-                    ...value,
-                    submit: {
-                      ...value.submit,
-                      mode: "workflow",
-                      workflowSchema,
-                      workflowName,
-                    },
-                  });
-                }}
-                className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
-              >
-                <option value="">Select workflow</option>
-                {workflowOptions.map(({ schemaName, workflow }) => (
-                  <option
-                    key={`${schemaName}::${workflow.name}`}
-                    value={`${schemaName}::${workflow.name}`}
-                  >
-                    {schemaName} / {workflow.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <>
+              <label className="text-xs font-semibold text-neutral-600">
+                Workflow body
+                <select
+                  value={value.submit?.bulkObjectListKey || ""}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      submit: {
+                        ...value.submit,
+                        mode: "workflow",
+                        bulkObjectListKey: event.target.value,
+                      },
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
+                >
+                  <option value="">Record object</option>
+                  {workflowBodyOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-xs font-semibold text-neutral-600">
+                Workflow
+                <select
+                  value={
+                    value.submit?.workflowSchema && value.submit.workflowName
+                      ? `${value.submit.workflowSchema}::${value.submit.workflowName}`
+                      : ""
+                  }
+                  onChange={(event) => {
+                    const [workflowSchema, workflowName] =
+                      event.target.value.split("::");
+                    onChange({
+                      ...value,
+                      submit: {
+                        ...value.submit,
+                        mode: "workflow",
+                        workflowSchema,
+                        workflowName,
+                      },
+                    });
+                  }}
+                  className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
+                >
+                  <option value="">Select workflow</option>
+                  {workflowOptions.map(({ schemaName, workflow }) => (
+                    <option
+                      key={`${schemaName}::${workflow.name}`}
+                      value={`${schemaName}::${workflow.name}`}
+                    >
+                      {schemaName} / {workflow.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
           )}
         </div>
 

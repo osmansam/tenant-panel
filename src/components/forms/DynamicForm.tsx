@@ -254,11 +254,12 @@ const DynamicForm = ({ form, title }: Props) => {
         toast.error(t("Workflow configuration is incomplete"));
         return;
       }
-      const record = (requestBody as { record: Record<string, unknown> }).record;
       await executeWorkflowMutation.mutateAsync({
         workflowName: form.submit.workflowName,
         workflowSchema: form.submit.workflowSchema,
-        record,
+        body: requestBody as
+          | Record<string, unknown>
+          | Array<Record<string, unknown>>,
       });
     } else {
       await createMutation.mutateAsync(

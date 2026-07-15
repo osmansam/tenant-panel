@@ -14,6 +14,57 @@ export const getTableColumnConfig = (
 ): TableColumnConfig | undefined =>
   tableConfig?.columns?.find((column) => column.field === fieldName);
 
+type GenericTableRow = Record<string, unknown>;
+type NestedTableRow<T extends GenericTableRow> = T & {
+  collapsible?: {
+    collapsibleHeader?: string;
+    collapsibleColumns: { key: string; isSortable: boolean }[];
+    collapsibleRows: GenericTableRow[];
+    collapsibleRowKeys: { key: string; isDate: boolean }[];
+  };
+};
+
+const nestedRowValue = (item: unknown): GenericTableRow =>
+  item && typeof item === "object" && !Array.isArray(item)
+    ? (item as GenericTableRow)
+    : { value: item };
+
+export const applyTableNestedRows = <T extends GenericTableRow>(
+  rows: T[],
+  tableConfig: TableComponentConfig | undefined,
+  translate: (value: string) => string = (value) => value,
+): NestedTableRow<T>[] => {
+  const config = tableConfig?.nestedRows;
+  const field = config?.field?.trim();
+  const columns = (config?.columns || []).filter((column) =>
+    column.field?.trim(),
+  );
+
+  if (!config?.enabled || !field || columns.length === 0) {
+    return rows as NestedTableRow<T>[];
+  }
+
+  return rows.map((row) => {
+    const nestedItems = Array.isArray(row[field]) ? row[field] : [];
+
+    return {
+      ...row,
+      collapsible: {
+        collapsibleHeader: config.header?.trim() || undefined,
+        collapsibleColumns: columns.map((column) => ({
+          key: translate(column.displayName?.trim() || column.field.trim()),
+          isSortable: false,
+        })),
+        collapsibleRows: nestedItems.map(nestedRowValue),
+        collapsibleRowKeys: columns.map((column) => ({
+          key: column.field.trim(),
+          isDate: column.type === "date",
+        })),
+      },
+    };
+  });
+};
+
 export const getTableDisplayName = (
   tableConfig: TableComponentConfig | undefined,
   field: Field,

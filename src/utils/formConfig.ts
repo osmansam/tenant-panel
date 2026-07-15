@@ -436,6 +436,13 @@ export const buildFormSubmitRequestBody = (
     );
   }
   if (getFormSubmitMode(form) === "workflow") {
+    if (form.submit?.bulkObjectListKey) {
+      const bulkValue = payload[form.submit.bulkObjectListKey];
+      const bulkItems = normalizeObjectListValue(bulkValue);
+      return bulkItems.length > 0 || Array.isArray(bulkValue)
+        ? bulkItems
+        : [payload];
+    }
     return { record: payload };
   }
   return payload;

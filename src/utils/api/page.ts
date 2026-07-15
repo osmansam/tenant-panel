@@ -180,6 +180,19 @@ export interface PageTableRowsConfig {
   className?: PageRowClassConfig[];
 }
 
+export interface PageTableNestedRowColumnConfig {
+  field: string;
+  displayName?: string;
+  type?: PageTableColumnType;
+}
+
+export interface PageTableNestedRowsConfig {
+  enabled?: boolean;
+  field?: string;
+  header?: string;
+  columns?: PageTableNestedRowColumnConfig[];
+}
+
 export interface PageTableCacheConfig {
   invalidateKeys?: string[];
 }
@@ -272,6 +285,7 @@ export interface PageTableActionConfig {
 export interface PageTableComponentConfig {
   columns?: PageTableColumnConfig[];
   rows?: PageTableRowsConfig;
+  nestedRows?: PageTableNestedRowsConfig;
   cache?: PageTableCacheConfig;
   addButton?: PageTableActionConfig;
   actions?: PageTableActionConfig[];
