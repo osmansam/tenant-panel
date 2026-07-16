@@ -109,6 +109,52 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     );
   }, []);
 
+  const renderChildFields = useCallback(
+    (children: Field[] = []) => {
+      if (!children.length) return null;
+
+      return (
+        <div className="mt-3 space-y-2 border-l-2 border-gray-200 pl-3">
+          {children.map((child, childIndex) => (
+            <div
+              key={`${child.name}-${childIndex}`}
+              className="rounded bg-white px-3 py-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-gray-800">
+                  {child.name}
+                </span>
+                <span
+                  className={`inline-flex rounded px-2 py-1 text-xs font-medium ${getFieldTypeColor(
+                    child.type
+                  )}`}
+                >
+                  {child.type}
+                </span>
+                {child.unique && (
+                  <span className="inline-flex rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800">
+                    {t("Unique")}
+                  </span>
+                )}
+                {child.isSearchable && (
+                  <span className="inline-flex rounded bg-teal-100 px-2 py-1 text-xs font-medium text-teal-800">
+                    {t("Searchable")}
+                  </span>
+                )}
+              </div>
+              {child.tag && (
+                <p className="mt-1 text-xs text-gray-500">
+                  {t("Tag")}: {child.tag}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    },
+    [getFieldTypeColor, t]
+  );
+
   const handleAddField = useCallback(
     (field: Field) => {
       if (container?.id) {
@@ -841,6 +887,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               {t("Object Schema")}: {field.objectSchemaName}
                             </p>
                           )}
+                          {renderChildFields(field.children || [])}
                         </div>
                         <div className="flex items-center space-x-1">
                           <button

@@ -415,6 +415,44 @@ describe("validation and dependencies", () => {
     expect(validatePageBindings(page).map((issue) => issue.code)).toContain("missing_page_filter_cell");
   });
 
+  it("preserves table nested rows before page requests", () => {
+    const page = pageWith(
+      table({
+        table: {
+          nestedRows: {
+            enabled: true,
+            field: "product",
+            header: "Products",
+            columns: [
+              {
+                field: "productDavinciId",
+                displayName: "Davinci ID",
+                type: "number",
+              },
+              { field: "productId", displayName: "Product ID" },
+              { field: "quantity", displayName: "Quantity", type: "number" },
+            ],
+          },
+          filterPanel: { inputs: [] },
+        },
+      }),
+    );
+
+    const normalized = normalizePageRuntimeConfig(page);
+
+    expect(normalized.sections?.[0].component?.table?.nestedRows).toMatchObject(
+      {
+        enabled: true,
+        field: "product",
+        columns: [
+          { field: "productDavinciId" },
+          { field: "productId" },
+          { field: "quantity" },
+        ],
+      },
+    );
+  });
+
   it("normalizes tenant panel page filters before page requests", () => {
     const page: PageModel = {
       name: "Reports",

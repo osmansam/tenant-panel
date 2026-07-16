@@ -61,6 +61,8 @@ import {
   type PageBindingIssue,
 } from "../../utils/pageBindings";
 import {
+  TABLE_COLUMN_TYPE_OPTIONS,
+  TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
@@ -454,19 +456,23 @@ const getDefaultActionsForSource = (
 ) => (sourceType === "schema" ? buildDefaultSchemaActions(fields) : []);
 
 type TableSettingsTab =
+  | "display"
   | "columns"
   | "links"
   | "cellClasses"
   | "rows"
+  | "nestedRows"
   | "actions"
   | "bulkActions"
   | "filterInputs";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
+  { value: "display", label: "Display" },
   { value: "columns", label: "Columns" },
   { value: "links", label: "Links" },
   { value: "cellClasses", label: "Cell Classes" },
   { value: "rows", label: "Row Classes" },
+  { value: "nestedRows", label: "Nested Rows" },
   { value: "actions", label: "Actions" },
   { value: "bulkActions", label: "Bulk Actions" },
   { value: "filterInputs", label: "Filter Inputs" },
@@ -1247,6 +1253,7 @@ const cleanFilterPanelInputs = (
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
+  ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
   columns: (tableConfig.columns || [])
     .filter((column) => column.field.trim())
     .map((column) => ({
@@ -1254,6 +1261,20 @@ const cleanTableConfig = (
       ...(column.type && column.type !== "field" ? { type: column.type } : {}),
       ...(column.displayName?.trim()
         ? { displayName: column.displayName.trim() }
+        : {}),
+      ...(column.type === "lookupLabel" &&
+      column.lookup?.schemaName?.trim() &&
+      column.lookup?.labelField?.trim()
+        ? {
+            lookup: {
+              schemaName: column.lookup.schemaName.trim(),
+              matchField: column.lookup.matchField?.trim() || "_id",
+              labelField: column.lookup.labelField.trim(),
+            },
+          }
+        : {}),
+      ...(column.type === "lookupLabel" && column.fallbackValue?.trim()
+        ? { fallbackValue: column.fallbackValue.trim() }
         : {}),
       ...(column.type === "computedLabel" &&
       (column.computedLabelRules || []).some(
@@ -1319,6 +1340,44 @@ const cleanTableConfig = (
     })),
   ...(cleanRules(tableConfig.rows?.className).length > 0
     ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
+    : {}),
+  ...(tableConfig.nestedRows?.enabled &&
+  tableConfig.nestedRows.field?.trim() &&
+  (tableConfig.nestedRows.columns || []).some((column) => column.field?.trim())
+    ? {
+        nestedRows: {
+          enabled: true,
+          field: tableConfig.nestedRows.field.trim(),
+          ...(tableConfig.nestedRows.header?.trim()
+            ? { header: tableConfig.nestedRows.header.trim() }
+            : {}),
+          columns: (tableConfig.nestedRows.columns || [])
+            .filter((column) => column.field?.trim())
+            .map((column) => ({
+              field: column.field.trim(),
+              ...(column.displayName?.trim()
+                ? { displayName: column.displayName.trim() }
+                : {}),
+              ...(column.type && column.type !== "field"
+                ? { type: column.type }
+                : {}),
+              ...(column.type === "lookupLabel" &&
+              column.lookup?.schemaName?.trim() &&
+              column.lookup?.labelField?.trim()
+                ? {
+                    lookup: {
+                      schemaName: column.lookup.schemaName.trim(),
+                      matchField: column.lookup.matchField?.trim() || "_id",
+                      labelField: column.lookup.labelField.trim(),
+                    },
+                  }
+                : {}),
+              ...(column.type === "lookupLabel" && column.fallbackValue?.trim()
+                ? { fallbackValue: column.fallbackValue.trim() }
+                : {}),
+            })),
+        },
+      }
     : {}),
   ...(tableConfig.cache?.invalidateKeys?.filter((key) => key.trim()).length
     ? {
@@ -1484,6 +1543,7 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
       : {}),
     ...(form.submit?.mode === "workflow"
       ? {
+          bulkObjectListKey: form.submit.bulkObjectListKey?.trim() || "",
           workflowSchema: form.submit.workflowSchema?.trim() || "",
           workflowName: form.submit.workflowName?.trim() || "",
         }
@@ -2567,6 +2627,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
     columns: [],
     rows: { className: [] },
+    nestedRows: { enabled: false, field: "", header: "", columns: [] },
     cache: { invalidateKeys: [] },
     addButton: undefined,
     actions: [],
@@ -2605,7 +2666,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     DistributionBlockItemConfig[]
   >(resizeDistributionBlockItems(3, []));
   const [activeTableSettingsTab, setActiveTableSettingsTab] =
-    useState<TableSettingsTab>("columns");
+    useState<TableSettingsTab>("display");
+  const getLookupFieldOptions = (lookupSchemaName?: string) =>
+    schemaFieldNames(containers || [], lookupSchemaName).map((fieldName) => ({
+      value: fieldName,
+      label: fieldName,
+    }));
+  const buildDefaultLookup = (fieldName: string) => ({
+    schemaName: schemaName || "",
+    matchField: "_id",
+    labelField: fieldName,
+  });
 
   const [isDynamic, setIsDynamic] = useState<boolean>(false);
   const [dynamicLimit, setDynamicLimit] = useState<number>(50);
@@ -2910,6 +2981,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         setTableConfig({
           columns: editingComponent.table.columns || [],
           rows: { className: editingComponent.table.rows?.className || [] },
+          nestedRows: editingComponent.table.nestedRows || {
+            enabled: false,
+            field: "",
+            header: "",
+            columns: [],
+          },
           cache: {
             invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
           },
@@ -3587,6 +3664,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig({
       columns: buildTableColumnsFromFields(container?.fields || []),
       rows: { className: [] },
+      nestedRows: { enabled: false, field: "", header: "", columns: [] },
       cache: { invalidateKeys: [] },
       addButton: buildDefaultCreateAction(container?.fields || []),
       actions: getDefaultActionsForSource("schema", container?.fields || []),
@@ -3786,6 +3864,92 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         (column) => column.field !== fieldName,
       ),
     }));
+  };
+
+  const updateTableNestedRows = (
+    updates: Partial<NonNullable<TableComponentConfig["nestedRows"]>>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      nestedRows: {
+        enabled: false,
+        field: "",
+        header: "",
+        columns: [],
+        ...(current.nestedRows || {}),
+        ...updates,
+      },
+    }));
+  };
+
+  const addTableNestedRowColumn = () => {
+    setTableConfig((current) => {
+      const nestedRows = {
+        enabled: false,
+        field: "",
+        header: "",
+        columns: [],
+        ...(current.nestedRows || {}),
+      };
+      const columns = nestedRows.columns || [];
+      return {
+        ...current,
+        nestedRows: {
+          ...nestedRows,
+          columns: [
+            ...columns,
+            { field: "", type: "field" as const, displayName: "" },
+          ],
+        },
+      };
+    });
+  };
+
+  const updateTableNestedRowColumn = (
+    columnIndex: number,
+    updates: Partial<
+      NonNullable<NonNullable<TableComponentConfig["nestedRows"]>["columns"]>[number]
+    >,
+  ) => {
+    setTableConfig((current) => {
+      const nestedRows = {
+        enabled: false,
+        field: "",
+        header: "",
+        columns: [],
+        ...(current.nestedRows || {}),
+      };
+      const columns = [...(nestedRows.columns || [])];
+      columns[columnIndex] = { ...columns[columnIndex], ...updates };
+      return {
+        ...current,
+        nestedRows: {
+          ...nestedRows,
+          columns,
+        },
+      };
+    });
+  };
+
+  const removeTableNestedRowColumn = (columnIndex: number) => {
+    setTableConfig((current) => {
+      const nestedRows = {
+        enabled: false,
+        field: "",
+        header: "",
+        columns: [],
+        ...(current.nestedRows || {}),
+      };
+      return {
+        ...current,
+        nestedRows: {
+          ...nestedRows,
+          columns: (nestedRows.columns || []).filter(
+            (_, index) => index !== columnIndex,
+          ),
+        },
+      };
+    });
   };
 
   const updateTableColumnLink = (
@@ -6133,13 +6297,44 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                           <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
                             Select a schema to configure table settings.
                           </div>
-                        ) : selectedFields.length === 0 &&
+                        ) : activeTableSettingsTab !== "display" &&
+                          selectedFields.length === 0 &&
                           (tableConfig.columns || []).length === 0 ? (
                           <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
                             Add output fields for this table source.
                           </div>
                         ) : (
                           <>
+                            {activeTableSettingsTab === "display" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="flex items-start justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Table Search
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Show a search input above this table.
+                                    </p>
+                                  </div>
+                                  <label className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={tableConfig.enableSearch !== false}
+                                      onChange={(e) =>
+                                        setTableConfig((current) => ({
+                                          ...current,
+                                          enableSearch: e.target.checked
+                                            ? undefined
+                                            : false,
+                                        }))
+                                      }
+                                    />
+                                    Enabled
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+
                             {activeTableSettingsTab === "columns" && (
                               <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
                                 <button
@@ -6184,6 +6379,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               updateTableColumn(column.field, {
                                                 type: nextType,
                                                 ...(nextType ===
+                                                "lookupLabel"
+                                                  ? {
+                                                      lookup:
+                                                        column.lookup ||
+                                                        buildDefaultLookup(
+                                                          column.field,
+                                                        ),
+                                                    }
+                                                  : {}),
+                                                ...(nextType ===
                                                   "progressBar" &&
                                                 !column.progressBar
                                                   ? {
@@ -6204,36 +6409,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             }}
                                             className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
                                           >
-                                            <option value="field">Field</option>
-                                            <option value="number">
-                                              Number
-                                            </option>
-                                            <option value="currency">
-                                              Currency (₺)
-                                            </option>
-                                            <option value="percentage">
-                                              Percentage (%)
-                                            </option>
-                                            <option value="growthPercentage">
-                                              Growth Percentage (↑ ↓)
-                                            </option>
-                                            <option value="date">Date</option>
-                                            <option value="boolean">
-                                              Boolean (Badge)
-                                            </option>
-                                            <option value="image">Image</option>
-                                            <option value="badge">
-                                              Badge / Enum
-                                            </option>
-                                            <option value="array">
-                                              Array (comma-separated)
-                                            </option>
-                                            <option value="computedLabel">
-                                              Computed Label
-                                            </option>
-                                            <option value="progressBar">
-                                              Progress Bar
-                                            </option>
+                                            {TABLE_COLUMN_TYPE_OPTIONS.map(
+                                              (option) => (
+                                                <option
+                                                  key={option.value}
+                                                  value={option.value}
+                                                >
+                                                  {option.label}
+                                                </option>
+                                              ),
+                                            )}
                                           </select>
                                         </div>
                                         <div>
@@ -6265,6 +6450,165 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </button>
                                         </div>
                                       </div>
+                                      {(column.type || "field") ===
+                                        "lookupLabel" && (
+                                        <div className="space-y-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Lookup Schema
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.schemaName ||
+                                                  ""
+                                                }
+                                                onChange={(e) => {
+                                                  const nextSchemaName =
+                                                    e.target.value;
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        schemaName:
+                                                          nextSchemaName,
+                                                        matchField:
+                                                          column.lookup
+                                                            ?.matchField ||
+                                                          "_id",
+                                                        labelField:
+                                                          column.lookup
+                                                            ?.labelField || "",
+                                                      },
+                                                    },
+                                                  );
+                                                }}
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="">
+                                                  Select schema
+                                                </option>
+                                                {containerOptions.map(
+                                                  (option) => (
+                                                    <option
+                                                      key={option.value}
+                                                      value={option.value}
+                                                    >
+                                                      {option.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Match Field
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.matchField ||
+                                                  "_id"
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        matchField:
+                                                          e.target.value,
+                                                      },
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="_id">_id</option>
+                                                {getLookupFieldOptions(
+                                                  column.lookup?.schemaName,
+                                                ).map((option) => (
+                                                  <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                  >
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Label Field
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.labelField ||
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        labelField:
+                                                          e.target.value,
+                                                      },
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="">
+                                                  Select label
+                                                </option>
+                                                {getLookupFieldOptions(
+                                                  column.lookup?.schemaName,
+                                                ).map((option) => (
+                                                  <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                  >
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Fallback Value
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  column.fallbackValue || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      fallbackValue:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="Raw value"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
                                       {(column.type || "field") ===
                                         "computedLabel" && (
                                         <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
@@ -6831,6 +7175,359 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       </button>
                                     </div>
                                   ),
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "nestedRows" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Nested Rows
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Expand each table row with records from an
+                                      array field.
+                                    </p>
+                                  </div>
+                                  <label className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-medium text-neutral-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        tableConfig.nestedRows?.enabled === true
+                                      }
+                                      onChange={(e) =>
+                                        updateTableNestedRows({
+                                          enabled: e.target.checked,
+                                        })
+                                      }
+                                    />
+                                    Enabled
+                                  </label>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                      Array Field
+                                    </label>
+                                    <input
+                                      type="text"
+                                      list="table-nested-array-fields"
+                                      value={tableConfig.nestedRows?.field || ""}
+                                      onChange={(e) =>
+                                        updateTableNestedRows({
+                                          field: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      placeholder="product"
+                                    />
+                                    <datalist id="table-nested-array-fields">
+                                      {selectedFields.map((field) => (
+                                        <option
+                                          key={field.name}
+                                          value={field.name}
+                                        />
+                                      ))}
+                                    </datalist>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                      Header
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={
+                                        tableConfig.nestedRows?.header || ""
+                                      }
+                                      onChange={(e) =>
+                                        updateTableNestedRows({
+                                          header: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      placeholder="Products"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                    Child Columns
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={addTableNestedRowColumn}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                  >
+                                    <FiPlus size={14} />
+                                    Add column
+                                  </button>
+                                </div>
+
+                                {(tableConfig.nestedRows?.columns || [])
+                                  .length === 0 ? (
+                                  <div className="text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-lg p-4">
+                                    Add child columns such as
+                                    productDavinciId, productId, and quantity.
+                                  </div>
+                                ) : (
+                                  (tableConfig.nestedRows?.columns || []).map(
+                                    (column, columnIndex) => (
+                                      <div
+                                        key={`nested-column-${columnIndex}`}
+                                        className="grid grid-cols-[minmax(160px,1fr)_minmax(160px,1fr)_150px_auto] gap-3 rounded-xl border border-neutral-200 p-4"
+                                      >
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Field
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.field}
+                                            onChange={(e) =>
+                                              updateTableNestedRowColumn(
+                                                columnIndex,
+                                                { field: e.target.value },
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="quantity"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Display Name
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.displayName || ""}
+                                            onChange={(e) =>
+                                              updateTableNestedRowColumn(
+                                                columnIndex,
+                                                {
+                                                  displayName: e.target.value,
+                                                },
+                                              )
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder={column.field}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                            Type
+                                          </label>
+                                          <select
+                                            value={column.type || "field"}
+                                            onChange={(e) => {
+                                              const nextType = e.target
+                                                .value as TableColumnConfig["type"];
+                                              updateTableNestedRowColumn(
+                                                columnIndex,
+                                                {
+                                                  type: nextType,
+                                                  ...(nextType ===
+                                                  "lookupLabel"
+                                                    ? {
+                                                        lookup:
+                                                          column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          ),
+                                                      }
+                                                    : {}),
+                                                },
+                                              );
+                                            }}
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                          >
+                                            {TABLE_NESTED_COLUMN_TYPE_OPTIONS.map(
+                                              (option) => (
+                                                <option
+                                                  key={option.value}
+                                                  value={option.value}
+                                                >
+                                                  {option.label}
+                                                </option>
+                                              ),
+                                            )}
+                                          </select>
+                                        </div>
+                                        <div className="flex items-end">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableNestedRowColumn(
+                                                columnIndex,
+                                              )
+                                            }
+                                            className="rounded-lg bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+                                            title="Remove nested column"
+                                          >
+                                            <FiTrash2 size={16} />
+                                          </button>
+                                        </div>
+                                        {(column.type || "field") ===
+                                          "lookupLabel" && (
+                                          <div className="col-span-full grid grid-cols-1 md:grid-cols-4 gap-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Lookup Schema
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.schemaName ||
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableNestedRowColumn(
+                                                    columnIndex,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        schemaName:
+                                                          e.target.value,
+                                                        matchField:
+                                                          column.lookup
+                                                            ?.matchField ||
+                                                          "_id",
+                                                        labelField:
+                                                          column.lookup
+                                                            ?.labelField || "",
+                                                      },
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="">
+                                                  Select schema
+                                                </option>
+                                                {containerOptions.map(
+                                                  (option) => (
+                                                    <option
+                                                      key={option.value}
+                                                      value={option.value}
+                                                    >
+                                                      {option.label}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Match Field
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.matchField ||
+                                                  "_id"
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableNestedRowColumn(
+                                                    columnIndex,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        matchField:
+                                                          e.target.value,
+                                                      },
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="_id">_id</option>
+                                                {getLookupFieldOptions(
+                                                  column.lookup?.schemaName,
+                                                ).map((option) => (
+                                                  <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                  >
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Label Field
+                                              </label>
+                                              <select
+                                                value={
+                                                  column.lookup?.labelField ||
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableNestedRowColumn(
+                                                    columnIndex,
+                                                    {
+                                                      lookup: {
+                                                        ...(column.lookup ||
+                                                          buildDefaultLookup(
+                                                            column.field,
+                                                          )),
+                                                        labelField:
+                                                          e.target.value,
+                                                      },
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                              >
+                                                <option value="">
+                                                  Select label
+                                                </option>
+                                                {getLookupFieldOptions(
+                                                  column.lookup?.schemaName,
+                                                ).map((option) => (
+                                                  <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                  >
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                                Fallback Value
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={
+                                                  column.fallbackValue || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableNestedRowColumn(
+                                                    columnIndex,
+                                                    {
+                                                      fallbackValue:
+                                                        e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="Raw value"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ),
+                                  )
                                 )}
                               </div>
                             )}

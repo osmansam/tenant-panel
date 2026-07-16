@@ -131,6 +131,7 @@ export interface PageTableLinkConfig {
 
 export type PageTableColumnType =
   | "field"
+  | "lookupLabel"
   | "computedLabel"
   | "progressBar"
   | "number"
@@ -165,10 +166,17 @@ export interface PageTableProgressBarConfig {
   colorRules?: PageTableProgressBarColorRule[];
 }
 
+export interface PageTableLookupLabelConfig {
+  schemaName?: string;
+  matchField?: string;
+  labelField?: string;
+}
+
 export interface PageTableColumnConfig {
   field: string;
   type?: PageTableColumnType;
   displayName?: string;
+  lookup?: PageTableLookupLabelConfig;
   computedLabelRules?: PageTableComputedLabelRule[];
   fallbackValue?: string;
   progressBar?: PageTableProgressBarConfig;
@@ -178,6 +186,21 @@ export interface PageTableColumnConfig {
 
 export interface PageTableRowsConfig {
   className?: PageRowClassConfig[];
+}
+
+export interface PageTableNestedRowColumnConfig {
+  field: string;
+  displayName?: string;
+  type?: PageTableColumnType;
+  lookup?: PageTableLookupLabelConfig;
+  fallbackValue?: string;
+}
+
+export interface PageTableNestedRowsConfig {
+  enabled?: boolean;
+  field?: string;
+  header?: string;
+  columns?: PageTableNestedRowColumnConfig[];
 }
 
 export interface PageTableCacheConfig {
@@ -272,6 +295,7 @@ export interface PageTableActionConfig {
 export interface PageTableComponentConfig {
   columns?: PageTableColumnConfig[];
   rows?: PageTableRowsConfig;
+  nestedRows?: PageTableNestedRowsConfig;
   cache?: PageTableCacheConfig;
   addButton?: PageTableActionConfig;
   actions?: PageTableActionConfig[];

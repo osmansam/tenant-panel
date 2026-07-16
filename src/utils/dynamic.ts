@@ -6,6 +6,7 @@ import { useCurrentProject } from "../hooks/useCurrentProject";
 import { useTenant } from "../hooks/useTenant";
 import { useGet, useMutationApi } from "../utils/api/factory";
 import { axiosClient } from "./api/axiosClient";
+import { getSelectionQueryConfig } from "./selectionQuery";
 
 export interface DynamicPayload<T> {
   items: T[];
@@ -317,20 +318,18 @@ export function useDynamicCrud<T extends { _id: string | number }>(
   async function executeWorkflowRequest({
     workflowName,
     workflowSchema,
-    record,
-    oldRecord,
+    body,
   }: {
     workflowName: string;
     workflowSchema?: string;
-    record: Record<string, unknown>;
-    oldRecord?: Record<string, unknown>;
+    body: Record<string, unknown> | Array<Record<string, unknown>>;
   }) {
     const targetSchema = workflowSchema || schemaName;
     const { data } = await axiosClient.post(
       `${BASE}/workflow/${encodeURIComponent(workflowName)}?${qs({
         schemaName: targetSchema,
       })}`,
-      { record, oldRecord },
+      body,
       { headers: { "Content-Type": "application/json" } },
     );
     return data;
@@ -352,8 +351,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
   const executeWorkflow = (payload: {
     workflowName: string;
     workflowSchema?: string;
-    record: Record<string, unknown>;
-    oldRecord?: Record<string, unknown>;
+    body: Record<string, unknown> | Array<Record<string, unknown>>;
   }) => executeWorkflowMutation.mutate(payload);
 
   return {
@@ -647,17 +645,14 @@ export function useGetSelection<T>(
     currentTenant?.slug && currentProject?.slug
       ? `/${currentTenant.slug}/${currentProject.slug}${BASE}`
       : BASE;
-  const path = `${scopedBase}/selection?${qs({ schemaName, fieldName, valueField })}`;
-
-  const queryKey = [
-    "dynamic",
-    currentTenant?.slug || "",
-    currentProject?.slug || "",
-    schemaName || "",
-    "selection",
-    fieldName || "",
-    valueField || "",
-  ] as const;
+  const { path, queryKey } = getSelectionQueryConfig({
+    schemaName,
+    fieldName,
+    valueField,
+    tenantSlug: currentTenant?.slug || "",
+    projectSlug: currentProject?.slug || "",
+    basePath: scopedBase,
+  });
 
   const data = useGet<T>(path, queryKey, enabled);
 

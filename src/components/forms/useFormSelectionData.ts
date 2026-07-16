@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { FormComponentConfig } from "../../types/page";
 import { get } from "../../utils/api";
 import { FormSelectionDataMap } from "../../utils/formConfig";
+import { getSelectionQueryConfig } from "../../utils/selectionQuery";
 
 type SelectionResponse =
   | Array<Record<string, unknown>>
@@ -9,9 +10,6 @@ type SelectionResponse =
       data?: Array<Record<string, unknown>>;
       items?: Array<Record<string, unknown>>;
     };
-
-const queryString = (params: Record<string, string>) =>
-  new URLSearchParams(params).toString();
 
 export const useFormSelectionData = (
   form: FormComponentConfig,
@@ -25,21 +23,15 @@ export const useFormSelectionData = (
   const queries = useQueries({
     queries: fields.map((field) => {
       const fieldName = field.sourceLabelField || field.sourceValueField || "_id";
+      const { path, queryKey } = getSelectionQueryConfig({
+        schemaName: field.sourceSchemaName || "",
+        fieldName,
+      });
       return {
-        queryKey: [
-          "dynamic",
-          field.sourceSchemaName,
-          "selection",
-          fieldName,
-          "form-options",
-          field.formKey,
-        ],
+        queryKey,
         queryFn: () =>
           get<SelectionResponse>({
-            path: `/dynamic/selection?${queryString({
-              schemaName: field.sourceSchemaName || "",
-              fieldName,
-            })}`,
+            path,
           }),
         enabled: Boolean(field.sourceSchemaName && fieldName),
         staleTime: Infinity,

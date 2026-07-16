@@ -48,13 +48,17 @@ import {
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
 import {
+  applyTableNestedRows,
   getComputedLabelValue,
+  getLookupLabelValue,
   getProgressBarValue,
   getTableDataFieldNames,
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
+  isTableSearchEnabled,
 } from "../../../utils/tableConfig";
+import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -289,6 +293,7 @@ export default function GenericPaginatedPage({
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
+  const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
   const rowKeys = useMemo(() => {
     const constantFilterKeys = constantFilter
@@ -362,6 +367,22 @@ export default function GenericPaginatedPage({
           }
 
           rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "lookupLabel") {
+          const getLookupValue = (row: GenericItem) =>
+            getLookupLabelValue(columnConfig, row, lookupSelectionDataMap);
+
+          if (rowKeyClassName) {
+            rowKey.className = (row: GenericItem) =>
+              getMatchingRowClassNames(
+                { ...row, [f.name]: getLookupValue(row) },
+                rowKeyClassName,
+              );
+          }
+
+          rowKey.node = (row: GenericItem) => <span>{getLookupValue(row)}</span>;
           return rowKey;
         }
 
@@ -659,6 +680,7 @@ export default function GenericPaginatedPage({
     displayFields,
     updateDynamicItem,
     selectionDataMap,
+    lookupSelectionDataMap,
     constantFilter,
     tableConfig,
   ]);
@@ -823,7 +845,16 @@ export default function GenericPaginatedPage({
     };
   }, [mockItems, rowsPerPage, currentPage]);
 
-  const rows = useMemo(() => itemsPayload?.items || [], [itemsPayload?.items]);
+  const rows = useMemo(
+    () =>
+      applyTableNestedRows(
+        (itemsPayload?.items || []) as GenericItem[],
+        tableConfig,
+        t,
+        lookupSelectionDataMap,
+      ),
+    [itemsPayload?.items, tableConfig, t, lookupSelectionDataMap],
+  );
 
   const outsideSort = useMemo(
     () => ({ filterPanelFormElements, setFilterPanelFormElements }),
@@ -845,6 +876,7 @@ export default function GenericPaginatedPage({
     () => ({ t, filterPanelFormElements, setFilterPanelFormElements }),
     [t, filterPanelFormElements],
   );
+  const searchEnabled = isTableSearchEnabled(tableConfig);
 
   const rowStyleFunction = useCallback(
     (row: GenericItem): React.CSSProperties => {
@@ -1948,12 +1980,12 @@ export default function GenericPaginatedPage({
           rowStyleFunction={rowStyleFunction}
           title={customTitle || t(humanize(schemaName))}
           addButton={addButton}
-          isCollapsible={false}
+          isCollapsible={tableConfig?.nestedRows?.enabled === true}
           isActionsActive={isActionsActive}
           isSearch={false}
           outsideSortProps={outsideSort}
           {...(pagination && { pagination })}
-          outsideSearchProps={outsideSearchProps}
+          outsideSearchProps={searchEnabled ? outsideSearchProps : undefined}
           selectionActions={selectionActions}
           isExcel={false}
           onExcelUpload={undefined}

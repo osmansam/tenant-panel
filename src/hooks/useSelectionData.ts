@@ -2,16 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { get } from "../utils/api";
 import { Field } from "../utils/api/container";
-
-const BASE = "/dynamic";
-
-// Helper to stringify query params (copied from dynamic.ts to avoid circular deps or export issues)
-const qs = (params: Record<string, unknown>) =>
-  new URLSearchParams(
-    Object.entries(params)
-      .filter(([, v]) => v !== undefined && v !== null && v !== "")
-      .map(([k, v]) => [k, String(v)])
-  ).toString();
+import { getSelectionQueryConfig } from "../utils/selectionQuery";
 
 /**
  * Custom hook to dynamically fetch selection data for fields with populationSettings.
@@ -41,11 +32,13 @@ export function useSelectionData(
       const schemaName = field.objectSchemaName || "";
       const fieldName = field.populationSettings?.inputSelectionField || "";
       const hasParams = Boolean(schemaName && fieldName);
-      
-      const path = `${BASE}/selection?${qs({ schemaName, fieldName })}`;
+      const { path, queryKey } = getSelectionQueryConfig({
+        schemaName,
+        fieldName,
+      });
       
       return {
-        queryKey: ["dynamic", schemaName, "selection", fieldName],
+        queryKey,
         queryFn: () => get<Array<Record<string, unknown>>>({ path }),
         enabled: hasParams,
         staleTime: Infinity,

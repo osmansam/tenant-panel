@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Field } from "./api/container";
 import {
   TABLE_ACTION_KIND_OPTIONS,
+  TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
@@ -101,5 +102,12 @@ describe("page designer table config", () => {
       "update",
       "link",
     ]);
+  });
+
+  it("offers lookup label as a table column type", () => {
+    expect(TABLE_COLUMN_TYPE_OPTIONS).toContainEqual({
+      value: "lookupLabel",
+      label: "Lookup Label",
+    });
   });
 });

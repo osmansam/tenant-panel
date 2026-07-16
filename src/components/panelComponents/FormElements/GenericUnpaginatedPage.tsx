@@ -29,12 +29,16 @@ import {
   evaluateRowCondition,
 } from "../../../utils/genericPageHelpers";
 import {
+  applyTableNestedRows,
   getComputedLabelValue,
+  getLookupLabelValue,
   getProgressBarValue,
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
+  isTableSearchEnabled,
 } from "../../../utils/tableConfig";
+import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -212,8 +216,7 @@ export default function GenericUnpaginatedPage({
     (payload: {
       workflowName: string;
       workflowSchema?: string;
-      record: Record<string, unknown>;
-      oldRecord?: Record<string, unknown>;
+      body: Record<string, unknown> | Array<Record<string, unknown>>;
     }) => {
       console.log("Preview mode: Execute workflow", payload);
     },
@@ -254,6 +257,7 @@ export default function GenericUnpaginatedPage({
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
+  const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
   const rowKeys = useMemo(
     () =>
@@ -323,6 +327,22 @@ export default function GenericUnpaginatedPage({
           }
 
           rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "lookupLabel") {
+          const getLookupValue = (row: GenericItem) =>
+            getLookupLabelValue(columnConfig, row, lookupSelectionDataMap);
+
+          if (rowKeyClassName) {
+            rowKey.className = (row: GenericItem) =>
+              getMatchingRowClassNames(
+                { ...row, [f.name]: getLookupValue(row) },
+                rowKeyClassName,
+              );
+          }
+
+          rowKey.node = (row: GenericItem) => <span>{getLookupValue(row)}</span>;
           return rowKey;
         }
 
@@ -616,7 +636,14 @@ export default function GenericUnpaginatedPage({
 
         return rowKey;
       }),
-    [displayFields, updateDynamicItem, selectionDataMap, t, tableConfig],
+    [
+      displayFields,
+      updateDynamicItem,
+      selectionDataMap,
+      lookupSelectionDataMap,
+      t,
+      tableConfig,
+    ],
   );
 
   const columns = useMemo(() => {
@@ -1415,11 +1442,13 @@ export default function GenericUnpaginatedPage({
       executeWorkflow({
         workflowName: bulkEditActionConfig.submit.workflowName,
         workflowSchema: bulkEditActionConfig.submit.workflowSchema || schemaName,
-        record: {
-          selectedIds: (selectedRows as GenericItem[]).map((r) => r._id),
-          updates,
-          items,
-          functionName: bulkEditActionConfig.submit.functionName,
+        body: {
+          record: {
+            selectedIds: (selectedRows as GenericItem[]).map((r) => r._id),
+            updates,
+            items,
+            functionName: bulkEditActionConfig.submit.functionName,
+          },
         },
       });
     } else {
@@ -1511,10 +1540,12 @@ export default function GenericUnpaginatedPage({
         workflowName: bulkDeleteActionConfig.submit.workflowName,
         workflowSchema:
           bulkDeleteActionConfig.submit.workflowSchema || schemaName,
-        record: {
-          selectedIds: items.map((item) => item._id),
-          items,
-          functionName: bulkDeleteActionConfig.submit.functionName,
+        body: {
+          record: {
+            selectedIds: items.map((item) => item._id),
+            items,
+            functionName: bulkDeleteActionConfig.submit.functionName,
+          },
         },
       });
     } else {
@@ -1741,7 +1772,10 @@ export default function GenericUnpaginatedPage({
     ],
   );
 
-  const rows = useMemo(() => items || [], [items]);
+  const rows = useMemo(
+    () => applyTableNestedRows(items || [], tableConfig, t, lookupSelectionDataMap),
+    [items, tableConfig, t, lookupSelectionDataMap],
+  );
 
   return (
     <>
@@ -1754,8 +1788,9 @@ export default function GenericUnpaginatedPage({
           rowStyleFunction={rowStyleFunction}
           title={t(humanize(schemaName))}
           addButton={addButton}
-          isCollapsible={false}
+          isCollapsible={tableConfig?.nestedRows?.enabled === true}
           isActionsActive={actionsEnabled}
+          isSearch={isTableSearchEnabled(tableConfig)}
           selectionActions={selectionActions}
           isExcel={false}
           onExcelUpload={undefined}
