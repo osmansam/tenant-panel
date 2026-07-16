@@ -5,6 +5,32 @@ import type {
 } from "../types/page";
 import type { Field } from "./api/container";
 
+export const TABLE_COLUMN_TYPE_OPTIONS: {
+  value: NonNullable<TableColumnConfig["type"]>;
+  label: string;
+}[] = [
+  { value: "field", label: "Field" },
+  { value: "lookupLabel", label: "Lookup Label" },
+  { value: "number", label: "Number" },
+  { value: "currency", label: "Currency (₺)" },
+  { value: "percentage", label: "Percentage (%)" },
+  { value: "growthPercentage", label: "Growth Percentage (↑ ↓)" },
+  { value: "date", label: "Date" },
+  { value: "boolean", label: "Boolean (Badge)" },
+  { value: "image", label: "Image" },
+  { value: "badge", label: "Badge / Enum" },
+  { value: "array", label: "Array (comma-separated)" },
+  { value: "computedLabel", label: "Computed Label" },
+  { value: "progressBar", label: "Progress Bar" },
+];
+
+export const TABLE_NESTED_COLUMN_TYPE_OPTIONS: {
+  value: NonNullable<TableColumnConfig["type"]>;
+  label: string;
+}[] = TABLE_COLUMN_TYPE_OPTIONS.filter((option) =>
+  ["field", "lookupLabel", "number", "date"].includes(option.value),
+);
+
 export const TABLE_ACTION_KIND_OPTIONS: {
   value: TableActionConfig["kind"];
   label: string;

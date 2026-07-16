@@ -6,6 +6,7 @@ import { useCurrentProject } from "../hooks/useCurrentProject";
 import { useTenant } from "../hooks/useTenant";
 import { useGet, useMutationApi } from "../utils/api/factory";
 import { axiosClient } from "./api/axiosClient";
+import { getSelectionQueryConfig } from "./selectionQuery";
 
 export interface DynamicPayload<T> {
   items: T[];
@@ -644,17 +645,14 @@ export function useGetSelection<T>(
     currentTenant?.slug && currentProject?.slug
       ? `/${currentTenant.slug}/${currentProject.slug}${BASE}`
       : BASE;
-  const path = `${scopedBase}/selection?${qs({ schemaName, fieldName, valueField })}`;
-
-  const queryKey = [
-    "dynamic",
-    currentTenant?.slug || "",
-    currentProject?.slug || "",
-    schemaName || "",
-    "selection",
-    fieldName || "",
-    valueField || "",
-  ] as const;
+  const { path, queryKey } = getSelectionQueryConfig({
+    schemaName,
+    fieldName,
+    valueField,
+    tenantSlug: currentTenant?.slug || "",
+    projectSlug: currentProject?.slug || "",
+    basePath: scopedBase,
+  });
 
   const data = useGet<T>(path, queryKey, enabled);
 

@@ -31,11 +31,14 @@ import {
 import {
   applyTableNestedRows,
   getComputedLabelValue,
+  getLookupLabelValue,
   getProgressBarValue,
   getTableCellClassName,
   getTableDisplayName,
   getTableLinkConfig,
+  isTableSearchEnabled,
 } from "../../../utils/tableConfig";
+import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -254,6 +257,7 @@ export default function GenericUnpaginatedPage({
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
+  const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
   const rowKeys = useMemo(
     () =>
@@ -323,6 +327,22 @@ export default function GenericUnpaginatedPage({
           }
 
           rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "lookupLabel") {
+          const getLookupValue = (row: GenericItem) =>
+            getLookupLabelValue(columnConfig, row, lookupSelectionDataMap);
+
+          if (rowKeyClassName) {
+            rowKey.className = (row: GenericItem) =>
+              getMatchingRowClassNames(
+                { ...row, [f.name]: getLookupValue(row) },
+                rowKeyClassName,
+              );
+          }
+
+          rowKey.node = (row: GenericItem) => <span>{getLookupValue(row)}</span>;
           return rowKey;
         }
 
@@ -616,7 +636,14 @@ export default function GenericUnpaginatedPage({
 
         return rowKey;
       }),
-    [displayFields, updateDynamicItem, selectionDataMap, t, tableConfig],
+    [
+      displayFields,
+      updateDynamicItem,
+      selectionDataMap,
+      lookupSelectionDataMap,
+      t,
+      tableConfig,
+    ],
   );
 
   const columns = useMemo(() => {
@@ -1746,8 +1773,8 @@ export default function GenericUnpaginatedPage({
   );
 
   const rows = useMemo(
-    () => applyTableNestedRows(items || [], tableConfig, t),
-    [items, tableConfig, t],
+    () => applyTableNestedRows(items || [], tableConfig, t, lookupSelectionDataMap),
+    [items, tableConfig, t, lookupSelectionDataMap],
   );
 
   return (
@@ -1763,6 +1790,7 @@ export default function GenericUnpaginatedPage({
           addButton={addButton}
           isCollapsible={tableConfig?.nestedRows?.enabled === true}
           isActionsActive={actionsEnabled}
+          isSearch={isTableSearchEnabled(tableConfig)}
           selectionActions={selectionActions}
           isExcel={false}
           onExcelUpload={undefined}

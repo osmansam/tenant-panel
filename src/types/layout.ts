@@ -108,6 +108,7 @@ export interface TableCacheConfig {
 }
 
 export interface TableComponentConfig {
+  enableSearch?: boolean;
   columns?: TableColumnConfig[];
   rows?: TableRowsConfig;
   nestedRows?: TableNestedRowsConfig;

@@ -15,6 +15,7 @@ import { get } from "./api";
 import { Field } from "./api/container";
 import { evaluateRowCondition } from "./genericPageHelpers";
 import { getIconByName } from "./menuIcons";
+import { getSelectionQueryConfig } from "./selectionQuery";
 
 type GenericItem = Record<string, unknown> & { _id: string };
 type ActionSelectDataMap = Map<string, Array<Record<string, unknown>>>;
@@ -24,13 +25,6 @@ type SelectionResponse =
       data?: Array<Record<string, unknown>>;
       items?: Array<Record<string, unknown>>;
     };
-
-const qs = (params: Record<string, unknown>) =>
-  new URLSearchParams(
-    Object.entries(params)
-      .filter(([, v]) => v !== undefined && v !== null && v !== "")
-      .map(([k, v]) => [k, String(v)]),
-  ).toString();
 
 const getSelectionFieldName = (field: TableActionFormFieldConfig) =>
   field.sourceLabelField || field.sourceValueField || "_id";
@@ -134,19 +128,13 @@ export const useActionFormSelectionData = (
   const queryResults = useQueries({
     queries: schemaSelectFields.map(({ field }) => {
       const fieldName = getSelectionFieldName(field);
-      const path = `/dynamic/selection?${qs({
-        schemaName: field.sourceSchemaName,
+      const { path, queryKey } = getSelectionQueryConfig({
+        schemaName: field.sourceSchemaName || "",
         fieldName,
-      })}`;
+      });
 
       return {
-        queryKey: [
-          "dynamic",
-          field.sourceSchemaName,
-          "selection",
-          fieldName,
-          "action-options",
-        ],
+        queryKey,
         queryFn: () => get<SelectionResponse>({ path }),
         enabled: Boolean(field.sourceSchemaName && fieldName),
         staleTime: Infinity,

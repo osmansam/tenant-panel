@@ -1,4 +1,9 @@
-import { TableColumnConfig, TableComponentConfig } from "../types/page";
+import {
+  TableColumnConfig,
+  TableComponentConfig,
+  TableLookupLabelConfig,
+  TableNestedRowColumnConfig,
+} from "../types/page";
 import { Field, Frontend } from "./api/container";
 
 const CONDITION_KEYWORD_VALUES = new Set([
@@ -14,13 +19,25 @@ export const getTableColumnConfig = (
 ): TableColumnConfig | undefined =>
   tableConfig?.columns?.find((column) => column.field === fieldName);
 
+export const isTableSearchEnabled = (
+  tableConfig: TableComponentConfig | undefined,
+): boolean => tableConfig?.enableSearch !== false;
+
 type GenericTableRow = Record<string, unknown>;
+type LookupColumnConfig =
+  | TableColumnConfig
+  | (TableNestedRowColumnConfig & { fallbackValue?: string });
+export type TableLookupSelectionDataMap = Map<string, GenericTableRow[]>;
 type NestedTableRow<T extends GenericTableRow> = T & {
   collapsible?: {
     collapsibleHeader?: string;
     collapsibleColumns: { key: string; isSortable: boolean }[];
     collapsibleRows: GenericTableRow[];
-    collapsibleRowKeys: { key: string; isDate: boolean }[];
+    collapsibleRowKeys: {
+      key: string;
+      isDate: boolean;
+      node?: (row: GenericTableRow) => unknown;
+    }[];
   };
 };
 
@@ -29,10 +46,85 @@ const nestedRowValue = (item: unknown): GenericTableRow =>
     ? (item as GenericTableRow)
     : { value: item };
 
+export const getTableLookupKey = (
+  lookup: TableLookupLabelConfig | undefined,
+): string =>
+  [
+    lookup?.schemaName?.trim() || "",
+    lookup?.matchField?.trim() || "_id",
+    lookup?.labelField?.trim() || "",
+  ].join("::");
+
+const normalizeLookupValue = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
+const rawColumnValue = (
+  column: Pick<LookupColumnConfig, "field">,
+  row: GenericTableRow,
+) => row[column.field];
+
+export const getLookupLabelValue = (
+  column: LookupColumnConfig,
+  row: GenericTableRow,
+  lookupData: TableLookupSelectionDataMap = new Map(),
+): string => {
+  const rawValue = rawColumnValue(column, row);
+  const fallback =
+    column.fallbackValue !== undefined
+      ? column.fallbackValue
+      : rawValue === undefined || rawValue === null
+      ? ""
+      : String(rawValue);
+  const lookup = column.lookup;
+  if (!lookup) return fallback;
+  const schemaName = lookup.schemaName?.trim();
+  const labelField = lookup.labelField?.trim();
+  if (!schemaName || !labelField) return fallback;
+
+  const matchField = lookup.matchField?.trim() || "_id";
+  const rowMatchValue = normalizeLookupValue(rawValue);
+  if (rowMatchValue === undefined) return fallback;
+
+  const match = (lookupData.get(getTableLookupKey(lookup)) || []).find(
+    (item) => normalizeLookupValue(item[matchField]) === rowMatchValue,
+  );
+  const label = match?.[labelField];
+  return label === undefined || label === null || label === ""
+    ? fallback
+    : String(label);
+};
+
+export const collectTableLookupConfigs = (
+  tableConfig: TableComponentConfig | undefined,
+): TableLookupLabelConfig[] => {
+  const lookups = [
+    ...(tableConfig?.columns || []),
+    ...(tableConfig?.nestedRows?.columns || []),
+  ]
+    .filter((column) => column.type === "lookupLabel")
+    .map((column) => column.lookup)
+    .filter(
+      (lookup): lookup is TableLookupLabelConfig =>
+        Boolean(lookup?.schemaName?.trim() && lookup?.labelField?.trim()),
+    );
+
+  const seen = new Set<string>();
+  return lookups.filter((lookup) => {
+    const key = getTableLookupKey(lookup);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const applyTableNestedRows = <T extends GenericTableRow>(
   rows: T[],
   tableConfig: TableComponentConfig | undefined,
   translate: (value: string) => string = (value) => value,
+  lookupData: TableLookupSelectionDataMap = new Map(),
 ): NestedTableRow<T>[] => {
   const config = tableConfig?.nestedRows;
   const field = config?.field?.trim();
@@ -59,6 +151,12 @@ export const applyTableNestedRows = <T extends GenericTableRow>(
         collapsibleRowKeys: columns.map((column) => ({
           key: column.field.trim(),
           isDate: column.type === "date",
+          ...(column.type === "lookupLabel"
+            ? {
+                node: (nestedRow: GenericTableRow) =>
+                  getLookupLabelValue(column, nestedRow, lookupData),
+              }
+            : {}),
         })),
       },
     };
@@ -223,6 +321,10 @@ export const getTableDataFieldNames = (
       });
     }
   });
+
+  if (tableConfig.nestedRows?.enabled && tableConfig.nestedRows.field?.trim()) {
+    fields.add(tableConfig.nestedRows.field.trim());
+  }
 
   return Array.from(fields);
 };
