@@ -84,3 +84,6 @@ export * from "./container";
 
 // Export role schema API
 export * from "./roleInfo";
+
+// Export integration credential API
+export * from "./integration";

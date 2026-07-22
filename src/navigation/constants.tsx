@@ -15,6 +15,7 @@ export enum Routes {
   AuditLogs = "/audit-logs",
   Projects = "/projects",
   ProjectManagement = "/project-management",
+  Integrations = "/integrations",
   Settings = "/settings",
   Users = "/users",
   Profile = "/profile",
@@ -63,6 +64,13 @@ export const systemRoutes: RouteConfig[] = [
       "project_editor",
       "project_viewer",
     ],
+  },
+  {
+    name: "Integrations",
+    path: Routes.Integrations,
+    isOnSidebar: true,
+    icon: "MdKey",
+    requiredRoles: ["project_admin", "project_developer"],
   },
   {
     name: "Users",
