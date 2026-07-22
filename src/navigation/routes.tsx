@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { GoogleCallbackHandler } from "../components/auth";
 import {
   Dashboard,
+  IntegrationsPage,
   LoginPage,
   PagePreviewPage,
   ProjectManagementPage,
@@ -50,6 +51,10 @@ const RouterContainer = () => {
         <Route
           path={ProtectedRoutes.ProjectManagement}
           element={<ProjectManagementPage />}
+        />
+        <Route
+          path={ProtectedRoutes.Integrations}
+          element={<IntegrationsPage />}
         />
         <Route path="/page-preview/:pageId/*" element={<PagePreviewPage />} />
         <Route path="/page-preview/:pageId" element={<PagePreviewPage />} />
