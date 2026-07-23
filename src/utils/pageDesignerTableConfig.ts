@@ -17,6 +17,7 @@ export const TABLE_COLUMN_TYPE_OPTIONS: {
   { value: "growthPercentage", label: "Growth Percentage (↑ ↓)" },
   { value: "date", label: "Date" },
   { value: "boolean", label: "Boolean (Badge)" },
+  { value: "booleanSwitch", label: "Boolean Switch" },
   { value: "image", label: "Image" },
   { value: "badge", label: "Badge / Enum" },
   { value: "array", label: "Array (comma-separated)" },
@@ -79,6 +80,25 @@ export const hydrateEmptyDesignerTableColumns = (
     columns: buildDesignerTableColumnsFromFields(fields),
   };
 };
+
+export const shouldHydrateEmptyDesignerTableColumns = ({
+  componentType,
+  tableSourceType,
+  schemaName,
+  columnCount,
+  isEditingExistingTable,
+}: {
+  componentType: string;
+  tableSourceType: string;
+  schemaName?: string;
+  columnCount: number;
+  isEditingExistingTable: boolean;
+}) =>
+  ["table", "tabPanel"].includes(componentType) &&
+  tableSourceType === "schema" &&
+  Boolean(schemaName) &&
+  columnCount === 0 &&
+  !isEditingExistingTable;
 
 export const mergeDesignerTableColumnsFromNames = (
   currentColumns: TableColumnConfig[] = [],

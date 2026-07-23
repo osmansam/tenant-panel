@@ -131,6 +131,7 @@ export const useActionFormSelectionData = (
       const { path, queryKey } = getSelectionQueryConfig({
         schemaName: field.sourceSchemaName || "",
         fieldName,
+        filterParams: field.sourceRequestFilters,
       });
 
       return {
@@ -278,6 +279,7 @@ export const buildActionFormInputs = (
       isMultiple: field.isMultiple,
       isNumberButtonsActive: field.isNumberButtonsActive,
       options: getFieldOptions(actionId, field, selectDataMap),
+      sourceRequestFilters: field.sourceRequestFilters,
       sourceFilterCondition: field.sourceFilterCondition,
       invalidateKeys: field.invalidateKeys?.map((key) => ({
         key,

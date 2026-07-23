@@ -6,6 +6,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  shouldHydrateEmptyDesignerTableColumns,
 } from "./pageDesignerTableConfig";
 
 const fields: Field[] = [
@@ -58,6 +59,30 @@ describe("page designer table config", () => {
     ]);
   });
 
+  it("does not hydrate empty columns while editing an existing table", () => {
+    expect(
+      shouldHydrateEmptyDesignerTableColumns({
+        componentType: "table",
+        tableSourceType: "schema",
+        schemaName: "products",
+        columnCount: 0,
+        isEditingExistingTable: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("hydrates empty columns for a new schema table", () => {
+    expect(
+      shouldHydrateEmptyDesignerTableColumns({
+        componentType: "table",
+        tableSourceType: "schema",
+        schemaName: "products",
+        columnCount: 0,
+        isEditingExistingTable: false,
+      }),
+    ).toBe(true);
+  });
+
   it("preserves existing column types while syncing pipeline or workflow output fields", () => {
     const result = mergeDesignerTableColumnsFromNames(
       [
@@ -108,6 +133,13 @@ describe("page designer table config", () => {
     expect(TABLE_COLUMN_TYPE_OPTIONS).toContainEqual({
       value: "lookupLabel",
       label: "Lookup Label",
+    });
+  });
+
+  it("offers boolean switch as an editable table column type", () => {
+    expect(TABLE_COLUMN_TYPE_OPTIONS).toContainEqual({
+      value: "booleanSwitch",
+      label: "Boolean Switch",
     });
   });
 });

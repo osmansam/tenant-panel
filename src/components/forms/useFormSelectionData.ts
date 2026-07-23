@@ -26,6 +26,7 @@ export const useFormSelectionData = (
       const { path, queryKey } = getSelectionQueryConfig({
         schemaName: field.sourceSchemaName || "",
         fieldName,
+        filterParams: field.sourceRequestFilters,
       });
       return {
         queryKey,

@@ -69,6 +69,9 @@ import GenericAddEditPanel from "./GenericAddEditPanel";
 
 type GenericItem = Record<string, unknown> & { _id: string };
 
+const isTruthyBooleanValue = (value: unknown): boolean =>
+  value === true || value === "true" || value === 1 || value === "1";
+
 type Props = {
   schemaName: string;
   includeFields?: string[];
@@ -469,7 +472,7 @@ export default function GenericUnpaginatedPage({
         if (columnConfig?.type === "boolean") {
           rowKey.node = (row: GenericItem) => {
             const v = row[f.name];
-            const isTrue = v === true || v === "true" || v === 1 || v === "1";
+            const isTrue = isTruthyBooleanValue(v);
             return (
               <span
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -480,6 +483,23 @@ export default function GenericUnpaginatedPage({
               >
                 {isTrue ? "Yes" : "No"}
               </span>
+            );
+          };
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "booleanSwitch") {
+          rowKey.node = (row: GenericItem) => {
+            const isChecked = isTruthyBooleanValue(row[f.name]);
+            return (
+              <CheckSwitch
+                checked={isChecked}
+                onChange={() => {
+                  updateDynamicItem(row._id, {
+                    [f.name]: !isChecked,
+                  });
+                }}
+              />
             );
           };
           return rowKey;

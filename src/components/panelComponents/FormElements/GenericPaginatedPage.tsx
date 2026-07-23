@@ -81,6 +81,9 @@ import GenericAddEditPanel from "./GenericAddEditPanel";
 
 type GenericItem = Record<string, unknown> & { _id: string };
 
+const isTruthyBooleanValue = (value: unknown): boolean =>
+  value === true || value === "true" || value === 1 || value === "1";
+
 type Props = {
   schemaName: string;
   includeFields?: string[];
@@ -91,6 +94,29 @@ type Props = {
   customTitle?: string; // Custom title for the table
   tableConfig?: TableComponentConfig;
   dataBinding?: DataBinding;
+};
+
+const mergeTableRequestFilters = (
+  filters: FormElementsState,
+  constantFilter?: Record<string, unknown>,
+  tableConfig?: TableComponentConfig,
+): FormElementsState => {
+  const constantSort = tableConfig?.constantSort;
+  const hasUserSort = Boolean(filters.sort);
+  const sortDefaults =
+    constantSort?.sort && !hasUserSort
+      ? {
+          sort: constantSort.sort,
+          asc: constantSort.asc ?? filters.asc,
+        }
+      : {};
+
+  return {
+    ...filters,
+    ...sortDefaults,
+    ...(tableConfig?.constantFilters || {}),
+    ...(constantFilter || {}),
+  } as FormElementsState;
 };
 
 export default function GenericPaginatedPage({
@@ -509,7 +535,7 @@ export default function GenericPaginatedPage({
         if (columnConfig?.type === "boolean") {
           rowKey.node = (row: GenericItem) => {
             const v = row[f.name];
-            const isTrue = v === true || v === "true" || v === 1 || v === "1";
+            const isTrue = isTruthyBooleanValue(v);
             return (
               <span
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -520,6 +546,23 @@ export default function GenericPaginatedPage({
               >
                 {isTrue ? "Yes" : "No"}
               </span>
+            );
+          };
+          return rowKey;
+        }
+
+        if (columnConfig?.type === "booleanSwitch") {
+          rowKey.node = (row: GenericItem) => {
+            const isChecked = isTruthyBooleanValue(row[f.name]);
+            return (
+              <CheckSwitch
+                checked={isChecked}
+                onChange={() => {
+                  updateDynamicItem(row._id, {
+                    [f.name]: !isChecked,
+                  });
+                }}
+              />
             );
           };
           return rowKey;
@@ -830,10 +873,12 @@ export default function GenericPaginatedPage({
 
   // Merge constantFilter with filterPanelFormElements for querying
   const mergedFilters = useMemo(() => {
-    return constantFilter
-      ? ({ ...filterPanelFormElements, ...constantFilter } as FormElementsState)
-      : filterPanelFormElements;
-  }, [filterPanelFormElements, constantFilter]);
+    return mergeTableRequestFilters(
+      filterPanelFormElements,
+      constantFilter,
+      tableConfig,
+    );
+  }, [filterPanelFormElements, constantFilter, tableConfig]);
 
   // Mock paginated data for preview mode
   const itemsPayload = useMemo(() => {

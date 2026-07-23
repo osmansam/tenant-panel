@@ -33,6 +33,7 @@ type RawActionFormFieldConfig = Partial<ActionFormFieldConfig> & {
   SourceSchemaName?: string;
   SourceValueField?: string;
   SourceLabelField?: string;
+  SourceRequestFilters?: Record<string, unknown>;
   SourceFilterCondition?: string;
   InvalidateKeys?: string[];
   DefaultValue?: ActionFormFieldConfig["defaultValue"];
@@ -270,6 +271,7 @@ const normalizeActionFormFieldConfig = (
   sourceSchemaName: field.sourceSchemaName ?? field.SourceSchemaName,
   sourceValueField: field.sourceValueField ?? field.SourceValueField,
   sourceLabelField: field.sourceLabelField ?? field.SourceLabelField,
+  sourceRequestFilters: field.sourceRequestFilters ?? field.SourceRequestFilters,
   sourceFilterCondition:
     field.sourceFilterCondition ?? field.SourceFilterCondition,
   invalidateKeys: field.invalidateKeys ?? field.InvalidateKeys,

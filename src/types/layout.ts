@@ -49,6 +49,7 @@ export type TableColumnType =
   | "growthPercentage"
   | "date"
   | "boolean"
+  | "booleanSwitch"
   | "image"
   | "badge"
   | "array";
@@ -113,6 +114,11 @@ export interface TableComponentConfig {
   rows?: TableRowsConfig;
   nestedRows?: TableNestedRowsConfig;
   cache?: TableCacheConfig;
+  constantFilters?: Record<string, unknown>;
+  constantSort?: {
+    sort?: string;
+    asc?: 0 | 1 | boolean | string | number;
+  };
   addButton?: TableActionConfig;
   actions?: TableActionConfig[];
   bulkActions?: {

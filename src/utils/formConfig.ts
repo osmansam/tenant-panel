@@ -120,6 +120,7 @@ export const buildFormInputs = (
       isMultiple: field.isMultiple,
       isNumberButtonsActive: field.isNumberButtonsActive,
       options: getFieldOptions(field, selectionDataMap),
+      sourceRequestFilters: field.sourceRequestFilters,
       sourceFilterCondition: field.sourceFilterCondition,
       invalidateKeys: field.invalidateKeys?.map((key) => ({
         key,

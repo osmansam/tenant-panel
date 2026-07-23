@@ -140,6 +140,7 @@ export type PageTableColumnType =
   | "growthPercentage"
   | "date"
   | "boolean"
+  | "booleanSwitch"
   | "image"
   | "badge"
   | "array";
@@ -230,6 +231,7 @@ export interface PageTableActionFormFieldConfig {
   sourceSchemaName?: string;
   sourceValueField?: string;
   sourceLabelField?: string;
+  sourceRequestFilters?: Record<string, unknown>;
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
   defaultValue?: string | number | boolean | string[] | number[];
@@ -297,6 +299,11 @@ export interface PageTableComponentConfig {
   rows?: PageTableRowsConfig;
   nestedRows?: PageTableNestedRowsConfig;
   cache?: PageTableCacheConfig;
+  constantFilters?: Record<string, unknown>;
+  constantSort?: {
+    sort?: string;
+    asc?: 0 | 1 | boolean | string | number;
+  };
   addButton?: PageTableActionConfig;
   actions?: PageTableActionConfig[];
   bulkActions?: {

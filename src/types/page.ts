@@ -137,6 +137,7 @@ export type TableColumnType =
   | "growthPercentage"
   | "date"
   | "boolean"
+  | "booleanSwitch"
   | "image"
   | "badge"
   | "array";
@@ -261,6 +262,7 @@ export interface TableActionFormFieldConfig {
   sourceSchemaName?: string;
   sourceValueField?: string;
   sourceLabelField?: string;
+  sourceRequestFilters?: Record<string, unknown>;
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
   defaultValue?: string | number | boolean | string[] | number[];
@@ -325,6 +327,11 @@ export interface TableComponentConfig {
   rows?: TableRowsConfig;
   nestedRows?: TableNestedRowsConfig;
   cache?: TableCacheConfig;
+  constantFilters?: Record<string, unknown>;
+  constantSort?: {
+    sort?: string;
+    asc?: 0 | 1 | boolean | string | number;
+  };
   addButton?: TableActionConfig;
   actions?: TableActionConfig[];
   bulkActions?: TableBulkActionsConfig;

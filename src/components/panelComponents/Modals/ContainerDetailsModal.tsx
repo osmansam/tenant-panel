@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import {
   FiChevronDown,
   FiChevronUp,
+  FiClock,
   FiCode,
   FiCopy,
   FiEdit,
   FiGitBranch,
+  FiGlobe,
   FiList,
   FiPlus,
   FiShield,
@@ -25,15 +27,22 @@ import {
 } from "../../../utils/authContainerValidation";
 import {
   ContainerModel,
+  DynamicApiModel,
   Field,
   PipelineStage,
   useCreateProjectAuthUser,
   useUpdateContainer,
+  useUpdateDynamicApis,
   useUpdatePipelines,
 } from "../../../utils/api/container";
 import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
+import {
+  addMissingSystemTimestampFields,
+  hasAllSystemTimestampFields,
+} from "../../../utils/containerTimestamps";
 import { GenericButton } from "../FormElements/GenericButton";
+import { AddDynamicApiModal } from "./AddDynamicApiModal";
 import { AddFieldModal } from "./AddFieldModal";
 import { AddPipelineModal } from "./AddPipelineModal";
 
@@ -50,7 +59,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<
-    "structured" | "json" | "permissions" | "routes" | "pipelines"
+    "structured" | "json" | "permissions" | "routes" | "pipelines" | "apis"
   >("structured");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
@@ -64,10 +73,19 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     null
   );
   const [pipelineToDelete, setPipelineToDelete] = useState<string | null>(null);
+  const [isAddDynamicApiModalOpen, setIsAddDynamicApiModalOpen] =
+    useState(false);
+  const [editingDynamicApi, setEditingDynamicApi] =
+    useState<DynamicApiModel | null>(null);
+  const [dynamicApiToDelete, setDynamicApiToDelete] = useState<string | null>(
+    null
+  );
 
   const { updateContainer, isUpdating } = useUpdateContainer();
   const { updatePipelines, isUpdating: isPipelinesUpdating } =
     useUpdatePipelines();
+  const { updateDynamicApis, isUpdating: isDynamicApisUpdating } =
+    useUpdateDynamicApis();
   const roleOptions = useGetSelection<Array<{ _id?: string; id?: string; name?: string }>>(
     container?.isAuthContainer ? "role" : "",
     container?.isAuthContainer ? "name" : "",
@@ -84,7 +102,36 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     () => getAuthUserRoleField(container?.fields || []),
     [container?.fields],
   );
+  const areSystemTimestampsConfigured = useMemo(
+    () => hasAllSystemTimestampFields(container?.fields || []),
+    [container?.fields]
+  );
   const { createAuthUser, isCreatingAuthUser } = useCreateProjectAuthUser();
+
+  const buildContainerUpdatePayload = useCallback(
+    (overrides: Partial<ContainerModel> = {}) => {
+      if (!container) return overrides;
+
+      return {
+        schemaName: container.schemaName,
+        fields: container.fields,
+        routes: container.routes,
+        redis: container.redis,
+        populatedRoutes: container.populatedRoutes || [],
+        indexes: container.indexes,
+        rowAccess: container.rowAccess,
+        workflows: container.workflows || [],
+        dynamicFunctions: container.dynamicFunctions || [],
+        dynamicApis: container.dynamicApis || [],
+        frontend: container.frontend,
+        isAuthContainer: container.isAuthContainer,
+        isRegisterActive: container.isRegisterActive,
+        isGoogleLoginActive: container.isGoogleLoginActive,
+        ...overrides,
+      };
+    },
+    [container]
+  );
 
   const copyToClipboard = useCallback(
     (text: string) => {
@@ -172,24 +219,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
         updateContainer({
           id: container.id,
-          payload: {
-            schemaName: container.schemaName,
-            fields: updatedFields,
-            routes: container.routes,
-            redis: container.redis,
-            populatedRoutes: container.populatedRoutes || [],
-            indexes: container.indexes,
-            rowAccess: container.rowAccess,
-            isAuthContainer: container.isAuthContainer,
-            isRegisterActive: container.isRegisterActive,
-            isGoogleLoginActive: container.isGoogleLoginActive,
-          },
+          payload: buildContainerUpdatePayload({ fields: updatedFields }),
         });
         setIsAddFieldModalOpen(false);
         setEditingField(null);
       }
     },
-    [container, editingField, updateContainer]
+    [buildContainerUpdatePayload, container, editingField, updateContainer]
   );
 
   const handleEditField = useCallback((field: Field) => {
@@ -201,6 +237,16 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     setFieldToDelete(fieldName);
   }, []);
 
+  const handleAddSystemTimestamps = useCallback(() => {
+    if (!container?.id) return;
+
+    const fields = addMissingSystemTimestampFields(container.fields || []);
+    updateContainer({
+      id: container.id,
+      payload: buildContainerUpdatePayload({ fields }),
+    });
+  }, [buildContainerUpdatePayload, container, updateContainer]);
+
   const confirmDeleteField = useCallback(() => {
     if (container?.id && fieldToDelete) {
       const updatedFields = (container.fields || []).filter(
@@ -208,42 +254,22 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       );
       updateContainer({
         id: container.id,
-        payload: {
-          schemaName: container.schemaName,
-          fields: updatedFields,
-          routes: container.routes,
-          redis: container.redis,
-          populatedRoutes: container.populatedRoutes || [],
-          indexes: container.indexes,
-          rowAccess: container.rowAccess,
-          isAuthContainer: container.isAuthContainer,
-          isRegisterActive: container.isRegisterActive,
-          isGoogleLoginActive: container.isGoogleLoginActive,
-        },
+        payload: buildContainerUpdatePayload({ fields: updatedFields }),
       });
       setFieldToDelete(null);
     }
-  }, [container, fieldToDelete, updateContainer]);
+  }, [buildContainerUpdatePayload, container, fieldToDelete, updateContainer]);
 
   const handleToggleRegisterActive = useCallback(() => {
     if (!container?.id || !container.isAuthContainer) return;
 
     updateContainer({
       id: container.id,
-      payload: {
-        schemaName: container.schemaName,
-        fields: container.fields,
-        routes: container.routes,
-        redis: container.redis,
-        populatedRoutes: container.populatedRoutes || [],
-        indexes: container.indexes,
-        rowAccess: container.rowAccess,
-        isAuthContainer: container.isAuthContainer,
+      payload: buildContainerUpdatePayload({
         isRegisterActive: !container.isRegisterActive,
-        isGoogleLoginActive: container.isGoogleLoginActive,
-      },
+      }),
     });
-  }, [container, updateContainer]);
+  }, [buildContainerUpdatePayload, container, updateContainer]);
 
   const handleToggleGoogleLoginActive = useCallback(() => {
     if (!container?.id || !container.isAuthContainer) return;
@@ -259,20 +285,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
     updateContainer({
       id: container.id,
-      payload: {
-        schemaName: container.schemaName,
-        fields: container.fields,
-        routes: container.routes,
-        redis: container.redis,
-        populatedRoutes: container.populatedRoutes || [],
-        indexes: container.indexes,
-        rowAccess: container.rowAccess,
-        isAuthContainer: container.isAuthContainer,
-        isRegisterActive: container.isRegisterActive,
+      payload: buildContainerUpdatePayload({
         isGoogleLoginActive: nextGoogleLoginActive,
-      },
+      }),
     });
-  }, [container, t, updateContainer]);
+  }, [buildContainerUpdatePayload, container, t, updateContainer]);
 
   const handleCreateAuthUser = useCallback(() => {
     if (!container?.isAuthContainer || !container.schemaName) return;
@@ -318,21 +335,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
       updateContainer({
         id: container.id,
-        payload: {
-          schemaName: container.schemaName,
-          fields,
-          routes: container.routes,
-          redis: container.redis,
-          populatedRoutes: container.populatedRoutes || [],
-          indexes: container.indexes,
-          rowAccess: container.rowAccess,
-          isAuthContainer: container.isAuthContainer,
-          isRegisterActive: container.isRegisterActive,
-          isGoogleLoginActive: container.isGoogleLoginActive,
-        },
+        payload: buildContainerUpdatePayload({ fields }),
       });
     },
-    [container, updateContainer]
+    [buildContainerUpdatePayload, container, updateContainer]
   );
 
   const handleMoveFieldDown = useCallback(
@@ -355,21 +361,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
       updateContainer({
         id: container.id,
-        payload: {
-          schemaName: container.schemaName,
-          fields,
-          routes: container.routes,
-          redis: container.redis,
-          populatedRoutes: container.populatedRoutes || [],
-          indexes: container.indexes,
-          rowAccess: container.rowAccess,
-          isAuthContainer: container.isAuthContainer,
-          isRegisterActive: container.isRegisterActive,
-          isGoogleLoginActive: container.isGoogleLoginActive,
-        },
+        payload: buildContainerUpdatePayload({ fields }),
       });
     },
-    [container, updateContainer]
+    [buildContainerUpdatePayload, container, updateContainer]
   );
 
   // Pipeline management handlers
@@ -420,6 +415,58 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       setPipelineToDelete(null);
     }
   }, [container, pipelineToDelete, updatePipelines]);
+
+  const handleAddDynamicApi = useCallback(
+    (dynamicApi: DynamicApiModel) => {
+      if (!container?.id) return false;
+
+      const currentDynamicApis = container.dynamicApis || [];
+      if (
+        !editingDynamicApi &&
+        currentDynamicApis.some((api) => api.name === dynamicApi.name)
+      ) {
+        toast.error(t("A Dynamic API with this name already exists"));
+        return false;
+      }
+
+      const updatedDynamicApis = editingDynamicApi
+        ? currentDynamicApis.map((api) =>
+            api.name === editingDynamicApi.name ? dynamicApi : api
+          )
+        : [...currentDynamicApis, dynamicApi];
+
+      updateDynamicApis({
+        id: container.id,
+        payload: { dynamicApis: updatedDynamicApis },
+      });
+      setIsAddDynamicApiModalOpen(false);
+      setEditingDynamicApi(null);
+      return true;
+    },
+    [container, editingDynamicApi, t, updateDynamicApis]
+  );
+
+  const handleEditDynamicApi = useCallback((dynamicApi: DynamicApiModel) => {
+    setEditingDynamicApi(dynamicApi);
+    setIsAddDynamicApiModalOpen(true);
+  }, []);
+
+  const handleDeleteDynamicApi = useCallback((dynamicApiName: string) => {
+    setDynamicApiToDelete(dynamicApiName);
+  }, []);
+
+  const confirmDeleteDynamicApi = useCallback(() => {
+    if (!container?.id || !dynamicApiToDelete) return;
+
+    const updatedDynamicApis = (container.dynamicApis || []).filter(
+      (dynamicApi) => dynamicApi.name !== dynamicApiToDelete
+    );
+    updateDynamicApis({
+      id: container.id,
+      payload: { dynamicApis: updatedDynamicApis },
+    });
+    setDynamicApiToDelete(null);
+  }, [container, dynamicApiToDelete, updateDynamicApis]);
 
   const containerJson = useMemo(
     () => JSON.stringify(container, null, 2),
@@ -482,6 +529,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   <span>{t("Pipelines")}</span>
                 </button>
                 <button
+                  onClick={() => setViewMode("apis")}
+                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
+                    viewMode === "apis"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <FiGlobe size={12} />
+                  <span>{t("Dynamic APIs")}</span>
+                </button>
+                <button
                   onClick={() => setViewMode("permissions")}
                   className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
                     viewMode === "permissions"
@@ -529,7 +587,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             className={
               viewMode === "permissions" ||
               viewMode === "routes" ||
-              viewMode === "pipelines"
+              viewMode === "pipelines" ||
+              viewMode === "apis"
                 ? "h-[70vh]"
                 : "max-h-[70vh] overflow-y-auto"
             }
@@ -672,6 +731,147 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="mt-2"
                       >
                         {t("Add Your First Pipeline")}
+                      </GenericButton>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : viewMode === "apis" ? (
+              <div className="h-full space-y-4 overflow-y-auto">
+                <div className="sticky top-0 flex items-center justify-between border-b bg-white pb-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {t("Dynamic APIs")} ({(container.dynamicApis || []).length})
+                    </h4>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("Manage outbound or proxy APIs for this container")}
+                    </p>
+                  </div>
+                  <GenericButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddDynamicApiModalOpen(true)}
+                    iconLeft={<FiPlus size={12} />}
+                    disabled={isDynamicApisUpdating}
+                  >
+                    {t("Add API")}
+                  </GenericButton>
+                </div>
+
+                <div className="space-y-3">
+                  {(container.dynamicApis || []).map((dynamicApi, index) => (
+                    <div
+                      key={dynamicApi.name || index}
+                      className="rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-gray-900">
+                              {dynamicApi.name}
+                            </span>
+                            <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-800">
+                              {dynamicApi.method || "GET"}
+                            </span>
+                            {dynamicApi.isActive ? (
+                              <span className="inline-flex rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                {t("Active")}
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                                {t("Inactive")}
+                              </span>
+                            )}
+                            {dynamicApi.isRedisCached && (
+                              <span className="inline-flex rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                {t("Cached")} ({dynamicApi.cacheTime}s)
+                              </span>
+                            )}
+                            {dynamicApi.isAuthenticated && (
+                              <span className="inline-flex rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
+                                {t("Auth Required")}
+                              </span>
+                            )}
+                            {dynamicApi.isAuthorized && (
+                              <span className="inline-flex rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                                {t("Role Check")}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="break-all font-mono text-xs text-gray-600">
+                            {dynamicApi.url}
+                          </p>
+
+                          {!!dynamicApi.dependencies?.length && (
+                            <div className="mt-2">
+                              <span className="text-xs text-gray-500">
+                                {t("Dependencies")}:{" "}
+                              </span>
+                              <span className="text-xs text-gray-700">
+                                {dynamicApi.dependencies.join(", ")}
+                              </span>
+                            </div>
+                          )}
+
+                          {dynamicApi.isAuthorized &&
+                            dynamicApi.authorizeRole &&
+                            dynamicApi.authorizeRole.length > 0 && (
+                              <div className="mt-2">
+                                <span className="text-xs text-gray-500">
+                                  {t("Allowed Roles")}:{" "}
+                                </span>
+                                <span className="text-xs text-gray-700">
+                                  {dynamicApi.authorizeRole.join(", ")}
+                                </span>
+                              </div>
+                            )}
+                        </div>
+
+                        <div className="ml-4 flex items-center space-x-2">
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditDynamicApi(dynamicApi)}
+                            iconLeft={<FiEdit size={10} />}
+                            disabled={isDynamicApisUpdating}
+                          >
+                            {t("Edit")}
+                          </GenericButton>
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleDeleteDynamicApi(dynamicApi.name)
+                            }
+                            iconLeft={<FiTrash2 size={10} />}
+                            disabled={isDynamicApisUpdating}
+                          >
+                            {t("Delete")}
+                          </GenericButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!container.dynamicApis ||
+                    container.dynamicApis.length === 0) && (
+                    <div className="py-12 text-center text-gray-500">
+                      <FiGlobe
+                        size={48}
+                        className="mx-auto mb-4 text-gray-300"
+                      />
+                      <p className="mb-2">
+                        {t("No Dynamic APIs defined for this container")}
+                      </p>
+                      <GenericButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddDynamicApiModalOpen(true)}
+                        iconLeft={<FiPlus size={12} />}
+                        className="mt-2"
+                      >
+                        {t("Add Your First API")}
                       </GenericButton>
                     </div>
                   )}
@@ -838,15 +1038,28 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     <h4 className="text-sm font-medium text-gray-900">
                       {t("Fields")} ({(container.fields || []).length})
                     </h4>
-                    <GenericButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsAddFieldModalOpen(true)}
-                      iconLeft={<FiPlus size={12} />}
-                      disabled={isUpdating}
-                    >
-                      {t("Add Field")}
-                    </GenericButton>
+                    <div className="flex items-center gap-2">
+                      <GenericButton
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddSystemTimestamps}
+                        iconLeft={<FiClock size={12} />}
+                        disabled={isUpdating || areSystemTimestampsConfigured}
+                      >
+                        {areSystemTimestampsConfigured
+                          ? t("Timestamps Added")
+                          : t("Add Timestamps")}
+                      </GenericButton>
+                      <GenericButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddFieldModalOpen(true)}
+                        iconLeft={<FiPlus size={12} />}
+                        disabled={isUpdating}
+                      >
+                        {t("Add Field")}
+                      </GenericButton>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {(container.fields || []).map((field, index) => (
@@ -1071,6 +1284,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         editPipeline={editingPipeline}
       />
 
+      {/* Add/Edit Dynamic API Modal */}
+      <AddDynamicApiModal
+        isOpen={isAddDynamicApiModalOpen}
+        onClose={() => {
+          setIsAddDynamicApiModalOpen(false);
+          setEditingDynamicApi(null);
+        }}
+        onAddDynamicApi={handleAddDynamicApi}
+        editDynamicApi={editingDynamicApi}
+      />
+
       {/* Delete Field Confirmation */}
       <ConfirmationDialog
         isOpen={!!fieldToDelete}
@@ -1090,6 +1314,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         title={t("Delete Pipeline")}
         text={t(
           "Are you sure you want to delete this pipeline? This action cannot be undone."
+        )}
+      />
+
+      {/* Delete Dynamic API Confirmation */}
+      <ConfirmationDialog
+        isOpen={!!dynamicApiToDelete}
+        close={() => setDynamicApiToDelete(null)}
+        confirm={confirmDeleteDynamicApi}
+        title={t("Delete Dynamic API")}
+        text={t(
+          "Are you sure you want to delete this Dynamic API? This action cannot be undone."
         )}
       />
     </div>

@@ -61,6 +61,35 @@ const flattenFields = (fields: Field[]): Field[] =>
     field.children?.length ? flattenFields(field.children) : [field],
   );
 
+const formatRequestFilters = (filters?: Record<string, unknown>) =>
+  filters && Object.keys(filters).length
+    ? JSON.stringify(filters, null, 2)
+    : "";
+
+const parseRequestFilters = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+      return undefined;
+    }
+
+    const entries = Object.entries(parsed as Record<string, unknown>).filter(
+      ([key, entryValue]) =>
+        key.trim() &&
+        entryValue !== undefined &&
+        entryValue !== null &&
+        entryValue !== "",
+    );
+
+    return entries.length ? Object.fromEntries(entries) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const Control = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="space-y-1.5">
     <span className="block text-xs font-medium text-neutral-600">{label}</span>
@@ -253,7 +282,24 @@ const FormFieldEditor = ({
                 </select>
               </Control>
             </div>
-            <Control label="Source filter condition"><input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} className={inputClass} placeholder={'tenantId = {{tenantId}}'} /></Control>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <Control label="Source filter condition"><input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} className={inputClass} placeholder={'tenantId = {{tenantId}}'} /></Control>
+              <Control label="Request filters">
+                <textarea
+                  defaultValue={formatRequestFilters(field.sourceRequestFilters)}
+                  onBlur={(event) =>
+                    onChange({
+                      sourceRequestFilters: parseRequestFilters(
+                        event.target.value,
+                      ),
+                    })
+                  }
+                  disabled={field.optionsSource !== "schema"}
+                  className={`${inputClass} min-h-[84px] font-mono`}
+                  placeholder={'{"active": true}'}
+                />
+              </Control>
+            </div>
 
             {(field.optionsSource || "static") === "static" && (
               <div className="space-y-2">
