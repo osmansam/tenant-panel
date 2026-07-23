@@ -48,6 +48,7 @@ export const useFilterPanelSelectionData = (
       const { path, queryKey } = getSelectionQueryConfig({
         schemaName: field.sourceSchemaName || "",
         fieldName,
+        filterParams: field.sourceRequestFilters,
       });
 
       return {
@@ -144,6 +145,7 @@ export const buildConfiguredFilterInputs = (
         isNumberButtonsActive:
           field.isNumberButtonsActive ?? fallback?.isNumberButtonsActive,
         options: getFilterOptions(field, selectDataMap),
+        sourceRequestFilters: field.sourceRequestFilters,
         sourceFilterCondition: field.sourceFilterCondition,
         invalidateKeys: field.invalidateKeys?.map((key) => ({
           key,

@@ -32,4 +32,23 @@ describe("getSelectionQueryConfig", () => {
 
     expect(first.queryKey).not.toEqual(second.queryKey);
   });
+
+  it("serializes select-route request filters with a filter prefix", () => {
+    const config = getSelectionQueryConfig({
+      schemaName: "product",
+      fieldName: "name",
+      filterParams: {
+        active: true,
+        category: "featured",
+      },
+    });
+
+    expect(config.path).toBe(
+      "/dynamic/selection?schemaName=product&fieldName=name&filter.active=true&filter.category=featured",
+    );
+    expect(config.queryKey).toContainEqual({
+      active: true,
+      category: "featured",
+    });
+  });
 });

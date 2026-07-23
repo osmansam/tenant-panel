@@ -66,6 +66,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  shouldHydrateEmptyDesignerTableColumns,
 } from "../../utils/pageDesignerTableConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -457,6 +458,7 @@ const getDefaultActionsForSource = (
 
 type TableSettingsTab =
   | "display"
+  | "request"
   | "columns"
   | "links"
   | "cellClasses"
@@ -468,6 +470,7 @@ type TableSettingsTab =
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "display", label: "Display" },
+  { value: "request", label: "Request" },
   { value: "columns", label: "Columns" },
   { value: "links", label: "Links" },
   { value: "cellClasses", label: "Cell Classes" },
@@ -1085,6 +1088,13 @@ const cleanTableActions = (
                   ...(field.sourceLabelField?.trim()
                     ? { sourceLabelField: field.sourceLabelField.trim() }
                     : {}),
+                  ...(cleanConstantFilters(field.sourceRequestFilters)
+                    ? {
+                        sourceRequestFilters: cleanConstantFilters(
+                          field.sourceRequestFilters,
+                        ),
+                      }
+                    : {}),
                   ...(field.sourceFilterCondition?.trim()
                     ? {
                         sourceFilterCondition:
@@ -1234,6 +1244,9 @@ const cleanFilterPanelInputs = (
       ...(field.sourceLabelField?.trim()
         ? { sourceLabelField: field.sourceLabelField.trim() }
         : {}),
+      ...(cleanConstantFilters(field.sourceRequestFilters)
+        ? { sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters) }
+        : {}),
       ...(field.sourceFilterCondition?.trim()
         ? { sourceFilterCondition: field.sourceFilterCondition.trim() }
         : {}),
@@ -1249,6 +1262,56 @@ const cleanFilterPanelInputs = (
         ? { validationMessage: field.validationMessage.trim() }
         : {}),
     }));
+
+const cleanConstantFilters = (
+  filters?: Record<string, unknown>,
+): Record<string, unknown> | undefined => {
+  const entries = Object.entries(filters || {})
+    .map(
+      ([key, value]) =>
+        [
+          key.trim(),
+          typeof value === "string" ? value.trim() : value,
+        ] as const,
+    )
+    .filter(
+      ([key, value]) =>
+        key && value !== undefined && value !== null && value !== "",
+    );
+
+  return entries.length ? Object.fromEntries(entries) : undefined;
+};
+
+const formatSourceRequestFilters = (filters?: Record<string, unknown>) =>
+  filters && Object.keys(filters).length
+    ? JSON.stringify(filters, null, 2)
+    : "";
+
+const parseSourceRequestFiltersInput = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+      return undefined;
+    }
+    return cleanConstantFilters(parsed as Record<string, unknown>);
+  } catch {
+    return undefined;
+  }
+};
+
+const cleanConstantSort = (
+  sort?: TableComponentConfig["constantSort"],
+): TableComponentConfig["constantSort"] | undefined => {
+  const sortField = typeof sort?.sort === "string" ? sort.sort.trim() : "";
+  if (!sortField) return undefined;
+  return {
+    sort: sortField,
+    asc: sort?.asc ?? 1,
+  };
+};
 
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
@@ -1388,6 +1451,12 @@ const cleanTableConfig = (
         },
       }
     : {}),
+  ...(cleanConstantFilters(tableConfig.constantFilters)
+    ? { constantFilters: cleanConstantFilters(tableConfig.constantFilters) }
+    : {}),
+  ...(cleanConstantSort(tableConfig.constantSort)
+    ? { constantSort: cleanConstantSort(tableConfig.constantSort) }
+    : {}),
   ...(cleanTableActions(
     tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
   )[0]
@@ -1475,6 +1544,7 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
       area: field.area || "main",
       width: field.width || "full",
       order: Number(field.order ?? index + 1),
+      sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters),
       invalidateKeys: field.invalidateKeys
         ?.map((key) => key.trim())
         .filter(Boolean),
@@ -2990,6 +3060,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           cache: {
             invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
           },
+          constantFilters: editingComponent.table.constantFilters,
+          constantSort: editingComponent.table.constantSort,
           addButton:
             editingSourceType === "schema"
               ? hydrateSchemaAddButton(
@@ -3100,10 +3172,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
   useEffect(() => {
     if (
-      !["table", "tabPanel"].includes(componentType) ||
-      tableSourceType !== "schema" ||
-      !schemaName ||
-      (tableConfig.columns && tableConfig.columns.length > 0)
+      !shouldHydrateEmptyDesignerTableColumns({
+        componentType,
+        tableSourceType,
+        schemaName,
+        columnCount: tableConfig.columns?.length || 0,
+        isEditingExistingTable: Boolean(editingComponent?.table),
+      })
     ) {
       return;
     }
@@ -3148,6 +3223,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   }, [
     componentType,
     containers,
+    editingComponent?.table,
     schemaName,
     tableConfig.columns,
     tableSourceType,
@@ -3863,6 +3939,57 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       columns: (current.columns || []).filter(
         (column) => column.field !== fieldName,
       ),
+    }));
+  };
+
+  const addTableConstantFilter = () => {
+    setTableConfig((current) => {
+      const filters = { ...(current.constantFilters || {}) };
+      let index = Object.keys(filters).length + 1;
+      let key = `filter${index}`;
+      while (Object.prototype.hasOwnProperty.call(filters, key)) {
+        index += 1;
+        key = `filter${index}`;
+      }
+      filters[key] = "";
+      return { ...current, constantFilters: filters };
+    });
+  };
+
+  const updateTableConstantFilter = (
+    previousKey: string,
+    nextKey: string,
+    nextValue: unknown,
+  ) => {
+    setTableConfig((current) => {
+      const filters = { ...(current.constantFilters || {}) };
+      delete filters[previousKey];
+      filters[nextKey] = nextValue;
+      return { ...current, constantFilters: filters };
+    });
+  };
+
+  const removeTableConstantFilter = (key: string) => {
+    setTableConfig((current) => {
+      const filters = { ...(current.constantFilters || {}) };
+      delete filters[key];
+      return {
+        ...current,
+        constantFilters: Object.keys(filters).length ? filters : undefined,
+      };
+    });
+  };
+
+  const updateTableConstantSort = (
+    updates: NonNullable<TableComponentConfig["constantSort"]>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      constantSort: {
+        asc: 1,
+        ...(current.constantSort || {}),
+        ...updates,
+      },
     }));
   };
 
@@ -6335,6 +6462,190 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                               </div>
                             )}
 
+                            {activeTableSettingsTab === "request" && (
+                              <div className="space-y-5 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                        Constant Filters
+                                      </label>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        Send these hidden filters with every table
+                                        data request.
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={addTableConstantFilter}
+                                      className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                                    >
+                                      <FiPlus size={14} />
+                                      Add filter
+                                    </button>
+                                  </div>
+
+                                  {Object.entries(
+                                    tableConfig.constantFilters || {},
+                                  ).length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-3 text-sm text-neutral-500">
+                                      No constant filters configured.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {Object.entries(
+                                        tableConfig.constantFilters || {},
+                                      ).map(([filterKey, filterValue]) => (
+                                        <div
+                                          key={filterKey}
+                                          className="grid grid-cols-[minmax(160px,0.9fr)_minmax(180px,1fr)_auto] gap-2"
+                                        >
+                                          <label className="space-y-1">
+                                            <span className="text-xs font-medium text-neutral-600">
+                                              Field
+                                            </span>
+                                            <input
+                                              type="text"
+                                              value={filterKey}
+                                              onChange={(e) =>
+                                                updateTableConstantFilter(
+                                                  filterKey,
+                                                  e.target.value,
+                                                  filterValue,
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="status"
+                                            />
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-xs font-medium text-neutral-600">
+                                              Value
+                                            </span>
+                                            <input
+                                              type="text"
+                                              value={
+                                                filterValue === undefined ||
+                                                filterValue === null
+                                                  ? ""
+                                                  : String(filterValue)
+                                              }
+                                              onChange={(e) =>
+                                                updateTableConstantFilter(
+                                                  filterKey,
+                                                  filterKey,
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder="active"
+                                            />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableConstantFilter(filterKey)
+                                            }
+                                            className="self-end rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Constant Sort
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Use this sort for the initial request until
+                                      the table user chooses another sort.
+                                    </p>
+                                  </div>
+                                  <div className="grid grid-cols-[minmax(180px,1fr)_180px_auto] gap-3">
+                                    <label className="space-y-1">
+                                      <span className="text-xs font-medium text-neutral-600">
+                                        Sort field
+                                      </span>
+                                      <select
+                                        value={tableConfig.constantSort?.sort || ""}
+                                        onChange={(e) =>
+                                          e.target.value
+                                            ? updateTableConstantSort({
+                                                sort: e.target.value,
+                                              })
+                                            : setTableConfig((current) => ({
+                                                ...current,
+                                                constantSort: undefined,
+                                              }))
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="">No constant sort</option>
+                                        {selectedFields.map((field) => {
+                                          const fieldName =
+                                            typeof field === "string"
+                                              ? field
+                                              : field.name;
+                                          return (
+                                            <option
+                                              key={fieldName}
+                                              value={fieldName}
+                                            >
+                                              {fieldName}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    </label>
+                                    <label className="space-y-1">
+                                      <span className="text-xs font-medium text-neutral-600">
+                                        Direction
+                                      </span>
+                                      <select
+                                        value={String(
+                                          tableConfig.constantSort?.asc ?? 1,
+                                        )}
+                                        onChange={(e) =>
+                                          updateTableConstantSort({
+                                            sort:
+                                              tableConfig.constantSort?.sort ||
+                                              (typeof selectedFields[0] ===
+                                              "string"
+                                                ? selectedFields[0]
+                                                : selectedFields[0]?.name) ||
+                                              "",
+                                            asc: Number(e.target.value),
+                                          })
+                                        }
+                                        disabled={!tableConfig.constantSort?.sort}
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-neutral-100"
+                                      >
+                                        <option value="1">Ascending</option>
+                                        <option value="0">Descending</option>
+                                      </select>
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setTableConfig((current) => ({
+                                          ...current,
+                                          constantSort: undefined,
+                                        }))
+                                      }
+                                      className="self-end rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-50"
+                                    >
+                                      Clear
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             {activeTableSettingsTab === "columns" && (
                               <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
                                 <button
@@ -8008,6 +8319,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               placeholder="option filter condition"
                                             />
                                           </label>
+                                          <label className="space-y-1">
+                                            <span className="text-xs font-medium text-neutral-600">
+                                              Request filters
+                                            </span>
+                                            <textarea
+                                              defaultValue={formatSourceRequestFilters(
+                                                field.sourceRequestFilters,
+                                              )}
+                                              onBlur={(e) =>
+                                                updateFilterPanelInput(
+                                                  fieldIndex,
+                                                  {
+                                                    sourceRequestFilters:
+                                                      parseSourceRequestFiltersInput(
+                                                        e.target.value,
+                                                      ),
+                                                  },
+                                                )
+                                              }
+                                              className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                              placeholder={'{"active": true}'}
+                                            />
+                                          </label>
                                           <SelectInput
                                             label="Invalidate keys"
                                             options={(
@@ -8830,6 +9164,31 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                   }
                                                   className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                                   placeholder="option filter condition"
+                                                />
+                                              </label>
+                                              <label className="space-y-1">
+                                                <span className="text-xs font-medium text-neutral-600">
+                                                  Request filters
+                                                </span>
+                                                <textarea
+                                                  defaultValue={formatSourceRequestFilters(
+                                                    field.sourceRequestFilters,
+                                                  )}
+                                                  onBlur={(e) =>
+                                                    updateAddButtonFormField(
+                                                      fieldIndex,
+                                                      {
+                                                        sourceRequestFilters:
+                                                          parseSourceRequestFiltersInput(
+                                                            e.target.value,
+                                                          ),
+                                                      },
+                                                    )
+                                                  }
+                                                  className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                  placeholder={
+                                                    '{"active": true}'
+                                                  }
                                                 />
                                               </label>
                                               <SelectInput
@@ -9834,6 +10193,32 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                       }
                                                       className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                                       placeholder="option filter condition"
+                                                    />
+                                                  </label>
+                                                  <label className="space-y-1">
+                                                    <span className="text-xs font-medium text-neutral-600">
+                                                      Request filters
+                                                    </span>
+                                                    <textarea
+                                                      defaultValue={formatSourceRequestFilters(
+                                                        field.sourceRequestFilters,
+                                                      )}
+                                                      onBlur={(e) =>
+                                                        updateActionFormField(
+                                                          actionIndex,
+                                                          fieldIndex,
+                                                          {
+                                                            sourceRequestFilters:
+                                                              parseSourceRequestFiltersInput(
+                                                                e.target.value,
+                                                              ),
+                                                          },
+                                                        )
+                                                      }
+                                                      className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                      placeholder={
+                                                        '{"active": true}'
+                                                      }
                                                     />
                                                   </label>
                                                   <SelectInput

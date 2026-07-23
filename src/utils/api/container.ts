@@ -268,6 +268,10 @@ export interface UpdateContainerPayload {
   populatedRoutes?: string[];
   indexes?: Index[];
   rowAccess?: RowAccessRule;
+  workflows?: DynamicWorkflow[];
+  dynamicFunctions?: DynamicFunction[];
+  dynamicApis?: DynamicApiModel[];
+  frontend?: Frontend;
   isAuthContainer?: boolean;
   isRegisterActive?: boolean;
   isGoogleLoginActive?: boolean;
@@ -275,6 +279,10 @@ export interface UpdateContainerPayload {
 
 export interface UpdateDynamicFunctionsPayload {
   dynamicFunctions: DynamicFunction[];
+}
+
+export interface UpdateDynamicApisPayload {
+  dynamicApis: DynamicApiModel[];
 }
 
 export interface UpdatePipelinesPayload {
@@ -444,6 +452,22 @@ const containerSortFunction = (
   return dateB - dateA;
 };
 
+export function normalizeDynamicApiModel(api: any): DynamicApiModel {
+  return {
+    name: api.Name || api.name || "",
+    url: api.Url || api.URL || api.url || "",
+    method: api.Method || api.method || "GET",
+    dependencies: api.Dependencies || api.dependencies || [],
+    isAuthenticated:
+      api.IsAuthenticated ?? api.isAuthenticated ?? false,
+    isAuthorized: api.IsAuthorized ?? api.isAuthorized ?? false,
+    authorizeRole: api.AuthorizeRole || api.authorizeRole || [],
+    isActive: api.IsActive ?? api.isActive ?? true,
+    isRedisCached: api.IsRedisCached ?? api.isRedisCached ?? false,
+    cacheTime: api.CacheTime ?? api.cacheTime ?? 0,
+  };
+}
+
 // React Query hooks
 export function useContainers(enabled: boolean = true) {
   const { tenantSlug, projectSlug } = useContainerContext();
@@ -471,7 +495,9 @@ export function useContainers(enabled: boolean = true) {
     workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
-    dynamicApis: container.DynamicApis || container.dynamicApis || [],
+    dynamicApis: (container.DynamicApis || container.dynamicApis || []).map(
+      normalizeDynamicApiModel
+    ),
     isAuthContainer:
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
     isRegisterActive:
@@ -482,6 +508,7 @@ export function useContainers(enabled: boolean = true) {
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,
     rowAccess: container.RowAccess || container.rowAccess,
+    frontend: container.Frontend || container.frontend,
     collectionName: container.CollectionName || container.collectionName,
     createdAt: container.CreatedAt || container.createdAt,
     updatedAt: container.UpdatedAt || container.updatedAt,
@@ -550,7 +577,9 @@ export function useContainer(id: string, enabled: boolean = true) {
     workflows: container.Workflows || container.workflows || [],
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
-    dynamicApis: container.DynamicApis || container.dynamicApis || [],
+    dynamicApis: (container.DynamicApis || container.dynamicApis || []).map(
+      normalizeDynamicApiModel
+    ),
     isAuthContainer:
       container.IsAuthContainer ?? container.isAuthContainer ?? false,
     isRegisterActive:
@@ -561,6 +590,7 @@ export function useContainer(id: string, enabled: boolean = true) {
       container.PopulatedRoutes || container.populatedRoutes || [],
     indexes: container.Indexes || container.indexes,
     rowAccess: container.RowAccess || container.rowAccess,
+    frontend: container.Frontend || container.frontend,
     collectionName: container.CollectionName || container.collectionName,
     createdAt: container.CreatedAt || container.createdAt,
     updatedAt: container.UpdatedAt || container.updatedAt,
@@ -823,6 +853,60 @@ export function useUpdateDynamicFunctions() {
     updateDynamicFunctions: (params: {
       id: string;
       payload: UpdateDynamicFunctionsPayload;
+    }) => {
+      updateMutation.mutate(params);
+    },
+    isUpdating: updateMutation.isPending,
+  };
+}
+
+// Dynamic APIs operations
+export function useUpdateDynamicApis() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = useContainerContext();
+
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateDynamicApisPayload;
+    }) => {
+      const path = buildContainerPath(
+        tenantSlug,
+        projectSlug,
+        `/dynamicApis/${id}`
+      );
+      const response = await axiosClient.patch(path, payload);
+      return response.data;
+    },
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["container", tenantSlug, projectSlug, variables.id],
+      });
+
+      const message = response?.message || "Dynamic APIs updated successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      console.error("Dynamic APIs update failed:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update dynamic APIs";
+      toast.error(t(errorMessage));
+    },
+  });
+
+  return {
+    updateDynamicApis: (params: {
+      id: string;
+      payload: UpdateDynamicApisPayload;
     }) => {
       updateMutation.mutate(params);
     },
