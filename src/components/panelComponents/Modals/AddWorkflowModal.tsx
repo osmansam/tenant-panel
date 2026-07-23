@@ -13,7 +13,7 @@ import TextInput from "../FormElements/TextInput";
 interface AddWorkflowModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddWorkflow: (workflow: DynamicWorkflow) => void;
+  onAddWorkflow: (workflow: DynamicWorkflow) => boolean | Promise<boolean>;
   editWorkflow?: DynamicWorkflow | null;
 }
 
@@ -113,7 +113,7 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!workflowData.name?.trim()) {
       toast.error(t("Workflow name is required"));
       return;
@@ -154,7 +154,7 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
         : {}),
       mode: workflowData.mode || "transactional",
       isActive: workflowData.isActive ?? true,
-      isAuthenticated: workflowData.isAuthenticated || false,
+      isAuthenticated: Boolean(workflowData.isAuthenticated || workflowData.isAuthorized),
       isAuthorized: workflowData.isAuthorized || false,
       authorizeRole: workflowData.isAuthorized ? workflowData.authorizeRole || [] : [],
       description: workflowData.description?.trim() || undefined,
@@ -168,8 +168,10 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
       runInTransaction: workflowData.runInTransaction || false,
     };
 
-    onAddWorkflow(workflow);
-    handleClose();
+    const saved = await onAddWorkflow(workflow);
+    if (saved !== false) {
+      handleClose();
+    }
   };
 
   const handleClose = () => {
@@ -323,10 +325,24 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
                   onChange={() =>
                     setWorkflowData({
                       ...workflowData,
-                      [key]: !Boolean((workflowData as any)[key]),
-                      ...(key === "isAuthorized" && workflowData.isAuthorized
-                        ? { authorizeRole: [] }
-                        : {}),
+                      ...(key === "isAuthenticated"
+                        ? {
+                            isAuthenticated: !workflowData.isAuthenticated,
+                            ...(!workflowData.isAuthenticated
+                              ? {}
+                              : { isAuthorized: false, authorizeRole: [] }),
+                          }
+                        : key === "isAuthorized"
+                          ? {
+                              isAuthenticated: !workflowData.isAuthorized
+                                ? true
+                                : workflowData.isAuthenticated,
+                              isAuthorized: !workflowData.isAuthorized,
+                              ...(workflowData.isAuthorized
+                                ? { authorizeRole: [] }
+                                : {}),
+                            }
+                          : { [key]: !Boolean((workflowData as any)[key]) }),
                     })
                   }
                 />

@@ -92,7 +92,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   const { updateContainer, isUpdating } = useUpdateContainer();
   const { updatePipelines, isUpdating: isPipelinesUpdating } =
     useUpdatePipelines();
-  const { updateWorkflows, isUpdating: isWorkflowsUpdating } =
+  const { updateWorkflows, updateWorkflowsAsync, isUpdating: isWorkflowsUpdating } =
     useUpdateWorkflows();
   const { updateDynamicApis, isUpdating: isDynamicApisUpdating } =
     useUpdateDynamicApis();
@@ -427,8 +427,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   }, [container, pipelineToDelete, updatePipelines]);
 
   const handleAddWorkflow = useCallback(
-    (workflow: DynamicWorkflow) => {
-      if (!container?.id) return;
+    async (workflow: DynamicWorkflow) => {
+      if (!container?.id) return false;
 
       const currentWorkflows = container.workflows || [];
       if (
@@ -436,7 +436,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         currentWorkflows.some((existing) => existing.name === workflow.name)
       ) {
         toast.error(t("A workflow with this name already exists"));
-        return;
+        return false;
       }
 
       const updatedWorkflows = editingWorkflow
@@ -445,14 +445,19 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           )
         : [...currentWorkflows, workflow];
 
-      updateWorkflows({
-        id: container.id,
-        payload: { Workflows: updatedWorkflows },
-      });
-      setIsAddWorkflowModalOpen(false);
-      setEditingWorkflow(null);
+      try {
+        await updateWorkflowsAsync({
+          id: container.id,
+          payload: { Workflows: updatedWorkflows },
+        });
+        setIsAddWorkflowModalOpen(false);
+        setEditingWorkflow(null);
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [container, editingWorkflow, t, updateWorkflows]
+    [container, editingWorkflow, t, updateWorkflowsAsync]
   );
 
   const handleEditWorkflow = useCallback((workflow: DynamicWorkflow) => {

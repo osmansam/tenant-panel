@@ -1073,6 +1073,12 @@ export function useUpdateWorkflows() {
     }) => {
       updateMutation.mutate(params);
     },
+    updateWorkflowsAsync: (params: {
+      id: string;
+      payload: UpdateWorkflowsPayload;
+    }) => {
+      return updateMutation.mutateAsync(params);
+    },
     isUpdating: updateMutation.isPending,
   };
 }
