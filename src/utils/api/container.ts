@@ -774,6 +774,10 @@ export function useUpdateContainer() {
     }) => {
       updateMutation.mutate(params);
     },
+    updateContainerAsync: (params: {
+      id: string;
+      payload: UpdateContainerPayload;
+    }) => updateMutation.mutateAsync(params),
     isUpdating: updateMutation.isPending,
   };
 }

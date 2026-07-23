@@ -2,13 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   axiosPatch: vi.fn(),
+  mutate: vi.fn(),
+  mutateAsync: vi.fn(),
   mutationFn: undefined as undefined | ((variables: any) => Promise<unknown>),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
   useMutation: vi.fn((options) => {
     mocks.mutationFn = options.mutationFn;
-    return { isPending: false, mutate: vi.fn() };
+    return {
+      isPending: false,
+      mutate: mocks.mutate,
+      mutateAsync: mocks.mutateAsync,
+    };
   }),
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
 }));
@@ -40,6 +46,7 @@ vi.mock("./factory", () => ({
 import {
   normalizeDynamicApiModel,
   normalizeDynamicWorkflow,
+  useUpdateContainer,
   useUpdateWorkflows,
 } from "./container";
 
@@ -125,6 +132,8 @@ describe("useUpdateWorkflows", () => {
   beforeEach(() => {
     mocks.axiosPatch.mockReset();
     mocks.axiosPatch.mockResolvedValue({ data: {} });
+    mocks.mutate.mockReset();
+    mocks.mutateAsync.mockReset();
     mocks.mutationFn = undefined;
   });
 
@@ -144,5 +153,32 @@ describe("useUpdateWorkflows", () => {
         Workflows: [{ name: "notify", isActive: true }],
       }
     );
+  });
+});
+
+
+describe("useUpdateContainer", () => {
+  beforeEach(() => {
+    mocks.axiosPatch.mockReset();
+    mocks.axiosPatch.mockResolvedValue({ data: {} });
+    mocks.mutate.mockReset();
+    mocks.mutateAsync.mockReset();
+    mocks.mutationFn = undefined;
+  });
+
+  it("exposes an async update so field modals can wait for persistence", async () => {
+    mocks.mutateAsync.mockResolvedValue({ ok: true });
+    const { updateContainerAsync } = useUpdateContainer();
+
+    const params = {
+      id: "container-1",
+      payload: {
+        schemaName: "orders",
+        fields: [{ name: "status", type: "string" }],
+      },
+    };
+
+    await expect(updateContainerAsync(params)).resolves.toEqual({ ok: true });
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(params);
   });
 });

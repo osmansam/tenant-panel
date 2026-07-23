@@ -11,7 +11,7 @@ import TextInput from "../FormElements/TextInput";
 interface AddFieldModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddField: (field: Field) => void;
+  onAddField: (field: Field) => boolean | Promise<boolean>;
   containerFields?: Field[];
   editField?: Field | null;
 }
@@ -396,7 +396,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     return rules.join(",");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validation
     if (!fieldData.name?.trim()) {
       toast.error(t("Field name is required"));
@@ -474,8 +474,10 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       populationSettings: populationSettings,
     };
 
-    onAddField(newField);
-    handleClose();
+    const saved = await onAddField(newField);
+    if (saved !== false) {
+      handleClose();
+    }
   };
 
   const handleClose = () => {

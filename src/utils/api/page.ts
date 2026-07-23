@@ -680,6 +680,8 @@ export function useUpdatePage() {
     updatePage: (params: { id: string; payload: UpdatePagePayload }) => {
       updateMutation.mutate(params);
     },
+    updatePageAsync: (params: { id: string; payload: UpdatePagePayload }) =>
+      updateMutation.mutateAsync(params),
     isUpdating: updateMutation.isPending,
   };
 }

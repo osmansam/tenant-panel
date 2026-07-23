@@ -24,7 +24,7 @@ export const PagesSection: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
-  const { updatePage } = useUpdatePage();
+  const { updatePage, updatePageAsync } = useUpdatePage();
 
   // Get pages for the current project with error handling
   let pages: PageModel[] = [];
@@ -120,7 +120,7 @@ export const PagesSection: React.FC = () => {
       const sections = gridSections;
       const filters = editingPage.filters ?? [];
 
-      updatePage({
+      await updatePageAsync({
         id: editingPage._id || editingPage.id!,
         payload: {
           name: editingPage.name,

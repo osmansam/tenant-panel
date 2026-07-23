@@ -89,7 +89,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     null
   );
 
-  const { updateContainer, isUpdating } = useUpdateContainer();
+  const { updateContainer, updateContainerAsync, isUpdating } = useUpdateContainer();
   const { updatePipelines, isUpdating: isPipelinesUpdating } =
     useUpdatePipelines();
   const { updateWorkflows, updateWorkflowsAsync, isUpdating: isWorkflowsUpdating } =
@@ -213,29 +213,34 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   );
 
   const handleAddField = useCallback(
-    (field: Field) => {
-      if (container?.id) {
-        let updatedFields: Field[];
+    async (field: Field) => {
+      if (!container?.id) return false;
 
-        if (editingField) {
-          // Update existing field
-          updatedFields = (container.fields || []).map((f) =>
-            f.name === editingField.name ? field : f
-          );
-        } else {
-          // Add new field
-          updatedFields = [...(container.fields || []), field];
-        }
+      let updatedFields: Field[];
 
-        updateContainer({
+      if (editingField) {
+        // Update existing field
+        updatedFields = (container.fields || []).map((f) =>
+          f.name === editingField.name ? field : f
+        );
+      } else {
+        // Add new field
+        updatedFields = [...(container.fields || []), field];
+      }
+
+      try {
+        await updateContainerAsync({
           id: container.id,
           payload: buildContainerUpdatePayload({ fields: updatedFields }),
         });
         setIsAddFieldModalOpen(false);
         setEditingField(null);
+        return true;
+      } catch {
+        return false;
       }
     },
-    [buildContainerUpdatePayload, container, editingField, updateContainer]
+    [buildContainerUpdatePayload, container, editingField, updateContainerAsync]
   );
 
   const handleEditField = useCallback((field: Field) => {
