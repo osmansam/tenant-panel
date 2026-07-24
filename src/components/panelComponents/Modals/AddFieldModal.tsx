@@ -11,7 +11,7 @@ import TextInput from "../FormElements/TextInput";
 interface AddFieldModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddField: (field: Field) => void;
+  onAddField: (field: Field) => boolean | Promise<boolean>;
   containerFields?: Field[];
   editField?: Field | null;
 }
@@ -101,6 +101,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     unique: false,
     isSearchable: true,
     isLoginCredential: false,
+    isAuditIdentity: false,
     isHashed: false,
     isForceDelete: false,
     enumList: [],
@@ -145,6 +146,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
         unique: editField.unique,
         isSearchable: editField.isSearchable,
         isLoginCredential: editField.isLoginCredential,
+        isAuditIdentity: editField.isAuditIdentity,
         isHashed: editField.isHashed,
         isForceDelete: editField.isForceDelete,
         objectSchemaName: editField.objectSchemaName,
@@ -396,7 +398,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     return rules.join(",");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validation
     if (!fieldData.name?.trim()) {
       toast.error(t("Field name is required"));
@@ -464,6 +466,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       unique: fieldData.unique || false,
       isSearchable: fieldData.isSearchable || false,
       isLoginCredential: fieldData.isLoginCredential || false,
+      isAuditIdentity: fieldData.isAuditIdentity || false,
       isHashed: fieldData.isHashed || false,
       isForceDelete: fieldData.isForceDelete || false,
       enumList: processedEnumList.length > 0 ? processedEnumList : undefined,
@@ -474,8 +477,10 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       populationSettings: populationSettings,
     };
 
-    onAddField(newField);
-    handleClose();
+    const saved = await onAddField(newField);
+    if (saved !== false) {
+      handleClose();
+    }
   };
 
   const handleClose = () => {
@@ -856,6 +861,20 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       handleFieldChange(
                         "isLoginCredential",
                         !fieldData.isLoginCredential
+                      )
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t("Audit Identity")}
+                  </label>
+                  <CheckSwitch
+                    checked={fieldData.isAuditIdentity || false}
+                    onChange={() =>
+                      handleFieldChange(
+                        "isAuditIdentity",
+                        !fieldData.isAuditIdentity
                       )
                     }
                   />

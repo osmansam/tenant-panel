@@ -6,6 +6,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
 } from "./pageDesignerTableConfig";
 
@@ -140,6 +141,13 @@ describe("page designer table config", () => {
     expect(TABLE_COLUMN_TYPE_OPTIONS).toContainEqual({
       value: "booleanSwitch",
       label: "Boolean Switch",
+    });
+  });
+
+  it("keeps email links when the user only selects the email link type", () => {
+    expect(normalizeDesignerTableColumnLink({ type: "email" })).toEqual({
+      type: "email",
+      template: "mailto:{{value}}",
     });
   });
 });

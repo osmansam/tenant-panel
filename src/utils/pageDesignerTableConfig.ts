@@ -67,6 +67,40 @@ export const buildDesignerTableColumnsFromFields = (
         : undefined,
     }));
 
+
+type DesignerTableLinkType = NonNullable<
+  NonNullable<TableColumnConfig["link"]>["type"]
+>;
+
+export const defaultTemplateForDesignerLinkType = (
+  type?: DesignerTableLinkType,
+): string => {
+  switch (type) {
+    case "email":
+      return "mailto:{{value}}";
+    case "phone":
+      return "tel:{{value}}";
+    default:
+      return "";
+  }
+};
+
+export const normalizeDesignerTableColumnLink = (
+  link?: TableColumnConfig["link"],
+): TableColumnConfig["link"] | undefined => {
+  const type = link?.type || "external";
+  const template =
+    link?.template?.trim() || defaultTemplateForDesignerLinkType(type);
+
+  if (!template) return undefined;
+
+  return {
+    template,
+    ...(link?.labelField?.trim() ? { labelField: link.labelField.trim() } : {}),
+    type,
+  };
+};
+
 export const hydrateEmptyDesignerTableColumns = (
   tableConfig: TableComponentConfig,
   fields: Field[],

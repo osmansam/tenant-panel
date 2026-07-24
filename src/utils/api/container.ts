@@ -50,6 +50,7 @@ export interface Field {
   unique?: boolean;
   isHashed?: boolean;
   isLoginCredential?: boolean;
+  isAuditIdentity?: boolean;
   isSearchable?: boolean;
   children?: Field[];
   frontend?: Frontend;
@@ -121,13 +122,33 @@ export interface WorkflowStep {
 }
 
 export interface DynamicWorkflow {
+  id?: string;
   name: string;
+  version?: number;
   trigger?: string;
+  schedule?: string;
+  timezone?: string;
   mode?: string;
   isActive: boolean;
+  isAuthenticated?: boolean;
+  isAuthorized?: boolean;
+  authorizeRole?: string[];
+  description?: string;
+  payload?: Record<string, any>;
+  conditions?: WorkflowCondition[];
+  steps?: WorkflowStep[];
+  stopOnError?: boolean;
+  timeoutSec?: number;
   returnStep?: string;
   outputFields?: string[];
-  steps?: WorkflowStep[];
+  runInTransaction?: boolean;
+}
+
+export interface WorkflowCondition {
+  field?: string;
+  operator: string;
+  value?: any;
+  conditions?: WorkflowCondition[];
 }
 
 /** Dynamic function spec (server-executed code) */
@@ -287,6 +308,10 @@ export interface UpdateDynamicApisPayload {
 
 export interface UpdatePipelinesPayload {
   pipelines: PipelineStage[];
+}
+
+export interface UpdateWorkflowsPayload {
+  Workflows: DynamicWorkflow[];
 }
 
 // Raw payload types matching Go backend struct tags (PascalCase)
@@ -468,6 +493,33 @@ export function normalizeDynamicApiModel(api: any): DynamicApiModel {
   };
 }
 
+export function normalizeDynamicWorkflow(workflow: any): DynamicWorkflow {
+  return {
+    id: workflow.ID || workflow.id,
+    name: workflow.Name || workflow.name || "",
+    version: workflow.Version ?? workflow.version,
+    trigger: workflow.Trigger || workflow.trigger || "manual",
+    schedule: workflow.Schedule || workflow.schedule,
+    timezone: workflow.Timezone || workflow.timezone,
+    mode: workflow.Mode || workflow.mode || "transactional",
+    isActive: workflow.IsActive ?? workflow.isActive ?? true,
+    isAuthenticated:
+      workflow.IsAuthenticated ?? workflow.isAuthenticated ?? false,
+    isAuthorized: workflow.IsAuthorized ?? workflow.isAuthorized ?? false,
+    authorizeRole: workflow.AuthorizeRole || workflow.authorizeRole || [],
+    description: workflow.Description || workflow.description,
+    payload: workflow.Payload || workflow.payload,
+    conditions: workflow.Conditions || workflow.conditions || [],
+    steps: workflow.Steps || workflow.steps || [],
+    stopOnError: workflow.StopOnError ?? workflow.stopOnError ?? true,
+    timeoutSec: workflow.TimeoutSec ?? workflow.timeoutSec,
+    returnStep: workflow.ReturnStep || workflow.returnStep,
+    outputFields: workflow.OutputFields || workflow.outputFields || [],
+    runInTransaction:
+      workflow.RunInTransaction ?? workflow.runInTransaction ?? false,
+  };
+}
+
 // React Query hooks
 export function useContainers(enabled: boolean = true) {
   const { tenantSlug, projectSlug } = useContainerContext();
@@ -492,7 +544,9 @@ export function useContainers(enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
-    workflows: container.Workflows || container.workflows || [],
+    workflows: (container.Workflows || container.workflows || []).map(
+      normalizeDynamicWorkflow
+    ),
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: (container.DynamicApis || container.dynamicApis || []).map(
@@ -546,6 +600,7 @@ export function useContainer(id: string, enabled: boolean = true) {
       isHashed: field.IsHashed ?? field.isHashed ?? false,
       isLoginCredential:
         field.IsLoginCredential ?? field.isLoginCredential ?? false,
+      isAuditIdentity: field.IsAuditIdentity ?? field.isAuditIdentity ?? false,
       isSearchable: field.IsSearchable ?? field.isSearchable ?? false,
       frontend: field.Frontend || field.frontend,
       populationSettings: field.PopulationSettings || field.populationSettings,
@@ -574,7 +629,9 @@ export function useContainer(id: string, enabled: boolean = true) {
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
-    workflows: container.Workflows || container.workflows || [],
+    workflows: (container.Workflows || container.workflows || []).map(
+      normalizeDynamicWorkflow
+    ),
     dynamicFunctions:
       container.DynamicFunctions || container.dynamicFunctions || [],
     dynamicApis: (container.DynamicApis || container.dynamicApis || []).map(
@@ -719,6 +776,10 @@ export function useUpdateContainer() {
     }) => {
       updateMutation.mutate(params);
     },
+    updateContainerAsync: (params: {
+      id: string;
+      payload: UpdateContainerPayload;
+    }) => updateMutation.mutateAsync(params),
     isUpdating: updateMutation.isPending,
   };
 }
@@ -963,6 +1024,66 @@ export function useUpdatePipelines() {
       payload: UpdatePipelinesPayload;
     }) => {
       updateMutation.mutate(params);
+    },
+    isUpdating: updateMutation.isPending,
+  };
+}
+
+// Workflows operations
+export function useUpdateWorkflows() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { tenantSlug, projectSlug } = useContainerContext();
+
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateWorkflowsPayload;
+    }) => {
+      const path = buildContainerPath(
+        tenantSlug,
+        projectSlug,
+        `/workflows/${id}`
+      );
+      const response = await axiosClient.patch(path, payload);
+      return response.data;
+    },
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["containers", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["container", tenantSlug, projectSlug, variables.id],
+      });
+
+      const message = response?.message || "Workflows updated successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      console.error("Workflows update failed:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update workflows";
+      toast.error(t(errorMessage));
+    },
+  });
+
+  return {
+    updateWorkflows: (params: {
+      id: string;
+      payload: UpdateWorkflowsPayload;
+    }) => {
+      updateMutation.mutate(params);
+    },
+    updateWorkflowsAsync: (params: {
+      id: string;
+      payload: UpdateWorkflowsPayload;
+    }) => {
+      return updateMutation.mutateAsync(params);
     },
     isUpdating: updateMutation.isPending,
   };

@@ -1,17 +1,22 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiInfo, FiPlus } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserContext } from "../../../context/User.context";
 import {
   PageModel,
+  useCreatePage,
   useGetTenantPages,
   useUpdatePage,
+  CreatePagePayload,
 } from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
+import { normalizePageJsonPayload } from "../../../utils/jsonCreate";
+import { buildPageOrderSwap, sortPagesForDisplay } from "../../../utils/pageOrdering";
 import { PageDesigner } from "../../PageDesigner/PageDesigner";
 import { GenericButton } from "../FormElements/GenericButton";
 import { CreatePageModal } from "../Modals/CreatePageModal";
+import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
 import { PageDetailsModal } from "../Modals/PageDetailsModal";
 import { H2 } from "../Typography";
 
@@ -20,11 +25,13 @@ export const PagesSection: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUserContext();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateJsonModalOpen, setIsCreateJsonModalOpen] = useState(false);
   const [selectedPage, setSelectedPage] = useState<PageModel | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
-  const { updatePage } = useUpdatePage();
+  const { updatePage, updatePageAsync } = useUpdatePage();
+  const { createPage, isCreating } = useCreatePage();
 
   // Get pages for the current project with error handling
   let pages: PageModel[] = [];
@@ -37,6 +44,8 @@ export const PagesSection: React.FC = () => {
   } catch (err) {
     error = err;
   }
+
+  const orderedPages = useMemo(() => sortPagesForDisplay(pages), [pages]);
 
   // Check if user can create pages (project admin, developer, or editor)
   const userRoles = user?.roles || [];
@@ -52,6 +61,47 @@ export const PagesSection: React.FC = () => {
   const handleCloseDetailsModal = () => {
     setIsDetailsModalOpen(false);
     setSelectedPage(null);
+  };
+
+  const handleCreatePageWithJson = (payload: unknown) => {
+    createPage(payload as CreatePagePayload);
+  };
+
+  const buildPageOrderPayload = (page: PageModel, order: number) => ({
+    name: page.name,
+    icon: page.icon,
+    slug: page.slug,
+    parentPageId: page.parentPageId || "",
+    order,
+    isGroupOnly: page.isGroupOnly,
+    isOnSidebar: page.isOnSidebar,
+    isMainPage: page.isMainPage,
+    isAuthenticated: page.isAuthenticated,
+    isAuthorized: page.isAuthorized,
+    authorizeRole: page.authorizeRole,
+    filters: page.filters,
+    sections: page.sections,
+    subPage: page.subPage,
+  });
+
+  const handleMovePage = async (index: number, direction: "up" | "down") => {
+    const updates = buildPageOrderSwap(orderedPages, index, direction);
+    if (updates.length !== 2) return;
+
+    const pagesById = new Map(
+      orderedPages.map((page) => [getPageId(page), page]),
+    );
+
+    await Promise.all(
+      updates.map(({ id, order }) => {
+        const page = pagesById.get(id);
+        if (!page) return Promise.resolve();
+        return updatePageAsync({
+          id,
+          payload: buildPageOrderPayload(page, order),
+        });
+      }),
+    );
   };
 
   const handleEditPage = (page: PageModel) => {
@@ -120,7 +170,7 @@ export const PagesSection: React.FC = () => {
       const sections = gridSections;
       const filters = editingPage.filters ?? [];
 
-      updatePage({
+      await updatePageAsync({
         id: editingPage._id || editingPage.id!,
         payload: {
           name: editingPage.name,
@@ -228,13 +278,23 @@ export const PagesSection: React.FC = () => {
           <H2 className="text-lg font-semibold text-gray-900">{t("Pages")}</H2>
         </div>
         {canCreatePages && (
-          <GenericButton
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            iconLeft={<FiPlus size={16} />}
-          >
-            {t("Create Page")}
-          </GenericButton>
+          <div className="flex gap-2">
+            <GenericButton
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCreateJsonModalOpen(true)}
+              iconLeft={<FiCode size={16} />}
+            >
+              {t("Create with JSON")}
+            </GenericButton>
+            <GenericButton
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              iconLeft={<FiPlus size={16} />}
+            >
+              {t("Create Page")}
+            </GenericButton>
+          </div>
         )}
       </div>
 
@@ -249,8 +309,8 @@ export const PagesSection: React.FC = () => {
               )}
             </p>
           </div>
-        ) : pages && pages.length > 0 ? (
-          pages.map((page) => {
+        ) : orderedPages && orderedPages.length > 0 ? (
+          orderedPages.map((page, pageIndex) => {
             const IconComponent = page.icon ? getIconByName(page.icon) : null;
             const pageId = getPageId(page);
             const parentPage = getPageById(page.parentPageId);
@@ -355,6 +415,24 @@ export const PagesSection: React.FC = () => {
                     />
                     {t("Main")}
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => handleMovePage(pageIndex, "up")}
+                    disabled={pageIndex === 0}
+                    title={t("Move up")}
+                    className="rounded-md border border-gray-300 p-1.5 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <FiArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMovePage(pageIndex, "down")}
+                    disabled={pageIndex === orderedPages.length - 1}
+                    title={t("Move down")}
+                    className="rounded-md border border-gray-300 p-1.5 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <FiArrowDown size={14} />
+                  </button>
                   <GenericButton
                     variant="outline"
                     size="sm"
@@ -403,19 +481,19 @@ export const PagesSection: React.FC = () => {
       </div>
 
       {/* Page Statistics */}
-      {pages && pages.length > 0 && (
+      {orderedPages && orderedPages.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">
-                {pages.length}
+                {orderedPages.length}
               </div>
               <div className="text-xs text-gray-500">{t("Total Pages")}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">
                 {
-                  pages.filter((p) => !p.isAuthenticated && !p.isAuthorized)
+                  orderedPages.filter((p) => !p.isAuthenticated && !p.isAuthorized)
                     .length
                 }
               </div>
@@ -423,13 +501,13 @@ export const PagesSection: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl font-bold text-yellow-600">
-                {pages.filter((p) => p.isAuthenticated).length}
+                {orderedPages.filter((p) => p.isAuthenticated).length}
               </div>
               <div className="text-xs text-gray-500">{t("Auth Pages")}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600">
-                {pages.reduce(
+                {orderedPages.reduce(
                   (total, p) => total + (p.sections?.length || 0),
                   0
                 )}
@@ -444,6 +522,31 @@ export const PagesSection: React.FC = () => {
       <CreatePageModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <CreateWithJsonModal
+        isOpen={isCreateJsonModalOpen}
+        title="Create Page with JSON"
+        description="Temporary raw JSON page creation"
+        submitLabel="Create Page"
+        initialJson={{
+          name: "New Page",
+          slug: "new-page",
+          icon: "MdSpaceDashboard",
+          isAuthenticated: true,
+          isAuthorized: false,
+          authorizeRole: [],
+          sections: [],
+          filters: [],
+        }}
+        isSubmitting={isCreating}
+        validate={(payload) => {
+          const name = String(payload.name || payload.Name || "").trim();
+          return name ? null : "Page JSON requires name";
+        }}
+        normalize={(payload) => normalizePageJsonPayload(payload)}
+        onSubmit={handleCreatePageWithJson}
+        onClose={() => setIsCreateJsonModalOpen(false)}
       />
 
       {/* Page Designer Modal */}

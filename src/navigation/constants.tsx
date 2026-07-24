@@ -12,7 +12,6 @@ export enum PublicRoutes {
 export enum Routes {
   Home = "/",
   Dashboard = "/dashboard",
-  AuditLogs = "/audit-logs",
   Projects = "/projects",
   ProjectManagement = "/project-management",
   Integrations = "/integrations",
@@ -39,13 +38,6 @@ export const systemRoutes: RouteConfig[] = [
     path: Routes.Dashboard,
     isOnSidebar: true,
     icon: "🏠",
-  },
-  {
-    name: "Audit Logs",
-    path: Routes.AuditLogs,
-    isOnSidebar: true,
-    icon: "📋",
-    requiredRoles: ["tenant_owner", "tenant_admin", "tenant_auditor"],
   },
   {
     name: "Projects",

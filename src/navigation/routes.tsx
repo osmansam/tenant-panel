@@ -45,8 +45,6 @@ const RouterContainer = () => {
           element={<Navigate to={ProtectedRoutes.Dashboard} replace />}
         />
 
-        {/* TODO: Add other protected routes */}
-        {/* <Route path={ProtectedRoutes.AuditLogs} element={<AuditLogsPage />} /> */}
         <Route path={ProtectedRoutes.Projects} element={<ProjectsPage />} />
         <Route
           path={ProtectedRoutes.ProjectManagement}

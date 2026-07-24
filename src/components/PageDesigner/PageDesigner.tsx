@@ -64,8 +64,10 @@ import {
   TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
+  defaultTemplateForDesignerLinkType,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
 } from "../../utils/pageDesignerTableConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
@@ -1389,17 +1391,10 @@ const cleanTableConfig = (
       ...(cleanRules(column.cellClassName).length > 0
         ? { cellClassName: cleanRules(column.cellClassName) }
         : {}),
-      ...(column.link?.template?.trim()
-        ? {
-            link: {
-              template: column.link.template.trim(),
-              ...(column.link.labelField?.trim()
-                ? { labelField: column.link.labelField.trim() }
-                : {}),
-              type: column.link.type || "external",
-            },
-          }
-        : {}),
+      ...(() => {
+        const link = normalizeDesignerTableColumnLink(column.link);
+        return link ? { link } : {};
+      })(),
     })),
   ...(cleanRules(tableConfig.rows?.className).length > 0
     ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
@@ -7298,6 +7293,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 {
                                                   type: e.target
                                                     .value as LinkType,
+                                                  template:
+                                                    column.link?.template ||
+                                                    defaultTemplateForDesignerLinkType(
+                                                      e.target
+                                                        .value as LinkType,
+                                                    ),
                                                 },
                                               )
                                             }

@@ -120,7 +120,7 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
     const pipeline: PipelineStage = {
       name: pipelineData.name!,
       pipelineJson: pipelineData.pipelineJson!,
-      isAuthenticated: pipelineData.isAuthenticated || false,
+      isAuthenticated: Boolean(pipelineData.isAuthenticated || pipelineData.isAuthorized),
       isAuthorized: pipelineData.isAuthorized || false,
       authorizeRole: pipelineData.authorizeRole || [],
       isActive:
@@ -288,6 +288,9 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   setPipelineData({
                     ...pipelineData,
                     isAuthenticated: !pipelineData.isAuthenticated,
+                    ...(!pipelineData.isAuthenticated
+                      ? {}
+                      : { isAuthorized: false, authorizeRole: [] }),
                   })
                 }
                 checked={pipelineData.isAuthenticated || false}
@@ -309,6 +312,10 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   setPipelineData({
                     ...pipelineData,
                     isAuthorized: !pipelineData.isAuthorized,
+                    isAuthenticated: !pipelineData.isAuthorized
+                      ? true
+                      : pipelineData.isAuthenticated,
+                    ...(pipelineData.isAuthorized ? { authorizeRole: [] } : {}),
                   })
                 }
                 checked={pipelineData.isAuthorized || false}

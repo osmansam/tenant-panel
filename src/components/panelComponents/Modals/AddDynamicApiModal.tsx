@@ -114,7 +114,7 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
       url: apiData.url.trim(),
       method: apiData.method.trim().toUpperCase(),
       dependencies: normalizeDependencies(apiData.dependenciesText || ""),
-      isAuthenticated: apiData.isAuthenticated || false,
+      isAuthenticated: Boolean(apiData.isAuthenticated || apiData.isAuthorized),
       isAuthorized: apiData.isAuthorized || false,
       authorizeRole: apiData.authorizeRole || [],
       isActive: apiData.isActive !== undefined ? apiData.isActive : true,
@@ -244,6 +244,9 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
                   setApiData({
                     ...apiData,
                     isAuthenticated: !apiData.isAuthenticated,
+                    ...(!apiData.isAuthenticated
+                      ? {}
+                      : { isAuthorized: false, authorizeRole: [] }),
                   })
                 }
                 checked={apiData.isAuthenticated || false}
@@ -264,6 +267,10 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
                   setApiData({
                     ...apiData,
                     isAuthorized: !apiData.isAuthorized,
+                    isAuthenticated: !apiData.isAuthorized
+                      ? true
+                      : apiData.isAuthenticated,
+                    ...(apiData.isAuthorized ? { authorizeRole: [] } : {}),
                   })
                 }
                 checked={apiData.isAuthorized || false}

@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { H1 } from "../components/panelComponents/Typography";
 import { ContainersSection } from "../components/panelComponents/common/ContainersSection";
 import { PagesSection } from "../components/panelComponents/common/PagesSection";
+import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 
@@ -64,6 +65,9 @@ const ProjectManagementPage: React.FC = () => {
 
         {/* Pages Management */}
         <PagesSection />
+
+        {/* Audit Logs Authorization */}
+        <AuditLogsAuthorizationSection />
       </div>
     </div>
   );
