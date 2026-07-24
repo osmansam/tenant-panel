@@ -1,22 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiInfo, FiPlus, FiUpload } from "react-icons/fi";
+import { FiCode, FiInfo, FiPlus, FiUpload } from "react-icons/fi";
 import { useUserContext } from "../../../context/User.context";
-import { ContainerModel, useContainers } from "../../../utils/api/container";
+import {
+  ContainerModel,
+  CreateContainerPayload,
+  CreateContainerRawPayload,
+  useContainers,
+  useCreateContainer,
+} from "../../../utils/api/container";
+import { normalizeContainerJsonPayload } from "../../../utils/jsonCreate";
 import { ExcelUploadModal } from "../../PageDesigner/ExcelUploadModal";
 import { GenericButton } from "../FormElements/GenericButton";
 import { ContainerDetailsModal } from "../Modals/ContainerDetailsModal";
 import { CreateContainerModal } from "../Modals/CreateContainerModal";
+import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
 import { H2 } from "../Typography";
 
 export const ContainersSection: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useUserContext();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateJsonModalOpen, setIsCreateJsonModalOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] =
     useState<ContainerModel | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
+  const { createContainer, isCreating } = useCreateContainer();
 
   // Get containers for the current project with error handling
   let containers: any[] = [];
@@ -60,6 +70,10 @@ export const ContainersSection: React.FC = () => {
     setSelectedContainer(null);
   };
 
+  const handleCreateContainerWithJson = (payload: unknown) => {
+    createContainer(payload as CreateContainerPayload | CreateContainerRawPayload);
+  };
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -71,6 +85,14 @@ export const ContainersSection: React.FC = () => {
         </div>
         {canCreateContainers && (
           <div className="flex gap-2">
+            <GenericButton
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCreateJsonModalOpen(true)}
+              iconLeft={<FiCode size={16} />}
+            >
+              {t("Create with JSON")}
+            </GenericButton>
             <GenericButton
               size="sm"
               variant="outline"
@@ -214,6 +236,30 @@ export const ContainersSection: React.FC = () => {
       <CreateContainerModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <CreateWithJsonModal
+        isOpen={isCreateJsonModalOpen}
+        title="Create Container with JSON"
+        description="Temporary raw JSON container creation"
+        submitLabel="Create Container"
+        initialJson={{
+          schemaName: "newSchema",
+          fields: [],
+          isAuthContainer: false,
+          isRegisterActive: false,
+          isGoogleLoginActive: false,
+        }}
+        isSubmitting={isCreating}
+        validate={(payload) => {
+          const schemaName = String(payload.schemaName || payload.SchemaName || "").trim();
+          if (!schemaName) return "Container JSON requires schemaName";
+          const fields = payload.fields || payload.Fields;
+          return Array.isArray(fields) ? null : "Container JSON requires fields array";
+        }}
+        normalize={(payload) => normalizeContainerJsonPayload(payload)}
+        onSubmit={handleCreateContainerWithJson}
+        onClose={() => setIsCreateJsonModalOpen(false)}
       />
 
       {/* Container Details Modal */}

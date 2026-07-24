@@ -1,4 +1,9 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import { FormElementsState } from "../../types";
+import { useCurrentProject } from "../../hooks/useCurrentProject";
+import { useTenant } from "../../hooks/useTenant";
+import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
 export interface AuditLog {
@@ -25,23 +30,46 @@ export interface PaginatedAuditLogsResponse {
   limit: number;
 }
 
-const AUDIT_BASE = "/audit-logs";
+export interface AuditLogsAuthorizationConfig {
+  isAuthorized: boolean;
+  authorizeRole: string[];
+}
 
-/**
- * Hook to fetch audit logs with optional filters
- * @param filters - Optional filters for the audit logs (e.g., action, userEmail, schemaName, date ranges)
- * @returns Query result with audit logs data
- */
-export function useGetAuditLogs(filters?: FormElementsState) {
+interface GeneralResponse<T> {
+  status: number;
+  message: string;
+  data: T;
+}
+
+function useAuditLogsContext() {
+  const { currentTenant } = useTenant();
+  const { currentProject } = useCurrentProject();
+
+  const tenantSlug = currentTenant?.slug;
+  const projectSlug = currentProject?.slug;
+
+  if (!tenantSlug || !projectSlug) {
+    throw new Error("Audit logs require tenant and project context");
+  }
+
+  return { tenantSlug, projectSlug };
+}
+
+export function buildAuditLogsPath(
+  tenantSlug: string,
+  projectSlug: string,
+  suffix = ""
+) {
+  return `/${tenantSlug}/${projectSlug}/audit-logs${suffix}`;
+}
+
+function buildQueryString(filters?: FormElementsState) {
   const parts: string[] = [];
 
-  // Add filter parameters if provided
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         if (Array.isArray(value)) {
-          // Send each array value as a separate parameter with the same key
-          // This creates: action=create&action=update
           value.forEach((item) => {
             if (item !== undefined && item !== null && item !== "") {
               const trimmedItem =
@@ -60,28 +88,36 @@ export function useGetAuditLogs(filters?: FormElementsState) {
     });
   }
 
-  const queryString = parts.length > 0 ? `?${parts.join("&")}` : "";
-  const path = `${AUDIT_BASE}${queryString}`;
+  return parts.length > 0 ? `?${parts.join("&")}` : "";
+}
+
+export function useGetAuditLogs(filters?: FormElementsState) {
+  const { tenantSlug, projectSlug } = useAuditLogsContext();
+  const path = buildAuditLogsPath(
+    tenantSlug,
+    projectSlug,
+    buildQueryString(filters)
+  );
   const queryKey = filters
-    ? (["auditLogs", "all", filters] as const)
-    : (["auditLogs", "all"] as const);
+    ? (["auditLogs", "all", tenantSlug, projectSlug, filters] as const)
+    : (["auditLogs", "all", tenantSlug, projectSlug] as const);
 
   return useGet<AuditLog[]>(path, queryKey);
 }
 
-/**
- * Hook to fetch paginated audit logs with filters
- * @param page - Current page number
- * @param limit - Number of items per page
- * @param filters - Optional filters for the audit logs
- * @returns Query result with paginated audit logs data
- */
 export function useGetPaginatedAuditLogs(
   page: number,
   limit: number,
   filters?: FormElementsState
 ) {
-  const queryKey = ["auditLogs", "page", { page, limit, filters }] as const;
+  const { tenantSlug, projectSlug } = useAuditLogsContext();
+  const queryKey = [
+    "auditLogs",
+    "page",
+    tenantSlug,
+    projectSlug,
+    { page, limit, filters },
+  ] as const;
 
   const parts = [
     `page=${page}`,
@@ -96,10 +132,8 @@ export function useGetPaginatedAuditLogs(
       }`,
   ];
 
-  // Add all other filter fields as query parameters
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      // Skip the standard pagination/sort/search fields
       if (
         !["sort", "asc", "search"].includes(key) &&
         value !== undefined &&
@@ -107,7 +141,6 @@ export function useGetPaginatedAuditLogs(
         value !== ""
       ) {
         if (Array.isArray(value)) {
-          // For arrays, send each value as a separate query parameter with the same key
           value.forEach((item) => {
             if (item !== undefined && item !== null && item !== "") {
               const trimmedItem =
@@ -127,7 +160,61 @@ export function useGetPaginatedAuditLogs(
   }
 
   const queryString = parts.filter(Boolean).join("&");
-  const url = `${AUDIT_BASE}?${queryString}`;
+  const url = buildAuditLogsPath(tenantSlug, projectSlug, `?${queryString}`);
 
-  return useGet<PaginatedAuditLogsResponse>(url, queryKey, true);
+  return useQuery({
+    queryKey,
+    queryFn: async () => {
+      const response = await axiosClient.get<PaginatedAuditLogsResponse>(url);
+      return response.data;
+    },
+  });
+}
+
+export function useAuditLogsAuthorizationConfig(enabled = true) {
+  const { tenantSlug, projectSlug } = useAuditLogsContext();
+  const path = buildAuditLogsPath(tenantSlug, projectSlug, "/config");
+
+  return useQuery({
+    queryKey: ["auditLogsConfig", tenantSlug, projectSlug],
+    enabled: enabled && !!tenantSlug && !!projectSlug,
+    queryFn: async () => {
+      const response = await axiosClient.get<GeneralResponse<AuditLogsAuthorizationConfig>>(
+        path
+      );
+      return response.data.data;
+    },
+  });
+}
+
+export function useUpdateAuditLogsAuthorizationConfig() {
+  const { tenantSlug, projectSlug } = useAuditLogsContext();
+  const queryClient = useQueryClient();
+  const path = buildAuditLogsPath(tenantSlug, projectSlug, "/config");
+
+  return useMutation({
+    mutationFn: async (payload: AuditLogsAuthorizationConfig) => {
+      const response = await axiosClient.patch<GeneralResponse<AuditLogsAuthorizationConfig>>(
+        path,
+        payload
+      );
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["auditLogsConfig", tenantSlug, projectSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["auditLogs", "page", tenantSlug, projectSlug],
+      });
+      toast.success("Audit logs authorization updated");
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Failed to update audit logs authorization";
+      toast.error(errorMessage);
+    },
+  });
 }

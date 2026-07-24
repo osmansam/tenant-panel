@@ -563,10 +563,10 @@ function usePageContext() {
 
 // Build page API path
 function buildPagePath(tenantSlug: string, projectSlug: string, suffix = "") {
-  return `/${tenantSlug}/${projectSlug}/page${suffix}`;
+  return `/${tenantSlug}/${projectSlug}/admin/page${suffix}`;
 }
 
-// Get all pages (public access)
+// Get all pages (admin access)
 export function useGetAllPages() {
   const { tenantSlug, projectSlug } = usePageContext();
   const path = buildPagePath(tenantSlug, projectSlug);
