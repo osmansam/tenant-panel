@@ -65,6 +65,7 @@ import {
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
   defaultTemplateForDesignerLinkType,
+  ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
   normalizeDesignerTableColumnLink,
@@ -3043,6 +3044,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           editingComponent.dataBinding?.kind === "workflow"
             ? editingComponent.dataBinding.kind
             : "schema";
+        const editingSchemaFields =
+          containers.find(
+            (container) =>
+              container.schemaName === editingComponent.dataBinding?.schemaName,
+          )?.fields || [];
         setTableConfig({
           columns: editingComponent.table.columns || [],
           rows: { className: editingComponent.table.rows?.className || [] },
@@ -3062,11 +3068,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               ? hydrateSchemaAddButton(
                   editingComponent.table.addButton,
                   editingComponent.table.actions,
-                  containers.find(
-                    (container) =>
-                      container.schemaName ===
-                      editingComponent.dataBinding?.schemaName,
-                  )?.fields || [],
+                  editingSchemaFields,
                 )
               : editingComponent.table.addButton,
           actions:
@@ -3075,21 +3077,21 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               ? editingSourceType === "schema"
                 ? hydrateSchemaEditActionFields(
                     editingComponent.table.actions,
-                    containers.find(
-                      (container) =>
-                        container.schemaName ===
-                        editingComponent.dataBinding?.schemaName,
-                    )?.fields || [],
+                    editingSchemaFields,
                   )
                 : editingComponent.table.actions
               : getDefaultActionsForSource(
                   editingSourceType,
-                  containers.find(
-                    (container) =>
-                      container.schemaName ===
-                      editingComponent.dataBinding?.schemaName,
-                  )?.fields || [],
+                  editingSchemaFields,
                 ),
+          bulkActions:
+            editingComponent.table.bulkActions ||
+            (editingSourceType === "schema"
+              ? {
+                  edit: buildDefaultBulkEditAction(editingSchemaFields),
+                  delete: buildDefaultBulkDeleteAction(),
+                }
+              : undefined),
           filterPanel:
             editingComponent.table.filterPanel !== undefined
               ? {
@@ -3097,11 +3099,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 }
               : {
                   inputs: buildFilterPanelInputsFromFields(
-                    containers.find(
-                      (container) =>
-                        container.schemaName ===
-                        editingComponent.dataBinding?.schemaName,
-                    )?.fields || [],
+                    editingSchemaFields,
                   ),
                 },
         });
@@ -3149,6 +3147,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       uniqueComponentStateKey(page, title || componentType, componentType),
     );
   }, [componentType, editingComponent?.stateKey, page, stateKeyTouched, title]);
+
+  useEffect(() => {
+    if (
+      !["table", "tabPanel"].includes(componentType) ||
+      activeTableSettingsTab !== "bulkActions"
+    ) {
+      return;
+    }
+
+    setTableConfig((current) =>
+      current.bulkActions
+        ? current
+        : {
+            ...current,
+            bulkActions: {
+              edit: buildDefaultBulkEditAction(selectedFields),
+              delete: buildDefaultBulkDeleteAction(),
+            },
+          },
+    );
+  }, [activeTableSettingsTab, componentType, selectedFields]);
 
   useEffect(() => {
     if (componentType !== "table") return;
@@ -3237,6 +3256,34 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       return buildDefaultFormConfig(schemaName, container.fields || []);
     });
   }, [componentType, containers, editingComponent?.form, schemaName]);
+
+  useEffect(() => {
+    if (
+      !["table", "tabPanel"].includes(componentType) ||
+      activeTableSettingsTab !== "bulkActions" ||
+      tableConfig.bulkActions?.edit ||
+      tableConfig.bulkActions?.delete
+    ) {
+      return;
+    }
+
+    setTableConfig((current) => {
+      if (current.bulkActions?.edit || current.bulkActions?.delete) {
+        return current;
+      }
+
+      return ensureDesignerTableBulkActions(current, {
+        edit: buildDefaultBulkEditAction(selectedFields),
+        delete: buildDefaultBulkDeleteAction(),
+      });
+    });
+  }, [
+    activeTableSettingsTab,
+    componentType,
+    selectedFields,
+    tableConfig.bulkActions?.delete,
+    tableConfig.bulkActions?.edit,
+  ]);
 
   useEffect(() => {
     if (

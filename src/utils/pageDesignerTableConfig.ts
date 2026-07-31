@@ -134,6 +134,20 @@ export const shouldHydrateEmptyDesignerTableColumns = ({
   columnCount === 0 &&
   !isEditingExistingTable;
 
+export const ensureDesignerTableBulkActions = (
+  tableConfig: TableComponentConfig,
+  defaults: {
+    edit: TableActionConfig;
+    delete: TableActionConfig;
+  },
+): TableComponentConfig => ({
+  ...tableConfig,
+  bulkActions: {
+    edit: tableConfig.bulkActions?.edit || defaults.edit,
+    delete: tableConfig.bulkActions?.delete || defaults.delete,
+  },
+});
+
 export const mergeDesignerTableColumnsFromNames = (
   currentColumns: TableColumnConfig[] = [],
   fieldNames: string[],
