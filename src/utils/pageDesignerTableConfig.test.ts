@@ -4,6 +4,7 @@ import {
   TABLE_ACTION_KIND_OPTIONS,
   TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
+  ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
   normalizeDesignerTableColumnLink,
@@ -82,6 +83,38 @@ describe("page designer table config", () => {
         isEditingExistingTable: false,
       }),
     ).toBe(true);
+  });
+
+  it("materializes default bulk actions into table config", () => {
+    const result = ensureDesignerTableBulkActions(
+      {
+        columns: [{ field: "productName" }],
+      },
+      {
+        edit: { kind: "update", label: "Edit Selected" },
+        delete: { kind: "delete", label: "Delete Selected" },
+      },
+    );
+
+    expect(result.bulkActions?.edit?.label).toBe("Edit Selected");
+    expect(result.bulkActions?.delete?.label).toBe("Delete Selected");
+  });
+
+  it("preserves configured bulk actions while filling missing defaults", () => {
+    const result = ensureDesignerTableBulkActions(
+      {
+        bulkActions: {
+          edit: { kind: "update", label: "Custom Bulk Edit" },
+        },
+      },
+      {
+        edit: { kind: "update", label: "Default Bulk Edit" },
+        delete: { kind: "delete", label: "Delete Selected" },
+      },
+    );
+
+    expect(result.bulkActions?.edit?.label).toBe("Custom Bulk Edit");
+    expect(result.bulkActions?.delete?.label).toBe("Delete Selected");
   });
 
   it("preserves existing column types while syncing pipeline or workflow output fields", () => {
