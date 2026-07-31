@@ -54,7 +54,8 @@ export async function put<P, R>({
   path,
   payload,
 }: RequestWithPayload<P>): Promise<R> {
-  return axiosClient.put(`${path}`, payload);
+  const { data } = await axiosClient.put<R>(`${path}`, payload);
+  return data;
 }
 
 // P = payload, R = ResponseType
@@ -62,12 +63,14 @@ export async function patch<P, R>({
   path,
   payload,
 }: RequestWithPayload<P>): Promise<R> {
-  return axiosClient.patch(`${path}`, payload);
+  const { data } = await axiosClient.patch<R>(`${path}`, payload);
+  return data;
 }
 
 // R = ResponseType
 export async function remove<R>({ path }: BaseRequest): Promise<R> {
-  return axiosClient.delete(`${path}`);
+  const { data } = await axiosClient.delete<R>(`${path}`);
+  return data;
 }
 
 // Export page API
