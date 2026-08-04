@@ -3,6 +3,7 @@ import { GoogleCallbackHandler } from "../components/auth";
 import {
   Dashboard,
   IntegrationsPage,
+  LocalizationPage,
   LoginPage,
   PagePreviewPage,
   ProjectManagementPage,
@@ -50,6 +51,7 @@ const RouterContainer = () => {
           path={ProtectedRoutes.ProjectManagement}
           element={<ProjectManagementPage />}
         />
+        <Route path={ProtectedRoutes.Localization} element={<LocalizationPage />} />
         <Route
           path={ProtectedRoutes.Integrations}
           element={<IntegrationsPage />}

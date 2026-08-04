@@ -9,11 +9,16 @@ type WSInvalidateEvent =
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
-function toWsUrl(httpUrl: string, wsPath = "/ws") {
+function toWsUrl(httpUrl: string, wsPath = "/ws", tenantSlug?: string, projectSlug?: string) {
   const u = new URL(httpUrl);
   u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-  u.pathname = wsPath.startsWith("/") ? wsPath : `/${wsPath}`;
-  u.search = "";
+  const apiPath = u.pathname.replace(/\/$/, "");
+  u.pathname = tenantSlug && projectSlug
+    ? `${apiPath}/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(projectSlug)}/ws`
+    : wsPath.startsWith("/") ? wsPath : `/${wsPath}`;
+  u.search = tenantSlug && projectSlug
+    ? `?tenantSlug=${encodeURIComponent(tenantSlug)}&projectSlug=${encodeURIComponent(projectSlug)}`
+    : "";
   return u.toString();
 }
 export function useWebSocket() {
@@ -29,7 +34,9 @@ export function useWebSocket() {
       return;
     }
 
-    const WS_URL = toWsUrl(API_URL, "/ws");
+    const currentProject = localStorage.getItem("currentProject");
+    const project = currentProject ? JSON.parse(currentProject) : undefined;
+    const WS_URL = toWsUrl(API_URL, "/ws", project?.tenantSlug, project?.slug);
     const state = stateRef.current;
 
     const connect = () => {

@@ -76,6 +76,10 @@ export type Project = {
   templateScope?: "tenant" | "global";
   templateIncludeItems?: boolean;
   templateDescription?: string;
+  sourceLocale?: string;
+  defaultLocale?: string;
+  enabledLocales?: string[];
+  localizationVersion?: number;
   createdAt: string;
   updatedAt: string;
 };
