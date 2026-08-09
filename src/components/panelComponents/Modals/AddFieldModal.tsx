@@ -48,6 +48,37 @@ const CHILD_FIELD_TYPES = FIELD_TYPES.filter(
   (option) => option.value !== "object" && option.value !== "array"
 );
 
+const isObjectReferenceType = (type?: string) =>
+  type === "objectId" || type === "objectIdArray";
+
+export const buildChildField = (
+  childFieldDraft: Partial<Field>,
+  childEnumValues: string
+): Field => {
+  const type = childFieldDraft.type?.trim() || "";
+
+  return {
+    name: childFieldDraft.name?.trim() || "",
+    type,
+    tag: childFieldDraft.tag || "",
+    unique: childFieldDraft.unique || false,
+    isSearchable: childFieldDraft.isSearchable || false,
+    isLoginCredential: false,
+    isHashed: false,
+    isForceDelete: false,
+    enumList:
+      type === "enum" && childEnumValues
+        ? childEnumValues
+            .split("|")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : undefined,
+    objectSchemaName: isObjectReferenceType(type)
+      ? childFieldDraft.objectSchemaName
+      : undefined,
+  };
+};
+
 // Common validation rules
 const VALIDATION_RULES = {
   string: [
@@ -264,12 +295,6 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     setChildFieldDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-  const parseEnumText = (value: string): string[] =>
-    value
-      .split("|")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
   const handleSaveChildField = () => {
     const name = childFieldDraft.name?.trim();
     const type = childFieldDraft.type?.trim();
@@ -294,20 +319,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       return;
     }
 
-    const nextField: Field = {
-      name,
-      type,
-      tag: childFieldDraft.tag || "",
-      unique: childFieldDraft.unique || false,
-      isSearchable: childFieldDraft.isSearchable || false,
-      isLoginCredential: false,
-      isHashed: false,
-      isForceDelete: false,
-      enumList:
-        type === "enum" && childEnumValues
-          ? parseEnumText(childEnumValues)
-          : undefined,
-    };
+    const nextField = buildChildField(childFieldDraft, childEnumValues);
 
     setChildFields((prev) => {
       if (editingChildFieldIndex === null) {
@@ -333,6 +345,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       unique: field.unique || false,
       isSearchable: field.isSearchable || false,
       enumList: field.enumList,
+      objectSchemaName: field.objectSchemaName,
     });
     setChildEnumValues(field.enumList?.join("|") || "");
     setEditingChildFieldIndex(index);
@@ -706,6 +719,9 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                         "type",
                         selectedValue?.value || ""
                       );
+                      if (!isObjectReferenceType(selectedValue?.value)) {
+                        handleChildFieldDraftChange("objectSchemaName", "");
+                      }
                       if (selectedValue?.value !== "enum") {
                         setChildEnumValues("");
                       }
@@ -713,6 +729,30 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     options={CHILD_FIELD_TYPES}
                     customControlBackgroundColor="white"
                   />
+                  {isObjectReferenceType(childFieldDraft.type) && (
+                    <SelectInput
+                      label={t("Object Schema Name")}
+                      value={
+                        containerOptions.find(
+                          (option) =>
+                            option.value === childFieldDraft.objectSchemaName
+                        ) || null
+                      }
+                      onChange={(value) => {
+                        const selectedValue = value as {
+                          value: string;
+                          label: string;
+                        } | null;
+                        handleChildFieldDraftChange(
+                          "objectSchemaName",
+                          selectedValue?.value || ""
+                        );
+                      }}
+                      options={containerOptions}
+                      placeholder={t("Select container schema")}
+                      customControlBackgroundColor="white"
+                    />
+                  )}
                   <TextInput
                     label={t("Validation Tag")}
                     type="text"

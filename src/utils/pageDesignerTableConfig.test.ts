@@ -4,9 +4,11 @@ import {
   TABLE_ACTION_KIND_OPTIONS,
   TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
+  cleanDesignerActionFormLayout,
   ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  moveArrayItem,
   normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
 } from "./pageDesignerTableConfig";
@@ -22,6 +24,44 @@ const fields: Field[] = [
 ];
 
 describe("page designer table config", () => {
+  it("keeps per-action form layout values in the save payload", () => {
+    expect(
+      cleanDesignerActionFormLayout({
+        columns: 3,
+        allowOverflow: false,
+        topClassName: "  items-start  ",
+        generalClassName: "  w-full  ",
+      }),
+    ).toEqual({
+      columns: 3,
+      allowOverflow: false,
+      topClassName: "items-start",
+      generalClassName: "w-full",
+    });
+  });
+
+  it("moves a field one position without mutating or recreating field objects", () => {
+    const first = { formKey: "first" };
+    const second = { formKey: "second" };
+    const third = { formKey: "third" };
+    const fields = [first, second, third];
+
+    const movedUp = moveArrayItem(fields, 2, -1);
+    const movedDown = moveArrayItem(fields, 0, 1);
+
+    expect(movedUp).toEqual([first, third, second]);
+    expect(movedDown).toEqual([second, first, third]);
+    expect(fields).toEqual([first, second, third]);
+    expect(movedUp[1]).toBe(third);
+  });
+
+  it("leaves the same array unchanged when a move crosses a boundary", () => {
+    const fields = [{ formKey: "first" }, { formKey: "second" }];
+
+    expect(moveArrayItem(fields, 0, -1)).toBe(fields);
+    expect(moveArrayItem(fields, 1, 1)).toBe(fields);
+  });
+
   it("hydrates empty existing table columns from selected DB schema fields", () => {
     const result = hydrateEmptyDesignerTableColumns(
       {

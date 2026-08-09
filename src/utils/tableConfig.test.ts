@@ -8,6 +8,25 @@ import {
 } from "./tableConfig";
 
 describe("table lookup labels", () => {
+  it("requests row fields referenced by cell class templates", () => {
+    expect(
+      getTableDataFieldNames({
+        columns: [
+          {
+            field: "name",
+            type: "field",
+            cellClassName: [
+              {
+                condition: "status = 'active'",
+                className: "text-white bg-[{{backgroundColor}}] {{fontClass}}",
+              },
+            ],
+          },
+        ],
+      }),
+    ).toEqual(["name", "status", "backgroundColor", "fontClass"]);
+  });
+
   it("requests the nested array field even when it is not a visible column", () => {
     expect(
       getTableDataFieldNames({

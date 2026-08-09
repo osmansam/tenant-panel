@@ -716,6 +716,10 @@ const GenericTable = <T,>({
               typeof rowKey?.className === "function"
                 ? rowKey.className(row)
                 : rowKey?.className || "";
+            const computedStyle =
+              typeof rowKey?.style === "function"
+                ? rowKey.style(row)
+                : rowKey?.style || {};
 
             const columnClassName =
               usedColumns?.[keyIndex]?.generalColumnClassName || "";
@@ -726,7 +730,9 @@ const GenericTable = <T,>({
                   key={keyIndex}
                   className={`px-4 py-3 min-w-20 ${columnClassName}`}
                 >
-                  <span className={computedClassName}>{rowKey.node(row)}</span>
+                  <span className={computedClassName} style={computedStyle}>
+                    {rowKey.node(row)}
+                  </span>
                 </td>
               );
             }
@@ -741,7 +747,9 @@ const GenericTable = <T,>({
                   key={keyIndex}
                   className={`px-4 py-3 min-w-20 ${columnClassName}`}
                 >
-                  <span className={computedClassName}>-</span>
+                  <span className={computedClassName} style={computedStyle}>
+                    -
+                  </span>
                 </td>
               );
             }
@@ -756,7 +764,9 @@ const GenericTable = <T,>({
                   key={keyIndex}
                   className={`px-4 py-3 min-w-20 ${columnClassName}`}
                 >
-                  <P1 className={computedClassName}>{formattedValue} ₺</P1>
+                  <P1 className={computedClassName} style={computedStyle}>
+                    {formattedValue} ₺
+                  </P1>
                 </td>
               );
             }
@@ -771,7 +781,7 @@ const GenericTable = <T,>({
               cellValue.length > tooltipLimit && isToolTipEnabled
                 ? `${cellValue.substring(0, tooltipLimit)}...`
                 : cellValue;
-            let style: React.CSSProperties = {};
+            let style: React.CSSProperties = { ...computedStyle };
 
             if (rowKey.isOptional && rowKey.options) {
               const matchedOption = rowKey.options.find(
@@ -817,7 +827,9 @@ const GenericTable = <T,>({
                   />
                 ) : cellValue.length > tooltipLimit && isToolTipEnabled ? (
                   <CustomTooltip content={cellValue}>
-                    <P1 className={computedClassName}>{displayValue}</P1>
+                    <P1 className={computedClassName} style={style}>
+                      {displayValue}
+                    </P1>
                   </CustomTooltip>
                 ) : (
                   <P1 className={computedClassName} style={style}>
@@ -907,6 +919,10 @@ const GenericTable = <T,>({
                                 typeof rowKey?.className === "function"
                                   ? rowKey.className(collapsibleRow)
                                   : rowKey?.className || "";
+                              const computedStyle =
+                                typeof rowKey?.style === "function"
+                                  ? rowKey.style(collapsibleRow)
+                                  : rowKey?.style || {};
 
                               const columnClassName =
                                 row?.collapsible?.collapsibleColumns?.[keyIndex]
@@ -918,7 +934,10 @@ const GenericTable = <T,>({
                                     key={keyIndex}
                                     className={`px-4 py-3 min-w-20 border-b ${columnClassName}`}
                                   >
-                                    <P1 className={computedClassName}>
+                                    <P1
+                                      className={computedClassName}
+                                      style={computedStyle}
+                                    >
                                       {rowKey.node(collapsibleRow)}
                                     </P1>
                                   </td>
@@ -932,6 +951,7 @@ const GenericTable = <T,>({
                                       row?.collapsible?.collapsibleRows.length -
                                         1 && "border-b"
                                   }`}
+                                  style={computedStyle}
                                 >
                                   {cellValue}
                                 </td>

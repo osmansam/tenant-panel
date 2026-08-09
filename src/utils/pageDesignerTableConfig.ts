@@ -1,9 +1,54 @@
 import type {
   TableActionConfig,
+  TableActionFormLayoutConfig,
   TableColumnConfig,
   TableComponentConfig,
 } from "../types/page";
 import type { Field } from "./api/container";
+
+export const moveArrayItem = <T>(
+  items: T[],
+  index: number,
+  direction: -1 | 1,
+): T[] => {
+  const targetIndex = index + direction;
+  if (
+    index < 0 ||
+    index >= items.length ||
+    targetIndex < 0 ||
+    targetIndex >= items.length
+  ) {
+    return items;
+  }
+
+  const reordered = [...items];
+  [reordered[index], reordered[targetIndex]] = [
+    reordered[targetIndex],
+    reordered[index],
+  ];
+  return reordered;
+};
+
+export const cleanDesignerActionFormLayout = (
+  layout?: TableActionFormLayoutConfig,
+): TableActionFormLayoutConfig | undefined => {
+  if (!layout) return undefined;
+
+  const cleaned: TableActionFormLayoutConfig = {
+    ...(layout.columns ? { columns: layout.columns } : {}),
+    ...(layout.allowOverflow !== undefined
+      ? { allowOverflow: layout.allowOverflow }
+      : {}),
+    ...(layout.topClassName?.trim()
+      ? { topClassName: layout.topClassName.trim() }
+      : {}),
+    ...(layout.generalClassName?.trim()
+      ? { generalClassName: layout.generalClassName.trim() }
+      : {}),
+  };
+
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+};
 
 export const TABLE_COLUMN_TYPE_OPTIONS: {
   value: NonNullable<TableColumnConfig["type"]>;

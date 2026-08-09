@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FiChevronDown,
+  FiChevronUp,
   FiEdit2,
   FiGrid,
   FiLayout,
@@ -27,6 +29,7 @@ import {
   RowClassConfig,
   TabPanelTab,
   TableActionConfig,
+  TableActionFormLayoutConfig,
   TableActionFormFieldConfig,
   TableActionFormKeyType,
   TableActionInputType,
@@ -64,10 +67,12 @@ import {
   TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
+  cleanDesignerActionFormLayout,
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
   mergeDesignerTableColumnsFromNames,
+  moveArrayItem,
   normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
 } from "../../utils/pageDesignerTableConfig";
@@ -1051,6 +1056,9 @@ const cleanTableActions = (
         order: Number(action.order ?? index + 1),
         enabled: action.enabled !== false,
         modalType: action.modalType || "none",
+        ...(cleanDesignerActionFormLayout(action.formLayout)
+          ? { formLayout: cleanDesignerActionFormLayout(action.formLayout) }
+          : {}),
         ...(action.formFields !== undefined
           ? {
               formFields: action.formFields
@@ -1616,6 +1624,85 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
       : {}),
   },
 });
+
+const ActionFormLayoutEditor = ({
+  action,
+  onChange,
+  defaultAllowOverflow = false,
+}: {
+  action: TableActionConfig;
+  onChange: (formLayout: TableActionFormLayoutConfig) => void;
+  defaultAllowOverflow?: boolean;
+}) => {
+  const layout = action.formLayout || {};
+  const update = (changes: Partial<TableActionFormLayoutConfig>) =>
+    onChange({ ...layout, ...changes });
+
+  return (
+    <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50/50 p-3">
+      <div>
+        <div className="text-xs font-semibold text-neutral-700">Form layout</div>
+        <p className="text-[11px] text-neutral-500">
+          These settings apply only to this action.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">Columns</span>
+          <select
+            value={layout.columns || ""}
+            onChange={(event) =>
+              update({
+                columns: event.target.value
+                  ? (Number(event.target.value) as 1 | 2 | 3 | 4)
+                  : undefined,
+              })
+            }
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="">Default</option>
+            <option value="1">1 column</option>
+            <option value="2">2 columns</option>
+            <option value="3">3 columns</option>
+            <option value="4">4 columns</option>
+          </select>
+        </label>
+        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+          <input
+            type="checkbox"
+            checked={layout.allowOverflow ?? defaultAllowOverflow}
+            onChange={(event) => update({ allowOverflow: event.target.checked })}
+          />
+          Allow content to overflow the modal
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">
+            Form container classes (topClassName)
+          </span>
+          <input
+            type="text"
+            value={layout.topClassName || ""}
+            onChange={(event) => update({ topClassName: event.target.value })}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="flex flex-col gap-2"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">
+            Modal classes (generalClassName)
+          </span>
+          <input
+            type="text"
+            value={layout.generalClassName || ""}
+            onChange={(event) => update({ generalClassName: event.target.value })}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="overflow-visible"
+          />
+        </label>
+      </div>
+    </div>
+  );
+};
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
@@ -4487,6 +4574,28 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
+  const moveActionFormField = (
+    actionIndex: number,
+    fieldIndex: number,
+    direction: -1 | 1,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              formFields: moveArrayItem(
+                action.formFields || [],
+                fieldIndex,
+                direction,
+              ),
+            }
+          : action,
+      ),
+    }));
+  };
+
   const addAddButtonFormField = () => {
     setTableConfig((current) => {
       const addButton =
@@ -4547,6 +4656,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           ...addButton,
           formFields: (addButton.formFields || []).filter(
             (_, currentIndex) => currentIndex !== fieldIndex,
+          ),
+        },
+      };
+    });
+  };
+
+  const moveAddButtonFormField = (fieldIndex: number, direction: -1 | 1) => {
+    setTableConfig((current) => {
+      const addButton =
+        current.addButton || buildDefaultCreateAction(selectedFields);
+      return {
+        ...current,
+        addButton: {
+          ...addButton,
+          formFields: moveArrayItem(
+            addButton.formFields || [],
+            fieldIndex,
+            direction,
           ),
         },
       };
@@ -4621,6 +4748,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             ...edit,
             formFields: (edit.formFields || []).filter(
               (_, currentIndex) => currentIndex !== fieldIndex,
+            ),
+          },
+        },
+      };
+    });
+  };
+
+  const moveBulkEditFormField = (fieldIndex: number, direction: -1 | 1) => {
+    setTableConfig((current) => {
+      const edit =
+        current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields);
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          edit: {
+            ...edit,
+            formFields: moveArrayItem(
+              edit.formFields || [],
+              fieldIndex,
+              direction,
             ),
           },
         },
@@ -7449,19 +7597,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                               placeholder="status = 'active'"
                                             />
-                                            <input
-                                              type="text"
-                                              value={rule.className}
-                                              onChange={(e) =>
-                                                updateTableColumnRule(
-                                                  column.field,
-                                                  ruleIndex,
-                                                  { className: e.target.value },
-                                                )
-                                              }
-                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="text-green-600"
-                                            />
+                                            <div>
+                                              <input
+                                                type="text"
+                                                value={rule.className}
+                                                onChange={(e) =>
+                                                  updateTableColumnRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    {
+                                                      className: e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="text-green-600"
+                                              />
+                                              <p className="mt-1 text-[11px] text-neutral-500">
+                                                Row class: {"{{colorClass}}"} · Raw
+                                                color: bg-[{"{{backgroundColor}}"}]
+                                              </p>
+                                            </div>
                                             <button
                                               type="button"
                                               onClick={() =>
@@ -8693,6 +8849,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     </div>
                                   </div>
 
+                                  <ActionFormLayoutEditor
+                                    action={currentAddButton}
+                                    onChange={(formLayout) =>
+                                      updateTableAddButton({ formLayout })
+                                    }
+                                  />
+
                                   <div className="space-y-3 rounded-lg border border-blue-100 bg-white p-3">
                                     <div className="flex items-center justify-between">
                                       <label className="text-xs font-semibold text-neutral-700">
@@ -8771,17 +8934,56 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 )}
                                               </select>
                                             </label>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                removeAddButtonFormField(
-                                                  fieldIndex,
-                                                )
-                                              }
-                                              className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                            >
-                                              <FiTrash2 size={14} />
-                                            </button>
+                                            <div className="flex items-stretch gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  moveAddButtonFormField(
+                                                    fieldIndex,
+                                                    -1,
+                                                  )
+                                                }
+                                                disabled={fieldIndex === 0}
+                                                className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Move field up"
+                                                title="Move field up"
+                                              >
+                                                <FiChevronUp size={15} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  moveAddButtonFormField(
+                                                    fieldIndex,
+                                                    1,
+                                                  )
+                                                }
+                                                disabled={
+                                                  fieldIndex ===
+                                                  (currentAddButton.formFields
+                                                    ?.length || 0) -
+                                                    1
+                                                }
+                                                className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Move field down"
+                                                title="Move field down"
+                                              >
+                                                <FiChevronDown size={15} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeAddButtonFormField(
+                                                    fieldIndex,
+                                                  )
+                                                }
+                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                aria-label="Remove field"
+                                                title="Remove field"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
                                           </div>
                                           <div className="grid grid-cols-4 gap-2">
                                             <label className="space-y-1">
@@ -9673,6 +9875,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         </div>
                                       </div>
 
+                                      {(action.kind === "create" ||
+                                        action.kind === "edit" ||
+                                        action.modalType === "form") && (
+                                        <ActionFormLayoutEditor
+                                          action={action}
+                                          onChange={(formLayout) =>
+                                            updateTableAction(actionIndex, {
+                                              formLayout,
+                                            })
+                                          }
+                                        />
+                                      )}
+
                                       <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                                         <div className="flex items-center justify-between">
                                           <label className="text-xs font-semibold text-neutral-700">
@@ -9760,18 +9975,59 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                     )}
                                                   </select>
                                                 </label>
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    removeActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                    )
-                                                  }
-                                                  className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                                >
-                                                  <FiTrash2 size={14} />
-                                                </button>
+                                                <div className="flex items-stretch gap-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      moveActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        -1,
+                                                      )
+                                                    }
+                                                    disabled={fieldIndex === 0}
+                                                    className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                    aria-label="Move field up"
+                                                    title="Move field up"
+                                                  >
+                                                    <FiChevronUp size={15} />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      moveActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        1,
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      fieldIndex ===
+                                                      (action.formFields
+                                                        ?.length || 0) -
+                                                        1
+                                                    }
+                                                    className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                    aria-label="Move field down"
+                                                    title="Move field down"
+                                                  >
+                                                    <FiChevronDown size={15} />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      removeActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                      )
+                                                    }
+                                                    className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                    aria-label="Remove field"
+                                                    title="Remove field"
+                                                  >
+                                                    <FiTrash2 size={14} />
+                                                  </button>
+                                                </div>
                                               </div>
                                               <div className="grid grid-cols-4 gap-2">
                                                 <label className="space-y-1">
@@ -10673,7 +10929,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     )}
 
                                     {key === "edit" && (
-                                      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+                                      <div className="space-y-3">
+                                        <ActionFormLayoutEditor
+                                          action={currentBulkEditAction}
+                                          defaultAllowOverflow
+                                          onChange={(formLayout) =>
+                                            updateTableBulkAction("edit", {
+                                              formLayout,
+                                            })
+                                          }
+                                        />
+                                        <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
                                         <div className="flex items-center justify-between">
                                           <label className="text-xs font-semibold text-neutral-700">
                                             Bulk Edit Fields
@@ -10793,20 +11059,61 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                                 placeholder="Label"
                                               />
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  removeBulkEditFormField(
-                                                    fieldIndex,
-                                                  )
-                                                }
-                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                              >
-                                                <FiTrash2 size={14} />
-                                              </button>
+                                              <div className="flex items-stretch gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveBulkEditFormField(
+                                                      fieldIndex,
+                                                      -1,
+                                                    )
+                                                  }
+                                                  disabled={fieldIndex === 0}
+                                                  className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                  aria-label="Move field up"
+                                                  title="Move field up"
+                                                >
+                                                  <FiChevronUp size={15} />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveBulkEditFormField(
+                                                      fieldIndex,
+                                                      1,
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    fieldIndex ===
+                                                    (currentBulkEditAction
+                                                      .formFields?.length ||
+                                                      0) -
+                                                      1
+                                                  }
+                                                  className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                  aria-label="Move field down"
+                                                  title="Move field down"
+                                                >
+                                                  <FiChevronDown size={15} />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    removeBulkEditFormField(
+                                                      fieldIndex,
+                                                    )
+                                                  }
+                                                  className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                  aria-label="Remove field"
+                                                  title="Remove field"
+                                                >
+                                                  <FiTrash2 size={14} />
+                                                </button>
+                                              </div>
                                             </div>
                                           ),
                                         )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>

@@ -746,10 +746,55 @@ export const evaluateRowCondition = (
   return evaluateSimpleRowCondition(row, trimmedCondition);
 };
 
-export const getMatchingRowClassNames = (
+export interface RowClassPresentation {
+  className: string;
+  style: React.CSSProperties;
+}
+
+const getRowTemplateValue = (
+  row: GenericItem,
+  fieldName: string,
+): string => {
+  const value = row[fieldName];
+  if (
+    value === undefined ||
+    value === null ||
+    typeof value === "object" ||
+    typeof value === "function"
+  ) {
+    return "";
+  }
+  return String(value);
+};
+
+export const resolveRowClassPresentation = (
+  row: GenericItem,
+  className: string,
+): RowClassPresentation => {
+  const interpolated = className.replace(
+    /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g,
+    (_match, fieldName: string) => getRowTemplateValue(row, fieldName),
+  );
+  const style: React.CSSProperties = {};
+  const remainingClassName = interpolated.replace(
+    /(?:^|\s)bg-\[([^\]]+)\](?=\s|$)/g,
+    (_match, backgroundColor: string) => {
+      const color = backgroundColor.trim();
+      if (color) style.backgroundColor = color;
+      return " ";
+    },
+  );
+
+  return {
+    className: remainingClassName.trim().replace(/\s+/g, " "),
+    style,
+  };
+};
+
+export const getMatchingRowClassPresentation = (
   row: GenericItem,
   rules: RowClassRule[] = [],
-): string => {
+): RowClassPresentation => {
   const matchedClassNames: string[] = [];
   const fallbackClassNames: string[] = [];
 
@@ -768,10 +813,20 @@ export const getMatchingRowClassNames = (
     }
   });
 
-  return (matchedClassNames.length > 0
-    ? matchedClassNames
-    : fallbackClassNames
-  ).join(" ");
+  return resolveRowClassPresentation(
+    row,
+    (matchedClassNames.length > 0
+      ? matchedClassNames
+      : fallbackClassNames
+    ).join(" "),
+  );
+};
+
+export const getMatchingRowClassNames = (
+  row: GenericItem,
+  rules: RowClassRule[] = [],
+): string => {
+  return getMatchingRowClassPresentation(row, rules).className;
 };
 
 /**

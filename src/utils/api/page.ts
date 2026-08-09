@@ -266,6 +266,13 @@ export interface PageTableActionSubmitConfig {
   functionName?: string;
 }
 
+export interface PageTableActionFormLayoutConfig {
+  columns?: 1 | 2 | 3 | 4;
+  allowOverflow?: boolean;
+  topClassName?: string;
+  generalClassName?: string;
+}
+
 export interface PageTableActionConfig {
   id?: string;
   key?: string;
@@ -289,6 +296,7 @@ export interface PageTableActionConfig {
   hiddenCondition?: string;
   requiredCondition?: string;
   formFields?: PageTableActionFormFieldConfig[];
+  formLayout?: PageTableActionFormLayoutConfig;
   fieldOverrides?: PageTableActionFieldConfig[];
   constantValues?: Record<string, unknown>;
   submit?: PageTableActionSubmitConfig;

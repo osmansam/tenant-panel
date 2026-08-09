@@ -50,6 +50,7 @@ export interface RowKeyType<T> {
   isDate?: boolean;
   isBoolean?: boolean;
   className?: string | ((row: T) => string);
+  style?: React.CSSProperties | ((row: T) => React.CSSProperties);
   options?: {
     label: string;
     bgColor: string; // must be css color

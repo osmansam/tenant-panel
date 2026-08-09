@@ -20,6 +20,7 @@ import {
   RawContainer,
   fieldToInput,
   getFieldLabel,
+  getMatchingRowClassPresentation,
   getMatchingRowClassNames,
   humanize,
   isDisplayablePrimitive,
@@ -56,6 +57,7 @@ import {
   resolveActionTemplate,
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
+import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
 import { generateMockData } from "../../../utils/mockDataGenerator";
 import {
   isFieldRequired,
@@ -290,6 +292,7 @@ export default function GenericUnpaginatedPage({
           isDate?: boolean;
           isBoolean?: boolean;
           className?: string | ((row: GenericItem) => string);
+          style?: React.CSSProperties | ((row: GenericItem) => React.CSSProperties);
           node?: (row: GenericItem) => React.ReactNode;
         } = {
           key: f.name,
@@ -306,7 +309,9 @@ export default function GenericUnpaginatedPage({
         // Compute className based on table column cellClassName conditions
         if (rowKeyClassName) {
           rowKey.className = (row: GenericItem) =>
-            getMatchingRowClassNames(row, rowKeyClassName);
+            getMatchingRowClassPresentation(row, rowKeyClassName).className;
+          rowKey.style = (row: GenericItem) =>
+            getMatchingRowClassPresentation(row, rowKeyClassName).style;
         }
 
         const columnConfig = tableConfig?.columns?.find(
@@ -323,10 +328,15 @@ export default function GenericUnpaginatedPage({
 
           if (rowKeyClassName) {
             rowKey.className = (row: GenericItem) =>
-              getMatchingRowClassNames(
+              getMatchingRowClassPresentation(
                 { ...row, [f.name]: getComputedValue(row) },
                 rowKeyClassName,
-              );
+              ).className;
+            rowKey.style = (row: GenericItem) =>
+              getMatchingRowClassPresentation(
+                { ...row, [f.name]: getComputedValue(row) },
+                rowKeyClassName,
+              ).style;
           }
 
           rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
@@ -339,10 +349,15 @@ export default function GenericUnpaginatedPage({
 
           if (rowKeyClassName) {
             rowKey.className = (row: GenericItem) =>
-              getMatchingRowClassNames(
+              getMatchingRowClassPresentation(
                 { ...row, [f.name]: getLookupValue(row) },
                 rowKeyClassName,
-              );
+              ).className;
+            rowKey.style = (row: GenericItem) =>
+              getMatchingRowClassPresentation(
+                { ...row, [f.name]: getLookupValue(row) },
+                rowKeyClassName,
+              ).style;
           }
 
           rowKey.node = (row: GenericItem) => <span>{getLookupValue(row)}</span>;
@@ -826,7 +841,9 @@ export default function GenericUnpaginatedPage({
           inputs={inputs}
           formKeys={formKeys}
           submitItem={handleSubmitItem}
-          topClassName="flex flex-col gap-2"
+          {...resolveTableActionFormLayout(tableConfig?.addButton, {
+            topClassName: "flex flex-col gap-2",
+          })}
         />
       ),
       isModalOpen: isAddOpen,
@@ -835,7 +852,7 @@ export default function GenericUnpaginatedPage({
       icon: null,
       className: "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
     };
-  }, [t, isAddOpen, inputs, formKeys, handleSubmitItem]);
+  }, [t, isAddOpen, inputs, formKeys, handleSubmitItem, tableConfig?.addButton]);
 
   const normalizeRowForSubmit = useCallback(
     (row: GenericItem) => {
@@ -1121,7 +1138,9 @@ export default function GenericUnpaginatedPage({
               submitItem={submitConfiguredAction}
               isEditMode
               buttonName={actionConfig.buttonName || actionConfig.label || t("Update")}
-              topClassName="flex flex-col gap-2"
+              {...resolveTableActionFormLayout(actionConfig, {
+                topClassName: "flex flex-col gap-2",
+              })}
               itemToEdit={{
                 id: rowToAction._id,
                 updates: {
@@ -1748,8 +1767,10 @@ export default function GenericUnpaginatedPage({
             setForm={handleBulkFormChange}
             submitItem={() => {}}
             isEditMode={false}
-            topClassName="flex flex-col gap-2"
-            generalClassName="overflow-visible"
+            {...resolveTableActionFormLayout(bulkEditActionConfig, {
+              topClassName: "flex flex-col gap-2",
+              generalClassName: "overflow-visible",
+            })}
                   buttonName={t(
                     bulkEditActionConfig?.buttonName ||
                       bulkEditActionConfig?.label ||

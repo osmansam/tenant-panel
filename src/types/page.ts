@@ -291,6 +291,13 @@ export interface TableActionSubmitConfig {
   functionName?: string;
 }
 
+export interface TableActionFormLayoutConfig {
+  columns?: 1 | 2 | 3 | 4;
+  allowOverflow?: boolean;
+  topClassName?: string;
+  generalClassName?: string;
+}
+
 export interface TableActionConfig {
   id?: string;
   key?: string;
@@ -302,6 +309,7 @@ export interface TableActionConfig {
   enabled?: boolean;
   modalType?: TableActionModalType;
   formFields?: TableActionFormFieldConfig[];
+  formLayout?: TableActionFormLayoutConfig;
   fields?: string[];
   excludeFields?: string[];
   fieldOverrides?: TableActionFieldConfig[];

@@ -265,6 +265,12 @@ const extractConditionFieldCandidates = (condition: string): string[] => {
   return Array.from(fields);
 };
 
+const extractClassTemplateFieldCandidates = (className: string): string[] =>
+  Array.from(
+    className.matchAll(/\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g),
+    (match) => match[1],
+  );
+
 export const getTableDataFieldNames = (
   tableConfig: TableComponentConfig | undefined,
   availableFieldNames?: string[],
@@ -283,6 +289,13 @@ export const getTableDataFieldNames = (
 
     column.cellClassName?.forEach((rule) => {
       extractConditionFieldCandidates(rule.condition || "").forEach(
+        (candidate) => {
+          if (!available || available.has(candidate)) {
+            fields.add(candidate);
+          }
+        },
+      );
+      extractClassTemplateFieldCandidates(rule.className || "").forEach(
         (candidate) => {
           if (!available || available.has(candidate)) {
             fields.add(candidate);
