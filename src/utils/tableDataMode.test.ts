@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveTableDataMode, shouldUseAllItemsTable } from "./tableDataMode";
+import {
+  resolveTableComponentMode,
+  resolveTableDataMode,
+  shouldUseAllItemsTable,
+} from "./tableDataMode";
 
 describe("table data mode", () => {
   it("fails closed to pagination for missing and unknown values", () => {
@@ -20,5 +24,12 @@ describe("table data mode", () => {
     expect(shouldUseAllItemsTable("schema", savedMode)).toBe(true);
     expect(shouldUseAllItemsTable("pipeline", savedMode)).toBe(false);
     expect(shouldUseAllItemsTable("schema", savedMode)).toBe(true);
+  });
+
+  it("selects the unpaginated component only for schema all-items mode", () => {
+    expect(resolveTableComponentMode("schema", "all")).toBe("unpaginated");
+    expect(resolveTableComponentMode("schema", undefined)).toBe("paginated");
+    expect(resolveTableComponentMode("pipeline", "all")).toBe("paginated");
+    expect(resolveTableComponentMode("workflow", "all")).toBe("paginated");
   });
 });

@@ -6,6 +6,7 @@ import DynamicChart, {
 import DistributionBlocks from "../components/panelComponents/FormElements/DistributionBlocks";
 import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
+import GenericUnpaginatedPage from "../components/panelComponents/FormElements/GenericUnpaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
 import DynamicForm from "../components/forms/DynamicForm";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
 import { useGetSelection } from "../utils/dynamic";
+import { resolveTableComponentMode } from "../utils/tableDataMode";
 import {
   extractRouteParamsFromPath,
   RouteParams,
@@ -145,6 +147,21 @@ const RenderComponent: React.FC<{
         resolvedDataBinding?.schemaName &&
         ["schema", "pipeline", "workflow"].includes(resolvedDataBinding.kind)
       ) {
+        if (
+          resolveTableComponentMode(
+            resolvedDataBinding.kind,
+            tableConfig?.dataMode,
+          ) === "unpaginated"
+        ) {
+          return (
+            <GenericUnpaginatedPage
+              schemaName={resolvedDataBinding.schemaName}
+              isHeader={false}
+              tableConfig={tableConfig}
+              actionsEnabled
+            />
+          );
+        }
         return (
           <GenericPaginatedPage
             schemaName={resolvedDataBinding.schemaName}
