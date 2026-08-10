@@ -40,6 +40,7 @@ import {
   isTableSearchEnabled,
 } from "../../../utils/tableConfig";
 import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
+import { useGeneratedRelationTableColumns } from "../../../utils/useGeneratedRelationTableColumns";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -58,6 +59,18 @@ import {
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
 import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
+import {
+  reorderCurrentPageRows,
+  resolveTableDragState,
+} from "../../../utils/tableRowReorder";
+import {
+  appendShowFiltersControl,
+  createTableToggleState,
+  isBooleanColumnEditable,
+  isBooleanColumnSwitchPresentation,
+  isTableColumnVisible,
+  isTableToggleUpperSide,
+} from "../../../utils/tableToggles";
 import { generateMockData } from "../../../utils/mockDataGenerator";
 import {
   isFieldRequired,
@@ -95,6 +108,16 @@ export default function GenericUnpaginatedPage({
   const { selectedRows, setSelectedRows, setIsSelectionActive } =
     useGeneralContext();
   const { user } = useUserContext();
+  const configuredTableToggles = useMemo(
+    () => tableConfig?.toggles || [],
+    [tableConfig?.toggles],
+  );
+  const [tableToggleState, setTableToggleState] = useState(() =>
+    createTableToggleState(configuredTableToggles),
+  );
+  useEffect(() => {
+    setTableToggleState(createTableToggleState(configuredTableToggles));
+  }, [configuredTableToggles]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -233,6 +256,16 @@ export default function GenericUnpaginatedPage({
     let fields = container.fields
       .map(normalizeField)
       .filter(isDisplayablePrimitive);
+    fields = fields.filter((field) => {
+      const column = tableConfig?.columns?.find(
+        (candidate) => candidate.field === field.name,
+      );
+      return isTableColumnVisible(
+        column?.visibilityToggle,
+        tableToggleState,
+        configuredTableToggles,
+      );
+    });
     if (includeFields?.length) {
       fields = includeFields
         .map((name) => fields.find((f) => f.name === name))
@@ -258,13 +291,28 @@ export default function GenericUnpaginatedPage({
     });
 
     return fields;
-  }, [container, includeFields, excludeFields, user]);
+  }, [
+    container,
+    includeFields,
+    excludeFields,
+    user,
+    tableConfig?.columns,
+    tableToggleState,
+    configuredTableToggles,
+  ]);
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
   const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
-  const rowKeys = useMemo(
+  const generatedRelationTableColumns = useGeneratedRelationTableColumns({
+    tableConfig,
+    toggleState: tableToggleState,
+    toggles: configuredTableToggles,
+    updateRow: updateDynamicItem,
+  });
+
+  const baseRowKeys = useMemo(
     () =>
       displayFields.map((f) => {
         const fieldType = (f.type || "").toLowerCase();
@@ -506,6 +554,30 @@ export default function GenericUnpaginatedPage({
         if (columnConfig?.type === "booleanSwitch") {
           rowKey.node = (row: GenericItem) => {
             const isChecked = isTruthyBooleanValue(row[f.name]);
+            if (
+              !isBooleanColumnSwitchPresentation(
+                columnConfig.booleanDisplayToggle,
+                tableToggleState,
+                configuredTableToggles,
+              ) ||
+              !isBooleanColumnEditable(
+                columnConfig.booleanEditToggle,
+                tableToggleState,
+                configuredTableToggles,
+              )
+            ) {
+              const label = getTableDisplayName(tableConfig, f);
+              return (
+                <span
+                  aria-label={`${label}: ${isChecked ? "Yes" : "No"}`}
+                  className={`text-2xl font-semibold ${
+                    isChecked ? "text-blue-500" : "text-red-800"
+                  }`}
+                >
+                  {isChecked ? "✓" : "✕"}
+                </span>
+              );
+            }
             return (
               <CheckSwitch
                 checked={isChecked}
@@ -678,22 +750,32 @@ export default function GenericUnpaginatedPage({
       lookupSelectionDataMap,
       t,
       tableConfig,
+      tableToggleState,
+      configuredTableToggles,
     ],
   );
 
+  const rowKeys = useMemo(
+    () => [...baseRowKeys, ...generatedRelationTableColumns.rowKeys],
+    [baseRowKeys, generatedRelationTableColumns.rowKeys],
+  );
+
   const columns = useMemo(() => {
-    const baseCols = displayFields.map((f) => ({
+    const baseCols = [
+      ...displayFields.map((f) => ({
       key: t(getTableDisplayName(tableConfig, f) || getFieldLabel(f)),
       isSortable:
         tableConfig?.columns?.find((column) => column.field === f.name)
           ?.type !== "computedLabel",
       correspondingKey: f.name,
-    }));
+      })),
+      ...generatedRelationTableColumns.columns,
+    ];
     if (actionsEnabled) {
       return [...baseCols, { key: t("Actions"), isSortable: false }];
     }
     return baseCols;
-  }, [displayFields, t, actionsEnabled, tableConfig]);
+  }, [displayFields, t, actionsEnabled, tableConfig, generatedRelationTableColumns.columns]);
 
   const { inputs, formKeys } = useMemo(() => {
     const ins = displayFields
@@ -1685,19 +1767,35 @@ export default function GenericUnpaginatedPage({
   ]);
 
   const filters = useMemo(
-    () => [
-      {
-        label: t("Show Filters"),
-        isUpperSide: true,
+    () =>
+      appendShowFiltersControl(
+        configuredTableToggles.map((toggle) => ({
+        label: toggle.label || toggle.id,
+        isUpperSide: isTableToggleUpperSide(toggle),
         node: (
           <SwitchButton
-            checked={showFilters}
-            onChange={() => setShowFilters(!showFilters)}
+            checked={tableToggleState[toggle.id] ?? toggle.defaultValue}
+            onChange={() =>
+              setTableToggleState((current) => ({
+                ...current,
+                [toggle.id]: !(current[toggle.id] ?? toggle.defaultValue),
+              }))
+            }
           />
         ),
-      },
-    ],
-    [t, showFilters],
+        })),
+        {
+          label: t("Show Filters"),
+          isUpperSide: true,
+          node: (
+            <SwitchButton
+              checked={showFilters}
+              onChange={() => setShowFilters(!showFilters)}
+            />
+          ),
+        },
+      ),
+    [t, showFilters, configuredTableToggles, tableToggleState],
   );
 
   const filterPanel = useMemo(
@@ -1817,6 +1915,34 @@ export default function GenericUnpaginatedPage({
     () => applyTableNestedRows(items || [], tableConfig, t, lookupSelectionDataMap),
     [items, tableConfig, t, lookupSelectionDataMap],
   );
+  const tableDragState = useMemo(
+    () =>
+      resolveTableDragState(
+        tableConfig?.drag,
+        filterFormElements.sort,
+        tableConfig?.constantSort?.sort,
+      ),
+    [
+      filterFormElements.sort,
+      tableConfig?.constantSort?.sort,
+      tableConfig?.drag,
+    ],
+  );
+  const handleRowDrag = useCallback(
+    (draggedRow: GenericItem, targetRow: GenericItem) => {
+      const result = reorderCurrentPageRows(
+        rows,
+        draggedRow,
+        targetRow,
+        tableDragState.orderField,
+        1,
+      );
+      if (result.updates.length) {
+        updateMultipleDynamicItem(result.updates);
+      }
+    },
+    [rows, tableDragState.orderField, updateMultipleDynamicItem],
+  );
 
   return (
     <>
@@ -1826,6 +1952,8 @@ export default function GenericUnpaginatedPage({
           actions={actions}
           columns={columns}
           rows={rows || []}
+          isDraggable={tableDragState.enabled}
+          onDragEnter={tableDragState.enabled ? handleRowDrag : undefined}
           rowStyleFunction={rowStyleFunction}
           title={t(humanize(schemaName))}
           addButton={addButton}

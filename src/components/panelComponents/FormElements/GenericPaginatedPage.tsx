@@ -50,6 +50,19 @@ import {
 } from "../../../utils/tableActions";
 import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
 import {
+  reorderCurrentPageRows,
+  resolveTableDragState,
+} from "../../../utils/tableRowReorder";
+import {
+  appendShowFiltersControl,
+  createTableToggleState,
+  isBooleanColumnEditable,
+  isBooleanColumnSwitchPresentation,
+  isTableColumnVisible,
+  isTableToggleUpperSide,
+  resolveToggleRequestEffects,
+} from "../../../utils/tableToggles";
+import {
   applyTableNestedRows,
   getComputedLabelValue,
   getLookupLabelValue,
@@ -61,6 +74,7 @@ import {
   isTableSearchEnabled,
 } from "../../../utils/tableConfig";
 import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
+import { useGeneratedRelationTableColumns } from "../../../utils/useGeneratedRelationTableColumns";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -142,6 +156,16 @@ export default function GenericPaginatedPage({
     setIsSelectionActive,
   } = useGeneralContext();
   const { user } = useUserContext();
+  const configuredTableToggles = useMemo(
+    () => tableConfig?.toggles || [],
+    [tableConfig?.toggles],
+  );
+  const [tableToggleState, setTableToggleState] = useState(() =>
+    createTableToggleState(configuredTableToggles),
+  );
+  useEffect(() => {
+    setTableToggleState(createTableToggleState(configuredTableToggles));
+  }, [configuredTableToggles]);
   const rawContainers = useGetContainers();
 
   const container: ContainerModel | undefined = useMemo(() => {
@@ -270,6 +294,13 @@ export default function GenericPaginatedPage({
 
     if (tableConfig?.columns?.length) {
       fields = tableConfig.columns
+        .filter((column) =>
+          isTableColumnVisible(
+            column.visibilityToggle,
+            tableToggleState,
+            configuredTableToggles,
+          ),
+        )
         .map((column) => {
           const field = fields.find((item) => item.name === column.field);
           return (
@@ -317,13 +348,28 @@ export default function GenericPaginatedPage({
     });
 
     return fields;
-  }, [container, includeFields, excludeFields, user, tableConfig]);
+  }, [
+    container,
+    includeFields,
+    excludeFields,
+    user,
+    tableConfig,
+    tableToggleState,
+    configuredTableToggles,
+  ]);
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
   const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
-  const rowKeys = useMemo(() => {
+  const generatedRelationTableColumns = useGeneratedRelationTableColumns({
+    tableConfig,
+    toggleState: tableToggleState,
+    toggles: configuredTableToggles,
+    updateRow: updateDynamicItem,
+  });
+
+  const baseRowKeys = useMemo(() => {
     const constantFilterKeys = constantFilter
       ? Object.keys(constantFilter)
       : [];
@@ -569,6 +615,30 @@ export default function GenericPaginatedPage({
         if (columnConfig?.type === "booleanSwitch") {
           rowKey.node = (row: GenericItem) => {
             const isChecked = isTruthyBooleanValue(row[f.name]);
+            if (
+              !isBooleanColumnSwitchPresentation(
+                columnConfig.booleanDisplayToggle,
+                tableToggleState,
+                configuredTableToggles,
+              ) ||
+              !isBooleanColumnEditable(
+                columnConfig.booleanEditToggle,
+                tableToggleState,
+                configuredTableToggles,
+              )
+            ) {
+              const label = getTableDisplayName(tableConfig, f);
+              return (
+                <span
+                  aria-label={`${label}: ${isChecked ? "Yes" : "No"}`}
+                  className={`text-2xl font-semibold ${
+                    isChecked ? "text-blue-500" : "text-red-800"
+                  }`}
+                >
+                  {isChecked ? "✓" : "✕"}
+                </span>
+              );
+            }
             return (
               <CheckSwitch
                 checked={isChecked}
@@ -741,7 +811,14 @@ export default function GenericPaginatedPage({
     lookupSelectionDataMap,
     constantFilter,
     tableConfig,
+    tableToggleState,
+    configuredTableToggles,
   ]);
+
+  const rowKeys = useMemo(
+    () => [...baseRowKeys, ...generatedRelationTableColumns.rowKeys],
+    [baseRowKeys, generatedRelationTableColumns.rowKeys],
+  );
 
   const columns = useMemo(() => {
     const constantFilterKeys = constantFilter
@@ -756,10 +833,11 @@ export default function GenericPaginatedPage({
             ?.type !== "computedLabel",
         correspondingKey: f.name,
       }));
+    const withGenerated = [...baseCols, ...generatedRelationTableColumns.columns];
     return isActionsActive
-      ? [...baseCols, { key: t("Actions"), isSortable: false }]
-      : baseCols;
-  }, [displayFields, t, isActionsActive, constantFilter, tableConfig]);
+      ? [...withGenerated, { key: t("Actions"), isSortable: false }]
+      : withGenerated;
+  }, [displayFields, t, isActionsActive, constantFilter, tableConfig, generatedRelationTableColumns.columns]);
 
   const { inputs, formKeys, constantFilterKeys } = useMemo(() => {
     const constantFilterKeys = constantFilter
@@ -889,11 +967,23 @@ export default function GenericPaginatedPage({
   // Merge constantFilter with filterPanelFormElements for querying
   const mergedFilters = useMemo(() => {
     return mergeTableRequestFilters(
-      filterPanelFormElements,
+      {
+        ...filterPanelFormElements,
+        ...resolveToggleRequestEffects(
+          configuredTableToggles,
+          tableToggleState,
+        ),
+      } as FormElementsState,
       constantFilter,
       tableConfig,
     );
-  }, [filterPanelFormElements, constantFilter, tableConfig]);
+  }, [
+    filterPanelFormElements,
+    constantFilter,
+    tableConfig,
+    configuredTableToggles,
+    tableToggleState,
+  ]);
 
   // Mock paginated data for preview mode
   const itemsPayload = useMemo(() => {
@@ -914,6 +1004,40 @@ export default function GenericPaginatedPage({
         lookupSelectionDataMap,
       ),
     [itemsPayload?.items, tableConfig, t, lookupSelectionDataMap],
+  );
+  const tableDragState = useMemo(
+    () =>
+      resolveTableDragState(
+        tableConfig?.drag,
+        filterPanelFormElements.sort,
+        tableConfig?.constantSort?.sort,
+      ),
+    [
+      filterPanelFormElements.sort,
+      tableConfig?.constantSort?.sort,
+      tableConfig?.drag,
+    ],
+  );
+  const handleRowDrag = useCallback(
+    (draggedRow: GenericItem, targetRow: GenericItem) => {
+      const result = reorderCurrentPageRows(
+        rows,
+        draggedRow,
+        targetRow,
+        tableDragState.orderField,
+        (currentPage - 1) * rowsPerPage + 1,
+      );
+      if (result.updates.length) {
+        updateMultipleDynamicItem(result.updates);
+      }
+    },
+    [
+      currentPage,
+      rows,
+      rowsPerPage,
+      tableDragState.orderField,
+      updateMultipleDynamicItem,
+    ],
   );
 
   const outsideSort = useMemo(
@@ -1907,19 +2031,44 @@ export default function GenericPaginatedPage({
   ]);
 
   const filters = useMemo(
-    () => [
-      {
-        label: t("Show Filters"),
-        isUpperSide: true,
+    () =>
+      appendShowFiltersControl(
+        configuredTableToggles.map((toggle) => ({
+        label: toggle.label || toggle.id,
+        isUpperSide: isTableToggleUpperSide(toggle),
         node: (
           <SwitchButton
-            checked={showFilters}
-            onChange={() => setShowFilters(!showFilters)}
+            checked={tableToggleState[toggle.id] ?? toggle.defaultValue}
+            onChange={() => {
+              if (tableToggleState[toggle.id] ?? toggle.defaultValue) {
+                setCurrentPage(1);
+              }
+              setTableToggleState((current) => ({
+                ...current,
+                [toggle.id]: !(current[toggle.id] ?? toggle.defaultValue),
+              }));
+            }}
           />
         ),
-      },
+        })),
+        {
+          label: t("Show Filters"),
+          isUpperSide: true,
+          node: (
+            <SwitchButton
+              checked={showFilters}
+              onChange={() => setShowFilters(!showFilters)}
+            />
+          ),
+        },
+      ),
+    [
+      t,
+      showFilters,
+      configuredTableToggles,
+      tableToggleState,
+      setCurrentPage,
     ],
-    [t, showFilters],
   );
 
   const filterPanel = useMemo(
@@ -2043,6 +2192,8 @@ export default function GenericPaginatedPage({
           actions={actions}
           columns={columns}
           rows={rows}
+          isDraggable={tableDragState.enabled}
+          onDragEnter={tableDragState.enabled ? handleRowDrag : undefined}
           rowStyleFunction={rowStyleFunction}
           title={customTitle || t(humanize(schemaName))}
           addButton={addButton}

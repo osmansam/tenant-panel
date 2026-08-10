@@ -1,8 +1,12 @@
 import type {
+  GeneratedRelationColumnsConfig,
   TableActionConfig,
   TableActionFormLayoutConfig,
   TableColumnConfig,
   TableComponentConfig,
+  TableToggleConfig,
+  ToggleBinding,
+  ToggleRequestEffect,
 } from "../types/page";
 import type { Field } from "./api/container";
 
@@ -49,6 +53,149 @@ export const cleanDesignerActionFormLayout = (
 
   return Object.keys(cleaned).length > 0 ? cleaned : undefined;
 };
+
+export const cleanDesignerTableDrag = (
+  drag?: TableComponentConfig["drag"],
+): TableComponentConfig["drag"] | undefined => {
+  const orderField = drag?.orderField?.trim();
+  return drag?.enabled && orderField
+    ? { enabled: true, orderField }
+    : undefined;
+};
+
+const INTEGER_TABLE_ORDER_FIELD_TYPES = new Set([
+  "int",
+  "integer",
+  "int32",
+  "int64",
+  "autoincrementid",
+]);
+
+export const isIntegerTableOrderField = (field: Field): boolean =>
+  INTEGER_TABLE_ORDER_FIELD_TYPES.has((field.type || "").toLowerCase());
+
+export const cleanDesignerToggleBinding = (
+  binding?: ToggleBinding,
+): ToggleBinding | undefined => {
+  const toggleId = binding?.toggleId?.trim();
+  return toggleId ? { toggleId, when: binding?.when === true } : undefined;
+};
+
+export const cleanDesignerTableToggles = (
+  toggles: TableToggleConfig[] = [],
+): TableToggleConfig[] =>
+  toggles
+    .filter((toggle) => toggle.id.trim())
+    .map((toggle) => {
+      const cleanEffect = (effect?: ToggleRequestEffect) => {
+        if (!effect) return undefined;
+        if (effect.type === "omit") return { type: "omit" as const };
+        const field = effect.field.trim();
+        return field
+          ? { type: "set" as const, field, value: effect.value }
+          : undefined;
+      };
+      const on = cleanEffect(toggle.request?.on);
+      const off = cleanEffect(toggle.request?.off);
+      return {
+        id: toggle.id.trim(),
+        label: toggle.label.trim(),
+        defaultValue: toggle.defaultValue === true,
+        ...(toggle.isUpperSide !== undefined
+          ? { isUpperSide: toggle.isUpperSide }
+          : {}),
+        ...(on || off ? { request: { ...(on ? { on } : {}), ...(off ? { off } : {}) } } : {}),
+      };
+    });
+
+export const createDesignerTableToggle = (
+  id: string,
+): TableToggleConfig => ({
+  id,
+  label: "Display toggle",
+  defaultValue: false,
+  isUpperSide: true,
+});
+
+export type DesignerVisibilityTarget =
+  | `column:${string}`
+  | `group:${string}`;
+
+export const getDesignerToggleVisibilityTargets = (
+  config: TableComponentConfig,
+  toggleId: string,
+): DesignerVisibilityTarget[] => [
+  ...(config.columns || [])
+    .filter((column) => column.visibilityToggle?.toggleId === toggleId)
+    .map((column) => `column:${column.field}` as const),
+  ...(config.generatedRelationColumns || [])
+    .filter((group) => group.visibilityToggle?.toggleId === toggleId)
+    .map((group) => `group:${group.id}` as const),
+];
+
+export const setDesignerToggleVisibilityTargets = (
+  config: TableComponentConfig,
+  toggleId: string,
+  targets: DesignerVisibilityTarget[],
+): TableComponentConfig => {
+  const selected = new Set(targets);
+  const updateBinding = (
+    target: DesignerVisibilityTarget,
+    binding: ToggleBinding | undefined,
+  ): ToggleBinding | undefined => {
+    if (selected.has(target)) return { toggleId, when: true };
+    return binding?.toggleId === toggleId ? undefined : binding;
+  };
+
+  return {
+    ...config,
+    columns: (config.columns || []).map((column) => ({
+      ...column,
+      visibilityToggle: updateBinding(
+        `column:${column.field}`,
+        column.visibilityToggle,
+      ),
+    })),
+    generatedRelationColumns: (config.generatedRelationColumns || []).map(
+      (group) => ({
+        ...group,
+        visibilityToggle: updateBinding(
+          `group:${group.id}`,
+          group.visibilityToggle,
+        ),
+      }),
+    ),
+  };
+};
+
+export const cleanDesignerGeneratedRelationColumns = (
+  groups: GeneratedRelationColumnsConfig[] = [],
+): GeneratedRelationColumnsConfig[] =>
+  groups.flatMap((group) => {
+    const id = group.id.trim();
+    const arrayField = group.arrayField.trim();
+    const sourceSchemaName = group.sourceSchemaName.trim();
+    const sourceLabelField = group.sourceLabelField.trim();
+    if (!id || !arrayField || !sourceSchemaName || !sourceLabelField) return [];
+    const booleanEditToggle = cleanDesignerToggleBinding(
+      group.booleanEditToggle,
+    );
+    const visibilityToggle = cleanDesignerToggleBinding(
+      group.visibilityToggle,
+    );
+    return [
+      {
+        id,
+        arrayField,
+        sourceSchemaName,
+        sourceIdField: group.sourceIdField?.trim() || "_id",
+        sourceLabelField,
+        sourceLimit: Math.min(100, Math.max(1, group.sourceLimit || 100)),
+        ...(visibilityToggle ? { visibilityToggle } : {}),
+        ...(booleanEditToggle ? { booleanEditToggle } : {}),
+      },
+    ];
+  });
 
 export const TABLE_COLUMN_TYPE_OPTIONS: {
   value: NonNullable<TableColumnConfig["type"]>;

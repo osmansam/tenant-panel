@@ -43,6 +43,30 @@ describe("table lookup labels", () => {
     ).toEqual(["date", "status", "items"]);
   });
 
+  it("requests generated relation array fields without visible static columns", () => {
+    expect(
+      getTableDataFieldNames({
+        generatedRelationColumns: [
+          {
+            id: "locations",
+            arrayField: "locations",
+            sourceSchemaName: "location",
+            sourceLabelField: "name",
+          },
+        ],
+      }),
+    ).toEqual(["locations"]);
+  });
+
+  it("requests the drag order field even when it is not a visible column", () => {
+    expect(
+      getTableDataFieldNames(
+        { drag: { enabled: true, orderField: "position" } },
+        ["name", "position"],
+      ),
+    ).toEqual(["position"]);
+  });
+
   it("keeps table search enabled by default and allows disabling it", () => {
     expect(isTableSearchEnabled(undefined)).toBe(true);
     expect(isTableSearchEnabled({ columns: [] })).toBe(true);

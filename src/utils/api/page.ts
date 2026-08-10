@@ -173,6 +173,37 @@ export interface PageTableLookupLabelConfig {
   labelField?: string;
 }
 
+export interface PageTableToggleBinding {
+  toggleId: string;
+  when: boolean;
+}
+
+export interface PageGeneratedRelationColumnsConfig {
+  id: string;
+  arrayField: string;
+  sourceSchemaName: string;
+  sourceIdField?: string;
+  sourceLabelField: string;
+  sourceLimit?: number;
+  visibilityToggle?: PageTableToggleBinding;
+  booleanEditToggle?: PageTableToggleBinding;
+}
+
+export type PageTableToggleRequestEffect =
+  | { type: "set"; field: string; value: unknown }
+  | { type: "omit" };
+
+export interface PageTableToggleConfig {
+  id: string;
+  label: string;
+  defaultValue: boolean;
+  isUpperSide?: boolean;
+  request?: {
+    on?: PageTableToggleRequestEffect;
+    off?: PageTableToggleRequestEffect;
+  };
+}
+
 export interface PageTableColumnConfig {
   field: string;
   type?: PageTableColumnType;
@@ -183,6 +214,9 @@ export interface PageTableColumnConfig {
   progressBar?: PageTableProgressBarConfig;
   cellClassName?: PageRowClassConfig[];
   link?: PageTableLinkConfig;
+  visibilityToggle?: PageTableToggleBinding;
+  booleanEditToggle?: PageTableToggleBinding;
+  booleanDisplayToggle?: PageTableToggleBinding;
 }
 
 export interface PageTableRowsConfig {
@@ -319,6 +353,12 @@ export interface PageTableComponentConfig {
     delete?: PageTableActionConfig;
   };
   filterPanel?: PageTableFilterPanelConfig;
+  toggles?: PageTableToggleConfig[];
+  generatedRelationColumns?: PageGeneratedRelationColumnsConfig[];
+  drag?: {
+    enabled: boolean;
+    orderField: string;
+  };
 }
 
 

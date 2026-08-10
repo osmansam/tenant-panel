@@ -25,6 +25,8 @@ import {
   InfoBlockItemConfig,
   InfoBlocksConfig,
   InfoBlocksSource,
+  GeneratedRelationColumnsConfig,
+  JsonValue,
   LinkType,
   RowClassConfig,
   TabPanelTab,
@@ -38,6 +40,8 @@ import {
   TableColumnConfig,
   TableComponentConfig,
   TableFilterPanelInputConfig,
+  TableToggleConfig,
+  ToggleRequestEffect,
 } from "../../types/page";
 import {
   ContainerModel,
@@ -68,13 +72,22 @@ import {
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
+  cleanDesignerGeneratedRelationColumns,
+  cleanDesignerTableDrag,
+  cleanDesignerTableToggles,
+  cleanDesignerToggleBinding,
+  createDesignerTableToggle,
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
+  getDesignerToggleVisibilityTargets,
+  isIntegerTableOrderField,
   mergeDesignerTableColumnsFromNames,
   moveArrayItem,
   normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
+  setDesignerToggleVisibilityTargets,
+  type DesignerVisibilityTarget,
 } from "../../utils/pageDesignerTableConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -474,7 +487,9 @@ type TableSettingsTab =
   | "nestedRows"
   | "actions"
   | "bulkActions"
-  | "filterInputs";
+  | "filterInputs"
+  | "relations"
+  | "toggles";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "display", label: "Display" },
@@ -487,6 +502,8 @@ const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "actions", label: "Actions" },
   { value: "bulkActions", label: "Bulk Actions" },
   { value: "filterInputs", label: "Filter Inputs" },
+  { value: "relations", label: "Generated Relation Columns" },
+  { value: "toggles", label: "Display Toggles" },
 ];
 
 const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
@@ -1404,6 +1421,24 @@ const cleanTableConfig = (
         const link = normalizeDesignerTableColumnLink(column.link);
         return link ? { link } : {};
       })(),
+      ...(() => {
+        const visibilityToggle = cleanDesignerToggleBinding(
+          column.visibilityToggle,
+        );
+        return visibilityToggle ? { visibilityToggle } : {};
+      })(),
+      ...(() => {
+        const booleanEditToggle = cleanDesignerToggleBinding(
+          column.booleanEditToggle,
+        );
+        return booleanEditToggle ? { booleanEditToggle } : {};
+      })(),
+      ...(() => {
+        const booleanDisplayToggle = cleanDesignerToggleBinding(
+          column.booleanDisplayToggle,
+        );
+        return booleanDisplayToggle ? { booleanDisplayToggle } : {};
+      })(),
     })),
   ...(cleanRules(tableConfig.rows?.className).length > 0
     ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
@@ -1460,6 +1495,9 @@ const cleanTableConfig = (
     : {}),
   ...(cleanConstantSort(tableConfig.constantSort)
     ? { constantSort: cleanConstantSort(tableConfig.constantSort) }
+    : {}),
+  ...(cleanDesignerTableDrag(tableConfig.drag)
+    ? { drag: cleanDesignerTableDrag(tableConfig.drag) }
     : {}),
   ...(cleanTableActions(
     tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
@@ -1520,6 +1558,18 @@ const cleanTableConfig = (
         filterPanel: {
           inputs: cleanFilterPanelInputs(tableConfig.filterPanel.inputs || []),
         },
+      }
+    : {}),
+  ...(cleanDesignerTableToggles(tableConfig.toggles).length
+    ? { toggles: cleanDesignerTableToggles(tableConfig.toggles) }
+    : {}),
+  ...(cleanDesignerGeneratedRelationColumns(
+    tableConfig.generatedRelationColumns,
+  ).length
+    ? {
+        generatedRelationColumns: cleanDesignerGeneratedRelationColumns(
+          tableConfig.generatedRelationColumns,
+        ),
       }
     : {}),
 });
@@ -2855,6 +2905,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     [containers, schemaName],
   );
   const selectedFields = selectedContainer?.fields || [];
+  useEffect(() => {
+    const arrayFields = new Set(
+      selectedFields
+        .filter((field) => field.type?.toLowerCase().includes("array"))
+        .map((field) => field.name),
+    );
+    setTableConfig((current) => {
+      let changed = false;
+      const generatedRelationColumns = (
+        current.generatedRelationColumns || []
+      ).map((group) => {
+        if (!group.arrayField || arrayFields.has(group.arrayField)) return group;
+        changed = true;
+        return { ...group, arrayField: "" };
+      });
+      return changed ? { ...current, generatedRelationColumns } : current;
+    });
+  }, [selectedFields]);
   const availableFormFields = useMemo(
     () => flattenFormFields(selectedFields),
     [selectedFields],
@@ -3150,6 +3218,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           },
           constantFilters: editingComponent.table.constantFilters,
           constantSort: editingComponent.table.constantSort,
+          drag: editingComponent.table.drag,
           addButton:
             editingSourceType === "schema"
               ? hydrateSchemaAddButton(
@@ -3189,6 +3258,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     editingSchemaFields,
                   ),
                 },
+          toggles: editingComponent.table.toggles || [],
+          generatedRelationColumns:
+            editingComponent.table.generatedRelationColumns || [],
         });
       }
     } else {
@@ -4120,6 +4192,173 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...updates,
       },
     }));
+  };
+
+  const addTableToggle = () => {
+    setTableConfig((current) => {
+      const usedIds = new Set((current.toggles || []).map((toggle) => toggle.id));
+      let index = (current.toggles || []).length + 1;
+      let id = `toggle${index}`;
+      while (usedIds.has(id)) {
+        index += 1;
+        id = `toggle${index}`;
+      }
+      return {
+        ...current,
+        toggles: [
+          ...(current.toggles || []),
+          createDesignerTableToggle(id),
+        ],
+      };
+    });
+  };
+
+  const updateTableToggle = (
+    index: number,
+    updates: Partial<TableToggleConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: (current.toggles || []).map((toggle, toggleIndex) =>
+        toggleIndex === index ? { ...toggle, ...updates } : toggle,
+      ),
+    }));
+  };
+
+  const updateTableToggleRequestEffect = (
+    index: number,
+    state: "on" | "off",
+    effect: ToggleRequestEffect | undefined,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: (current.toggles || []).map((toggle, toggleIndex) => {
+        if (toggleIndex !== index) return toggle;
+        const request = { ...(toggle.request || {}), [state]: effect };
+        return { ...toggle, request };
+      }),
+    }));
+  };
+
+  const updateTableToggleVisibilityTarget = (
+    toggleId: string,
+    target: DesignerVisibilityTarget,
+    checked: boolean,
+  ) => {
+    setTableConfig((current) => {
+      const selected = getDesignerToggleVisibilityTargets(current, toggleId);
+      const nextTargets = checked
+        ? [...new Set([...selected, target])]
+        : selected.filter((candidate) => candidate !== target);
+      return setDesignerToggleVisibilityTargets(
+        current,
+        toggleId,
+        nextTargets,
+      );
+    });
+  };
+
+  const moveTableToggle = (index: number, direction: -1 | 1) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: moveArrayItem(current.toggles || [], index, direction),
+    }));
+  };
+
+  const removeTableToggle = (index: number) => {
+    setTableConfig((current) => {
+      const removedId = current.toggles?.[index]?.id;
+      return {
+        ...current,
+        toggles: (current.toggles || []).filter(
+          (_, toggleIndex) => toggleIndex !== index,
+        ),
+        columns: (current.columns || []).map((column) => ({
+          ...column,
+          ...(column.visibilityToggle?.toggleId === removedId
+            ? { visibilityToggle: undefined }
+            : {}),
+          ...(column.booleanEditToggle?.toggleId === removedId
+            ? { booleanEditToggle: undefined }
+            : {}),
+          ...(column.booleanDisplayToggle?.toggleId === removedId
+            ? { booleanDisplayToggle: undefined }
+            : {}),
+        })),
+        generatedRelationColumns: (current.generatedRelationColumns || []).map(
+          (group) => ({
+            ...group,
+            ...(group.visibilityToggle?.toggleId === removedId
+              ? { visibilityToggle: undefined }
+              : {}),
+            ...(group.booleanEditToggle?.toggleId === removedId
+              ? { booleanEditToggle: undefined }
+              : {}),
+          }),
+        ),
+      };
+    });
+  };
+
+  const addGeneratedRelationColumns = () => {
+    setTableConfig((current) => {
+      const groups = current.generatedRelationColumns || [];
+      let suffix = groups.length + 1;
+      while (groups.some((group) => group.id === `relation${suffix}`)) suffix += 1;
+      return {
+        ...current,
+        generatedRelationColumns: [
+          ...groups,
+          {
+            id: `relation${suffix}`,
+            arrayField: "",
+            sourceSchemaName: "",
+            sourceIdField: "_id",
+            sourceLabelField: "",
+            sourceLimit: 100,
+          },
+        ],
+      };
+    });
+  };
+
+  const updateGeneratedRelationColumns = (
+    index: number,
+    updates: Partial<GeneratedRelationColumnsConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: (current.generatedRelationColumns || []).map(
+        (group, groupIndex) =>
+          groupIndex === index ? { ...group, ...updates } : group,
+      ),
+    }));
+  };
+
+  const moveGeneratedRelationColumns = (index: number, direction: -1 | 1) =>
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: moveArrayItem(
+        current.generatedRelationColumns || [],
+        index,
+        direction,
+      ),
+    }));
+
+  const removeGeneratedRelationColumns = (index: number) =>
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: (current.generatedRelationColumns || []).filter(
+        (_, groupIndex) => groupIndex !== index,
+      ),
+    }));
+
+  const parseToggleRequestValue = (value: string): JsonValue => {
+    try {
+      return JSON.parse(value) as JsonValue;
+    } catch {
+      return value;
+    }
   };
 
   const updateTableNestedRows = (
@@ -6833,6 +7072,73 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     </button>
                                   </div>
                                 </div>
+
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Row Drag Reordering
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Drag visible rows and persist their position in an integer field.
+                                    </p>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <label className="flex items-center gap-2 text-sm text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={tableConfig.drag?.enabled === true}
+                                        onChange={(event) =>
+                                          setTableConfig((current) => ({
+                                            ...current,
+                                            drag: event.target.checked
+                                              ? {
+                                                  enabled: true,
+                                                  orderField:
+                                                    current.drag?.orderField ||
+                                                    "",
+                                                }
+                                              : undefined,
+                                          }))
+                                        }
+                                      />
+                                      Enable row dragging
+                                    </label>
+                                    <label className="space-y-1">
+                                      <span className="text-xs font-medium text-neutral-600">
+                                        Order field
+                                      </span>
+                                      <select
+                                        value={tableConfig.drag?.orderField || ""}
+                                        disabled={!tableConfig.drag?.enabled}
+                                        onChange={(event) =>
+                                          setTableConfig((current) => ({
+                                            ...current,
+                                            drag: {
+                                              enabled: true,
+                                              orderField: event.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                      >
+                                        <option value="">
+                                          Select integer field
+                                        </option>
+                                        {selectedFields
+                                          .filter(isIntegerTableOrderField)
+                                          .map((field) => (
+                                            <option
+                                              key={field.name}
+                                              value={field.name}
+                                            >
+                                              {field.frontend?.displayName ||
+                                                field.name}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </label>
+                                  </div>
+                                </div>
                               </div>
                             )}
 
@@ -6950,6 +7256,254 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             <FiTrash2 size={16} />
                                           </button>
                                         </div>
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3 md:grid-cols-2">
+                                        <div className="grid grid-cols-[1fr_130px] gap-2">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Visibility toggle
+                                            </span>
+                                            <select
+                                              value={
+                                                column.visibilityToggle
+                                                  ?.toggleId || ""
+                                              }
+                                              onChange={(e) =>
+                                                updateTableColumn(
+                                                  column.field,
+                                                  {
+                                                    visibilityToggle: e.target
+                                                      .value
+                                                      ? {
+                                                          toggleId:
+                                                            e.target.value,
+                                                          when:
+                                                            column
+                                                              .visibilityToggle
+                                                              ?.when ?? true,
+                                                        }
+                                                      : undefined,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                            >
+                                              <option value="">Always visible</option>
+                                              {(tableConfig.toggles || []).map(
+                                                (toggle) => (
+                                                  <option
+                                                    key={toggle.id}
+                                                    value={toggle.id}
+                                                  >
+                                                    {toggle.label || toggle.id}
+                                                  </option>
+                                                ),
+                                              )}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Visible when
+                                            </span>
+                                            <select
+                                              value={String(
+                                                column.visibilityToggle
+                                                  ?.when ?? true,
+                                              )}
+                                              disabled={
+                                                !column.visibilityToggle
+                                                  ?.toggleId
+                                              }
+                                              onChange={(e) =>
+                                                updateTableColumn(
+                                                  column.field,
+                                                  {
+                                                    visibilityToggle: column
+                                                      .visibilityToggle
+                                                      ? {
+                                                          ...column.visibilityToggle,
+                                                          when:
+                                                            e.target.value ===
+                                                            "true",
+                                                        }
+                                                      : undefined,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                            >
+                                              <option value="true">On</option>
+                                              <option value="false">Off</option>
+                                            </select>
+                                          </label>
+                                        </div>
+                                        {(column.type || "field") ===
+                                          "booleanSwitch" && (
+                                          <div className="space-y-2">
+                                            <div className="grid grid-cols-[1fr_130px] gap-2">
+                                              <label className="space-y-1">
+                                                <span className="text-[11px] font-medium text-neutral-600">
+                                                  Boolean display toggle
+                                                </span>
+                                                <select
+                                                  value={
+                                                    column.booleanDisplayToggle
+                                                      ?.toggleId || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateTableColumn(
+                                                      column.field,
+                                                      {
+                                                        booleanDisplayToggle: e
+                                                          .target.value
+                                                          ? {
+                                                              toggleId:
+                                                                e.target.value,
+                                                              when:
+                                                                column
+                                                                  .booleanDisplayToggle
+                                                                  ?.when ?? true,
+                                                            }
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                                >
+                                                  <option value="">
+                                                    Always show switch
+                                                  </option>
+                                                  {(tableConfig.toggles || []).map(
+                                                    (toggle) => (
+                                                      <option
+                                                        key={toggle.id}
+                                                        value={toggle.id}
+                                                      >
+                                                        {toggle.label || toggle.id}
+                                                      </option>
+                                                    ),
+                                                  )}
+                                                </select>
+                                              </label>
+                                              <label className="space-y-1">
+                                                <span className="text-[11px] font-medium text-neutral-600">
+                                                  Show switch when
+                                                </span>
+                                                <select
+                                                  value={String(
+                                                    column.booleanDisplayToggle
+                                                      ?.when ?? true,
+                                                  )}
+                                                  disabled={
+                                                    !column.booleanDisplayToggle
+                                                      ?.toggleId
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateTableColumn(
+                                                      column.field,
+                                                      {
+                                                        booleanDisplayToggle: column
+                                                          .booleanDisplayToggle
+                                                          ? {
+                                                              ...column.booleanDisplayToggle,
+                                                              when:
+                                                                e.target.value ===
+                                                                "true",
+                                                            }
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                                >
+                                                  <option value="true">On</option>
+                                                  <option value="false">Off</option>
+                                                </select>
+                                              </label>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_130px] gap-2">
+                                            <label className="space-y-1">
+                                              <span className="text-[11px] font-medium text-neutral-600">
+                                                Editable toggle
+                                              </span>
+                                              <select
+                                                value={
+                                                  column.booleanEditToggle
+                                                    ?.toggleId || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      booleanEditToggle: e
+                                                        .target.value
+                                                        ? {
+                                                            toggleId:
+                                                              e.target.value,
+                                                            when:
+                                                              column
+                                                                .booleanEditToggle
+                                                                ?.when ?? true,
+                                                          }
+                                                        : undefined,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                              >
+                                                <option value="">
+                                                  Always editable
+                                                </option>
+                                                {(tableConfig.toggles || []).map(
+                                                  (toggle) => (
+                                                    <option
+                                                      key={toggle.id}
+                                                      value={toggle.id}
+                                                    >
+                                                      {toggle.label || toggle.id}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-[11px] font-medium text-neutral-600">
+                                                Editable when
+                                              </span>
+                                              <select
+                                                value={String(
+                                                  column.booleanEditToggle
+                                                    ?.when ?? true,
+                                                )}
+                                                disabled={
+                                                  !column.booleanEditToggle
+                                                    ?.toggleId
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      booleanEditToggle: column
+                                                        .booleanEditToggle
+                                                        ? {
+                                                            ...column.booleanEditToggle,
+                                                            when:
+                                                              e.target.value ===
+                                                              "true",
+                                                          }
+                                                        : undefined,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                              >
+                                                <option value="true">On</option>
+                                                <option value="false">Off</option>
+                                              </select>
+                                            </label>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                       {(column.type || "field") ===
                                         "lookupLabel" && (
@@ -8043,6 +8597,416 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       </div>
                                     ),
                                   )
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "relations" && (
+                              <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
+                                <button
+                                  type="button"
+                                  onClick={addGeneratedRelationColumns}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                >
+                                  <FiPlus size={14} />
+                                  Add generated relation group
+                                </button>
+                                {(tableConfig.generatedRelationColumns || []).map(
+                                  (group, groupIndex) => {
+                                    const sourceFields = getLookupFieldOptions(
+                                      group.sourceSchemaName,
+                                    );
+                                    const sharesArrayWithAnotherSchema = (
+                                      tableConfig.generatedRelationColumns || []
+                                    ).some(
+                                      (candidate, candidateIndex) =>
+                                        candidateIndex !== groupIndex &&
+                                        candidate.arrayField &&
+                                        candidate.arrayField === group.arrayField &&
+                                        candidate.sourceSchemaName !==
+                                          group.sourceSchemaName,
+                                    );
+                                    return (
+                                      <div
+                                        key={group.id || groupIndex}
+                                        className="space-y-3 rounded-xl border border-neutral-200 p-4"
+                                      >
+                                        <div className="grid grid-cols-[1fr_auto] gap-3">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Stable group ID
+                                            </span>
+                                            <input
+                                              value={group.id}
+                                              onChange={(e) =>
+                                                updateGeneratedRelationColumns(
+                                                  groupIndex,
+                                                  { id: e.target.value },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                            />
+                                          </label>
+                                          <div className="flex items-end gap-1">
+                                            <button type="button" disabled={groupIndex === 0} onClick={() => moveGeneratedRelationColumns(groupIndex, -1)} className="rounded-lg bg-neutral-100 p-2 disabled:opacity-40" title="Move up"><FiChevronUp size={15} /></button>
+                                            <button type="button" disabled={groupIndex === (tableConfig.generatedRelationColumns || []).length - 1} onClick={() => moveGeneratedRelationColumns(groupIndex, 1)} className="rounded-lg bg-neutral-100 p-2 disabled:opacity-40" title="Move down"><FiChevronDown size={15} /></button>
+                                            <button type="button" onClick={() => removeGeneratedRelationColumns(groupIndex)} className="rounded-lg bg-red-50 p-2 text-red-700" title="Remove"><FiTrash2 size={15} /></button>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Row array field</span>
+                                            <select value={group.arrayField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { arrayField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select array field</option>
+                                              {selectedFields.filter((field) => field.type?.toLowerCase().includes("array")).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source schema</span>
+                                            <select value={group.sourceSchemaName} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceSchemaName: e.target.value, sourceIdField: "_id", sourceLabelField: "" })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select schema</option>
+                                              {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source ID field</span>
+                                            <select value={group.sourceIdField || "_id"} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceIdField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="_id">_id</option>
+                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source label field</span>
+                                            <select value={group.sourceLabelField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLabelField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select label field</option>
+                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source record limit</span>
+                                            <input type="number" min={1} max={100} value={group.sourceLimit || 100} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLimit: Math.min(100, Math.max(1, Number(e.target.value) || 100)) })} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Boolean edit toggle</span>
+                                            <select value={group.booleanEditToggle?.toggleId || ""} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: e.target.value ? { toggleId: e.target.value, when: group.booleanEditToggle?.when ?? true } : undefined })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Always editable</option>
+                                              {(tableConfig.toggles || []).map((toggle) => <option key={toggle.id} value={toggle.id}>{toggle.label || toggle.id}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Editable when</span>
+                                            <select disabled={!group.booleanEditToggle?.toggleId} value={String(group.booleanEditToggle?.when ?? true)} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: group.booleanEditToggle ? { ...group.booleanEditToggle, when: e.target.value === "true" } : undefined })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100">
+                                              <option value="true">On</option><option value="false">Off</option>
+                                            </select>
+                                          </label>
+                                        </div>
+                                        {sharesArrayWithAnotherSchema && <p className="text-xs text-amber-700">Groups sharing this row array field must use compatible, non-overlapping ID namespaces.</p>}
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "toggles" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                                      Table Display Toggles
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Control columns, Boolean editing, and optional request filters.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={addTableToggle}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                  >
+                                    <FiPlus size={14} /> Add toggle
+                                  </button>
+                                </div>
+                                {(tableConfig.toggles || []).map(
+                                  (toggle, toggleIndex) => (
+                                    <div
+                                      key={`${toggle.id}-${toggleIndex}`}
+                                      className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4"
+                                    >
+                                      <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-3">
+                                        <label className="space-y-1">
+                                          <span className="text-[11px] font-medium text-neutral-600">
+                                            Stable ID
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={toggle.id}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                id: e.target.value,
+                                              })
+                                            }
+                                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-[11px] font-medium text-neutral-600">
+                                            Label
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={toggle.label}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                label: e.target.value,
+                                              })
+                                            }
+                                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                          />
+                                        </label>
+                                        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={toggle.defaultValue}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                defaultValue: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Default on
+                                        </label>
+                                        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={toggle.isUpperSide !== false}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                isUpperSide: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Upper side
+                                        </label>
+                                        <div className="flex items-end gap-1">
+                                          <button
+                                            type="button"
+                                            disabled={toggleIndex === 0}
+                                            onClick={() =>
+                                              moveTableToggle(toggleIndex, -1)
+                                            }
+                                            className="rounded-lg bg-neutral-100 p-2 text-neutral-600 disabled:opacity-40"
+                                            title="Move toggle up"
+                                          >
+                                            <FiChevronUp size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={
+                                              toggleIndex ===
+                                              (tableConfig.toggles || []).length -
+                                                1
+                                            }
+                                            onClick={() =>
+                                              moveTableToggle(toggleIndex, 1)
+                                            }
+                                            className="rounded-lg bg-neutral-100 p-2 text-neutral-600 disabled:opacity-40"
+                                            title="Move toggle down"
+                                          >
+                                            <FiChevronDown size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableToggle(toggleIndex)
+                                            }
+                                            className="rounded-lg bg-red-50 p-2 text-red-700"
+                                            title="Remove toggle"
+                                          >
+                                            <FiTrash2 size={15} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                        <div>
+                                          <div className="text-xs font-semibold uppercase text-neutral-700">
+                                            Visible columns and groups
+                                          </div>
+                                          <p className="mt-1 text-xs text-neutral-500">
+                                            Selected targets are visible while this toggle is on and hidden while it is off.
+                                          </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                          {(tableConfig.columns || []).map(
+                                            (column) => {
+                                              const target =
+                                                `column:${column.field}` as DesignerVisibilityTarget;
+                                              return (
+                                                <label
+                                                  key={target}
+                                                  className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-neutral-700"
+                                                >
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={getDesignerToggleVisibilityTargets(
+                                                      tableConfig,
+                                                      toggle.id,
+                                                    ).includes(target)}
+                                                    onChange={(event) =>
+                                                      updateTableToggleVisibilityTarget(
+                                                        toggle.id,
+                                                        target,
+                                                        event.target.checked,
+                                                      )
+                                                    }
+                                                  />
+                                                  {column.displayName ||
+                                                    column.field}
+                                                  <span className="text-neutral-400">
+                                                    Column
+                                                  </span>
+                                                </label>
+                                              );
+                                            },
+                                          )}
+                                          {(
+                                            tableConfig.generatedRelationColumns ||
+                                            []
+                                          ).map((group) => {
+                                            const target =
+                                              `group:${group.id}` as DesignerVisibilityTarget;
+                                            return (
+                                              <label
+                                                key={target}
+                                                className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-neutral-700"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={getDesignerToggleVisibilityTargets(
+                                                    tableConfig,
+                                                    toggle.id,
+                                                  ).includes(target)}
+                                                  onChange={(event) =>
+                                                    updateTableToggleVisibilityTarget(
+                                                      toggle.id,
+                                                      target,
+                                                      event.target.checked,
+                                                    )
+                                                  }
+                                                />
+                                                {group.id ||
+                                                  group.sourceSchemaName ||
+                                                  group.arrayField}
+                                                <span className="text-neutral-400">
+                                                  Group
+                                                </span>
+                                              </label>
+                                            );
+                                          })}
+                                          {!(tableConfig.columns || []).length &&
+                                            !(
+                                              tableConfig.generatedRelationColumns ||
+                                              []
+                                            ).length && (
+                                              <span className="text-xs text-neutral-500">
+                                                Add table columns or generated relation groups first.
+                                              </span>
+                                            )}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        {(["off", "on"] as const).map(
+                                          (state) => {
+                                            const effect =
+                                              toggle.request?.[state];
+                                            return (
+                                              <div
+                                                key={state}
+                                                className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3"
+                                              >
+                                                <div className="text-xs font-semibold uppercase text-neutral-600">
+                                                  When {state}
+                                                </div>
+                                                <select
+                                                  value={effect?.type || "none"}
+                                                  onChange={(e) => {
+                                                    const type = e.target.value;
+                                                    updateTableToggleRequestEffect(
+                                                      toggleIndex,
+                                                      state,
+                                                      type === "set"
+                                                        ? {
+                                                            type: "set",
+                                                            field: "",
+                                                            value: false,
+                                                          }
+                                                        : type === "omit"
+                                                          ? { type: "omit" }
+                                                          : undefined,
+                                                    );
+                                                  }}
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                                >
+                                                  <option value="none">
+                                                    No request effect
+                                                  </option>
+                                                  <option value="set">
+                                                    Set field/value
+                                                  </option>
+                                                  <option value="omit">
+                                                    Omit contribution
+                                                  </option>
+                                                </select>
+                                                {effect?.type === "set" && (
+                                                  <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                      type="text"
+                                                      value={effect.field}
+                                                      onChange={(e) =>
+                                                        updateTableToggleRequestEffect(
+                                                          toggleIndex,
+                                                          state,
+                                                          {
+                                                            ...effect,
+                                                            field:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                                      placeholder="deleted"
+                                                    />
+                                                    <input
+                                                      key={`${toggle.id}-${state}-${JSON.stringify(effect.value)}`}
+                                                      type="text"
+                                                      defaultValue={JSON.stringify(
+                                                        effect.value,
+                                                      )}
+                                                      onBlur={(e) =>
+                                                        updateTableToggleRequestEffect(
+                                                          toggleIndex,
+                                                          state,
+                                                          {
+                                                            ...effect,
+                                                            value:
+                                                              parseToggleRequestValue(
+                                                                e.target.value,
+                                                              ),
+                                                          },
+                                                        )
+                                                      }
+                                                      className="rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm"
+                                                      placeholder="false"
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          },
+                                        )}
+                                      </div>
+                                    </div>
+                                  ),
                                 )}
                               </div>
                             )}

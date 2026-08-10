@@ -170,6 +170,45 @@ export interface TableLookupLabelConfig {
   labelField?: string;
 }
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export type ToggleRequestEffect =
+  | { type: "set"; field: string; value: JsonValue }
+  | { type: "omit" };
+
+export interface ToggleBinding {
+  toggleId: string;
+  when: boolean;
+}
+
+export interface TableToggleConfig {
+  id: string;
+  label: string;
+  defaultValue: boolean;
+  isUpperSide?: boolean;
+  request?: {
+    on?: ToggleRequestEffect;
+    off?: ToggleRequestEffect;
+  };
+}
+
+export interface GeneratedRelationColumnsConfig {
+  id: string;
+  arrayField: string;
+  sourceSchemaName: string;
+  sourceIdField?: string;
+  sourceLabelField: string;
+  sourceLimit?: number;
+  visibilityToggle?: ToggleBinding;
+  booleanEditToggle?: ToggleBinding;
+}
+
 export interface TableColumnConfig {
   field: string;
   type?: TableColumnType;
@@ -180,6 +219,9 @@ export interface TableColumnConfig {
   progressBar?: TableProgressBarConfig;
   cellClassName?: RowClassConfig[];
   link?: TableLinkConfig;
+  visibilityToggle?: ToggleBinding;
+  booleanEditToggle?: ToggleBinding;
+  booleanDisplayToggle?: ToggleBinding;
 }
 
 export interface TableRowsConfig {
@@ -344,6 +386,14 @@ export interface TableComponentConfig {
   actions?: TableActionConfig[];
   bulkActions?: TableBulkActionsConfig;
   filterPanel?: TableFilterPanelConfig;
+  toggles?: TableToggleConfig[];
+  generatedRelationColumns?: GeneratedRelationColumnsConfig[];
+  drag?: TableDragConfig;
+}
+
+export interface TableDragConfig {
+  enabled: boolean;
+  orderField: string;
 }
 
 
