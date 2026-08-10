@@ -45,6 +45,27 @@ const rowIdentity = (row: Record<string, unknown>): string | null => {
   return value === undefined || value === null ? null : String(value);
 };
 
+export const sortRowsByOrderField = <T extends Record<string, unknown>>(
+  rows: T[],
+  orderField: string,
+): T[] => {
+  if (!orderField.trim()) return rows;
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const leftOrder = Number(left.row[orderField]);
+      const rightOrder = Number(right.row[orderField]);
+      const leftValid = Number.isFinite(leftOrder);
+      const rightValid = Number.isFinite(rightOrder);
+      if (leftValid && rightValid && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+      if (leftValid !== rightValid) return leftValid ? -1 : 1;
+      return left.index - right.index;
+    })
+    .map(({ row }) => row);
+};
+
 export const reorderCurrentPageRows = <T extends Record<string, unknown>>(
   rows: T[],
   draggedRow: T,

@@ -62,6 +62,7 @@ import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayo
 import {
   reorderCurrentPageRows,
   resolveTableDragState,
+  sortRowsByOrderField,
 } from "../../../utils/tableRowReorder";
 import {
   appendShowFiltersControl,
@@ -1911,10 +1912,6 @@ export default function GenericUnpaginatedPage({
     ],
   );
 
-  const rows = useMemo(
-    () => applyTableNestedRows(items || [], tableConfig, t, lookupSelectionDataMap),
-    [items, tableConfig, t, lookupSelectionDataMap],
-  );
   const tableDragState = useMemo(
     () =>
       resolveTableDragState(
@@ -1928,6 +1925,17 @@ export default function GenericUnpaginatedPage({
       tableConfig?.drag,
     ],
   );
+  const rows = useMemo(() => {
+    const nestedRows = applyTableNestedRows(
+      items || [],
+      tableConfig,
+      t,
+      lookupSelectionDataMap,
+    );
+    return tableDragState.enabled
+      ? sortRowsByOrderField(nestedRows, tableDragState.orderField)
+      : nestedRows;
+  }, [items, tableConfig, t, lookupSelectionDataMap, tableDragState]);
   const handleRowDrag = useCallback(
     (draggedRow: GenericItem, targetRow: GenericItem) => {
       const result = reorderCurrentPageRows(

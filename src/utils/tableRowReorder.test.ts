@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   reorderCurrentPageRows,
   resolveTableDragState,
+  sortRowsByOrderField,
 } from "./tableRowReorder";
 
 const rows = Array.from({ length: 50 }, (_, index) => ({
@@ -10,6 +11,23 @@ const rows = Array.from({ length: 50 }, (_, index) => ({
 }));
 
 describe("reorderCurrentPageRows", () => {
+  it("sorts unpaginated rows by numeric drag order without mutating input", () => {
+    const unsorted = [
+      { _id: "c", order: 3 },
+      { _id: "a", order: 1 },
+      { _id: "missing" },
+      { _id: "b", order: 2 },
+    ];
+
+    expect(sortRowsByOrderField(unsorted, "order").map((row) => row._id)).toEqual([
+      "a",
+      "b",
+      "c",
+      "missing",
+    ]);
+    expect(unsorted.map((row) => row._id)).toEqual(["c", "a", "missing", "b"]);
+  });
+
   it("enables configured dragging and rejects conflicting sorts", () => {
     expect(
       resolveTableDragState(
