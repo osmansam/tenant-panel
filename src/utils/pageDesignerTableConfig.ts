@@ -13,6 +13,15 @@ import { resolveTableDataMode } from "./tableDataMode";
 
 export const cleanDesignerTableDataMode = resolveTableDataMode;
 
+export const hydrateDesignerTableConfigForEditing = (
+  saved: TableComponentConfig,
+  hydrated: TableComponentConfig,
+): TableComponentConfig => ({
+  ...saved,
+  ...hydrated,
+  dataMode: cleanDesignerTableDataMode(saved.dataMode),
+});
+
 export const moveArrayItem = <T>(
   items: T[],
   index: number,

@@ -14,6 +14,7 @@ import {
   cleanDesignerToggleBinding,
   ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
+  hydrateDesignerTableConfigForEditing,
   isIntegerTableOrderField,
   mergeDesignerTableColumnsFromNames,
   moveArrayItem,
@@ -33,6 +34,23 @@ const fields: Field[] = [
 ];
 
 describe("page designer table config", () => {
+  it("preserves saved table data mode while applying editor hydration", () => {
+    const hydrated = hydrateDesignerTableConfigForEditing(
+      {
+        dataMode: "all",
+        enableSearch: false,
+        columns: [{ field: "saved" }],
+      },
+      { columns: [{ field: "hydrated" }] },
+    );
+
+    expect(hydrated).toEqual({
+      dataMode: "all",
+      enableSearch: false,
+      columns: [{ field: "hydrated" }],
+    });
+  });
+
   it("normalizes table data mode without deleting a saved all-items choice", () => {
     expect(cleanDesignerTableDataMode("all")).toBe("all");
     expect(cleanDesignerTableDataMode("paginated")).toBe("paginated");

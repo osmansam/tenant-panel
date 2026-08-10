@@ -81,6 +81,7 @@ import {
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
   hydrateEmptyDesignerTableColumns,
+  hydrateDesignerTableConfigForEditing,
   getDesignerToggleVisibilityTargets,
   isIntegerTableOrderField,
   mergeDesignerTableColumnsFromNames,
@@ -3206,64 +3207,66 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             (container) =>
               container.schemaName === editingComponent.dataBinding?.schemaName,
           )?.fields || [];
-        setTableConfig({
-          columns: editingComponent.table.columns || [],
-          rows: { className: editingComponent.table.rows?.className || [] },
-          nestedRows: editingComponent.table.nestedRows || {
-            enabled: false,
-            field: "",
-            header: "",
-            columns: [],
-          },
-          cache: {
-            invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
-          },
-          constantFilters: editingComponent.table.constantFilters,
-          constantSort: editingComponent.table.constantSort,
-          drag: editingComponent.table.drag,
-          addButton:
-            editingSourceType === "schema"
-              ? hydrateSchemaAddButton(
-                  editingComponent.table.addButton,
-                  editingComponent.table.actions,
-                  editingSchemaFields,
-                )
-              : editingComponent.table.addButton,
-          actions:
-            editingComponent.table.actions &&
-            editingComponent.table.actions.length
-              ? editingSourceType === "schema"
-                ? hydrateSchemaEditActionFields(
+        setTableConfig(
+          hydrateDesignerTableConfigForEditing(editingComponent.table, {
+            columns: editingComponent.table.columns || [],
+            rows: { className: editingComponent.table.rows?.className || [] },
+            nestedRows: editingComponent.table.nestedRows || {
+              enabled: false,
+              field: "",
+              header: "",
+              columns: [],
+            },
+            cache: {
+              invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
+            },
+            constantFilters: editingComponent.table.constantFilters,
+            constantSort: editingComponent.table.constantSort,
+            drag: editingComponent.table.drag,
+            addButton:
+              editingSourceType === "schema"
+                ? hydrateSchemaAddButton(
+                    editingComponent.table.addButton,
                     editingComponent.table.actions,
                     editingSchemaFields,
                   )
-                : editingComponent.table.actions
-              : getDefaultActionsForSource(
-                  editingSourceType,
-                  editingSchemaFields,
-                ),
-          bulkActions:
-            editingComponent.table.bulkActions ||
-            (editingSourceType === "schema"
-              ? {
-                  edit: buildDefaultBulkEditAction(editingSchemaFields),
-                  delete: buildDefaultBulkDeleteAction(),
-                }
-              : undefined),
-          filterPanel:
-            editingComponent.table.filterPanel !== undefined
-              ? {
-                  inputs: editingComponent.table.filterPanel.inputs || [],
-                }
-              : {
-                  inputs: buildFilterPanelInputsFromFields(
+                : editingComponent.table.addButton,
+            actions:
+              editingComponent.table.actions &&
+              editingComponent.table.actions.length
+                ? editingSourceType === "schema"
+                  ? hydrateSchemaEditActionFields(
+                      editingComponent.table.actions,
+                      editingSchemaFields,
+                    )
+                  : editingComponent.table.actions
+                : getDefaultActionsForSource(
+                    editingSourceType,
                     editingSchemaFields,
                   ),
-                },
-          toggles: editingComponent.table.toggles || [],
-          generatedRelationColumns:
-            editingComponent.table.generatedRelationColumns || [],
-        });
+            bulkActions:
+              editingComponent.table.bulkActions ||
+              (editingSourceType === "schema"
+                ? {
+                    edit: buildDefaultBulkEditAction(editingSchemaFields),
+                    delete: buildDefaultBulkDeleteAction(),
+                  }
+                : undefined),
+            filterPanel:
+              editingComponent.table.filterPanel !== undefined
+                ? {
+                    inputs: editingComponent.table.filterPanel.inputs || [],
+                  }
+                : {
+                    inputs: buildFilterPanelInputsFromFields(
+                      editingSchemaFields,
+                    ),
+                  },
+            toggles: editingComponent.table.toggles || [],
+            generatedRelationColumns:
+              editingComponent.table.generatedRelationColumns || [],
+          }),
+        );
       }
     } else {
       setGroupBy(EMPTY_GROUP_BY);
