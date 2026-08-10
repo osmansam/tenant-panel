@@ -73,6 +73,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
   cleanDesignerGeneratedRelationColumns,
+  cleanDesignerTableDataMode,
   cleanDesignerTableDrag,
   cleanDesignerTableToggles,
   cleanDesignerToggleBinding,
@@ -1344,6 +1345,7 @@ const cleanConstantSort = (
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
+  dataMode: cleanDesignerTableDataMode(tableConfig.dataMode),
   ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
   columns: (tableConfig.columns || [])
     .filter((column) => column.field.trim())
@@ -6893,6 +6895,36 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                             {activeTableSettingsTab === "request" && (
                               <div className="space-y-5 max-h-[68vh] overflow-y-auto pr-1">
+                                {tableSourceType === "schema" && (
+                                  <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                        Data loading
+                                      </label>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        Loads the all-items response in one request.
+                                        Use with care for large schemas.
+                                      </p>
+                                    </div>
+                                    <select
+                                      value={cleanDesignerTableDataMode(
+                                        tableConfig.dataMode,
+                                      )}
+                                      onChange={(event) =>
+                                        setTableConfig((current) => ({
+                                          ...current,
+                                          dataMode: cleanDesignerTableDataMode(
+                                            event.target.value,
+                                          ),
+                                        }))
+                                      }
+                                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    >
+                                      <option value="paginated">Paginated</option>
+                                      <option value="all">All items</option>
+                                    </select>
+                                  </div>
+                                )}
                                 <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                                   <div className="flex items-center justify-between gap-3">
                                     <div>

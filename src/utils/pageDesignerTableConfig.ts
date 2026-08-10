@@ -9,6 +9,9 @@ import type {
   ToggleRequestEffect,
 } from "../types/page";
 import type { Field } from "./api/container";
+import { resolveTableDataMode } from "./tableDataMode";
+
+export const cleanDesignerTableDataMode = resolveTableDataMode;
 
 export const moveArrayItem = <T>(
   items: T[],

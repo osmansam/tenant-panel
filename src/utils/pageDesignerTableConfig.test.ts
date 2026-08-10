@@ -6,6 +6,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
   cleanDesignerTableDrag,
+  cleanDesignerTableDataMode,
   cleanDesignerTableToggles,
   createDesignerTableToggle,
   getDesignerToggleVisibilityTargets,
@@ -32,6 +33,17 @@ const fields: Field[] = [
 ];
 
 describe("page designer table config", () => {
+  it("normalizes table data mode without deleting a saved all-items choice", () => {
+    expect(cleanDesignerTableDataMode("all")).toBe("all");
+    expect(cleanDesignerTableDataMode("paginated")).toBe("paginated");
+    expect(cleanDesignerTableDataMode("future")).toBe("paginated");
+    expect(cleanDesignerTableDataMode(undefined)).toBe("paginated");
+
+    const dormantMode = cleanDesignerTableDataMode("all");
+    expect(dormantMode).toBe("all");
+    expect(cleanDesignerTableDataMode(dormantMode)).toBe("all");
+  });
+
   it("cleans enabled table drag configuration with a required order field", () => {
     expect(
       cleanDesignerTableDrag({ enabled: true, orderField: " sortOrder " }),
