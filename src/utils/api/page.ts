@@ -337,6 +337,7 @@ export interface PageTableActionConfig {
 }
 
 export interface PageTableComponentConfig {
+  dataMode?: "paginated" | "all";
   columns?: PageTableColumnConfig[];
   rows?: PageTableRowsConfig;
   nestedRows?: PageTableNestedRowsConfig;
