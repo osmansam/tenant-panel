@@ -158,6 +158,8 @@ const RenderComponent: React.FC<{
               schemaName={resolvedDataBinding.schemaName}
               isHeader={false}
               tableConfig={tableConfig}
+              customTitle={title}
+              dataBinding={resolvedDataBinding}
               actionsEnabled
             />
           );

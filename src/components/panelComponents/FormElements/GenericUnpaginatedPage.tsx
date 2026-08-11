@@ -8,7 +8,11 @@ import { useGeneralContext } from "../../../context/General.context";
 import { useUserContext } from "../../../context/User.context";
 import { useSelectionData } from "../../../hooks/useSelectionData";
 import { FormElementsState } from "../../../types";
-import { TableActionConfig, TableComponentConfig } from "../../../types/page";
+import {
+  DataBinding,
+  TableActionConfig,
+  TableComponentConfig,
+} from "../../../types/page";
 import { UpdatePayload } from "../../../utils/api";
 import {
   ContainerModel,
@@ -41,6 +45,10 @@ import {
 } from "../../../utils/tableConfig";
 import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
 import { useGeneratedRelationTableColumns } from "../../../utils/useGeneratedRelationTableColumns";
+import {
+  mergeTableConstantValues,
+  omitTableConstantKeys,
+} from "../../../utils/tableConstantValues";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -95,6 +103,9 @@ type Props = {
   actionsEnabled?: boolean;
   isHeader?: boolean;
   tableConfig?: TableComponentConfig;
+  constantFilter?: Record<string, unknown>;
+  customTitle?: string;
+  dataBinding?: DataBinding;
 };
 
 export default function GenericUnpaginatedPage({
@@ -104,6 +115,8 @@ export default function GenericUnpaginatedPage({
   actionsEnabled = true,
   isHeader = false,
   tableConfig,
+  constantFilter,
+  customTitle,
 }: Props) {
   const { t } = useTranslation();
   const { selectedRows, setSelectedRows, setIsSelectionActive } =
@@ -904,13 +917,30 @@ export default function GenericUnpaginatedPage({
       if ("id" in item && "updates" in item) {
         updateDynamicItem(
           item.id as string | number,
-          item.updates as Partial<GenericItem>,
+          omitTableConstantKeys(
+            item.updates as Partial<GenericItem>,
+            tableConfig?.constantFilters,
+            constantFilter,
+          ),
         );
       } else {
-        createDynamicItem(item as GenericItem);
+        createDynamicItem(
+          mergeTableConstantValues(
+            item as GenericItem,
+            tableConfig?.addButton?.constantValues,
+            tableConfig?.constantFilters,
+            constantFilter,
+          ),
+        );
       }
     },
-    [updateDynamicItem, createDynamicItem],
+    [
+      updateDynamicItem,
+      createDynamicItem,
+      tableConfig?.addButton?.constantValues,
+      tableConfig?.constantFilters,
+      constantFilter,
+    ],
   );
 
   const addButton = useMemo(() => {
@@ -1963,7 +1993,7 @@ export default function GenericUnpaginatedPage({
           isDraggable={tableDragState.enabled}
           onDragEnter={tableDragState.enabled ? handleRowDrag : undefined}
           rowStyleFunction={rowStyleFunction}
-          title={t(humanize(schemaName))}
+          title={customTitle || t(humanize(schemaName))}
           addButton={addButton}
           isCollapsible={tableConfig?.nestedRows?.enabled === true}
           isActionsActive={actionsEnabled}
