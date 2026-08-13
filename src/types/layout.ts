@@ -108,6 +108,14 @@ export interface TableArraySourceConfig {
   enabled?: boolean;
   field?: string;
   rowIdentityField?: string;
+  parentId?: import("./page").ParameterBinding;
+  autoGenerate?: {
+    columns: boolean;
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+    reorder: boolean;
+  };
 }
 
 export interface TableCacheConfig {

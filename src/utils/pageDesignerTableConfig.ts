@@ -133,7 +133,13 @@ export const cleanDesignerTableArraySource = (
   const field = arraySource?.field?.trim();
   const rowIdentityField = arraySource?.rowIdentityField?.trim();
   return arraySource?.enabled && field && rowIdentityField
-    ? { enabled: true, field, rowIdentityField }
+    ? {
+        enabled: true,
+        field,
+        rowIdentityField,
+        ...(arraySource.parentId ? { parentId: arraySource.parentId } : {}),
+        ...(arraySource.autoGenerate ? { autoGenerate: arraySource.autoGenerate } : {}),
+      }
     : undefined;
 };
 

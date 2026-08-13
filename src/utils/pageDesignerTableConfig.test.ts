@@ -6,6 +6,7 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
   cleanDesignerTableDrag,
+  cleanDesignerTableArraySource,
   cleanDesignerTableDataMode,
   cleanDesignerTableDataFields,
   cleanDesignerTableColumnTemplate,
@@ -33,6 +34,26 @@ describe("cleanDesignerTableDataFields", () => {
       cleanDesignerTableDataFields([" status ", "status", "", "owner"]),
     ).toEqual(["status", "owner"]);
     expect(cleanDesignerTableDataFields([])).toBeUndefined();
+  });
+});
+
+describe("cleanDesignerTableArraySource", () => {
+  it("preserves route-bound generated CRUD metadata", () => {
+    expect(
+      cleanDesignerTableArraySource({
+        enabled: true,
+        field: " duties ",
+        rowIdentityField: " duty ",
+        parentId: { source: "static", value: "{{route.id}}" },
+        autoGenerate: { columns: true, add: true, edit: true, delete: true, reorder: false },
+      }),
+    ).toEqual({
+      enabled: true,
+      field: "duties",
+      rowIdentityField: "duty",
+      parentId: { source: "static", value: "{{route.id}}" },
+      autoGenerate: { columns: true, add: true, edit: true, delete: true, reorder: false },
+    });
   });
 });
 

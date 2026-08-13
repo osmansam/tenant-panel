@@ -370,6 +370,14 @@ export interface PageTableArraySourceConfig {
   enabled?: boolean;
   field?: string;
   rowIdentityField?: string;
+  parentId?: ParameterBinding;
+  autoGenerate?: {
+    columns: boolean;
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+    reorder: boolean;
+  };
 }
 
 

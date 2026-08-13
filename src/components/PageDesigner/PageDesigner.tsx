@@ -96,6 +96,12 @@ import {
   setDesignerToggleVisibilityTargets,
   type DesignerVisibilityTarget,
 } from "../../utils/pageDesignerTableConfig";
+import {
+  eligibleArrayFields,
+  eligibleIdentityFields,
+  generateArrayTableDefaults,
+  reconcileArrayTableDefaults,
+} from "../../utils/pageDesignerArraySource";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -2942,6 +2948,21 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     [containers, schemaName],
   );
   const selectedFields = selectedContainer?.fields || [];
+  const arrayTableFields = useMemo(
+    () => eligibleArrayFields(selectedFields),
+    [selectedFields],
+  );
+  const selectedArrayTableField = useMemo(
+    () =>
+      arrayTableFields.find(
+        (field) => field.name === tableConfig.arraySource?.field,
+      ),
+    [arrayTableFields, tableConfig.arraySource?.field],
+  );
+  const arrayTableIdentityFields = useMemo(
+    () => eligibleIdentityFields(selectedArrayTableField),
+    [selectedArrayTableField],
+  );
   useEffect(() => {
     const arrayFields = new Set(
       selectedFields
@@ -4440,6 +4461,36 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...updates,
       },
     }));
+  };
+
+  const generateTableArraySource = () => {
+    if (!selectedArrayTableField || !tableConfig.arraySource?.rowIdentityField)
+      return;
+    const rowIdentityField = tableConfig.arraySource.rowIdentityField;
+    setTableConfig((current) => {
+      const parentId = current.arraySource?.parentId || {
+        source: "static" as const,
+        value: "{{route.id}}",
+      };
+      const enabled = current.arraySource?.autoGenerate || {
+        columns: true,
+        add: true,
+        edit: true,
+        delete: true,
+        reorder: false,
+      };
+      const generated = generateArrayTableDefaults({
+        parentId,
+        arrayField: selectedArrayTableField,
+        rowIdentityField,
+        enabled,
+        orderField: current.drag?.orderField,
+      });
+      return reconcileArrayTableDefaults(
+        { ...current, ...generated },
+        selectedArrayTableField,
+      ).table;
+    });
   };
 
   const addTableNestedRowColumn = () => {
@@ -8454,7 +8505,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         placeholder="products"
                                       />
                                       <datalist id="table-array-source-fields">
-                                        {selectedFields.map((field) => (
+                                        {arrayTableFields.map((field) => (
                                           <option
                                             key={field.name}
                                             value={field.name}
@@ -8466,8 +8517,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                                         Row Identity Field
                                       </label>
-                                      <input
-                                        type="text"
+                                      <select
                                         value={
                                           tableConfig.arraySource
                                             ?.rowIdentityField || ""
@@ -8478,9 +8528,49 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           })
                                         }
                                         className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                        placeholder="product"
+                                      >
+                                        <option value="">Select identity</option>
+                                        {arrayTableIdentityFields.map((field) => (
+                                          <option key={field.name} value={field.name}>
+                                            {field.frontend?.displayName || field.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Parent ID
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={String(
+                                          tableConfig.arraySource?.parentId?.source === "static"
+                                            ? tableConfig.arraySource.parentId.value ?? ""
+                                            : "",
+                                        )}
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            parentId: { source: "static", value: e.target.value },
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="{{route.id}}"
                                       />
                                     </div>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        !selectedArrayTableField ||
+                                        !tableConfig.arraySource?.rowIdentityField ||
+                                        !tableConfig.arraySource?.parentId
+                                      }
+                                      onClick={generateTableArraySource}
+                                      className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+                                    >
+                                      Generate CRUD
+                                    </button>
                                   </div>
                                 </div>
 
