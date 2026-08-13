@@ -133,6 +133,7 @@ export type PageTableColumnType =
   | "field"
   | "lookupLabel"
   | "computedLabel"
+  | "template"
   | "progressBar"
   | "number"
   | "currency"
@@ -210,6 +211,7 @@ export interface PageTableColumnConfig {
   displayName?: string;
   lookup?: PageTableLookupLabelConfig;
   computedLabelRules?: PageTableComputedLabelRule[];
+  template?: string;
   fallbackValue?: string;
   progressBar?: PageTableProgressBarConfig;
   cellClassName?: PageRowClassConfig[];
@@ -337,10 +339,12 @@ export interface PageTableActionConfig {
 }
 
 export interface PageTableComponentConfig {
-  dataMode?: "paginated" | "all";
+  dataMode?: "paginated" | "all" | "arrayField";
   columns?: PageTableColumnConfig[];
+  dataFields?: string[];
   rows?: PageTableRowsConfig;
   nestedRows?: PageTableNestedRowsConfig;
+  arraySource?: PageTableArraySourceConfig;
   cache?: PageTableCacheConfig;
   constantFilters?: Record<string, unknown>;
   constantSort?: {
@@ -360,6 +364,12 @@ export interface PageTableComponentConfig {
     enabled: boolean;
     orderField: string;
   };
+}
+
+export interface PageTableArraySourceConfig {
+  enabled?: boolean;
+  field?: string;
+  rowIdentityField?: string;
 }
 
 

@@ -130,6 +130,7 @@ export type TableColumnType =
   | "field"
   | "lookupLabel"
   | "computedLabel"
+  | "template"
   | "progressBar"
   | "number"
   | "currency"
@@ -215,6 +216,7 @@ export interface TableColumnConfig {
   displayName?: string;
   lookup?: TableLookupLabelConfig;
   computedLabelRules?: TableComputedLabelRule[];
+  template?: string;
   fallbackValue?: string;
   progressBar?: TableProgressBarConfig;
   cellClassName?: RowClassConfig[];
@@ -372,11 +374,13 @@ export interface TableActionConfig {
 }
 
 export interface TableComponentConfig {
-  dataMode?: "paginated" | "all";
+  dataMode?: "paginated" | "all" | "arrayField";
   enableSearch?: boolean;
   columns?: TableColumnConfig[];
+  dataFields?: string[];
   rows?: TableRowsConfig;
   nestedRows?: TableNestedRowsConfig;
+  arraySource?: TableArraySourceConfig;
   cache?: TableCacheConfig;
   constantFilters?: Record<string, unknown>;
   constantSort?: {
@@ -395,6 +399,12 @@ export interface TableComponentConfig {
 export interface TableDragConfig {
   enabled: boolean;
   orderField: string;
+}
+
+export interface TableArraySourceConfig {
+  enabled?: boolean;
+  field?: string;
+  rowIdentityField?: string;
 }
 
 

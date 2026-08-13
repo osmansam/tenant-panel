@@ -5,6 +5,7 @@ import type { TableComponentConfig, TableToggleConfig } from "../types/page";
 import {
   buildGeneratedRelationColumnDescriptors,
   isRelationMember,
+  relationValueForSubmit,
   relationMembershipsEqual,
   toggleRelationMembership,
 } from "./generatedRelationColumns";
@@ -22,7 +23,11 @@ export const useGeneratedRelationTableColumns = ({
   tableConfig: TableComponentConfig | undefined;
   toggleState: TableToggleState;
   toggles: TableToggleConfig[];
-  updateRow: (id: string | number, updates: Record<string, unknown>) => void;
+  updateRow: (
+    id: string | number,
+    updates: Record<string, unknown>,
+    row?: Row,
+  ) => void;
 }) => {
   const records = useGeneratedRelationSelectionData(tableConfig);
   const snapshots = useRef(new Map<string, unknown[]>());
@@ -81,9 +86,15 @@ export const useGeneratedRelationTableColumns = ({
                   !isRelationMember(latest, descriptor.sourceId),
                 );
                 snapshots.current.set(snapshotKey, next);
-                updateRow(row._id, {
-                  [descriptor.group.arrayField]: next,
-                });
+                updateRow(
+                  row._id,
+                  {
+                    [descriptor.group.arrayField]: next.map(
+                      relationValueForSubmit,
+                    ),
+                  },
+                  row,
+                );
               }}
             />
           );

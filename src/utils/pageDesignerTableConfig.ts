@@ -1,5 +1,6 @@
 import type {
   GeneratedRelationColumnsConfig,
+  GridSection,
   TableActionConfig,
   TableActionFormLayoutConfig,
   TableColumnConfig,
@@ -12,6 +13,57 @@ import type { Field } from "./api/container";
 import { resolveTableDataMode } from "./tableDataMode";
 
 export const cleanDesignerTableDataMode = resolveTableDataMode;
+
+export const getDesignerEditableCellId = (cellId: string): string =>
+  cellId.trim() || `cell_${crypto.randomUUID().split("-").join("")}`;
+
+export const ensureDesignerGridCellIds = (
+  sections: GridSection[],
+): GridSection[] => {
+  const used = new Set<string>();
+  let changed = false;
+  const createCellId = () => {
+    let id = getDesignerEditableCellId("");
+    while (used.has(id)) {
+      id = getDesignerEditableCellId("");
+    }
+    used.add(id);
+    return id;
+  };
+
+  const next = sections.map((section) => {
+    let sectionChanged = false;
+    const cells = section.cells.map((cell) => {
+      const id = cell.id?.trim();
+      if (id && !used.has(id)) {
+        used.add(id);
+        return cell;
+      }
+      changed = true;
+      sectionChanged = true;
+      return { ...cell, id: createCellId() };
+    });
+    return sectionChanged ? { ...section, cells } : section;
+  });
+
+  return changed ? next : sections;
+};
+
+export const cleanDesignerTableDataFields = (
+  fields: string[] | undefined,
+): string[] | undefined => {
+  const cleaned = (fields || [])
+    .map((field) => field.trim())
+    .filter((field, index, all) => field && all.indexOf(field) === index);
+  return cleaned.length ? cleaned : undefined;
+};
+
+export const cleanDesignerTableColumnTemplate = (
+  column: TableColumnConfig,
+): string | undefined => {
+  if (column.type !== "template") return undefined;
+  return column.template?.trim() || undefined;
+};
 
 export const hydrateDesignerTableConfigForEditing = (
   saved: TableComponentConfig,
@@ -72,6 +124,16 @@ export const cleanDesignerTableDrag = (
   const orderField = drag?.orderField?.trim();
   return drag?.enabled && orderField
     ? { enabled: true, orderField }
+    : undefined;
+};
+
+export const cleanDesignerTableArraySource = (
+  arraySource?: TableComponentConfig["arraySource"],
+): TableComponentConfig["arraySource"] | undefined => {
+  const field = arraySource?.field?.trim();
+  const rowIdentityField = arraySource?.rowIdentityField?.trim();
+  return arraySource?.enabled && field && rowIdentityField
+    ? { enabled: true, field, rowIdentityField }
     : undefined;
 };
 
@@ -226,6 +288,7 @@ export const TABLE_COLUMN_TYPE_OPTIONS: {
   { value: "badge", label: "Badge / Enum" },
   { value: "array", label: "Array (comma-separated)" },
   { value: "computedLabel", label: "Computed Label" },
+  { value: "template", label: "Template" },
   { value: "progressBar", label: "Progress Bar" },
 ];
 

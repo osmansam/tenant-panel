@@ -1,9 +1,9 @@
 import { BindingKind } from "../types/page";
 
-export type TableDataMode = "paginated" | "all";
+export type TableDataMode = "paginated" | "all" | "arrayField";
 
 export const resolveTableDataMode = (value: unknown): TableDataMode =>
-  value === "all" ? "all" : "paginated";
+  value === "all" || value === "arrayField" ? value : "paginated";
 
 export const shouldUseAllItemsTable = (
   kind: BindingKind | undefined,

@@ -70,9 +70,14 @@ const RenderComponent: React.FC<{
     ([
       props?.columns,
       props?.rows,
+      props?.nestedRows,
+      props?.arraySource,
       props?.cache,
       props?.actions,
       props?.filterPanel,
+      props?.generatedRelationColumns,
+      props?.toggles,
+      props?.drag,
     ].some(Boolean)
       ? (props as TableComponentConfig)
       : undefined);

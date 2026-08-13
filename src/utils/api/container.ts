@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { TableActionConfig, TableFilterPanelConfig } from "../../types/page";
+import { normalizeContainerField } from "../containerFieldNormalization";
 import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
@@ -540,7 +541,9 @@ export function useContainers(enabled: boolean = true) {
     id: container.ID || container.id,
     _id: container.ID || container.id,
     schemaName: container.SchemaName || container.schemaName,
-    fields: container.Fields || container.fields || [],
+    fields: (container.Fields || container.fields || []).map(
+      normalizeContainerField,
+    ),
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
@@ -585,47 +588,14 @@ export function useContainer(id: string, enabled: boolean = true) {
   // Normalize the response from PascalCase (Go backend) to camelCase
   if (!actualData) return undefined;
 
-  // Helper function to normalize field objects recursively
-  const normalizeField = (field: any): any => {
-    if (!field) return field;
-
-    const normalized: any = {
-      name: field.Name || field.name,
-      type: field.Type || field.type,
-      tag: field.Tag || field.tag,
-      objectSchemaName: field.ObjectSchemaName || field.objectSchemaName,
-      enumList: field.EnumList || field.enumList,
-      isForceDelete: field.IsForceDelete ?? field.isForceDelete ?? false,
-      unique: field.Unique ?? field.unique ?? false,
-      isHashed: field.IsHashed ?? field.isHashed ?? false,
-      isLoginCredential:
-        field.IsLoginCredential ?? field.isLoginCredential ?? false,
-      isAuditIdentity: field.IsAuditIdentity ?? field.isAuditIdentity ?? false,
-      isSearchable: field.IsSearchable ?? field.isSearchable ?? false,
-      frontend: field.Frontend || field.frontend,
-      populationSettings: field.PopulationSettings || field.populationSettings,
-      equation: field.Equation || field.equation,
-      authorizeRole: field.AuthorizeRole || field.authorizeRole || [],
-      isAuthorized: field.IsAuthorized ?? field.isAuthorized ?? false,
-      order: field.Order ?? field.order,
-    };
-
-    // Recursively normalize children
-    if (field.Children || field.children) {
-      normalized.children = (field.Children || field.children).map(
-        normalizeField
-      );
-    }
-
-    return normalized;
-  };
-
   const container: any = actualData;
   const normalized = {
     id: container.ID || container.id,
     _id: container.ID || container.id,
     schemaName: container.SchemaName || container.schemaName,
-    fields: (container.Fields || container.fields || []).map(normalizeField),
+    fields: (container.Fields || container.fields || []).map(
+      normalizeContainerField,
+    ),
     routes: container.Routes || container.routes,
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],

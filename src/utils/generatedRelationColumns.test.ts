@@ -50,9 +50,20 @@ describe("generated relation columns", () => {
     expect(normalizeRelationValue(12)).toBe("12");
     expect(normalizeRelationValue(12n)).toBe("12");
     expect(normalizeRelationValue({ $oid: " abc " })).toBe("abc");
+    expect(normalizeRelationValue({ _id: " abc " })).toBe("abc");
+    expect(normalizeRelationValue({ id: 12 })).toBe("12");
     expect(normalizeRelationValue(" ")).toBeNull();
     expect(normalizeRelationValue(null)).toBeNull();
     expect(normalizeRelationValue({ value: "abc" })).toBeNull();
+  });
+
+  it("recognizes populated object array memberships", () => {
+    expect(
+      relationMembershipsEqual(
+        [{ _id: "location-1", name: "Main" }],
+        ["location-1"],
+      ),
+    ).toBe(true);
   });
 
   it("adds without duplicates and removes all normalized matches", () => {

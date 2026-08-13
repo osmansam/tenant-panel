@@ -63,6 +63,7 @@ import {
   dependentBindings,
   ensurePageRuntimeIds,
   isSafeRuntimeName,
+  resolveComponentStateKey,
   uniqueComponentStateKey,
   validatePageBindings,
   type PageBindingIssue,
@@ -73,6 +74,8 @@ import {
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
   cleanDesignerGeneratedRelationColumns,
+  cleanDesignerTableColumnTemplate,
+  cleanDesignerTableDataFields,
   cleanDesignerTableDataMode,
   cleanDesignerTableDrag,
   cleanDesignerTableToggles,
@@ -80,6 +83,8 @@ import {
   createDesignerTableToggle,
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
+  ensureDesignerGridCellIds,
+  getDesignerEditableCellId,
   hydrateEmptyDesignerTableColumns,
   hydrateDesignerTableConfigForEditing,
   getDesignerToggleVisibilityTargets,
@@ -92,6 +97,7 @@ import {
   type DesignerVisibilityTarget,
 } from "../../utils/pageDesignerTableConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
+import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
@@ -1347,6 +1353,9 @@ const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
   dataMode: cleanDesignerTableDataMode(tableConfig.dataMode),
+  ...(cleanDesignerTableDataFields(tableConfig.dataFields)
+    ? { dataFields: cleanDesignerTableDataFields(tableConfig.dataFields) }
+    : {}),
   ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
   columns: (tableConfig.columns || [])
     .filter((column) => column.field.trim())
@@ -1385,6 +1394,9 @@ const cleanTableConfig = (
         : {}),
       ...(column.type === "computedLabel" && column.fallbackValue?.trim()
         ? { fallbackValue: column.fallbackValue.trim() }
+        : {}),
+      ...(cleanDesignerTableColumnTemplate(column)
+        ? { template: cleanDesignerTableColumnTemplate(column) }
         : {}),
       ...(column.type === "progressBar"
         ? {
@@ -1481,6 +1493,17 @@ const cleanTableConfig = (
                 ? { fallbackValue: column.fallbackValue.trim() }
                 : {}),
             })),
+        },
+      }
+    : {}),
+  ...(tableConfig.arraySource?.enabled &&
+  tableConfig.arraySource.field?.trim() &&
+  tableConfig.arraySource.rowIdentityField?.trim()
+    ? {
+        arraySource: {
+          enabled: true,
+          field: tableConfig.arraySource.field.trim(),
+          rowIdentityField: tableConfig.arraySource.rowIdentityField.trim(),
         },
       }
     : {}),
@@ -1789,6 +1812,12 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   useEffect(() => {
     if (isEnsuringRuntimeIds.current) {
       isEnsuringRuntimeIds.current = false;
+      return;
+    }
+    const ensuredCellSections = ensureDesignerGridCellIds(sections);
+    if (ensuredCellSections !== sections) {
+      isEnsuringRuntimeIds.current = true;
+      onChange(ensuredCellSections);
       return;
     }
     const ensured = ensurePageRuntimeIds(runtimePage);
@@ -2269,7 +2298,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     useState<ComponentBlock | null>(null);
 
   const openComponentModal = (cellId: string, component?: ComponentBlock) => {
-    setCurrentCellId(cellId);
+    const editableCellId = getDesignerEditableCellId(cellId);
+    if (editableCellId !== cellId) {
+      onUpdateCell(cellId, { id: editableCellId });
+    }
+    setCurrentCellId(editableCellId);
     setEditingComponent(component || null);
     setShowComponentModal(true);
   };
@@ -2402,7 +2435,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       </div>
 
       {/* Component Modal */}
-      {showComponentModal && currentCellId && (
+      {showComponentModal && currentCellId !== null && (
         <ComponentModal
           schemas={schemas}
           containerOptions={containerOptions}
@@ -2834,6 +2867,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     columns: [],
     rows: { className: [] },
     nestedRows: { enabled: false, field: "", header: "", columns: [] },
+    arraySource: { enabled: false, field: "", rowIdentityField: "" },
     cache: { invalidateKeys: [] },
     addButton: undefined,
     actions: [],
@@ -3216,6 +3250,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               field: "",
               header: "",
               columns: [],
+            },
+            arraySource: editingComponent.table.arraySource || {
+              enabled: false,
+              field: "",
+              rowIdentityField: "",
             },
             cache: {
               invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
@@ -3652,14 +3691,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
+    const requestedStateKey = stateKey.trim() || title || componentType;
     const next: ComponentBlock = {
       ...component,
       id: isSafeRuntimeName(component.id)
         ? component.id
         : createRuntimeId("cmp"),
-      stateKey:
-        stateKey.trim() ||
-        uniqueComponentStateKey(page, title || componentType, componentType),
+      stateKey: resolveComponentStateKey(
+        page,
+        editingComponent?.id,
+        requestedStateKey,
+        componentType,
+      ),
     };
 
     if (
@@ -3946,6 +3989,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig({
       columns: buildTableColumnsFromFields(container?.fields || []),
       rows: { className: [] },
+      arraySource: { enabled: false, field: "", rowIdentityField: "" },
       nestedRows: { enabled: false, field: "", header: "", columns: [] },
       cache: { invalidateKeys: [] },
       addButton: buildDefaultCreateAction(container?.fields || []),
@@ -4377,6 +4421,22 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         header: "",
         columns: [],
         ...(current.nestedRows || {}),
+        ...updates,
+      },
+    }));
+  };
+
+  const updateTableArraySource = (
+    updates: Partial<NonNullable<TableComponentConfig["arraySource"]>>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      dataMode: updates.enabled === true ? "arrayField" : current.dataMode,
+      arraySource: {
+        enabled: false,
+        field: "",
+        rowIdentityField: "",
+        ...(current.arraySource || {}),
         ...updates,
       },
     }));
@@ -6925,9 +6985,49 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     >
                                       <option value="paginated">Paginated</option>
                                       <option value="all">All items</option>
+                                      <option value="arrayField">Array field rows</option>
                                     </select>
                                   </div>
                                 )}
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Additional data fields
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Fetch these values with every row without
+                                      displaying them as table columns. Fields
+                                      referenced by supported action and row
+                                      conditions are included automatically.
+                                    </p>
+                                  </div>
+                                  <select
+                                    multiple
+                                    value={tableConfig.dataFields || []}
+                                    onChange={(event) => {
+                                      const dataFields = Array.from(
+                                        event.currentTarget.selectedOptions,
+                                        (option) => option.value,
+                                      );
+                                      setTableConfig((current) => ({
+                                        ...current,
+                                        dataFields: dataFields.length
+                                          ? dataFields
+                                          : undefined,
+                                      }));
+                                    }}
+                                    className="min-h-32 w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  >
+                                    {selectedFields.map((field) => (
+                                      <option key={field.name} value={field.name}>
+                                        {field.frontend?.displayName || field.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="text-xs text-neutral-500">
+                                    Hold Ctrl or Command to select multiple fields.
+                                  </p>
+                                </div>
                                 <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                                   <div className="flex items-center justify-between gap-3">
                                     <div>
@@ -7700,6 +7800,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         </div>
                                       )}
                                       {(column.type || "field") ===
+                                        "template" && (
+                                        <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                          <label className="block text-[11px] font-medium text-neutral-600">
+                                            Template
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.template || ""}
+                                            onChange={(event) =>
+                                              updateTableColumn(column.field, {
+                                                template: event.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="{{name}} {{surname}}"
+                                          />
+                                          <p className="text-xs text-neutral-500">
+                                            Use {"{{fieldName}}"} placeholders to
+                                            combine values from the same row.
+                                          </p>
+                                        </div>
+                                      )}
+                                      {(column.type || "field") ===
                                         "computedLabel" && (
                                         <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
                                           <div className="grid grid-cols-[1fr_auto] gap-3">
@@ -8285,6 +8408,82 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                             {activeTableSettingsTab === "nestedRows" && (
                               <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                        Array Source Rows
+                                      </label>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        Render each item in a parent array as a
+                                        table row.
+                                      </p>
+                                    </div>
+                                    <label className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          tableConfig.arraySource?.enabled ===
+                                          true
+                                        }
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            enabled: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Enabled
+                                    </label>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Parent Array Field
+                                      </label>
+                                      <input
+                                        type="text"
+                                        list="table-array-source-fields"
+                                        value={tableConfig.arraySource?.field || ""}
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            field: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="products"
+                                      />
+                                      <datalist id="table-array-source-fields">
+                                        {selectedFields.map((field) => (
+                                          <option
+                                            key={field.name}
+                                            value={field.name}
+                                          />
+                                        ))}
+                                      </datalist>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Row Identity Field
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={
+                                          tableConfig.arraySource
+                                            ?.rowIdentityField || ""
+                                        }
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            rowIdentityField: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="product"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
                                 <div className="flex items-start justify-between gap-3">
                                   <div>
                                     <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
@@ -9855,6 +10054,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     }
                                   />
 
+                                  <ActionConstantValuesEditor
+                                    values={currentAddButton.constantValues || {}}
+                                    onChange={(constantValues) =>
+                                      updateTableAddButton({ constantValues })
+                                    }
+                                  />
+
                                   <div className="space-y-3 rounded-lg border border-blue-100 bg-white p-3">
                                     <div className="flex items-center justify-between">
                                       <label className="text-xs font-semibold text-neutral-700">
@@ -10787,24 +10993,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       </div>
 
                                       <div className="grid grid-cols-2 gap-3">
-                                        <textarea
-                                          value={
-                                            action.constantValuesJson ||
-                                            JSON.stringify(
-                                              action.constantValues || {},
-                                              null,
-                                              2,
-                                            )
+                                        <ActionConstantValuesEditor
+                                          values={
+                                            action.constantValues ||
+                                            parseJsonObject(
+                                              action.constantValuesJson,
+                                            ) ||
+                                            {}
                                           }
-                                          onChange={(e) =>
+                                          onChange={(constantValues) =>
                                             updateTableAction(actionIndex, {
-                                              constantValuesJson:
-                                                e.target.value,
-                                              constantValues: undefined,
+                                              constantValues,
+                                              constantValuesJson: undefined,
                                             })
                                           }
-                                          className="min-h-24 px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          placeholder='{"status":"approved"}'
                                         />
                                         <div className="space-y-3">
                                           <select
@@ -11935,6 +12137,17 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           onChange={(formLayout) =>
                                             updateTableBulkAction("edit", {
                                               formLayout,
+                                            })
+                                          }
+                                        />
+                                        <ActionConstantValuesEditor
+                                          values={
+                                            currentBulkEditAction.constantValues ||
+                                            {}
+                                          }
+                                          onChange={(constantValues) =>
+                                            updateTableBulkAction("edit", {
+                                              constantValues,
                                             })
                                           }
                                         />

@@ -4,6 +4,7 @@ import { FiPlus, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { Field, useGetContainers } from "../../../utils/api/container";
+import { buildPopulationSettings } from "../../../utils/populationSettingsValidation";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -219,6 +220,12 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
           editField.populationSettings.inputSelectionField || ""
         );
         setDisplayLabel(editField.populationSettings.displayLabel || "");
+      } else {
+        setPopulationFieldName(editField.objectSchemaName || "");
+        setPopulatedFields([]);
+        setDisplayFields([]);
+        setInputSelectionField("");
+        setDisplayLabel("");
       }
 
       setChildFields(editField.children || []);
@@ -452,22 +459,26 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     // Build population settings if applicable
     let populationSettings = undefined;
     if (
-      (fieldData.type === "objectId" || fieldData.type === "objectIdArray") &&
-      populationFieldName
+      fieldData.type === "objectId" ||
+      fieldData.type === "objectIdArray"
     ) {
-      if (
-        populatedFields.length > 0 &&
-        displayFields.length > 0 &&
-        inputSelectionField &&
-        displayLabel
-      ) {
-        populationSettings = {
+      try {
+        populationSettings = buildPopulationSettings({
           fieldName: populationFieldName,
           populatedFields: populatedFields,
           displayFields: displayFields,
           inputSelectionField: inputSelectionField,
           displayLabel: displayLabel,
-        };
+        });
+      } catch (error) {
+        toast.error(
+          t(
+            error instanceof Error
+              ? error.message
+              : "Complete all population settings fields",
+          ),
+        );
+        return;
       }
     }
 

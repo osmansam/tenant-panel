@@ -6,10 +6,29 @@ import {
 } from "./jsonCreate";
 
 describe("json create helpers", () => {
-  it("parses object JSON and strips identity fields recursively", () => {
+  it("strips only root record identity fields and preserves nested configuration ids", () => {
     expect(
-      parseJsonObject('{"_id":"1","name":"Page","sections":[{"id":"s1","type":"grid"}]}'),
-    ).toEqual({ name: "Page", sections: [{ type: "grid" }] });
+      parseJsonObject(
+        '{"id":"page-id","_id":"1","name":"Page","sections":[{"id":"s1","type":"grid","components":[{"id":"cmp1","table":{"generatedRelationColumns":[{"id":"relation1"}],"toggles":[{"id":"toggle1"}]}}]}]}',
+      ),
+    ).toEqual({
+      name: "Page",
+      sections: [
+        {
+          id: "s1",
+          type: "grid",
+          components: [
+            {
+              id: "cmp1",
+              table: {
+                generatedRelationColumns: [{ id: "relation1" }],
+                toggles: [{ id: "toggle1" }],
+              },
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it("normalizes page defaults", () => {

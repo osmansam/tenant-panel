@@ -1,8 +1,4 @@
 export function stripIdentityFields<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((item) => stripIdentityFields(item)) as T;
-  }
-
   if (value && typeof value === "object") {
     return Object.entries(value).reduce((acc, [key, entryValue]) => {
       if (["id", "_id", "ID", "CreatedAt", "UpdatedAt", "createdAt", "updatedAt"].includes(key)) {
@@ -10,7 +6,7 @@ export function stripIdentityFields<T>(value: T): T {
       }
       return {
         ...acc,
-        [key]: stripIdentityFields(entryValue),
+        [key]: entryValue,
       };
     }, {} as Record<string, unknown>) as T;
   }

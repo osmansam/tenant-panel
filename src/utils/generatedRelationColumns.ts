@@ -16,14 +16,25 @@ export const normalizeRelationValue = (value: unknown): string | null => {
   if (typeof value === "number")
     return Number.isFinite(value) ? String(value) : null;
   if (typeof value === "bigint") return String(value);
-  if (
-    typeof value === "object" &&
-    "$oid" in value &&
-    typeof (value as { $oid?: unknown }).$oid === "string"
-  ) {
-    return (value as { $oid: string }).$oid.trim() || null;
+  if (typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+    for (const key of ["_id", "id", "$oid"]) {
+      if (key in objectValue) {
+        return normalizeRelationValue(objectValue[key]);
+      }
+    }
   }
   return null;
+};
+
+export const relationValueForSubmit = (value: unknown): unknown => {
+  if (value && typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+    for (const key of ["_id", "id", "$oid"]) {
+      if (key in objectValue) return objectValue[key];
+    }
+  }
+  return value;
 };
 
 export const toggleRelationMembership = (

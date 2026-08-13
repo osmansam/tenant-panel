@@ -10,6 +10,7 @@ import { useGeneralContext } from "../../../context/General.context";
 import { FormElementsState, NO_IMAGE_URL, OptionType } from "../../../types";
 import { UpdatePayload } from "../../../utils/api";
 import { evaluateRowCondition } from "../../../utils/genericPageHelpers";
+import { prepareFormEditValues } from "../../../utils/formEditValues";
 import {
   validateField,
   ValidationRules,
@@ -208,18 +209,11 @@ const GenericAddEditPanel = <T,>({
     if (itemToEdit) {
       const updates = itemToEdit.updates as unknown as FormElementsState;
 
-      // Convert arrays to comma-separated strings for editing
-      const processedUpdates = { ...updates };
-      formKeys.forEach(({ key, type }) => {
-        if (
-          (type === FormKeyTypeEnum.STRING_ARRAY ||
-            type === FormKeyTypeEnum.INT_ARRAY ||
-            type === FormKeyTypeEnum.NUMBER_ARRAY) &&
-          Array.isArray(updates[key])
-        ) {
-          processedUpdates[key] = updates[key].join(", ");
-        }
-      });
+      const processedUpdates = prepareFormEditValues(
+        updates,
+        formKeys,
+        inputs,
+      ) as FormElementsState;
 
       // Merge with initialState to ensure boolean fields default to false if not present
       return {

@@ -16,6 +16,11 @@ import {
 } from "../../../types/page";
 import { UpdatePayload } from "../../../utils/api";
 import {
+  applyHiddenActionValues,
+  buildActionInitialValues,
+  partitionActionConstantValues,
+} from "../../../utils/actionConstantValues";
+import {
   ContainerModel,
   Field,
   Types,
@@ -49,6 +54,7 @@ import {
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
 import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
+import { renderTableColumnTemplate } from "../../../utils/tableColumnTemplate";
 import {
   reorderCurrentPageRows,
   resolveTableDragState,
@@ -63,7 +69,9 @@ import {
   resolveToggleRequestEffects,
 } from "../../../utils/tableToggles";
 import {
+  applyTableArraySource,
   applyTableNestedRows,
+  buildArraySourceParentUpdate,
   getComputedLabelValue,
   getLookupLabelValue,
   getProgressBarValue,
@@ -366,7 +374,14 @@ export default function GenericPaginatedPage({
     tableConfig,
     toggleState: tableToggleState,
     toggles: configuredTableToggles,
-    updateRow: updateDynamicItem,
+    updateRow: (id, updates, row) => {
+      const parentUpdate = buildArraySourceParentUpdate(row, updates);
+      if (parentUpdate) {
+        updateDynamicItem(parentUpdate.parentId, parentUpdate.updates);
+        return;
+      }
+      updateDynamicItem(id, updates);
+    },
   });
 
   const baseRowKeys = useMemo(() => {
@@ -426,6 +441,12 @@ export default function GenericPaginatedPage({
         const columnConfig = tableConfig?.columns?.find(
           (column) => column.field === f.name,
         );
+        if (columnConfig?.type === "template") {
+          rowKey.node = (row: GenericItem) =>
+            <span>{renderTableColumnTemplate(columnConfig.template, row)}</span>;
+          return rowKey;
+        }
+
         if (columnConfig?.type === "computedLabel") {
           const getComputedValue = (row: GenericItem) =>
             getComputedLabelValue(
@@ -998,7 +1019,10 @@ export default function GenericPaginatedPage({
   const rows = useMemo(
     () =>
       applyTableNestedRows(
-        (itemsPayload?.items || []) as GenericItem[],
+        applyTableArraySource(
+          (itemsPayload?.items || []) as GenericItem[],
+          tableConfig,
+        ),
         tableConfig,
         t,
         lookupSelectionDataMap,
@@ -1234,9 +1258,12 @@ export default function GenericPaginatedPage({
   const createActionFormKeys = configuredCreateAction
     ? getActionFormKeys(configuredCreateAction, createActionInputs)
     : formKeys;
-  const createActionConstants = configuredCreateAction
-    ? getActionConstantValues(configuredCreateAction)
-    : {};
+  const createActionConstants = partitionActionConstantValues(
+    configuredCreateAction
+      ? getActionConstantValues(configuredCreateAction)
+      : {},
+    createActionFormKeys.map((formKey) => formKey.key),
+  );
   const createActionDefaults = configuredCreateAction
     ? getActionDefaultValues(configuredCreateAction)
     : {};
@@ -1259,11 +1286,10 @@ export default function GenericPaginatedPage({
         );
       } else {
         // Create operation - merge constantFilter into new item
-        const configuredCreateValues = {
+        const configuredCreateValues = applyHiddenActionValues({
           ...createActionDefaults,
           ...(item as Record<string, unknown>),
-          ...createActionConstants,
-        };
+        }, createActionConstants.hiddenValues);
         const mergedItem = constantFilter
           ? { ...configuredCreateValues, ...constantFilter }
           : configuredCreateValues;
@@ -1315,12 +1341,15 @@ export default function GenericPaginatedPage({
             itemToEdit={
               constantFilter ||
               Object.keys(createActionDefaults).length > 0 ||
-              Object.keys(createActionConstants).length > 0
+              Object.keys(createActionConstants.visibleDefaults).length > 0 ||
+              Object.keys(createActionConstants.hiddenValues).length > 0
                 ? {
                     id: "",
                     updates: {
-                      ...createActionDefaults,
-                      ...createActionConstants,
+                      ...buildActionInitialValues(
+                        createActionDefaults,
+                        createActionConstants.visibleDefaults,
+                      ),
                       ...(constantFilter || {}),
                       _id: "",
                     } as GenericItem,
@@ -1452,7 +1481,10 @@ export default function GenericPaginatedPage({
             : "MdTouchApp";
       const actionInputs = getActionInputs(actionConfig, actionId, rowToAction);
       const actionFormKeys = getActionFormKeys(actionConfig, actionInputs);
-      const constants = getActionConstantValues(actionConfig);
+      const constants = partitionActionConstantValues(
+        getActionConstantValues(actionConfig),
+        actionFormKeys.map((formKey) => formKey.key),
+      );
       const defaultValues = getActionDefaultValues(actionConfig);
       const closeModal = () =>
         setActionModalOpen((current) => ({ ...current, [actionId]: false }));
@@ -1490,7 +1522,10 @@ export default function GenericPaginatedPage({
           return;
         }
 
-        updateDynamicItem(row._id, constants as Partial<GenericItem>);
+        updateDynamicItem(
+          row._id,
+          constants.hiddenValues as Partial<GenericItem>,
+        );
       };
       const submitConfiguredAction = (
         item: GenericItem | UpdatePayload<GenericItem>,
@@ -1500,10 +1535,13 @@ export default function GenericPaginatedPage({
           "updates" in item
             ? (item.updates as Record<string, unknown>)
             : (item as Record<string, unknown>);
-        updateDynamicItem(rowToAction._id, {
-          ...rawUpdates,
-          ...constants,
-        } as Partial<GenericItem>);
+        updateDynamicItem(
+          rowToAction._id,
+          applyHiddenActionValues(
+            rawUpdates,
+            constants.hiddenValues,
+          ) as Partial<GenericItem>,
+        );
         closeModal();
       };
 
@@ -1525,7 +1563,7 @@ export default function GenericPaginatedPage({
                 } else {
                   updateDynamicItem(
                     rowToAction._id,
-                    constants as Partial<GenericItem>,
+                    constants.hiddenValues as Partial<GenericItem>,
                   );
                 }
                 closeModal();
@@ -1549,11 +1587,11 @@ export default function GenericPaginatedPage({
               })}
               itemToEdit={{
                 id: rowToAction._id,
-                updates: {
-                  ...normalizeRowForSubmit(rowToAction),
-                  ...defaultValues,
-                  ...constants,
-                },
+                updates: buildActionInitialValues(
+                  defaultValues,
+                  constants.visibleDefaults,
+                  normalizeRowForSubmit(rowToAction),
+                ) as GenericItem,
               }}
             />
           ) : null,
@@ -1830,9 +1868,19 @@ export default function GenericPaginatedPage({
       }
     }
 
+    const bulkConstants = partitionActionConstantValues(
+      bulkEditActionConfig
+        ? getActionConstantValues(bulkEditActionConfig)
+        : {},
+      bulkSelectedKeys,
+    );
+    const submittedUpdates = applyHiddenActionValues(
+      updates,
+      bulkConstants.hiddenValues,
+    );
     const items = (selectedRows as GenericItem[]).map((r) => ({
       _id: r._id,
-      updates,
+      updates: submittedUpdates,
     }));
     updateMultipleDynamicItem(items);
     setSelectedRows([]);
@@ -1846,6 +1894,7 @@ export default function GenericPaginatedPage({
     bulkForm,
     bulkSelectedKeys,
     bulkFormKeys,
+    bulkEditActionConfig,
     selectedRows,
     updateMultipleDynamicItem,
     setSelectedRows,
@@ -1886,11 +1935,21 @@ export default function GenericPaginatedPage({
             }
           });
 
-        setBulkForm((prev) => ({ ...prev, ...initialBulkValues }));
+        const bulkConstants = partitionActionConstantValues(
+          bulkEditActionConfig
+            ? getActionConstantValues(bulkEditActionConfig)
+            : {},
+          selectedKeys,
+        );
+        setBulkForm((prev) => ({
+          ...prev,
+          ...initialBulkValues,
+          ...bulkConstants.visibleDefaults,
+        }));
         setIsBulkStepTwo(true);
       }
     }
-  }, [isBulkStepTwo, bulkForm, displayFields]);
+  }, [isBulkStepTwo, bulkForm, displayFields, bulkEditActionConfig]);
 
   const handleBulkDeleteConfirm = useCallback(() => {
     deleteMultipleDynamicItem(

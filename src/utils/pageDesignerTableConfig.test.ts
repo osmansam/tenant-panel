@@ -7,12 +7,16 @@ import {
   cleanDesignerActionFormLayout,
   cleanDesignerTableDrag,
   cleanDesignerTableDataMode,
+  cleanDesignerTableDataFields,
+  cleanDesignerTableColumnTemplate,
   cleanDesignerTableToggles,
   createDesignerTableToggle,
   getDesignerToggleVisibilityTargets,
   cleanDesignerGeneratedRelationColumns,
   cleanDesignerToggleBinding,
   ensureDesignerTableBulkActions,
+  ensureDesignerGridCellIds,
+  getDesignerEditableCellId,
   hydrateEmptyDesignerTableColumns,
   hydrateDesignerTableConfigForEditing,
   isIntegerTableOrderField,
@@ -22,6 +26,72 @@ import {
   normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
 } from "./pageDesignerTableConfig";
+
+describe("cleanDesignerTableDataFields", () => {
+  it("trims and deduplicates additional row fields", () => {
+    expect(
+      cleanDesignerTableDataFields([" status ", "status", "", "owner"]),
+    ).toEqual(["status", "owner"]);
+    expect(cleanDesignerTableDataFields([])).toBeUndefined();
+  });
+});
+
+describe("ensureDesignerGridCellIds", () => {
+  it("repairs empty and duplicate cell ids from imported page JSON", () => {
+    const sections = [
+      {
+        columns: 1,
+        cells: [
+          { id: "", row: 1, column: 1, components: [] },
+          { id: "shared", row: 2, column: 1, components: [] },
+          { id: "shared", row: 3, column: 1, components: [] },
+        ],
+      },
+    ];
+
+    const result = ensureDesignerGridCellIds(sections);
+
+    expect(result).not.toBe(sections);
+    expect(result[0].cells[0].id).toMatch(/^cell_[0-9a-f]{32}$/);
+    expect(result[0].cells[1].id).toBe("shared");
+    expect(result[0].cells[2].id).toMatch(/^cell_[0-9a-f]{32}$/);
+    expect(new Set(result[0].cells.map((cell) => cell.id)).size).toBe(3);
+    expect(ensureDesignerGridCellIds(result)).toBe(result);
+  });
+});
+
+describe("getDesignerEditableCellId", () => {
+  it("keeps a valid cell id and synchronously replaces an empty id", () => {
+    expect(getDesignerEditableCellId("cell-existing")).toBe("cell-existing");
+    expect(getDesignerEditableCellId("")).toMatch(/^cell_[0-9a-f]{32}$/);
+  });
+});
+
+describe("cleanDesignerTableColumnTemplate", () => {
+  it("trims template columns and omits blank or non-template values", () => {
+    expect(
+      cleanDesignerTableColumnTemplate({
+        field: "fullName",
+        type: "template",
+        template: "  {{name}} {{surname}}  ",
+      }),
+    ).toBe("{{name}} {{surname}}");
+    expect(
+      cleanDesignerTableColumnTemplate({
+        field: "fullName",
+        type: "template",
+        template: " ",
+      }),
+    ).toBeUndefined();
+    expect(
+      cleanDesignerTableColumnTemplate({
+        field: "name",
+        type: "field",
+        template: "{{name}}",
+      }),
+    ).toBeUndefined();
+  });
+});
 
 const fields: Field[] = [
   { name: "_id", type: "objectID" } as Field,
