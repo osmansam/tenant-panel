@@ -108,6 +108,7 @@ import {
 import {
   cleanRelationMatrixConfig,
   isRelationMatrixConfigComplete,
+  requiresComponentSchemaName,
 } from "../../utils/relationMatrixConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
@@ -13075,10 +13076,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           <button
             onClick={handleAdd}
             disabled={
-              (componentType !== "tabPanel" &&
-                componentType !== "infoBlocks" &&
-                componentType !== "distributionBlocks" &&
-                !schemaName) ||
+              (requiresComponentSchemaName(componentType) && !schemaName) ||
               (componentType === "table" &&
                 tableSourceType === "pipeline" &&
                 !pipelineName) ||

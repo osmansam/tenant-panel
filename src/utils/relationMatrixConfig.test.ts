@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cleanRelationMatrixConfig,
   isRelationMatrixConfigComplete,
+  requiresComponentSchemaName,
 } from "./relationMatrixConfig";
 
 const complete = {
@@ -22,6 +23,11 @@ const complete = {
 };
 
 describe("relation matrix configuration", () => {
+  it("does not require the legacy component schema name", () => {
+    expect(requiresComponentSchemaName("relationMatrix")).toBe(false);
+    expect(requiresComponentSchemaName("table")).toBe(true);
+  });
+
   it("cleans a complete configuration and applies safe defaults", () => {
     expect(cleanRelationMatrixConfig(complete)).toEqual({
       rowSchemaName: "product",

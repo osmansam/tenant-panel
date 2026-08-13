@@ -3,6 +3,17 @@ import type {
   ToggleBinding,
 } from "../types/page";
 
+const COMPONENTS_WITHOUT_LEGACY_SCHEMA = [
+  "tabPanel",
+  "infoBlocks",
+  "distributionBlocks",
+  "relationMatrix",
+];
+
+export const requiresComponentSchemaName = (
+  componentType: string,
+): boolean => !COMPONENTS_WITHOUT_LEGACY_SCHEMA.includes(componentType);
+
 type RelationMatrixDraft = Partial<RelationMatrixConfig> | undefined;
 
 const cleanToggleBinding = (
