@@ -5,6 +5,7 @@ import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { TableActionConfig, TableFilterPanelConfig } from "../../types/page";
 import { normalizeContainerField } from "../containerFieldNormalization";
+import { normalizeContainerRoutes } from "../containerRoutes";
 import { axiosClient } from "./axiosClient";
 import { useGet } from "./factory";
 
@@ -73,21 +74,7 @@ export interface RouteSpec {
 
 /** All routes toggles */
 export interface Routes {
-  createDynamicModelItem: RouteSpec;
-  getAllDynamicModelItems: RouteSpec;
-  createMultipleDynamicModelItem: RouteSpec;
-  getAllDynamicModelItemsWithPagination: RouteSpec;
-  getPipeline: RouteSpec;
-  testPipeline: RouteSpec;
-  handleSearchDynamicModelItem: RouteSpec;
-  handleFilterDynamicModelItem: RouteSpec;
-  deleteDynamicModelItem: RouteSpec;
-  updateDynamicModelItem: RouteSpec;
-  updateMultipleDynamicModelItem: RouteSpec;
-  getDynamicModelItem: RouteSpec;
-  deleteMultipleDynamicModelItem: RouteSpec;
-  exportDynamicModelItems: RouteSpec;
-  getItemsForSelection: RouteSpec;
+  [routeName: string]: RouteSpec;
 }
 
 /** Redis caching controls (global) */
@@ -544,7 +531,7 @@ export function useContainers(enabled: boolean = true) {
     fields: (container.Fields || container.fields || []).map(
       normalizeContainerField,
     ),
-    routes: container.Routes || container.routes,
+    routes: normalizeContainerRoutes(container.Routes || container.routes || {}),
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
     workflows: (container.Workflows || container.workflows || []).map(
@@ -596,7 +583,7 @@ export function useContainer(id: string, enabled: boolean = true) {
     fields: (container.Fields || container.fields || []).map(
       normalizeContainerField,
     ),
-    routes: container.Routes || container.routes,
+    routes: normalizeContainerRoutes(container.Routes || container.routes || {}),
     redis: container.Redis || container.redis,
     pipelines: container.Pipelines || container.pipelines || [],
     workflows: (container.Workflows || container.workflows || []).map(
