@@ -97,6 +97,30 @@ export const quickStartArrayTable = (
   });
 };
 
+export const cleanArrayTableSource = (
+  source: TableComponentConfig["arraySource"],
+): TableComponentConfig["arraySource"] | undefined => {
+  const field = source?.field?.trim();
+  const rowIdentityField = source?.rowIdentityField?.trim();
+  if (!source?.enabled || !field || !rowIdentityField) return undefined;
+
+  return {
+    enabled: true,
+    field,
+    rowIdentityField,
+    ...(source.parentId ? { parentId: source.parentId } : {}),
+    ...(source.autoGenerate ? { autoGenerate: source.autoGenerate } : {}),
+  };
+};
+
+export const cleanArrayTableDataMode = (
+  dataMode: TableComponentConfig["dataMode"],
+  source: TableComponentConfig["arraySource"],
+): TableComponentConfig["dataMode"] =>
+  dataMode === "arrayField" && !cleanArrayTableSource(source)
+    ? "paginated"
+    : dataMode;
+
 export const reconcileArrayTableDefaults = (current: TableComponentConfig, arrayField: Field): { table: TableComponentConfig; warnings: string[] } => {
   const currentColumns = new Map((current.columns || []).map((column) => [column.field, column]));
   const childNames = new Set((arrayField.children || []).map((field) => field.name));

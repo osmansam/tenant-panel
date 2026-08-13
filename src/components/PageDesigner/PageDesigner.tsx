@@ -99,6 +99,8 @@ import {
 import {
   eligibleArrayFields,
   eligibleIdentityFields,
+  cleanArrayTableDataMode,
+  cleanArrayTableSource,
   generateArrayTableDefaults,
   quickStartArrayTable,
   reconcileArrayTableDefaults,
@@ -1359,7 +1361,9 @@ const cleanConstantSort = (
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
-  dataMode: cleanDesignerTableDataMode(tableConfig.dataMode),
+  dataMode: cleanDesignerTableDataMode(
+    cleanArrayTableDataMode(tableConfig.dataMode, tableConfig.arraySource),
+  ),
   ...(cleanDesignerTableDataFields(tableConfig.dataFields)
     ? { dataFields: cleanDesignerTableDataFields(tableConfig.dataFields) }
     : {}),
@@ -1503,16 +1507,8 @@ const cleanTableConfig = (
         },
       }
     : {}),
-  ...(tableConfig.arraySource?.enabled &&
-  tableConfig.arraySource.field?.trim() &&
-  tableConfig.arraySource.rowIdentityField?.trim()
-    ? {
-        arraySource: {
-          enabled: true,
-          field: tableConfig.arraySource.field.trim(),
-          rowIdentityField: tableConfig.arraySource.rowIdentityField.trim(),
-        },
-      }
+  ...(cleanArrayTableSource(tableConfig.arraySource)
+    ? { arraySource: cleanArrayTableSource(tableConfig.arraySource) }
     : {}),
   ...(tableConfig.cache?.invalidateKeys?.filter((key) => key.trim()).length
     ? {
@@ -13024,6 +13020,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               (componentType === "table" &&
                 tableSourceType === "workflow" &&
                 !workflowName) ||
+              (componentType === "table" &&
+                tableConfig.dataMode === "arrayField" &&
+                !cleanArrayTableSource(tableConfig.arraySource)) ||
               (componentType === "infoBlocks" &&
                 infoBlocksSource !== "static" &&
                 !schemaName) ||

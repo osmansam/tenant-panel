@@ -5,6 +5,8 @@ import {
   eligibleIdentityFields,
   generateArrayTableDefaults,
   quickStartArrayTable,
+  cleanArrayTableSource,
+  cleanArrayTableDataMode,
   reconcileArrayTableDefaults,
 } from "./pageDesignerArraySource";
 
@@ -92,5 +94,38 @@ describe("array table designer generation", () => {
         parentId: { source: "static", value: "{{route.id}}" },
       },
     });
+  });
+
+  it("does not serialize array mode without a complete enabled source", () => {
+    const incomplete = {
+      enabled: true,
+      field: "duties",
+      rowIdentityField: "",
+      parentId: { source: "static" as const, value: "{{route.id}}" },
+    };
+
+    expect(cleanArrayTableSource(incomplete)).toBeUndefined();
+    expect(cleanArrayTableDataMode("arrayField", incomplete)).toBe(
+      "paginated",
+    );
+  });
+
+  it("serializes a complete source including route parent and generation settings", () => {
+    const source = {
+      enabled: true,
+      field: "duties",
+      rowIdentityField: "duty",
+      parentId: { source: "static" as const, value: "{{route.id}}" },
+      autoGenerate: {
+        columns: true,
+        add: true,
+        edit: true,
+        delete: true,
+        reorder: false,
+      },
+    };
+
+    expect(cleanArrayTableSource(source)).toEqual(source);
+    expect(cleanArrayTableDataMode("arrayField", source)).toBe("arrayField");
   });
 });
