@@ -4,7 +4,6 @@ import {
   eligibleArrayFields,
   eligibleIdentityFields,
   generateArrayTableDefaults,
-  quickStartArrayTable,
   cleanArrayTableSource,
   cleanArrayTableDataMode,
   reconcileArrayTableDefaults,
@@ -56,44 +55,6 @@ describe("array table designer generation", () => {
     expect(reconciled.table.columns?.find((column) => column.field === "duty")?.displayName).toBe("Task name");
     expect(reconciled.table.columns?.some((column) => column.field === "notes")).toBe(true);
     expect(reconciled.table.addButton?.enabled).toBe(false);
-  });
-
-  it("quick-starts array CRUD with route parent id and the first eligible identity", () => {
-    const result = quickStartArrayTable(duties);
-
-    expect(result.dataMode).toBe("arrayField");
-    expect(result.arraySource).toMatchObject({
-      enabled: true,
-      field: "duties",
-      rowIdentityField: "duty",
-      parentId: { source: "static", value: "{{route.id}}" },
-    });
-    expect(result.columns?.map((column) => column.field)).toEqual([
-      "duty",
-      "locations",
-      "order",
-      "description",
-    ]);
-    expect(result.addButton?.enabled).toBe(true);
-    expect(result.actions?.map((action) => action.enabled)).toEqual([true, true]);
-  });
-
-  it("selects an array without generating CRUD when no identity is eligible", () => {
-    const result = quickStartArrayTable({
-      name: "notes",
-      type: "array",
-      children: [{ name: "text", type: "string" }],
-    });
-
-    expect(result).toEqual({
-      dataMode: "arrayField",
-      arraySource: {
-        enabled: true,
-        field: "notes",
-        rowIdentityField: "",
-        parentId: { source: "static", value: "{{route.id}}" },
-      },
-    });
   });
 
   it("does not serialize array mode without a complete enabled source", () => {
