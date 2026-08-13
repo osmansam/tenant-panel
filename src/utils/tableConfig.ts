@@ -106,29 +106,26 @@ export const applyTableArraySource = <T extends GenericTableRow>(
   });
 };
 
-export const buildArraySourceParentUpdate = (
+export interface ArraySourceMutationTarget {
+  parentId: string | number;
+  arrayField: string;
+  rowIdentityField: string;
+  rowIdentity: unknown;
+  index: number;
+}
+
+export const getArraySourceMutationTarget = (
   row: GenericTableRow | undefined,
-  updates: Record<string, unknown>,
-): { parentId: string | number; updates: Record<string, unknown> } | undefined => {
+): ArraySourceMutationTarget | undefined => {
   const source = (row as ArraySourceTableRow | undefined)?.__arraySource;
   if (!source) return undefined;
   if (source.parentId === undefined || source.parentId === null) return undefined;
-
-  const parentArray = Array.isArray(source.parentRow[source.arrayField])
-    ? (source.parentRow[source.arrayField] as unknown[])
-    : [];
-  const identity = normalizeTableValue(source.rowIdentityValue);
-  const nextArray = parentArray.map((item, index) => {
-    const itemRow = nestedRowValue(item);
-    const itemIdentity = normalizeTableValue(itemRow[source.rowIdentityField]);
-    const matchesIdentity = identity !== undefined && itemIdentity === identity;
-    const matchesIndex = identity === undefined && index === source.index;
-    return matchesIdentity || matchesIndex ? { ...itemRow, ...updates } : item;
-  });
-
   return {
     parentId: source.parentId as string | number,
-    updates: { [source.arrayField]: nextArray },
+    arrayField: source.arrayField,
+    rowIdentityField: source.rowIdentityField,
+    rowIdentity: source.rowIdentityValue,
+    index: source.index,
   };
 };
 

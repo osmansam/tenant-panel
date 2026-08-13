@@ -71,7 +71,7 @@ import {
 import {
   applyTableArraySource,
   applyTableNestedRows,
-  buildArraySourceParentUpdate,
+  getArraySourceMutationTarget,
   getComputedLabelValue,
   getLookupLabelValue,
   getProgressBarValue,
@@ -81,6 +81,12 @@ import {
   getTableLinkConfig,
   isTableSearchEnabled,
 } from "../../../utils/tableConfig";
+import {
+  addDynamicArrayRow,
+  deleteDynamicArrayRow,
+  reorderDynamicArrayRows,
+  updateDynamicArrayRow,
+} from "../../../utils/api/dynamicArray";
 import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
 import { useGeneratedRelationTableColumns } from "../../../utils/useGeneratedRelationTableColumns";
 import {
@@ -374,10 +380,17 @@ export default function GenericPaginatedPage({
     tableConfig,
     toggleState: tableToggleState,
     toggles: configuredTableToggles,
-    updateRow: (id, updates, row) => {
-      const parentUpdate = buildArraySourceParentUpdate(row, updates);
-      if (parentUpdate) {
-        updateDynamicItem(parentUpdate.parentId, parentUpdate.updates);
+    updateRow: async (id, updates, row) => {
+      const target = getArraySourceMutationTarget(row);
+      if (target) {
+        await updateDynamicArrayRow({
+          schemaName,
+          parentId: target.parentId,
+          arrayField: target.arrayField,
+          rowIdentityField: target.rowIdentityField,
+          rowIdentity: target.rowIdentity,
+          updates,
+        });
         return;
       }
       updateDynamicItem(id, updates);
@@ -1052,6 +1065,11 @@ export default function GenericPaginatedPage({
         (currentPage - 1) * rowsPerPage + 1,
       );
       if (result.updates.length) {
+        const firstTarget = getArraySourceMutationTarget(result.rows[0]);
+        if (firstTarget) {
+          void reorderDynamicArrayRows({ schemaName, parentId: firstTarget.parentId, arrayField: firstTarget.arrayField, rowIdentityField: firstTarget.rowIdentityField, orderField: tableDragState.orderField, rowIdentities: result.rows.map((row) => getArraySourceMutationTarget(row)?.rowIdentity) });
+          return;
+        }
         updateMultipleDynamicItem(result.updates);
       }
     },
@@ -1061,6 +1079,7 @@ export default function GenericPaginatedPage({
       rowsPerPage,
       tableDragState.orderField,
       updateMultipleDynamicItem,
+      schemaName,
     ],
   );
 
@@ -1269,7 +1288,7 @@ export default function GenericPaginatedPage({
     : {};
 
   const handleSubmitItem = useCallback(
-    (item: GenericItem | UpdatePayload<GenericItem>) => {
+    async (item: GenericItem | UpdatePayload<GenericItem>) => {
       if ("id" in item && "updates" in item) {
         // Update operation - EXCLUDE constantFilter fields to prevent ObjectId to string conversion
         const updates = item.updates as Record<string, unknown>;
@@ -1280,6 +1299,11 @@ export default function GenericPaginatedPage({
               ),
             )
           : updates;
+        const target = getArraySourceMutationTarget(rowToAction || undefined);
+        if (target) {
+          await updateDynamicArrayRow({ schemaName, parentId: target.parentId, arrayField: target.arrayField, rowIdentityField: target.rowIdentityField, rowIdentity: target.rowIdentity, updates: filteredUpdates });
+          return;
+        }
         updateDynamicItem(
           item.id as string | number,
           filteredUpdates as Partial<GenericItem>,
@@ -1293,6 +1317,12 @@ export default function GenericPaginatedPage({
         const mergedItem = constantFilter
           ? { ...configuredCreateValues, ...constantFilter }
           : configuredCreateValues;
+        const arraySource = tableConfig?.arraySource;
+        const parentId = itemsPayload.items[0]?._id;
+        if (arraySource?.enabled && arraySource.field && arraySource.rowIdentityField && parentId != null) {
+          await addDynamicArrayRow({ schemaName, parentId, arrayField: arraySource.field, rowIdentityField: arraySource.rowIdentityField, item: mergedItem });
+          return;
+        }
         createDynamicItem(mergedItem as GenericItem);
       }
     },
@@ -1303,8 +1333,21 @@ export default function GenericPaginatedPage({
       constantFilterKeys,
       createActionDefaults,
       createActionConstants,
+      rowToAction,
+      schemaName,
+      tableConfig?.arraySource,
+      itemsPayload.items,
     ],
   );
+
+  const deleteTableRow = useCallback(async (row: GenericItem) => {
+    const target = getArraySourceMutationTarget(row);
+    if (target) {
+      await deleteDynamicArrayRow({ schemaName, parentId: target.parentId, arrayField: target.arrayField, rowIdentityField: target.rowIdentityField, rowIdentity: target.rowIdentity });
+      return;
+    }
+    deleteDynamicItem(row._id);
+  }, [deleteDynamicItem, schemaName]);
 
   const addButton = useMemo(
     () => {
@@ -1396,7 +1439,7 @@ export default function GenericPaginatedPage({
             isOpen={isDeleteOpen}
             close={() => setIsDeleteOpen(false)}
             confirm={() => {
-              deleteDynamicItem(rowToAction._id);
+              void deleteTableRow(rowToAction);
               setIsDeleteOpen(false);
             }}
             title={t("Delete")}
@@ -1508,7 +1551,7 @@ export default function GenericPaginatedPage({
         }
 
         if (actionConfig.kind === "delete") {
-          deleteDynamicItem(row._id);
+          void deleteTableRow(row);
           return;
         }
 
@@ -1559,7 +1602,7 @@ export default function GenericPaginatedPage({
               close={closeModal}
               confirm={() => {
                 if (actionConfig.kind === "delete") {
-                  deleteDynamicItem(rowToAction._id);
+                  void deleteTableRow(rowToAction);
                 } else {
                   updateDynamicItem(
                     rowToAction._id,

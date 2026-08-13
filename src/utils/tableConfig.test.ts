@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyTableArraySource,
   applyTableNestedRows,
-  buildArraySourceParentUpdate,
+  getArraySourceMutationTarget,
   getLookupLabelValue,
   getTableDataFieldNames,
   getTableLookupKey,
@@ -45,7 +45,7 @@ describe("table lookup labels", () => {
     });
   });
 
-  it("builds parent array updates from an array source row", () => {
+  it("builds a row-scoped mutation target from an array source row", () => {
     const [row] = applyTableArraySource(
       [
         {
@@ -65,14 +65,12 @@ describe("table lookup labels", () => {
       },
     );
 
-    expect(buildArraySourceParentUpdate(row, { locations: [1, 3] })).toEqual({
+    expect(getArraySourceMutationTarget(row)).toEqual({
       parentId: "count-list-1",
-      updates: {
-        products: [
-          { product: "p1", locations: [1, 3] },
-          { product: "p2", locations: [] },
-        ],
-      },
+      arrayField: "products",
+      rowIdentityField: "product",
+      rowIdentity: "p1",
+      index: 0,
     });
   });
 
