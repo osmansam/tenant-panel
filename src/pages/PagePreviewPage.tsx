@@ -135,6 +135,24 @@ const RenderComponent: React.FC<{
   );
 
   switch (type) {
+    case "relationMatrix":
+      return component.relationMatrix ? (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-5">
+          <div className="font-semibold text-violet-950">
+            {title || "Relation Matrix"}
+          </div>
+          <div className="mt-2 text-sm text-violet-800">
+            Rows: {component.relationMatrix.rowSchemaName} ({component.relationMatrix.rowLabelField}) · Columns: {component.relationMatrix.columnSchemaName} ({component.relationMatrix.columnLabelField})
+          </div>
+          <div className="mt-1 text-xs text-violet-600">
+            Updates {component.relationMatrix.columnSchemaName}.{component.relationMatrix.targetArrayField}[].{component.relationMatrix.targetItemMatchField}
+          </div>
+        </div>
+      ) : (
+        <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          Relation matrix requires configuration.
+        </div>
+      );
     case "form": {
       const formConfig =
         component.form ||

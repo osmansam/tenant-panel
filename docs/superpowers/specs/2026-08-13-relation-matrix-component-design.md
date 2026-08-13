@@ -19,6 +19,7 @@ interface RelationMatrixConfig {
   targetArrayField: string;
   targetItemMatchField: string;
   columnLimit?: number;
+  toggles?: TableToggleConfig[];
   visibilityToggle?: ToggleBinding;
   editToggle?: ToggleBinding;
 }

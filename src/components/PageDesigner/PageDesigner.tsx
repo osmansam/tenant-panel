@@ -28,6 +28,7 @@ import {
   GeneratedRelationColumnsConfig,
   JsonValue,
   LinkType,
+  RelationMatrixConfig,
   RowClassConfig,
   TabPanelTab,
   TableActionConfig,
@@ -104,6 +105,10 @@ import {
   generateArrayTableDefaults,
   reconcileArrayTableDefaults,
 } from "../../utils/pageDesignerArraySource";
+import {
+  cleanRelationMatrixConfig,
+  isRelationMatrixConfigComplete,
+} from "../../utils/relationMatrixConfig";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -137,6 +142,24 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+const DEFAULT_RELATION_MATRIX: RelationMatrixConfig = {
+  rowSchemaName: "",
+  rowIdField: "_id",
+  rowLabelField: "",
+  columnSchemaName: "",
+  columnIdField: "_id",
+  columnLabelField: "",
+  targetArrayField: "",
+  targetItemMatchField: "",
+  columnLimit: 100,
+  toggles: [
+    { id: "show-relations", label: "Show relations", defaultValue: true, isUpperSide: true },
+    { id: "edit-relations", label: "Edit relations", defaultValue: false, isUpperSide: true },
+  ],
+  visibilityToggle: { toggleId: "show-relations", when: true },
+  editToggle: { toggleId: "edit-relations", when: true },
+};
 
 interface OptionField {
   name: string;
@@ -2706,6 +2729,11 @@ const CellEditor: React.FC<CellEditorProps> = ({
                       <MdTableChart className="text-blue-600" size={14} />
                     </div>
                   )}
+                  {component.type === "relationMatrix" && (
+                    <div className="p-1 bg-violet-100 rounded-md">
+                      <MdTableChart className="text-violet-600" size={14} />
+                    </div>
+                  )}
                   {component.type === "tabPanel" && (
                     <div className="p-1 bg-purple-100 rounded-md">
                       <MdTab className="text-purple-600" size={14} />
@@ -2781,6 +2809,17 @@ const CellEditor: React.FC<CellEditorProps> = ({
                         </span>
                       </div>
                     ) : null}
+                  </div>
+                )}
+
+                {component.relationMatrix && (
+                  <div className="flex items-start gap-1.5">
+                    <span className="font-medium text-neutral-500 min-w-[45px]">
+                      Matrix:
+                    </span>
+                    <span className="font-mono text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">
+                      {component.relationMatrix.rowSchemaName} × {component.relationMatrix.columnSchemaName}
+                    </span>
                   </div>
                 )}
 
@@ -2874,6 +2913,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     addButton: undefined,
     actions: [],
   });
+  const [relationMatrixConfig, setRelationMatrixConfig] =
+    useState<RelationMatrixConfig>(DEFAULT_RELATION_MATRIX);
   const draftRuntimeComponent = useMemo<RuntimeComponentBlock>(
     () =>
       ({
@@ -2884,6 +2925,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         stateKey,
         outputs: runtimeOutputs,
         table: tableConfig,
+        relationMatrix: relationMatrixConfig,
       }) as unknown as RuntimeComponentBlock,
     [
       componentType,
@@ -2891,6 +2933,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       runtimeOutputs,
       stateKey,
       tableConfig,
+      relationMatrixConfig,
       title,
     ],
   );
@@ -2942,6 +2985,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const selectedContainer = useMemo(
     () => containers.find((container) => container.schemaName === schemaName),
     [containers, schemaName],
+  );
+  const relationRowContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName === relationMatrixConfig.rowSchemaName,
+      ),
+    [containers, relationMatrixConfig.rowSchemaName],
+  );
+  const relationColumnContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName === relationMatrixConfig.columnSchemaName,
+      ),
+    [containers, relationMatrixConfig.columnSchemaName],
+  );
+  const relationTargetArray = useMemo(
+    () =>
+      (relationColumnContainer?.fields || []).find(
+        (field) => field.name === relationMatrixConfig.targetArrayField,
+      ),
+    [relationColumnContainer, relationMatrixConfig.targetArrayField],
   );
   const selectedFields = selectedContainer?.fields || [];
   const arrayTableFields = useMemo(
@@ -3110,6 +3176,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       );
       setStateKeyTouched(!!editingComponent.stateKey);
       setBindingIssues([]);
+      if (editingComponent.type === "relationMatrix") {
+        setRelationMatrixConfig({
+          ...DEFAULT_RELATION_MATRIX,
+          ...(editingComponent.relationMatrix || {}),
+        });
+      }
 
       if (editingComponent.dataBinding) {
         setTableSourceType(
@@ -3332,6 +3404,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setDistributionBlocksSource("static");
       setDistributionBlockItems(resizeDistributionBlockItems(3, []));
       setFormConfig(buildDefaultFormConfig("", []));
+      setRelationMatrixConfig(DEFAULT_RELATION_MATRIX);
       setIsDynamic(false);
       setDynamicLimit(50);
       setDynamicInfoBlockItem({
@@ -3811,6 +3884,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...(parsedParams && { params: parsedParams }),
       };
       component.table = cleanTableConfig(tableConfig);
+    } else if (componentType === "relationMatrix") {
+      component.relationMatrix = cleanRelationMatrixConfig(
+        relationMatrixConfig,
+      );
     } else if (componentType === "form") {
       const cleanedForm = cleanFormConfig({
         ...formConfig,
@@ -5441,6 +5518,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 >
                   <option value="table">Table</option>
+                  <option value="relationMatrix">Relation Matrix</option>
                   <option value="form">Form</option>
                   <option value="tabPanel">Tab Panel</option>
                   <option value="infoBlocks">Information Blocks</option>
@@ -5457,7 +5535,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
               {componentType !== "tabPanel" &&
                 componentType !== "infoBlocks" &&
-                componentType !== "distributionBlocks" && (
+                componentType !== "distributionBlocks" &&
+                componentType !== "relationMatrix" && (
                   <>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
@@ -5889,6 +5968,80 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </>
                 )}
             </div>
+
+            {componentType === "relationMatrix" && (
+              <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div>
+                  <h4 className="text-base font-semibold text-neutral-900">
+                    Relation Matrix
+                  </h4>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Render one schema as rows and another as editable relation columns.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Title</span>
+                    <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Optional component title" />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Row schema</span>
+                    <select value={relationMatrixConfig.rowSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowSchemaName: event.target.value, rowIdField: "_id", rowLabelField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select row schema</option>
+                      {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Row label field</span>
+                    <select value={relationMatrixConfig.rowLabelField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowLabelField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select row label</option>
+                      {(relationRowContainer?.fields || []).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column schema</span>
+                    <select value={relationMatrixConfig.columnSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnSchemaName: event.target.value, columnIdField: "_id", columnLabelField: "", targetArrayField: "", targetItemMatchField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select column schema</option>
+                      {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column label field</span>
+                    <select value={relationMatrixConfig.columnLabelField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnLabelField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select column label</option>
+                      {(relationColumnContainer?.fields || []).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Target array field</span>
+                    <select value={relationMatrixConfig.targetArrayField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, targetArrayField: event.target.value, targetItemMatchField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select embedded array</option>
+                      {(relationColumnContainer?.fields || []).filter((field) => field.type?.toLowerCase() === "array" && field.children?.length).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Membership field</span>
+                    <select value={relationMatrixConfig.targetItemMatchField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, targetItemMatchField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select membership field</option>
+                      {(relationTargetArray?.children || []).filter((field) => field.type?.toLowerCase() !== "array").map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column limit</span>
+                    <input type="number" min={1} max={100} value={relationMatrixConfig.columnLimit || 100} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnLimit: Math.min(100, Math.max(1, Number(event.target.value) || 100)) }))} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+                  </label>
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Controls</span>
+                    {(relationMatrixConfig.toggles || []).map((toggle) => (
+                      <label key={toggle.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" checked={toggle.defaultValue} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, toggles: (current.toggles || []).map((item) => item.id === toggle.id ? { ...item, defaultValue: event.target.checked } : item) }))} />
+                        {toggle.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {componentType === "form" && (
               <FormComponentEditor
@@ -12935,6 +13088,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               (componentType === "table" &&
                 tableConfig.dataMode === "arrayField" &&
                 !cleanArrayTableSource(tableConfig.arraySource)) ||
+              (componentType === "relationMatrix" &&
+                !isRelationMatrixConfigComplete(relationMatrixConfig)) ||
               (componentType === "infoBlocks" &&
                 infoBlocksSource !== "static" &&
                 !schemaName) ||

@@ -75,6 +75,7 @@ type RelationMatrixConfig struct {
     TargetArrayField     string         `bson:"targetArrayField" json:"targetArrayField"`
     TargetItemMatchField string         `bson:"targetItemMatchField" json:"targetItemMatchField"`
     ColumnLimit          int            `bson:"columnLimit,omitempty" json:"columnLimit,omitempty"`
+    Toggles              []TableToggleConfig `bson:"toggles,omitempty" json:"toggles,omitempty"`
     VisibilityToggle     *ToggleBinding `bson:"visibilityToggle,omitempty" json:"visibilityToggle,omitempty"`
     EditToggle           *ToggleBinding `bson:"editToggle,omitempty" json:"editToggle,omitempty"`
 }

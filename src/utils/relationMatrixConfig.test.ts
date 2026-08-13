@@ -14,6 +14,9 @@ const complete = {
   targetArrayField: " products ",
   targetItemMatchField: " product ",
   columnLimit: 140,
+  toggles: [
+    { id: "show-lists", label: "Show count lists", defaultValue: true },
+  ],
   visibilityToggle: { toggleId: " show-lists ", when: true },
   editToggle: { toggleId: "edit-lists", when: true },
 };
@@ -30,6 +33,9 @@ describe("relation matrix configuration", () => {
       targetArrayField: "products",
       targetItemMatchField: "product",
       columnLimit: 100,
+      toggles: [
+        { id: "show-lists", label: "Show count lists", defaultValue: true },
+      ],
       visibilityToggle: { toggleId: "show-lists", when: true },
       editToggle: { toggleId: "edit-lists", when: true },
     });
