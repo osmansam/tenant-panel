@@ -100,6 +100,7 @@ import {
   eligibleArrayFields,
   eligibleIdentityFields,
   generateArrayTableDefaults,
+  quickStartArrayTable,
   reconcileArrayTableDefaults,
 } from "../../utils/pageDesignerArraySource";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
@@ -5510,6 +5511,93 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         ))}
                       </select>
                     </div>
+
+                    {componentType === "table" &&
+                      !editingComponent &&
+                      schemaName && (
+                        <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                              Table Data Source
+                            </label>
+                            <select
+                              value={
+                                tableConfig.arraySource?.enabled
+                                  ? "arrayField"
+                                  : "schema"
+                              }
+                              onChange={(event) => {
+                                if (event.target.value === "schema") {
+                                  resetTableColumnsForSchema(schemaName);
+                                  return;
+                                }
+                                setTableConfig((current) => ({
+                                  ...current,
+                                  dataMode: "arrayField",
+                                  arraySource: {
+                                    enabled: true,
+                                    field: "",
+                                    rowIdentityField: "",
+                                    parentId: {
+                                      source: "static",
+                                      value: "{{route.id}}",
+                                    },
+                                  },
+                                }));
+                              }}
+                              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                            >
+                              <option value="schema">Schema rows</option>
+                              <option value="arrayField">
+                                Array field rows
+                              </option>
+                            </select>
+                          </div>
+
+                          {tableConfig.arraySource?.enabled && (
+                            <div>
+                              <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
+                                Array Field
+                                <span className="text-red-500 ml-0.5">*</span>
+                              </label>
+                              <select
+                                value={tableConfig.arraySource.field || ""}
+                                onChange={(event) => {
+                                  const arrayField = arrayTableFields.find(
+                                    (field) => field.name === event.target.value,
+                                  );
+                                  if (arrayField) {
+                                    setTableConfig(
+                                      quickStartArrayTable(arrayField),
+                                    );
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                              >
+                                <option value="">Select an array field...</option>
+                                {arrayTableFields.map((field) => (
+                                  <option key={field.name} value={field.name}>
+                                    {field.frontend?.displayName || field.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {arrayTableFields.length === 0 && (
+                                <p className="mt-2 text-xs text-amber-700">
+                                  This schema has no embedded array fields with
+                                  child definitions.
+                                </p>
+                              )}
+                              {selectedArrayTableField &&
+                                arrayTableIdentityFields.length === 0 && (
+                                  <p className="mt-2 text-xs text-amber-700">
+                                    Choose a required or unique scalar child as
+                                    Row Identity in Table Settings → Nested Rows.
+                                  </p>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">

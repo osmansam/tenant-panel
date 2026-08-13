@@ -62,6 +62,41 @@ export const generateArrayTableDefaults = ({ parentId, arrayField, rowIdentityFi
   };
 };
 
+export const quickStartArrayTable = (
+  arrayField: Field,
+): TableComponentConfig => {
+  const rowIdentityField = eligibleIdentityFields(arrayField)[0]?.name || "";
+  const parentId: ParameterBinding = {
+    source: "static",
+    value: "{{route.id}}",
+  };
+
+  if (!rowIdentityField) {
+    return {
+      dataMode: "arrayField",
+      arraySource: {
+        enabled: true,
+        field: arrayField.name,
+        rowIdentityField: "",
+        parentId,
+      },
+    };
+  }
+
+  return generateArrayTableDefaults({
+    parentId,
+    arrayField,
+    rowIdentityField,
+    enabled: {
+      columns: true,
+      add: true,
+      edit: true,
+      delete: true,
+      reorder: false,
+    },
+  });
+};
+
 export const reconcileArrayTableDefaults = (current: TableComponentConfig, arrayField: Field): { table: TableComponentConfig; warnings: string[] } => {
   const currentColumns = new Map((current.columns || []).map((column) => [column.field, column]));
   const childNames = new Set((arrayField.children || []).map((field) => field.name));
