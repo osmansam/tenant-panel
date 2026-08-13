@@ -110,6 +110,11 @@ import {
   isRelationMatrixConfigComplete,
   requiresComponentSchemaName,
 } from "../../utils/relationMatrixConfig";
+import {
+  canAddTabChild,
+  removeTabChild,
+  saveSingleTabChild,
+} from "../../utils/tabChildComponents";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
@@ -2903,6 +2908,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [tableEditorTarget, setTableEditorTarget] = useState<{
     tabIndex: number;
     componentId?: string;
+    componentType?: "table" | "relationMatrix";
   } | null>(null);
 
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
@@ -5378,11 +5384,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const removeTableFromTab = (tabIndex: number, componentId: string) => {
-    const updatedTabs = [...tabs];
-    updatedTabs[tabIndex].components = updatedTabs[tabIndex].components.filter(
-      (comp) => comp.id !== componentId,
+    setTabs((currentTabs) =>
+      currentTabs.map((tab, index) =>
+        index === tabIndex ? removeTabChild(tab, componentId) : tab,
+      ),
     );
-    setTabs(updatedTabs);
   };
 
   const tableBeingEdited =
@@ -5399,27 +5405,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       currentTabs.map((tab, tabIndex) => {
         if (tabIndex !== tableEditorTarget.tabIndex) return tab;
 
-        if (tableEditorTarget.componentId) {
-          return {
-            ...tab,
-            components: tab.components.map((currentComponent) =>
-              currentComponent.id === tableEditorTarget.componentId
-                ? component
-                : currentComponent,
-            ),
-          };
-        }
-
-        return {
-          ...tab,
-          components: [
-            ...tab.components,
-            {
-              ...component,
-              order: tab.components.length + 1,
-            },
-          ],
-        };
+        return saveSingleTabChild(
+          tab,
+          component,
+          tableEditorTarget.componentId,
+        );
       }),
     );
     if (component.table) {
@@ -12997,17 +12987,25 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                         {/* Tables in Tab */}
                         <div className="space-y-2">
-                          {tab.components.length === 0 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setTableEditorTarget({ tabIndex: index })
-                              }
-                              className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <FiPlus size={15} strokeWidth={2.5} />
-                              Add table to this tab
-                            </button>
+                          {canAddTabChild(tab) && (
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <button
+                                type="button"
+                                onClick={() => setTableEditorTarget({ tabIndex: index, componentType: "table" })}
+                                className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <FiPlus size={15} strokeWidth={2.5} />
+                                Add Table
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTableEditorTarget({ tabIndex: index, componentType: "relationMatrix" })}
+                                className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <FiPlus size={15} strokeWidth={2.5} />
+                                Add Relation Matrix
+                              </button>
+                            </div>
                           )}
 
                           {tab.components.length > 0 && (
@@ -13019,11 +13017,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 >
                                   <div className="flex items-center gap-2">
                                     <MdTableChart
-                                      className="text-blue-600"
+                                      className={comp.type === "relationMatrix" ? "text-violet-600" : "text-blue-600"}
                                       size={16}
                                     />
                                     <span className="text-neutral-700 font-medium">
-                                      {comp.dataBinding?.schemaName}
+                                      {comp.type === "relationMatrix"
+                                        ? comp.title || `${comp.relationMatrix?.rowSchemaName} × ${comp.relationMatrix?.columnSchemaName}`
+                                        : comp.title || comp.dataBinding?.schemaName}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
@@ -13036,7 +13036,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         })
                                       }
                                       className="p-1 text-violet-700 bg-violet-50 hover:bg-violet-100 rounded transition-colors"
-                                      title="Edit table"
+                                      title={`Edit ${comp.type === "relationMatrix" ? "relation matrix" : "table"}`}
                                     >
                                       <FiEdit2 size={13} strokeWidth={2} />
                                     </button>
@@ -13046,7 +13046,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         removeTableFromTab(index, comp.id)
                                       }
                                       className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                      title="Remove table"
+                                      title="Remove component"
                                     >
                                       <FiTrash2 size={13} strokeWidth={2} />
                                     </button>
@@ -13162,7 +13162,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           page={page}
           currentCellId={currentCellId}
           editingComponent={tableBeingEdited}
-          fixedComponentType="table"
+          fixedComponentType={
+            tableBeingEdited?.type || tableEditorTarget.componentType || "table"
+          }
           onClose={() => setTableEditorTarget(null)}
           onAdd={saveTableToTab}
         />
