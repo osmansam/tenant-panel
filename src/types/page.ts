@@ -188,6 +188,20 @@ export interface ToggleBinding {
   when: boolean;
 }
 
+export interface RelationMatrixConfig {
+  rowSchemaName: string;
+  rowIdField: string;
+  rowLabelField: string;
+  columnSchemaName: string;
+  columnIdField: string;
+  columnLabelField: string;
+  targetArrayField: string;
+  targetItemMatchField: string;
+  columnLimit?: number;
+  visibilityToggle?: ToggleBinding;
+  editToggle?: ToggleBinding;
+}
+
 export interface TableToggleConfig {
   id: string;
   label: string;
@@ -543,6 +557,7 @@ export interface DistributionBlocksConfig {
 
 export type ComponentType =
   | "table"
+  | "relationMatrix"
   | "tabPanel"
   | "form"
   | "text"
@@ -587,6 +602,7 @@ export interface ComponentBlock {
   dataBinding?: DataBinding;
   groupBy?: GroupBy; // Grouping configuration for table components
   table?: TableComponentConfig;
+  relationMatrix?: RelationMatrixConfig;
   form?: FormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
