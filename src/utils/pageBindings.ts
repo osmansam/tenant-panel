@@ -596,6 +596,26 @@ export function uniqueComponentStateKey(
   return `${base}${suffix}`;
 }
 
+export function resolveComponentStateKey(
+  page: PageModel,
+  componentId: string | undefined,
+  requested: string,
+  fallback = "component",
+): string {
+  if (isSafeRuntimeName(requested)) return requested;
+
+  const pageWithoutCurrentStateKey = mapPage(page, (component) =>
+    component.id === componentId
+      ? { ...component, stateKey: undefined }
+      : component,
+  );
+  return uniqueComponentStateKey(
+    pageWithoutCurrentStateKey,
+    requested,
+    fallback,
+  );
+}
+
 export function exposeTableFilter(
   page: PageModel,
   componentId: string,

@@ -1,4 +1,3 @@
-import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 
 /**
@@ -22,8 +21,6 @@ export const logout = (
 
   // Clear all stored data
   localStorage.clear();
-  Cookies.remove("jwt");
-  Cookies.remove("refreshToken");
 
   // Redirect to login
   window.location.href = "/login";
@@ -33,25 +30,21 @@ export const logout = (
  * Check if user is authenticated
  */
 export const isAuthenticated = (): boolean => {
-  const token = Cookies.get("jwt") || localStorage.getItem("jwt");
-  const refreshToken =
-    Cookies.get("refreshToken") || localStorage.getItem("refreshToken");
-
-  return !!(token || refreshToken);
+  return !!localStorage.getItem("user");
 };
 
 /**
  * Get current access token
  */
 export const getAccessToken = (): string | null => {
-  return Cookies.get("jwt") || localStorage.getItem("jwt");
+  return null;
 };
 
 /**
  * Get current refresh token
  */
 export const getRefreshToken = (): string | null => {
-  return Cookies.get("refreshToken") || localStorage.getItem("refreshToken");
+  return null;
 };
 
 /**

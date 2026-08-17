@@ -2,7 +2,8 @@ import { TextField } from "@mui/material";
 import { tr } from "date-fns/locale";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { FaRegCalendar } from "react-icons/fa";
@@ -10,6 +11,7 @@ import { IoIosArrowBack, IoIosArrowForward, IoIosClose } from "react-icons/io";
 import ReactInputMask from "react-input-mask";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
+import { getDatePickerPopupPosition } from "../../../utils/datePickerPosition";
 dayjs.extend(customParseFormat);
 
 type DateInputProps = {
@@ -49,7 +51,9 @@ export default function DateInput({
   const [hasError, setHasError] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [popupPosition, setPopupPosition] = useState({ left: 0, top: 0 });
   const todayYear = String(dayjs().year());
 
   useEffect(() => {
@@ -76,7 +80,8 @@ export default function DateInput({
     function onClickOutside(e: MouseEvent) {
       if (
         containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
+        !containerRef.current.contains(e.target as Node) &&
+        !popupRef.current?.contains(e.target as Node)
       ) {
         setShowCalendar(false);
       }
@@ -84,6 +89,28 @@ export default function DateInput({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  const updatePopupPosition = useCallback(() => {
+    const anchor = containerRef.current?.getBoundingClientRect();
+    if (!anchor) return;
+    setPopupPosition(
+      getDatePickerPopupPosition(anchor, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!showCalendar) return;
+    updatePopupPosition();
+    window.addEventListener("resize", updatePopupPosition);
+    window.addEventListener("scroll", updatePopupPosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePopupPosition);
+      window.removeEventListener("scroll", updatePopupPosition, true);
+    };
+  }, [showCalendar, updatePopupPosition]);
 
   const commit = (raw: string) => {
     const digits = raw.replace(/\D/g, "");
@@ -212,8 +239,13 @@ export default function DateInput({
               onClick={() => setShowCalendar((v) => !v)}
             />
 
-            {showCalendar && (
-              <div className="absolute top-full mt-1 z-10 bg-white shadow-lg rounded-md p-2">
+            {showCalendar &&
+              createPortal(
+              <div
+                ref={popupRef}
+                className="fixed z-[100000] bg-white shadow-xl rounded-md border border-neutral-200 p-2"
+                style={{ left: popupPosition.left, top: popupPosition.top }}
+              >
                 <DayPicker
                   mode="single"
                   selected={selectedDate}
@@ -223,7 +255,8 @@ export default function DateInput({
                   captionLayout="dropdown"
                   locale={tr}
                 />
-              </div>
+              </div>,
+              document.body,
             )}
           </div>
 

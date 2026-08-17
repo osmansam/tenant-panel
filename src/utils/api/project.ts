@@ -18,6 +18,10 @@ export interface Project {
   templateScope?: "tenant" | "global";
   templateIncludeItems?: boolean;
   templateDescription?: string;
+  sourceLocale?: string;
+  defaultLocale?: string;
+  enabledLocales?: string[];
+  localizationVersion?: number;
   status?: "active" | "inactive" | "archived"; // Keep for compatibility
   createdAt: string;
   updatedAt: string;

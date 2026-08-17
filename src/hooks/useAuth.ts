@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useUserContext } from "../context/User.context";
 import { PublicRoutes } from "../navigation/constants";
 import { Tenant } from "../types";
-import { ACCESS_TOKEN } from "../utils/api/axiosClient";
-import { isAuthenticated } from "../utils/auth";
+import { axiosClient } from "../utils/api/axiosClient";
 
 const useAuth = () => {
   const { user, setUser } = useUserContext();
@@ -15,9 +14,10 @@ const useAuth = () => {
     const getUser = async (): Promise<void> => {
       if (user) return;
 
-      // Use centralized authentication check
-      if (!isAuthenticated()) {
-        // No tokens available, redirect to login
+      try {
+        const { data } = await axiosClient.get("/tenant/auth/session");
+        if (!data?.authenticated) throw new Error("Unauthenticated");
+      } catch {
         navigate(PublicRoutes.Login, {
           replace: true,
           state: { from: location },
@@ -25,10 +25,9 @@ const useAuth = () => {
         return;
       }
 
-      const token = localStorage.getItem(ACCESS_TOKEN);
       const storedUser = localStorage.getItem("user");
 
-      if (storedUser && token) {
+      if (storedUser) {
         try {
           // Set user from localStorage if available
           const parsedUser = JSON.parse(storedUser);
@@ -38,9 +37,7 @@ const useAuth = () => {
           // Clear invalid user data and logout
           logout();
         }
-      } else if (token) {
-        // Token exists but no user data, could fetch user info here
-        // For now, redirect to login to re-authenticate
+      } else {
         navigate(PublicRoutes.Login, {
           replace: true,
           state: { from: location },
@@ -111,7 +108,7 @@ const useAuth = () => {
     logout,
     getCurrentTenant,
     switchTenant,
-    isAuthenticated: !!user && !!localStorage.getItem(ACCESS_TOKEN),
+    isAuthenticated: !!user,
   };
 };
 

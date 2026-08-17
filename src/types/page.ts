@@ -130,6 +130,7 @@ export type TableColumnType =
   | "field"
   | "lookupLabel"
   | "computedLabel"
+  | "template"
   | "progressBar"
   | "number"
   | "currency"
@@ -170,16 +171,74 @@ export interface TableLookupLabelConfig {
   labelField?: string;
 }
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export type ToggleRequestEffect =
+  | { type: "set"; field: string; value: JsonValue }
+  | { type: "omit" };
+
+export interface ToggleBinding {
+  toggleId: string;
+  when: boolean;
+}
+
+export interface RelationMatrixConfig {
+  rowSchemaName: string;
+  rowIdField: string;
+  rowLabelField: string;
+  columnSchemaName: string;
+  columnIdField: string;
+  columnLabelField: string;
+  targetArrayField: string;
+  targetItemMatchField: string;
+  columnLimit?: number;
+  toggles?: TableToggleConfig[];
+  visibilityToggle?: ToggleBinding;
+  editToggle?: ToggleBinding;
+}
+
+export interface TableToggleConfig {
+  id: string;
+  label: string;
+  defaultValue: boolean;
+  isUpperSide?: boolean;
+  request?: {
+    on?: ToggleRequestEffect;
+    off?: ToggleRequestEffect;
+  };
+}
+
+export interface GeneratedRelationColumnsConfig {
+  id: string;
+  arrayField: string;
+  sourceSchemaName: string;
+  sourceIdField?: string;
+  sourceLabelField: string;
+  sourceLimit?: number;
+  visibilityToggle?: ToggleBinding;
+  booleanEditToggle?: ToggleBinding;
+}
+
 export interface TableColumnConfig {
   field: string;
   type?: TableColumnType;
   displayName?: string;
   lookup?: TableLookupLabelConfig;
   computedLabelRules?: TableComputedLabelRule[];
+  template?: string;
   fallbackValue?: string;
   progressBar?: TableProgressBarConfig;
   cellClassName?: RowClassConfig[];
   link?: TableLinkConfig;
+  visibilityToggle?: ToggleBinding;
+  booleanEditToggle?: ToggleBinding;
+  booleanDisplayToggle?: ToggleBinding;
 }
 
 export interface TableRowsConfig {
@@ -291,6 +350,13 @@ export interface TableActionSubmitConfig {
   functionName?: string;
 }
 
+export interface TableActionFormLayoutConfig {
+  columns?: 1 | 2 | 3 | 4;
+  allowOverflow?: boolean;
+  topClassName?: string;
+  generalClassName?: string;
+}
+
 export interface TableActionConfig {
   id?: string;
   key?: string;
@@ -302,6 +368,7 @@ export interface TableActionConfig {
   enabled?: boolean;
   modalType?: TableActionModalType;
   formFields?: TableActionFormFieldConfig[];
+  formLayout?: TableActionFormLayoutConfig;
   fields?: string[];
   excludeFields?: string[];
   fieldOverrides?: TableActionFieldConfig[];
@@ -322,10 +389,13 @@ export interface TableActionConfig {
 }
 
 export interface TableComponentConfig {
+  dataMode?: "paginated" | "all" | "arrayField";
   enableSearch?: boolean;
   columns?: TableColumnConfig[];
+  dataFields?: string[];
   rows?: TableRowsConfig;
   nestedRows?: TableNestedRowsConfig;
+  arraySource?: TableArraySourceConfig;
   cache?: TableCacheConfig;
   constantFilters?: Record<string, unknown>;
   constantSort?: {
@@ -336,6 +406,28 @@ export interface TableComponentConfig {
   actions?: TableActionConfig[];
   bulkActions?: TableBulkActionsConfig;
   filterPanel?: TableFilterPanelConfig;
+  toggles?: TableToggleConfig[];
+  generatedRelationColumns?: GeneratedRelationColumnsConfig[];
+  drag?: TableDragConfig;
+}
+
+export interface TableDragConfig {
+  enabled: boolean;
+  orderField: string;
+}
+
+export interface TableArraySourceConfig {
+  enabled?: boolean;
+  field?: string;
+  rowIdentityField?: string;
+  parentId?: ParameterBinding;
+  autoGenerate?: {
+    columns: boolean;
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+    reorder: boolean;
+  };
 }
 
 
@@ -466,6 +558,7 @@ export interface DistributionBlocksConfig {
 
 export type ComponentType =
   | "table"
+  | "relationMatrix"
   | "tabPanel"
   | "form"
   | "text"
@@ -510,6 +603,7 @@ export interface ComponentBlock {
   dataBinding?: DataBinding;
   groupBy?: GroupBy; // Grouping configuration for table components
   table?: TableComponentConfig;
+  relationMatrix?: RelationMatrixConfig;
   form?: FormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];

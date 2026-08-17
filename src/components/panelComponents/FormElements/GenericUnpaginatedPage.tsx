@@ -8,8 +8,17 @@ import { useGeneralContext } from "../../../context/General.context";
 import { useUserContext } from "../../../context/User.context";
 import { useSelectionData } from "../../../hooks/useSelectionData";
 import { FormElementsState } from "../../../types";
-import { TableActionConfig, TableComponentConfig } from "../../../types/page";
+import {
+  DataBinding,
+  TableActionConfig,
+  TableComponentConfig,
+} from "../../../types/page";
 import { UpdatePayload } from "../../../utils/api";
+import {
+  applyHiddenActionValues,
+  buildActionInitialValues,
+  partitionActionConstantValues,
+} from "../../../utils/actionConstantValues";
 import {
   ContainerModel,
   Field,
@@ -20,6 +29,7 @@ import {
   RawContainer,
   fieldToInput,
   getFieldLabel,
+  getMatchingRowClassPresentation,
   getMatchingRowClassNames,
   humanize,
   isDisplayablePrimitive,
@@ -29,7 +39,9 @@ import {
   evaluateRowCondition,
 } from "../../../utils/genericPageHelpers";
 import {
+  applyTableArraySource,
   applyTableNestedRows,
+  getArraySourceMutationTarget,
   getComputedLabelValue,
   getLookupLabelValue,
   getProgressBarValue,
@@ -38,7 +50,18 @@ import {
   getTableLinkConfig,
   isTableSearchEnabled,
 } from "../../../utils/tableConfig";
+import {
+  addDynamicArrayRow,
+  deleteDynamicArrayRow,
+  reorderDynamicArrayRows,
+  updateDynamicArrayRow,
+} from "../../../utils/api/dynamicArray";
 import { useTableLookupSelectionData } from "../../../utils/tableLookupSelection";
+import { useGeneratedRelationTableColumns } from "../../../utils/useGeneratedRelationTableColumns";
+import {
+  mergeTableConstantValues,
+  omitTableConstantKeys,
+} from "../../../utils/tableConstantValues";
 import {
   buildConfiguredFilterInputs,
   getFilterDefaultValues,
@@ -56,6 +79,21 @@ import {
   resolveActionTemplate,
   useActionFormSelectionData,
 } from "../../../utils/tableActions";
+import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
+import { renderTableColumnTemplate } from "../../../utils/tableColumnTemplate";
+import {
+  reorderCurrentPageRows,
+  resolveTableDragState,
+  sortRowsByOrderField,
+} from "../../../utils/tableRowReorder";
+import {
+  appendShowFiltersControl,
+  createTableToggleState,
+  isBooleanColumnEditable,
+  isBooleanColumnSwitchPresentation,
+  isTableColumnVisible,
+  isTableToggleUpperSide,
+} from "../../../utils/tableToggles";
 import { generateMockData } from "../../../utils/mockDataGenerator";
 import {
   isFieldRequired,
@@ -79,6 +117,9 @@ type Props = {
   actionsEnabled?: boolean;
   isHeader?: boolean;
   tableConfig?: TableComponentConfig;
+  constantFilter?: Record<string, unknown>;
+  customTitle?: string;
+  dataBinding?: DataBinding;
 };
 
 export default function GenericUnpaginatedPage({
@@ -88,11 +129,23 @@ export default function GenericUnpaginatedPage({
   actionsEnabled = true,
   isHeader = false,
   tableConfig,
+  constantFilter,
+  customTitle,
 }: Props) {
   const { t } = useTranslation();
   const { selectedRows, setSelectedRows, setIsSelectionActive } =
     useGeneralContext();
   const { user } = useUserContext();
+  const configuredTableToggles = useMemo(
+    () => tableConfig?.toggles || [],
+    [tableConfig?.toggles],
+  );
+  const [tableToggleState, setTableToggleState] = useState(() =>
+    createTableToggleState(configuredTableToggles),
+  );
+  useEffect(() => {
+    setTableToggleState(createTableToggleState(configuredTableToggles));
+  }, [configuredTableToggles]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -231,6 +284,16 @@ export default function GenericUnpaginatedPage({
     let fields = container.fields
       .map(normalizeField)
       .filter(isDisplayablePrimitive);
+    fields = fields.filter((field) => {
+      const column = tableConfig?.columns?.find(
+        (candidate) => candidate.field === field.name,
+      );
+      return isTableColumnVisible(
+        column?.visibilityToggle,
+        tableToggleState,
+        configuredTableToggles,
+      );
+    });
     if (includeFields?.length) {
       fields = includeFields
         .map((name) => fields.find((f) => f.name === name))
@@ -256,13 +319,42 @@ export default function GenericUnpaginatedPage({
     });
 
     return fields;
-  }, [container, includeFields, excludeFields, user]);
+  }, [
+    container,
+    includeFields,
+    excludeFields,
+    user,
+    tableConfig?.columns,
+    tableToggleState,
+    configuredTableToggles,
+  ]);
 
   // Fetch selection data for objectId/autoIncrementId fields with populationSettings
   const selectionDataMap = useSelectionData(container?.fields || []);
   const lookupSelectionDataMap = useTableLookupSelectionData(tableConfig);
 
-  const rowKeys = useMemo(
+  const generatedRelationTableColumns = useGeneratedRelationTableColumns({
+    tableConfig,
+    toggleState: tableToggleState,
+    toggles: configuredTableToggles,
+    updateRow: async (id, updates, row) => {
+      const target = getArraySourceMutationTarget(row);
+      if (target) {
+        await updateDynamicArrayRow({
+          schemaName,
+          parentId: target.parentId,
+          arrayField: target.arrayField,
+          rowIdentityField: target.rowIdentityField,
+          rowIdentity: target.rowIdentity,
+          updates,
+        });
+        return;
+      }
+      updateDynamicItem(id, updates);
+    },
+  });
+
+  const baseRowKeys = useMemo(
     () =>
       displayFields.map((f) => {
         const fieldType = (f.type || "").toLowerCase();
@@ -290,6 +382,7 @@ export default function GenericUnpaginatedPage({
           isDate?: boolean;
           isBoolean?: boolean;
           className?: string | ((row: GenericItem) => string);
+          style?: React.CSSProperties | ((row: GenericItem) => React.CSSProperties);
           node?: (row: GenericItem) => React.ReactNode;
         } = {
           key: f.name,
@@ -306,12 +399,20 @@ export default function GenericUnpaginatedPage({
         // Compute className based on table column cellClassName conditions
         if (rowKeyClassName) {
           rowKey.className = (row: GenericItem) =>
-            getMatchingRowClassNames(row, rowKeyClassName);
+            getMatchingRowClassPresentation(row, rowKeyClassName).className;
+          rowKey.style = (row: GenericItem) =>
+            getMatchingRowClassPresentation(row, rowKeyClassName).style;
         }
 
         const columnConfig = tableConfig?.columns?.find(
           (column) => column.field === f.name,
         );
+        if (columnConfig?.type === "template") {
+          rowKey.node = (row: GenericItem) =>
+            <span>{renderTableColumnTemplate(columnConfig.template, row)}</span>;
+          return rowKey;
+        }
+
         if (columnConfig?.type === "computedLabel") {
           const getComputedValue = (row: GenericItem) =>
             getComputedLabelValue(
@@ -323,10 +424,15 @@ export default function GenericUnpaginatedPage({
 
           if (rowKeyClassName) {
             rowKey.className = (row: GenericItem) =>
-              getMatchingRowClassNames(
+              getMatchingRowClassPresentation(
                 { ...row, [f.name]: getComputedValue(row) },
                 rowKeyClassName,
-              );
+              ).className;
+            rowKey.style = (row: GenericItem) =>
+              getMatchingRowClassPresentation(
+                { ...row, [f.name]: getComputedValue(row) },
+                rowKeyClassName,
+              ).style;
           }
 
           rowKey.node = (row: GenericItem) => <span>{getComputedValue(row)}</span>;
@@ -339,10 +445,15 @@ export default function GenericUnpaginatedPage({
 
           if (rowKeyClassName) {
             rowKey.className = (row: GenericItem) =>
-              getMatchingRowClassNames(
+              getMatchingRowClassPresentation(
                 { ...row, [f.name]: getLookupValue(row) },
                 rowKeyClassName,
-              );
+              ).className;
+            rowKey.style = (row: GenericItem) =>
+              getMatchingRowClassPresentation(
+                { ...row, [f.name]: getLookupValue(row) },
+                rowKeyClassName,
+              ).style;
           }
 
           rowKey.node = (row: GenericItem) => <span>{getLookupValue(row)}</span>;
@@ -491,6 +602,30 @@ export default function GenericUnpaginatedPage({
         if (columnConfig?.type === "booleanSwitch") {
           rowKey.node = (row: GenericItem) => {
             const isChecked = isTruthyBooleanValue(row[f.name]);
+            if (
+              !isBooleanColumnSwitchPresentation(
+                columnConfig.booleanDisplayToggle,
+                tableToggleState,
+                configuredTableToggles,
+              ) ||
+              !isBooleanColumnEditable(
+                columnConfig.booleanEditToggle,
+                tableToggleState,
+                configuredTableToggles,
+              )
+            ) {
+              const label = getTableDisplayName(tableConfig, f);
+              return (
+                <span
+                  aria-label={`${label}: ${isChecked ? "Yes" : "No"}`}
+                  className={`text-2xl font-semibold ${
+                    isChecked ? "text-blue-500" : "text-red-800"
+                  }`}
+                >
+                  {isChecked ? "✓" : "✕"}
+                </span>
+              );
+            }
             return (
               <CheckSwitch
                 checked={isChecked}
@@ -663,22 +798,32 @@ export default function GenericUnpaginatedPage({
       lookupSelectionDataMap,
       t,
       tableConfig,
+      tableToggleState,
+      configuredTableToggles,
     ],
   );
 
+  const rowKeys = useMemo(
+    () => [...baseRowKeys, ...generatedRelationTableColumns.rowKeys],
+    [baseRowKeys, generatedRelationTableColumns.rowKeys],
+  );
+
   const columns = useMemo(() => {
-    const baseCols = displayFields.map((f) => ({
+    const baseCols = [
+      ...displayFields.map((f) => ({
       key: t(getTableDisplayName(tableConfig, f) || getFieldLabel(f)),
       isSortable:
         tableConfig?.columns?.find((column) => column.field === f.name)
           ?.type !== "computedLabel",
       correspondingKey: f.name,
-    }));
+      })),
+      ...generatedRelationTableColumns.columns,
+    ];
     if (actionsEnabled) {
       return [...baseCols, { key: t("Actions"), isSortable: false }];
     }
     return baseCols;
-  }, [displayFields, t, actionsEnabled, tableConfig]);
+  }, [displayFields, t, actionsEnabled, tableConfig, generatedRelationTableColumns.columns]);
 
   const { inputs, formKeys } = useMemo(() => {
     const ins = displayFields
@@ -802,20 +947,81 @@ export default function GenericUnpaginatedPage({
   }, [displayFields, t, selectionDataMap]);
 
   const handleSubmitItem = useCallback(
-    (item: GenericItem | UpdatePayload<GenericItem>) => {
+    async (item: GenericItem | UpdatePayload<GenericItem>) => {
       if ("id" in item && "updates" in item) {
+        const target = getArraySourceMutationTarget(rowToAction || undefined);
+        if (target) {
+          await updateDynamicArrayRow({
+            schemaName,
+            parentId: target.parentId,
+            arrayField: target.arrayField,
+            rowIdentityField: target.rowIdentityField,
+            rowIdentity: target.rowIdentity,
+            updates: item.updates as Record<string, unknown>,
+          });
+          return;
+        }
         updateDynamicItem(
           item.id as string | number,
-          item.updates as Partial<GenericItem>,
+          omitTableConstantKeys(
+            item.updates as Partial<GenericItem>,
+            tableConfig?.constantFilters,
+            constantFilter,
+          ),
         );
       } else {
-        createDynamicItem(item as GenericItem);
+        const addConstants = partitionActionConstantValues(
+          tableConfig?.addButton?.constantValues,
+          formKeys.map((formKey) => formKey.key),
+        );
+        const nextItem = mergeTableConstantValues(
+            applyHiddenActionValues(
+              item as GenericItem,
+              addConstants.hiddenValues,
+            ) as GenericItem,
+            undefined,
+            tableConfig?.constantFilters,
+            constantFilter,
+          );
+        const arraySource = tableConfig?.arraySource;
+        const parentId = items?.[0]?._id;
+        if (arraySource?.enabled && arraySource.field && arraySource.rowIdentityField && parentId != null) {
+          await addDynamicArrayRow({ schemaName, parentId, arrayField: arraySource.field, rowIdentityField: arraySource.rowIdentityField, item: nextItem as Record<string, unknown> });
+          return;
+        }
+        createDynamicItem(nextItem);
       }
     },
-    [updateDynamicItem, createDynamicItem],
+    [
+      updateDynamicItem,
+      createDynamicItem,
+      tableConfig?.addButton?.constantValues,
+      tableConfig?.constantFilters,
+      constantFilter,
+      formKeys,
+      rowToAction,
+      schemaName,
+      items,
+    ],
+  );
+
+  const deleteTableRow = useCallback(
+    async (row: GenericItem) => {
+      const target = getArraySourceMutationTarget(row);
+      if (target) {
+        await deleteDynamicArrayRow({ schemaName, parentId: target.parentId, arrayField: target.arrayField, rowIdentityField: target.rowIdentityField, rowIdentity: target.rowIdentity });
+        return;
+      }
+      deleteDynamicItem(row._id);
+    },
+    [deleteDynamicItem, schemaName],
   );
 
   const addButton = useMemo(() => {
+    const addConstants = partitionActionConstantValues(
+      tableConfig?.addButton?.constantValues,
+      formKeys.map((formKey) => formKey.key),
+    );
     return {
       name: t("Add"),
       isModal: true,
@@ -826,7 +1032,20 @@ export default function GenericUnpaginatedPage({
           inputs={inputs}
           formKeys={formKeys}
           submitItem={handleSubmitItem}
-          topClassName="flex flex-col gap-2"
+          itemToEdit={
+            Object.keys(addConstants.visibleDefaults).length
+              ? {
+                  id: "",
+                  updates: {
+                    ...addConstants.visibleDefaults,
+                    _id: "",
+                  } as GenericItem,
+                }
+              : undefined
+          }
+          {...resolveTableActionFormLayout(tableConfig?.addButton, {
+            topClassName: "flex flex-col gap-2",
+          })}
         />
       ),
       isModalOpen: isAddOpen,
@@ -835,7 +1054,7 @@ export default function GenericUnpaginatedPage({
       icon: null,
       className: "bg-blue-500 hover:text-blue-500 hover:border-blue-500",
     };
-  }, [t, isAddOpen, inputs, formKeys, handleSubmitItem]);
+  }, [t, isAddOpen, inputs, formKeys, handleSubmitItem, tableConfig?.addButton]);
 
   const normalizeRowForSubmit = useCallback(
     (row: GenericItem) => {
@@ -949,7 +1168,7 @@ export default function GenericUnpaginatedPage({
             isOpen={isDeleteOpen}
             close={() => setIsDeleteOpen(false)}
             confirm={() => {
-              deleteDynamicItem(rowToAction._id);
+              void deleteTableRow(rowToAction);
               setIsDeleteOpen(false);
             }}
             title={t("Delete")}
@@ -1031,7 +1250,10 @@ export default function GenericUnpaginatedPage({
           : "MdTouchApp";
       const actionInputs = getActionInputs(actionConfig, actionId, rowToAction);
       const actionFormKeys = getActionFormKeys(actionConfig, actionInputs);
-      const constants = getActionConstantValues(actionConfig);
+      const constants = partitionActionConstantValues(
+        getActionConstantValues(actionConfig),
+        actionFormKeys.map((formKey) => formKey.key),
+      );
       const defaultValues = getActionDefaultValues(actionConfig);
       const closeModal = () =>
         setActionModalOpen((current) => ({ ...current, [actionId]: false }));
@@ -1055,7 +1277,7 @@ export default function GenericUnpaginatedPage({
         }
 
         if (actionConfig.kind === "delete") {
-          deleteDynamicItem(row._id);
+          void deleteTableRow(row);
           return;
         }
 
@@ -1069,7 +1291,10 @@ export default function GenericUnpaginatedPage({
           return;
         }
 
-        updateDynamicItem(row._id, constants as Partial<GenericItem>);
+        updateDynamicItem(
+          row._id,
+          constants.hiddenValues as Partial<GenericItem>,
+        );
       };
       const submitConfiguredAction = (
         item: GenericItem | UpdatePayload<GenericItem>,
@@ -1079,10 +1304,13 @@ export default function GenericUnpaginatedPage({
           "updates" in item
             ? (item.updates as Record<string, unknown>)
             : (item as Record<string, unknown>);
-        updateDynamicItem(rowToAction._id, {
-          ...rawUpdates,
-          ...constants,
-        } as Partial<GenericItem>);
+        updateDynamicItem(
+          rowToAction._id,
+          applyHiddenActionValues(
+            rawUpdates,
+            constants.hiddenValues,
+          ) as Partial<GenericItem>,
+        );
         closeModal();
       };
 
@@ -1100,11 +1328,11 @@ export default function GenericUnpaginatedPage({
               close={closeModal}
               confirm={() => {
                 if (actionConfig.kind === "delete") {
-                  deleteDynamicItem(rowToAction._id);
+                  void deleteTableRow(rowToAction);
                 } else {
                   updateDynamicItem(
                     rowToAction._id,
-                    constants as Partial<GenericItem>,
+                    constants.hiddenValues as Partial<GenericItem>,
                   );
                 }
                 closeModal();
@@ -1121,14 +1349,16 @@ export default function GenericUnpaginatedPage({
               submitItem={submitConfiguredAction}
               isEditMode
               buttonName={actionConfig.buttonName || actionConfig.label || t("Update")}
-              topClassName="flex flex-col gap-2"
+              {...resolveTableActionFormLayout(actionConfig, {
+                topClassName: "flex flex-col gap-2",
+              })}
               itemToEdit={{
                 id: rowToAction._id,
-                updates: {
-                  ...normalizeRowForSubmit(rowToAction),
-                  ...defaultValues,
-                  ...constants,
-                },
+                updates: buildActionInitialValues(
+                  defaultValues,
+                  constants.visibleDefaults,
+                  normalizeRowForSubmit(rowToAction),
+                ) as GenericItem,
               }}
             />
           ) : null,
@@ -1454,9 +1684,19 @@ export default function GenericUnpaginatedPage({
       }
     }
 
+    const bulkConstants = partitionActionConstantValues(
+      bulkEditActionConfig
+        ? getActionConstantValues(bulkEditActionConfig)
+        : {},
+      bulkSelectedKeys,
+    );
+    const submittedUpdates = applyHiddenActionValues(
+      updates,
+      bulkConstants.hiddenValues,
+    );
     const items = (selectedRows as GenericItem[]).map((r) => ({
       _id: r._id,
-      updates,
+      updates: submittedUpdates,
     }));
     if (bulkEditActionConfig?.submit?.workflowName) {
       executeWorkflow({
@@ -1465,7 +1705,7 @@ export default function GenericUnpaginatedPage({
         body: {
           record: {
             selectedIds: (selectedRows as GenericItem[]).map((r) => r._id),
-            updates,
+            updates: submittedUpdates,
             items,
             functionName: bulkEditActionConfig.submit.functionName,
           },
@@ -1541,7 +1781,17 @@ export default function GenericUnpaginatedPage({
             });
         }
 
-        setBulkForm((prev) => ({ ...prev, ...initialBulkValues }));
+        const bulkConstants = partitionActionConstantValues(
+          bulkEditActionConfig
+            ? getActionConstantValues(bulkEditActionConfig)
+            : {},
+          selectedKeys,
+        );
+        setBulkForm((prev) => ({
+          ...prev,
+          ...initialBulkValues,
+          ...bulkConstants.visibleDefaults,
+        }));
         setIsBulkStepTwo(true);
       }
     }
@@ -1666,19 +1916,35 @@ export default function GenericUnpaginatedPage({
   ]);
 
   const filters = useMemo(
-    () => [
-      {
-        label: t("Show Filters"),
-        isUpperSide: true,
+    () =>
+      appendShowFiltersControl(
+        configuredTableToggles.map((toggle) => ({
+        label: toggle.label || toggle.id,
+        isUpperSide: isTableToggleUpperSide(toggle),
         node: (
           <SwitchButton
-            checked={showFilters}
-            onChange={() => setShowFilters(!showFilters)}
+            checked={tableToggleState[toggle.id] ?? toggle.defaultValue}
+            onChange={() =>
+              setTableToggleState((current) => ({
+                ...current,
+                [toggle.id]: !(current[toggle.id] ?? toggle.defaultValue),
+              }))
+            }
           />
         ),
-      },
-    ],
-    [t, showFilters],
+        })),
+        {
+          label: t("Show Filters"),
+          isUpperSide: true,
+          node: (
+            <SwitchButton
+              checked={showFilters}
+              onChange={() => setShowFilters(!showFilters)}
+            />
+          ),
+        },
+      ),
+    [t, showFilters, configuredTableToggles, tableToggleState],
   );
 
   const filterPanel = useMemo(
@@ -1748,8 +2014,10 @@ export default function GenericUnpaginatedPage({
             setForm={handleBulkFormChange}
             submitItem={() => {}}
             isEditMode={false}
-            topClassName="flex flex-col gap-2"
-            generalClassName="overflow-visible"
+            {...resolveTableActionFormLayout(bulkEditActionConfig, {
+              topClassName: "flex flex-col gap-2",
+              generalClassName: "overflow-visible",
+            })}
                   buttonName={t(
                     bulkEditActionConfig?.buttonName ||
                       bulkEditActionConfig?.label ||
@@ -1792,9 +2060,50 @@ export default function GenericUnpaginatedPage({
     ],
   );
 
-  const rows = useMemo(
-    () => applyTableNestedRows(items || [], tableConfig, t, lookupSelectionDataMap),
-    [items, tableConfig, t, lookupSelectionDataMap],
+  const tableDragState = useMemo(
+    () =>
+      resolveTableDragState(
+        tableConfig?.drag,
+        filterFormElements.sort,
+        tableConfig?.constantSort?.sort,
+      ),
+    [
+      filterFormElements.sort,
+      tableConfig?.constantSort?.sort,
+      tableConfig?.drag,
+    ],
+  );
+  const rows = useMemo(() => {
+    const sourceRows = applyTableArraySource(items || [], tableConfig);
+    const nestedRows = applyTableNestedRows(
+      sourceRows,
+      tableConfig,
+      t,
+      lookupSelectionDataMap,
+    );
+    return tableDragState.enabled
+      ? sortRowsByOrderField(nestedRows, tableDragState.orderField)
+      : nestedRows;
+  }, [items, tableConfig, t, lookupSelectionDataMap, tableDragState]);
+  const handleRowDrag = useCallback(
+    (draggedRow: GenericItem, targetRow: GenericItem) => {
+      const result = reorderCurrentPageRows(
+        rows,
+        draggedRow,
+        targetRow,
+        tableDragState.orderField,
+        1,
+      );
+      if (result.updates.length) {
+        const firstTarget = getArraySourceMutationTarget(result.rows[0]);
+        if (firstTarget) {
+          void reorderDynamicArrayRows({ schemaName, parentId: firstTarget.parentId, arrayField: firstTarget.arrayField, rowIdentityField: firstTarget.rowIdentityField, orderField: tableDragState.orderField, rowIdentities: result.rows.map((row) => getArraySourceMutationTarget(row)?.rowIdentity) });
+          return;
+        }
+        updateMultipleDynamicItem(result.updates);
+      }
+    },
+    [rows, tableDragState.orderField, updateMultipleDynamicItem, schemaName],
   );
 
   return (
@@ -1805,8 +2114,10 @@ export default function GenericUnpaginatedPage({
           actions={actions}
           columns={columns}
           rows={rows || []}
+          isDraggable={tableDragState.enabled}
+          onDragEnter={tableDragState.enabled ? handleRowDrag : undefined}
           rowStyleFunction={rowStyleFunction}
-          title={t(humanize(schemaName))}
+          title={customTitle || t(humanize(schemaName))}
           addButton={addButton}
           isCollapsible={tableConfig?.nestedRows?.enabled === true}
           isActionsActive={actionsEnabled}

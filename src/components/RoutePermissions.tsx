@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoCheckmark, IoCloseOutline } from "react-icons/io5";
-import { toast } from "react-toastify";
 import { CheckSwitch } from "../common/CheckSwitch";
 import { useContainer, useUpdateContainer } from "../utils/api/container";
 import { useRoleItems } from "../utils/api/roleInfo";
+import {
+  toggleContainerRouteFlag,
+  updateContainerRouteSpec,
+} from "../utils/containerRoutes";
 import GenericTable from "./panelComponents/Tables/GenericTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
 
@@ -44,14 +47,11 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         rows.push({
           routeName,
           displayName,
-          isActive: routeSpec.isActive ?? routeSpec.IsActive ?? false,
-          isAuthenticated:
-            routeSpec.isAuthenticated ?? routeSpec.IsAuthenticated ?? false,
-          isAuthorized:
-            routeSpec.isAuthorized ?? routeSpec.IsAuthorized ?? false,
-          authorizeRole:
-            routeSpec.authorizeRole || routeSpec.AuthorizeRole || [],
-          method: routeSpec.method || routeSpec.Method || "GET",
+          isActive: routeSpec.isActive,
+          isAuthenticated: routeSpec.isAuthenticated,
+          isAuthorized: routeSpec.isAuthorized,
+          authorizeRole: routeSpec.authorizeRole,
+          method: routeSpec.method,
         });
       }
     );
@@ -64,14 +64,12 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     (route: RouteRow) => {
       if (!container?.routes) return;
 
-      const routesRecord = container.routes as Record<string, any>;
-      const updatedRoutes = {
-        ...container.routes,
-        [route.routeName]: {
-          ...routesRecord[route.routeName],
-          isActive: !route.isActive,
-        },
-      };
+      const updatedRoutes = toggleContainerRouteFlag(
+        container.routes,
+        route.routeName,
+        "isActive",
+        !route.isActive,
+      );
 
       updateContainer({
         id: containerId,
@@ -81,7 +79,6 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         },
       });
 
-      toast.success(t("Route status updated successfully"));
     },
     [container, containerId, updateContainer, t]
   );
@@ -91,14 +88,12 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     (route: RouteRow) => {
       if (!container?.routes) return;
 
-      const routesRecord = container.routes as Record<string, any>;
-      const updatedRoutes = {
-        ...container.routes,
-        [route.routeName]: {
-          ...routesRecord[route.routeName],
-          isAuthenticated: !route.isAuthenticated,
-        },
-      };
+      const updatedRoutes = toggleContainerRouteFlag(
+        container.routes,
+        route.routeName,
+        "isAuthenticated",
+        !route.isAuthenticated,
+      );
 
       updateContainer({
         id: containerId,
@@ -108,7 +103,6 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         },
       });
 
-      toast.success(t("Route authentication updated successfully"));
     },
     [container, containerId, updateContainer, t]
   );
@@ -119,17 +113,14 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
       if (!container?.routes) return;
 
       const newIsAuthorized = !route.isAuthorized;
-      const routesRecord = container.routes as Record<string, any>;
-
-      const updatedRoutes = {
-        ...container.routes,
-        [route.routeName]: {
-          ...routesRecord[route.routeName],
+      const updatedRoutes = updateContainerRouteSpec(
+        container.routes,
+        route.routeName,
+        {
           isAuthorized: newIsAuthorized,
-          // If disabling authorization, clear the authorizeRole array
           authorizeRole: newIsAuthorized ? route.authorizeRole || [] : [],
         },
-      };
+      );
 
       updateContainer({
         id: containerId,
@@ -139,7 +130,6 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         },
       });
 
-      toast.success(t("Route authorization updated successfully"));
     },
     [container, containerId, updateContainer, t]
   );
@@ -162,14 +152,11 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         newAuthorizeRoles = [...currentAuthorizeRoles, roleId];
       }
 
-      const routesRecord = container.routes as Record<string, any>;
-      const updatedRoutes = {
-        ...container.routes,
-        [route.routeName]: {
-          ...routesRecord[route.routeName],
-          authorizeRole: newAuthorizeRoles,
-        },
-      };
+      const updatedRoutes = updateContainerRouteSpec(
+        container.routes,
+        route.routeName,
+        { authorizeRole: newAuthorizeRoles },
+      );
 
       updateContainer({
         id: containerId,
@@ -179,7 +166,6 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         },
       });
 
-      toast.success(t("Route permissions updated successfully"));
     },
     [container, containerId, updateContainer, t]
   );

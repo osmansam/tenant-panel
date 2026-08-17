@@ -13,6 +13,7 @@ import {
   exposeTableFilter,
   formatBindingLabel,
   normalizePageRuntimeConfig,
+  resolveComponentStateKey,
   uniqueComponentStateKey,
   renameOutput,
   validatePageBindings,
@@ -62,6 +63,21 @@ describe("createRuntimeId", () => {
       expect(ids.size).toBe(20);
       for (const id of ids) expect(id).toMatch(new RegExp(`^${prefix}_[0-9a-f]{32}$`));
     }
+  });
+});
+
+describe("resolveComponentStateKey", () => {
+  it("repairs a legacy hyphenated state key while editing its component", () => {
+    const page = pageWith(table({ stateKey: "button-calls-table" }));
+
+    expect(
+      resolveComponentStateKey(
+        page,
+        "cmp_orders",
+        "button-calls-table",
+        "table",
+      ),
+    ).toBe("buttonCallsTable");
   });
 });
 

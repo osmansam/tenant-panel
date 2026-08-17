@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyTableArraySource,
   applyTableNestedRows,
+  getArraySourceMutationTarget,
   getLookupLabelValue,
   getTableDataFieldNames,
   getTableLookupKey,
@@ -8,6 +10,157 @@ import {
 } from "./tableConfig";
 
 describe("table lookup labels", () => {
+  it("builds table rows from a configured array source", () => {
+    const rows = [
+      {
+        _id: "count-list-1",
+        name: "Main count",
+        products: [
+          { product: "p1", locations: [1, 2] },
+          { product: "p2", locations: [] },
+        ],
+      },
+    ];
+
+    const result = applyTableArraySource(rows, {
+      arraySource: {
+        enabled: true,
+        field: "products",
+        rowIdentityField: "product",
+      },
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      _id: "count-list-1:products:p1",
+      product: "p1",
+      locations: [1, 2],
+      __arraySource: {
+        parentId: "count-list-1",
+        arrayField: "products",
+        rowIdentityField: "product",
+        rowIdentityValue: "p1",
+        index: 0,
+      },
+    });
+  });
+
+  it("builds a row-scoped mutation target from an array source row", () => {
+    const [row] = applyTableArraySource(
+      [
+        {
+          _id: "count-list-1",
+          products: [
+            { product: "p1", locations: [1] },
+            { product: "p2", locations: [] },
+          ],
+        },
+      ],
+      {
+        arraySource: {
+          enabled: true,
+          field: "products",
+          rowIdentityField: "product",
+        },
+      },
+    );
+
+    expect(getArraySourceMutationTarget(row)).toEqual({
+      parentId: "count-list-1",
+      arrayField: "products",
+      rowIdentityField: "product",
+      rowIdentity: "p1",
+      index: 0,
+    });
+  });
+
+  it("requests row fields referenced by cell class templates", () => {
+    expect(
+      getTableDataFieldNames({
+        columns: [
+          {
+            field: "name",
+            type: "field",
+            cellClassName: [
+              {
+                condition: "status = 'active'",
+                className: "text-white bg-[{{backgroundColor}}] {{fontClass}}",
+              },
+            ],
+          },
+        ],
+      }),
+    ).toEqual(["name", "status", "backgroundColor", "fontClass"]);
+  });
+
+  it("requests template source fields without requesting its synthetic column key", () => {
+    const config = {
+      columns: [
+        {
+          field: "fullName",
+          type: "template",
+          template: "{{name}} {{surname}}",
+        },
+      ],
+    } as unknown as Parameters<typeof getTableDataFieldNames>[0];
+
+    expect(
+      getTableDataFieldNames(config, ["_id", "name", "surname"]),
+    ).toEqual(["name", "surname"]);
+  });
+
+
+  it("requests non-column fields consumed by filters, actions, rows, and explicit data fields", () => {
+    const config = {
+      columns: [{ field: "name" as const }],
+      dataFields: ["internalCategory", "status", "status"],
+      filterPanel: {
+        inputs: [{ formKey: "owner", type: "text" as const }],
+      },
+      actions: [
+        {
+          kind: "edit" as const,
+          disabledCondition: "status != 'ACTIVE'",
+          hiddenCondition: "owner == 'system'",
+          requiredCondition: "approved == true",
+          formFields: [{ formKey: "notes", type: "text" as const }],
+          fieldOverrides: [
+            { field: "price", disabledCondition: "locked == true" },
+          ],
+        },
+      ],
+      rows: {
+        className: [{ condition: "priority == 'high'", className: "font-bold" }],
+      },
+    };
+
+    expect(
+      getTableDataFieldNames(config, [
+        "_id",
+        "name",
+        "status",
+        "internalCategory",
+        "owner",
+        "approved",
+        "locked",
+        "price",
+        "notes",
+        "priority",
+      ]),
+    ).toEqual([
+      "name",
+      "owner",
+      "status",
+      "approved",
+      "notes",
+      "price",
+      "locked",
+      "priority",
+      "internalCategory",
+    ]);
+    expect(config.columns).toEqual([{ field: "name" }]);
+  });
+
   it("requests the nested array field even when it is not a visible column", () => {
     expect(
       getTableDataFieldNames({
@@ -22,6 +175,43 @@ describe("table lookup labels", () => {
         },
       }),
     ).toEqual(["date", "status", "items"]);
+  });
+
+  it("requests the array source field even when child columns are rendered", () => {
+    expect(
+      getTableDataFieldNames({
+        columns: [{ field: "product" }],
+        arraySource: {
+          enabled: true,
+          field: "products",
+          rowIdentityField: "product",
+        },
+      }, ["_id", "name", "products"]),
+    ).toEqual(["products"]);
+  });
+
+  it("requests generated relation array fields without visible static columns", () => {
+    expect(
+      getTableDataFieldNames({
+        generatedRelationColumns: [
+          {
+            id: "locations",
+            arrayField: "locations",
+            sourceSchemaName: "location",
+            sourceLabelField: "name",
+          },
+        ],
+      }),
+    ).toEqual(["locations"]);
+  });
+
+  it("requests the drag order field even when it is not a visible column", () => {
+    expect(
+      getTableDataFieldNames(
+        { drag: { enabled: true, orderField: "position" } },
+        ["name", "position"],
+      ),
+    ).toEqual(["position"]);
   });
 
   it("keeps table search enabled by default and allows disabling it", () => {

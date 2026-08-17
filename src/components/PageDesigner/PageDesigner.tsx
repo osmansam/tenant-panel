@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FiChevronDown,
+  FiChevronUp,
   FiEdit2,
   FiGrid,
   FiLayout,
@@ -23,10 +25,14 @@ import {
   InfoBlockItemConfig,
   InfoBlocksConfig,
   InfoBlocksSource,
+  GeneratedRelationColumnsConfig,
+  JsonValue,
   LinkType,
+  RelationMatrixConfig,
   RowClassConfig,
   TabPanelTab,
   TableActionConfig,
+  TableActionFormLayoutConfig,
   TableActionFormFieldConfig,
   TableActionFormKeyType,
   TableActionInputType,
@@ -35,6 +41,8 @@ import {
   TableColumnConfig,
   TableComponentConfig,
   TableFilterPanelInputConfig,
+  TableToggleConfig,
+  ToggleRequestEffect,
 } from "../../types/page";
 import {
   ContainerModel,
@@ -56,6 +64,7 @@ import {
   dependentBindings,
   ensurePageRuntimeIds,
   isSafeRuntimeName,
+  resolveComponentStateKey,
   uniqueComponentStateKey,
   validatePageBindings,
   type PageBindingIssue,
@@ -64,14 +73,50 @@ import {
   TABLE_COLUMN_TYPE_OPTIONS,
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
+  cleanDesignerActionFormLayout,
+  cleanDesignerGeneratedRelationColumns,
+  cleanDesignerTableColumnTemplate,
+  cleanDesignerTableDataFields,
+  cleanDesignerTableDataMode,
+  cleanDesignerTableDrag,
+  cleanDesignerTableToggles,
+  cleanDesignerToggleBinding,
+  createDesignerTableToggle,
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
+  ensureDesignerGridCellIds,
+  getDesignerEditableCellId,
   hydrateEmptyDesignerTableColumns,
+  hydrateDesignerTableConfigForEditing,
+  getDesignerToggleVisibilityTargets,
+  isIntegerTableOrderField,
   mergeDesignerTableColumnsFromNames,
+  moveArrayItem,
   normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
+  setDesignerToggleVisibilityTargets,
+  type DesignerVisibilityTarget,
 } from "../../utils/pageDesignerTableConfig";
+import {
+  eligibleArrayFields,
+  eligibleIdentityFields,
+  cleanArrayTableDataMode,
+  cleanArrayTableSource,
+  generateArrayTableDefaults,
+  reconcileArrayTableDefaults,
+} from "../../utils/pageDesignerArraySource";
+import {
+  cleanRelationMatrixConfig,
+  isRelationMatrixConfigComplete,
+  requiresComponentSchemaName,
+} from "../../utils/relationMatrixConfig";
+import {
+  canAddTabChild,
+  removeTabChild,
+  saveSingleTabChild,
+} from "../../utils/tabChildComponents";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
+import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
@@ -103,6 +148,24 @@ const CHART_TYPES = [
   { value: "waffleChart", label: "Waffle", icon: MdBarChart },
   { value: "circlePackingChart", label: "Circle Packing", icon: MdBarChart },
 ];
+
+const DEFAULT_RELATION_MATRIX: RelationMatrixConfig = {
+  rowSchemaName: "",
+  rowIdField: "_id",
+  rowLabelField: "",
+  columnSchemaName: "",
+  columnIdField: "_id",
+  columnLabelField: "",
+  targetArrayField: "",
+  targetItemMatchField: "",
+  columnLimit: 100,
+  toggles: [
+    { id: "show-relations", label: "Show relations", defaultValue: true, isUpperSide: true },
+    { id: "edit-relations", label: "Edit relations", defaultValue: false, isUpperSide: true },
+  ],
+  visibilityToggle: { toggleId: "show-relations", when: true },
+  editToggle: { toggleId: "edit-relations", when: true },
+};
 
 interface OptionField {
   name: string;
@@ -469,7 +532,9 @@ type TableSettingsTab =
   | "nestedRows"
   | "actions"
   | "bulkActions"
-  | "filterInputs";
+  | "filterInputs"
+  | "relations"
+  | "toggles";
 
 const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "display", label: "Display" },
@@ -482,6 +547,8 @@ const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "actions", label: "Actions" },
   { value: "bulkActions", label: "Bulk Actions" },
   { value: "filterInputs", label: "Filter Inputs" },
+  { value: "relations", label: "Generated Relation Columns" },
+  { value: "toggles", label: "Display Toggles" },
 ];
 
 const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
@@ -1051,6 +1118,9 @@ const cleanTableActions = (
         order: Number(action.order ?? index + 1),
         enabled: action.enabled !== false,
         modalType: action.modalType || "none",
+        ...(cleanDesignerActionFormLayout(action.formLayout)
+          ? { formLayout: cleanDesignerActionFormLayout(action.formLayout) }
+          : {}),
         ...(action.formFields !== undefined
           ? {
               formFields: action.formFields
@@ -1319,6 +1389,12 @@ const cleanConstantSort = (
 const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
+  dataMode: cleanDesignerTableDataMode(
+    cleanArrayTableDataMode(tableConfig.dataMode, tableConfig.arraySource),
+  ),
+  ...(cleanDesignerTableDataFields(tableConfig.dataFields)
+    ? { dataFields: cleanDesignerTableDataFields(tableConfig.dataFields) }
+    : {}),
   ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
   columns: (tableConfig.columns || [])
     .filter((column) => column.field.trim())
@@ -1358,6 +1434,9 @@ const cleanTableConfig = (
       ...(column.type === "computedLabel" && column.fallbackValue?.trim()
         ? { fallbackValue: column.fallbackValue.trim() }
         : {}),
+      ...(cleanDesignerTableColumnTemplate(column)
+        ? { template: cleanDesignerTableColumnTemplate(column) }
+        : {}),
       ...(column.type === "progressBar"
         ? {
             progressBar: {
@@ -1395,6 +1474,24 @@ const cleanTableConfig = (
       ...(() => {
         const link = normalizeDesignerTableColumnLink(column.link);
         return link ? { link } : {};
+      })(),
+      ...(() => {
+        const visibilityToggle = cleanDesignerToggleBinding(
+          column.visibilityToggle,
+        );
+        return visibilityToggle ? { visibilityToggle } : {};
+      })(),
+      ...(() => {
+        const booleanEditToggle = cleanDesignerToggleBinding(
+          column.booleanEditToggle,
+        );
+        return booleanEditToggle ? { booleanEditToggle } : {};
+      })(),
+      ...(() => {
+        const booleanDisplayToggle = cleanDesignerToggleBinding(
+          column.booleanDisplayToggle,
+        );
+        return booleanDisplayToggle ? { booleanDisplayToggle } : {};
       })(),
     })),
   ...(cleanRules(tableConfig.rows?.className).length > 0
@@ -1438,6 +1535,9 @@ const cleanTableConfig = (
         },
       }
     : {}),
+  ...(cleanArrayTableSource(tableConfig.arraySource)
+    ? { arraySource: cleanArrayTableSource(tableConfig.arraySource) }
+    : {}),
   ...(tableConfig.cache?.invalidateKeys?.filter((key) => key.trim()).length
     ? {
         cache: {
@@ -1452,6 +1552,9 @@ const cleanTableConfig = (
     : {}),
   ...(cleanConstantSort(tableConfig.constantSort)
     ? { constantSort: cleanConstantSort(tableConfig.constantSort) }
+    : {}),
+  ...(cleanDesignerTableDrag(tableConfig.drag)
+    ? { drag: cleanDesignerTableDrag(tableConfig.drag) }
     : {}),
   ...(cleanTableActions(
     tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
@@ -1512,6 +1615,18 @@ const cleanTableConfig = (
         filterPanel: {
           inputs: cleanFilterPanelInputs(tableConfig.filterPanel.inputs || []),
         },
+      }
+    : {}),
+  ...(cleanDesignerTableToggles(tableConfig.toggles).length
+    ? { toggles: cleanDesignerTableToggles(tableConfig.toggles) }
+    : {}),
+  ...(cleanDesignerGeneratedRelationColumns(
+    tableConfig.generatedRelationColumns,
+  ).length
+    ? {
+        generatedRelationColumns: cleanDesignerGeneratedRelationColumns(
+          tableConfig.generatedRelationColumns,
+        ),
       }
     : {}),
 });
@@ -1617,6 +1732,85 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
   },
 });
 
+const ActionFormLayoutEditor = ({
+  action,
+  onChange,
+  defaultAllowOverflow = false,
+}: {
+  action: TableActionConfig;
+  onChange: (formLayout: TableActionFormLayoutConfig) => void;
+  defaultAllowOverflow?: boolean;
+}) => {
+  const layout = action.formLayout || {};
+  const update = (changes: Partial<TableActionFormLayoutConfig>) =>
+    onChange({ ...layout, ...changes });
+
+  return (
+    <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50/50 p-3">
+      <div>
+        <div className="text-xs font-semibold text-neutral-700">Form layout</div>
+        <p className="text-[11px] text-neutral-500">
+          These settings apply only to this action.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">Columns</span>
+          <select
+            value={layout.columns || ""}
+            onChange={(event) =>
+              update({
+                columns: event.target.value
+                  ? (Number(event.target.value) as 1 | 2 | 3 | 4)
+                  : undefined,
+              })
+            }
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="">Default</option>
+            <option value="1">1 column</option>
+            <option value="2">2 columns</option>
+            <option value="3">3 columns</option>
+            <option value="4">4 columns</option>
+          </select>
+        </label>
+        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+          <input
+            type="checkbox"
+            checked={layout.allowOverflow ?? defaultAllowOverflow}
+            onChange={(event) => update({ allowOverflow: event.target.checked })}
+          />
+          Allow content to overflow the modal
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">
+            Form container classes (topClassName)
+          </span>
+          <input
+            type="text"
+            value={layout.topClassName || ""}
+            onChange={(event) => update({ topClassName: event.target.value })}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="flex flex-col gap-2"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-neutral-600">
+            Modal classes (generalClassName)
+          </span>
+          <input
+            type="text"
+            value={layout.generalClassName || ""}
+            onChange={(event) => update({ generalClassName: event.target.value })}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="overflow-visible"
+          />
+        </label>
+      </div>
+    </div>
+  );
+};
+
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
   onChange,
@@ -1649,6 +1843,12 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   useEffect(() => {
     if (isEnsuringRuntimeIds.current) {
       isEnsuringRuntimeIds.current = false;
+      return;
+    }
+    const ensuredCellSections = ensureDesignerGridCellIds(sections);
+    if (ensuredCellSections !== sections) {
+      isEnsuringRuntimeIds.current = true;
+      onChange(ensuredCellSections);
       return;
     }
     const ensured = ensurePageRuntimeIds(runtimePage);
@@ -2129,7 +2329,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     useState<ComponentBlock | null>(null);
 
   const openComponentModal = (cellId: string, component?: ComponentBlock) => {
-    setCurrentCellId(cellId);
+    const editableCellId = getDesignerEditableCellId(cellId);
+    if (editableCellId !== cellId) {
+      onUpdateCell(cellId, { id: editableCellId });
+    }
+    setCurrentCellId(editableCellId);
     setEditingComponent(component || null);
     setShowComponentModal(true);
   };
@@ -2262,7 +2466,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       </div>
 
       {/* Component Modal */}
-      {showComponentModal && currentCellId && (
+      {showComponentModal && currentCellId !== null && (
         <ComponentModal
           schemas={schemas}
           containerOptions={containerOptions}
@@ -2531,6 +2735,11 @@ const CellEditor: React.FC<CellEditorProps> = ({
                       <MdTableChart className="text-blue-600" size={14} />
                     </div>
                   )}
+                  {component.type === "relationMatrix" && (
+                    <div className="p-1 bg-violet-100 rounded-md">
+                      <MdTableChart className="text-violet-600" size={14} />
+                    </div>
+                  )}
                   {component.type === "tabPanel" && (
                     <div className="p-1 bg-purple-100 rounded-md">
                       <MdTab className="text-purple-600" size={14} />
@@ -2606,6 +2815,17 @@ const CellEditor: React.FC<CellEditorProps> = ({
                         </span>
                       </div>
                     ) : null}
+                  </div>
+                )}
+
+                {component.relationMatrix && (
+                  <div className="flex items-start gap-1.5">
+                    <span className="font-medium text-neutral-500 min-w-[45px]">
+                      Matrix:
+                    </span>
+                    <span className="font-mono text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">
+                      {component.relationMatrix.rowSchemaName} × {component.relationMatrix.columnSchemaName}
+                    </span>
                   </div>
                 )}
 
@@ -2688,16 +2908,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [tableEditorTarget, setTableEditorTarget] = useState<{
     tabIndex: number;
     componentId?: string;
+    componentType?: "table" | "relationMatrix";
   } | null>(null);
 
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
     columns: [],
     rows: { className: [] },
     nestedRows: { enabled: false, field: "", header: "", columns: [] },
+    arraySource: { enabled: false, field: "", rowIdentityField: "" },
     cache: { invalidateKeys: [] },
     addButton: undefined,
     actions: [],
   });
+  const [relationMatrixConfig, setRelationMatrixConfig] =
+    useState<RelationMatrixConfig>(DEFAULT_RELATION_MATRIX);
   const draftRuntimeComponent = useMemo<RuntimeComponentBlock>(
     () =>
       ({
@@ -2708,6 +2932,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         stateKey,
         outputs: runtimeOutputs,
         table: tableConfig,
+        relationMatrix: relationMatrixConfig,
       }) as unknown as RuntimeComponentBlock,
     [
       componentType,
@@ -2715,6 +2940,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       runtimeOutputs,
       stateKey,
       tableConfig,
+      relationMatrixConfig,
       title,
     ],
   );
@@ -2767,7 +2993,63 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     () => containers.find((container) => container.schemaName === schemaName),
     [containers, schemaName],
   );
+  const relationRowContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName === relationMatrixConfig.rowSchemaName,
+      ),
+    [containers, relationMatrixConfig.rowSchemaName],
+  );
+  const relationColumnContainer = useMemo(
+    () =>
+      containers.find(
+        (container) =>
+          container.schemaName === relationMatrixConfig.columnSchemaName,
+      ),
+    [containers, relationMatrixConfig.columnSchemaName],
+  );
+  const relationTargetArray = useMemo(
+    () =>
+      (relationColumnContainer?.fields || []).find(
+        (field) => field.name === relationMatrixConfig.targetArrayField,
+      ),
+    [relationColumnContainer, relationMatrixConfig.targetArrayField],
+  );
   const selectedFields = selectedContainer?.fields || [];
+  const arrayTableFields = useMemo(
+    () => eligibleArrayFields(selectedFields),
+    [selectedFields],
+  );
+  const selectedArrayTableField = useMemo(
+    () =>
+      arrayTableFields.find(
+        (field) => field.name === tableConfig.arraySource?.field,
+      ),
+    [arrayTableFields, tableConfig.arraySource?.field],
+  );
+  const arrayTableIdentityFields = useMemo(
+    () => eligibleIdentityFields(selectedArrayTableField),
+    [selectedArrayTableField],
+  );
+  useEffect(() => {
+    const arrayFields = new Set(
+      selectedFields
+        .filter((field) => field.type?.toLowerCase().includes("array"))
+        .map((field) => field.name),
+    );
+    setTableConfig((current) => {
+      let changed = false;
+      const generatedRelationColumns = (
+        current.generatedRelationColumns || []
+      ).map((group) => {
+        if (!group.arrayField || arrayFields.has(group.arrayField)) return group;
+        changed = true;
+        return { ...group, arrayField: "" };
+      });
+      return changed ? { ...current, generatedRelationColumns } : current;
+    });
+  }, [selectedFields]);
   const availableFormFields = useMemo(
     () => flattenFormFields(selectedFields),
     [selectedFields],
@@ -2901,6 +3183,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       );
       setStateKeyTouched(!!editingComponent.stateKey);
       setBindingIssues([]);
+      if (editingComponent.type === "relationMatrix") {
+        setRelationMatrixConfig({
+          ...DEFAULT_RELATION_MATRIX,
+          ...(editingComponent.relationMatrix || {}),
+        });
+      }
 
       if (editingComponent.dataBinding) {
         setTableSourceType(
@@ -3049,60 +3337,71 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             (container) =>
               container.schemaName === editingComponent.dataBinding?.schemaName,
           )?.fields || [];
-        setTableConfig({
-          columns: editingComponent.table.columns || [],
-          rows: { className: editingComponent.table.rows?.className || [] },
-          nestedRows: editingComponent.table.nestedRows || {
-            enabled: false,
-            field: "",
-            header: "",
-            columns: [],
-          },
-          cache: {
-            invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
-          },
-          constantFilters: editingComponent.table.constantFilters,
-          constantSort: editingComponent.table.constantSort,
-          addButton:
-            editingSourceType === "schema"
-              ? hydrateSchemaAddButton(
-                  editingComponent.table.addButton,
-                  editingComponent.table.actions,
-                  editingSchemaFields,
-                )
-              : editingComponent.table.addButton,
-          actions:
-            editingComponent.table.actions &&
-            editingComponent.table.actions.length
-              ? editingSourceType === "schema"
-                ? hydrateSchemaEditActionFields(
+        setTableConfig(
+          hydrateDesignerTableConfigForEditing(editingComponent.table, {
+            columns: editingComponent.table.columns || [],
+            rows: { className: editingComponent.table.rows?.className || [] },
+            nestedRows: editingComponent.table.nestedRows || {
+              enabled: false,
+              field: "",
+              header: "",
+              columns: [],
+            },
+            arraySource: editingComponent.table.arraySource || {
+              enabled: false,
+              field: "",
+              rowIdentityField: "",
+            },
+            cache: {
+              invalidateKeys: editingComponent.table.cache?.invalidateKeys || [],
+            },
+            constantFilters: editingComponent.table.constantFilters,
+            constantSort: editingComponent.table.constantSort,
+            drag: editingComponent.table.drag,
+            addButton:
+              editingSourceType === "schema"
+                ? hydrateSchemaAddButton(
+                    editingComponent.table.addButton,
                     editingComponent.table.actions,
                     editingSchemaFields,
                   )
-                : editingComponent.table.actions
-              : getDefaultActionsForSource(
-                  editingSourceType,
-                  editingSchemaFields,
-                ),
-          bulkActions:
-            editingComponent.table.bulkActions ||
-            (editingSourceType === "schema"
-              ? {
-                  edit: buildDefaultBulkEditAction(editingSchemaFields),
-                  delete: buildDefaultBulkDeleteAction(),
-                }
-              : undefined),
-          filterPanel:
-            editingComponent.table.filterPanel !== undefined
-              ? {
-                  inputs: editingComponent.table.filterPanel.inputs || [],
-                }
-              : {
-                  inputs: buildFilterPanelInputsFromFields(
+                : editingComponent.table.addButton,
+            actions:
+              editingComponent.table.actions &&
+              editingComponent.table.actions.length
+                ? editingSourceType === "schema"
+                  ? hydrateSchemaEditActionFields(
+                      editingComponent.table.actions,
+                      editingSchemaFields,
+                    )
+                  : editingComponent.table.actions
+                : getDefaultActionsForSource(
+                    editingSourceType,
                     editingSchemaFields,
                   ),
-                },
-        });
+            bulkActions:
+              editingComponent.table.bulkActions ||
+              (editingSourceType === "schema"
+                ? {
+                    edit: buildDefaultBulkEditAction(editingSchemaFields),
+                    delete: buildDefaultBulkDeleteAction(),
+                  }
+                : undefined),
+            filterPanel:
+              editingComponent.table.filterPanel !== undefined
+                ? {
+                    inputs: editingComponent.table.filterPanel.inputs || [],
+                  }
+                : {
+                    inputs: buildFilterPanelInputsFromFields(
+                      editingSchemaFields,
+                    ),
+                  },
+            toggles: editingComponent.table.toggles || [],
+            generatedRelationColumns:
+              editingComponent.table.generatedRelationColumns || [],
+          }),
+        );
       }
     } else {
       setGroupBy(EMPTY_GROUP_BY);
@@ -3112,6 +3411,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       setDistributionBlocksSource("static");
       setDistributionBlockItems(resizeDistributionBlockItems(3, []));
       setFormConfig(buildDefaultFormConfig("", []));
+      setRelationMatrixConfig(DEFAULT_RELATION_MATRIX);
       setIsDynamic(false);
       setDynamicLimit(50);
       setDynamicInfoBlockItem({
@@ -3488,14 +3788,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
+    const requestedStateKey = stateKey.trim() || title || componentType;
     const next: ComponentBlock = {
       ...component,
       id: isSafeRuntimeName(component.id)
         ? component.id
         : createRuntimeId("cmp"),
-      stateKey:
-        stateKey.trim() ||
-        uniqueComponentStateKey(page, title || componentType, componentType),
+      stateKey: resolveComponentStateKey(
+        page,
+        editingComponent?.id,
+        requestedStateKey,
+        componentType,
+      ),
     };
 
     if (
@@ -3587,6 +3891,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...(parsedParams && { params: parsedParams }),
       };
       component.table = cleanTableConfig(tableConfig);
+    } else if (componentType === "relationMatrix") {
+      component.relationMatrix = cleanRelationMatrixConfig(
+        relationMatrixConfig,
+      );
     } else if (componentType === "form") {
       const cleanedForm = cleanFormConfig({
         ...formConfig,
@@ -3782,6 +4090,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     setTableConfig({
       columns: buildTableColumnsFromFields(container?.fields || []),
       rows: { className: [] },
+      arraySource: { enabled: false, field: "", rowIdentityField: "" },
       nestedRows: { enabled: false, field: "", header: "", columns: [] },
       cache: { invalidateKeys: [] },
       addButton: buildDefaultCreateAction(container?.fields || []),
@@ -4035,6 +4344,173 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
+  const addTableToggle = () => {
+    setTableConfig((current) => {
+      const usedIds = new Set((current.toggles || []).map((toggle) => toggle.id));
+      let index = (current.toggles || []).length + 1;
+      let id = `toggle${index}`;
+      while (usedIds.has(id)) {
+        index += 1;
+        id = `toggle${index}`;
+      }
+      return {
+        ...current,
+        toggles: [
+          ...(current.toggles || []),
+          createDesignerTableToggle(id),
+        ],
+      };
+    });
+  };
+
+  const updateTableToggle = (
+    index: number,
+    updates: Partial<TableToggleConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: (current.toggles || []).map((toggle, toggleIndex) =>
+        toggleIndex === index ? { ...toggle, ...updates } : toggle,
+      ),
+    }));
+  };
+
+  const updateTableToggleRequestEffect = (
+    index: number,
+    state: "on" | "off",
+    effect: ToggleRequestEffect | undefined,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: (current.toggles || []).map((toggle, toggleIndex) => {
+        if (toggleIndex !== index) return toggle;
+        const request = { ...(toggle.request || {}), [state]: effect };
+        return { ...toggle, request };
+      }),
+    }));
+  };
+
+  const updateTableToggleVisibilityTarget = (
+    toggleId: string,
+    target: DesignerVisibilityTarget,
+    checked: boolean,
+  ) => {
+    setTableConfig((current) => {
+      const selected = getDesignerToggleVisibilityTargets(current, toggleId);
+      const nextTargets = checked
+        ? [...new Set([...selected, target])]
+        : selected.filter((candidate) => candidate !== target);
+      return setDesignerToggleVisibilityTargets(
+        current,
+        toggleId,
+        nextTargets,
+      );
+    });
+  };
+
+  const moveTableToggle = (index: number, direction: -1 | 1) => {
+    setTableConfig((current) => ({
+      ...current,
+      toggles: moveArrayItem(current.toggles || [], index, direction),
+    }));
+  };
+
+  const removeTableToggle = (index: number) => {
+    setTableConfig((current) => {
+      const removedId = current.toggles?.[index]?.id;
+      return {
+        ...current,
+        toggles: (current.toggles || []).filter(
+          (_, toggleIndex) => toggleIndex !== index,
+        ),
+        columns: (current.columns || []).map((column) => ({
+          ...column,
+          ...(column.visibilityToggle?.toggleId === removedId
+            ? { visibilityToggle: undefined }
+            : {}),
+          ...(column.booleanEditToggle?.toggleId === removedId
+            ? { booleanEditToggle: undefined }
+            : {}),
+          ...(column.booleanDisplayToggle?.toggleId === removedId
+            ? { booleanDisplayToggle: undefined }
+            : {}),
+        })),
+        generatedRelationColumns: (current.generatedRelationColumns || []).map(
+          (group) => ({
+            ...group,
+            ...(group.visibilityToggle?.toggleId === removedId
+              ? { visibilityToggle: undefined }
+              : {}),
+            ...(group.booleanEditToggle?.toggleId === removedId
+              ? { booleanEditToggle: undefined }
+              : {}),
+          }),
+        ),
+      };
+    });
+  };
+
+  const addGeneratedRelationColumns = () => {
+    setTableConfig((current) => {
+      const groups = current.generatedRelationColumns || [];
+      let suffix = groups.length + 1;
+      while (groups.some((group) => group.id === `relation${suffix}`)) suffix += 1;
+      return {
+        ...current,
+        generatedRelationColumns: [
+          ...groups,
+          {
+            id: `relation${suffix}`,
+            arrayField: "",
+            sourceSchemaName: "",
+            sourceIdField: "_id",
+            sourceLabelField: "",
+            sourceLimit: 100,
+          },
+        ],
+      };
+    });
+  };
+
+  const updateGeneratedRelationColumns = (
+    index: number,
+    updates: Partial<GeneratedRelationColumnsConfig>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: (current.generatedRelationColumns || []).map(
+        (group, groupIndex) =>
+          groupIndex === index ? { ...group, ...updates } : group,
+      ),
+    }));
+  };
+
+  const moveGeneratedRelationColumns = (index: number, direction: -1 | 1) =>
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: moveArrayItem(
+        current.generatedRelationColumns || [],
+        index,
+        direction,
+      ),
+    }));
+
+  const removeGeneratedRelationColumns = (index: number) =>
+    setTableConfig((current) => ({
+      ...current,
+      generatedRelationColumns: (current.generatedRelationColumns || []).filter(
+        (_, groupIndex) => groupIndex !== index,
+      ),
+    }));
+
+  const parseToggleRequestValue = (value: string): JsonValue => {
+    try {
+      return JSON.parse(value) as JsonValue;
+    } catch {
+      return value;
+    }
+  };
+
   const updateTableNestedRows = (
     updates: Partial<NonNullable<TableComponentConfig["nestedRows"]>>,
   ) => {
@@ -4049,6 +4525,52 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...updates,
       },
     }));
+  };
+
+  const updateTableArraySource = (
+    updates: Partial<NonNullable<TableComponentConfig["arraySource"]>>,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      dataMode: updates.enabled === true ? "arrayField" : current.dataMode,
+      arraySource: {
+        enabled: false,
+        field: "",
+        rowIdentityField: "",
+        ...(current.arraySource || {}),
+        ...updates,
+      },
+    }));
+  };
+
+  const generateTableArraySource = () => {
+    if (!selectedArrayTableField || !tableConfig.arraySource?.rowIdentityField)
+      return;
+    const rowIdentityField = tableConfig.arraySource.rowIdentityField;
+    setTableConfig((current) => {
+      const parentId = current.arraySource?.parentId || {
+        source: "static" as const,
+        value: "{{route.id}}",
+      };
+      const enabled = current.arraySource?.autoGenerate || {
+        columns: true,
+        add: true,
+        edit: true,
+        delete: true,
+        reorder: false,
+      };
+      const generated = generateArrayTableDefaults({
+        parentId,
+        arrayField: selectedArrayTableField,
+        rowIdentityField,
+        enabled,
+        orderField: current.drag?.orderField,
+      });
+      return reconcileArrayTableDefaults(
+        { ...current, ...generated },
+        selectedArrayTableField,
+      ).table;
+    });
   };
 
   const addTableNestedRowColumn = () => {
@@ -4487,6 +5009,28 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     }));
   };
 
+  const moveActionFormField = (
+    actionIndex: number,
+    fieldIndex: number,
+    direction: -1 | 1,
+  ) => {
+    setTableConfig((current) => ({
+      ...current,
+      actions: (current.actions || []).map((action, index) =>
+        index === actionIndex
+          ? {
+              ...action,
+              formFields: moveArrayItem(
+                action.formFields || [],
+                fieldIndex,
+                direction,
+              ),
+            }
+          : action,
+      ),
+    }));
+  };
+
   const addAddButtonFormField = () => {
     setTableConfig((current) => {
       const addButton =
@@ -4547,6 +5091,24 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           ...addButton,
           formFields: (addButton.formFields || []).filter(
             (_, currentIndex) => currentIndex !== fieldIndex,
+          ),
+        },
+      };
+    });
+  };
+
+  const moveAddButtonFormField = (fieldIndex: number, direction: -1 | 1) => {
+    setTableConfig((current) => {
+      const addButton =
+        current.addButton || buildDefaultCreateAction(selectedFields);
+      return {
+        ...current,
+        addButton: {
+          ...addButton,
+          formFields: moveArrayItem(
+            addButton.formFields || [],
+            fieldIndex,
+            direction,
           ),
         },
       };
@@ -4621,6 +5183,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             ...edit,
             formFields: (edit.formFields || []).filter(
               (_, currentIndex) => currentIndex !== fieldIndex,
+            ),
+          },
+        },
+      };
+    });
+  };
+
+  const moveBulkEditFormField = (fieldIndex: number, direction: -1 | 1) => {
+    setTableConfig((current) => {
+      const edit =
+        current.bulkActions?.edit || buildDefaultBulkEditAction(selectedFields);
+      return {
+        ...current,
+        bulkActions: {
+          ...current.bulkActions,
+          edit: {
+            ...edit,
+            formFields: moveArrayItem(
+              edit.formFields || [],
+              fieldIndex,
+              direction,
             ),
           },
         },
@@ -4801,11 +5384,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const removeTableFromTab = (tabIndex: number, componentId: string) => {
-    const updatedTabs = [...tabs];
-    updatedTabs[tabIndex].components = updatedTabs[tabIndex].components.filter(
-      (comp) => comp.id !== componentId,
+    setTabs((currentTabs) =>
+      currentTabs.map((tab, index) =>
+        index === tabIndex ? removeTabChild(tab, componentId) : tab,
+      ),
     );
-    setTabs(updatedTabs);
   };
 
   const tableBeingEdited =
@@ -4822,27 +5405,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       currentTabs.map((tab, tabIndex) => {
         if (tabIndex !== tableEditorTarget.tabIndex) return tab;
 
-        if (tableEditorTarget.componentId) {
-          return {
-            ...tab,
-            components: tab.components.map((currentComponent) =>
-              currentComponent.id === tableEditorTarget.componentId
-                ? component
-                : currentComponent,
-            ),
-          };
-        }
-
-        return {
-          ...tab,
-          components: [
-            ...tab.components,
-            {
-              ...component,
-              order: tab.components.length + 1,
-            },
-          ],
-        };
+        return saveSingleTabChild(
+          tab,
+          component,
+          tableEditorTarget.componentId,
+        );
       }),
     );
     if (component.table) {
@@ -4942,6 +5509,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 >
                   <option value="table">Table</option>
+                  <option value="relationMatrix">Relation Matrix</option>
                   <option value="form">Form</option>
                   <option value="tabPanel">Tab Panel</option>
                   <option value="infoBlocks">Information Blocks</option>
@@ -4958,7 +5526,8 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
               {componentType !== "tabPanel" &&
                 componentType !== "infoBlocks" &&
-                componentType !== "distributionBlocks" && (
+                componentType !== "distributionBlocks" &&
+                componentType !== "relationMatrix" && (
                   <>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-2 uppercase tracking-wide">
@@ -5390,6 +5959,80 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </>
                 )}
             </div>
+
+            {componentType === "relationMatrix" && (
+              <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div>
+                  <h4 className="text-base font-semibold text-neutral-900">
+                    Relation Matrix
+                  </h4>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Render one schema as rows and another as editable relation columns.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Title</span>
+                    <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Optional component title" />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Row schema</span>
+                    <select value={relationMatrixConfig.rowSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowSchemaName: event.target.value, rowIdField: "_id", rowLabelField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select row schema</option>
+                      {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Row label field</span>
+                    <select value={relationMatrixConfig.rowLabelField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowLabelField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select row label</option>
+                      {(relationRowContainer?.fields || []).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column schema</span>
+                    <select value={relationMatrixConfig.columnSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnSchemaName: event.target.value, columnIdField: "_id", columnLabelField: "", targetArrayField: "", targetItemMatchField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select column schema</option>
+                      {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column label field</span>
+                    <select value={relationMatrixConfig.columnLabelField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnLabelField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select column label</option>
+                      {(relationColumnContainer?.fields || []).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Target array field</span>
+                    <select value={relationMatrixConfig.targetArrayField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, targetArrayField: event.target.value, targetItemMatchField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select embedded array</option>
+                      {(relationColumnContainer?.fields || []).filter((field) => field.type?.toLowerCase() === "array" && field.children?.length).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Membership field</span>
+                    <select value={relationMatrixConfig.targetItemMatchField} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, targetItemMatchField: event.target.value }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                      <option value="">Select membership field</option>
+                      {(relationTargetArray?.children || []).filter((field) => field.type?.toLowerCase() !== "array").map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Column limit</span>
+                    <input type="number" min={1} max={100} value={relationMatrixConfig.columnLimit || 100} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, columnLimit: Math.min(100, Math.max(1, Number(event.target.value) || 100)) }))} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+                  </label>
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold uppercase text-neutral-600">Controls</span>
+                    {(relationMatrixConfig.toggles || []).map((toggle) => (
+                      <label key={toggle.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" checked={toggle.defaultValue} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, toggles: (current.toggles || []).map((item) => item.id === toggle.id ? { ...item, defaultValue: event.target.checked } : item) }))} />
+                        {toggle.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {componentType === "form" && (
               <FormComponentEditor
@@ -6506,6 +7149,76 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                             {activeTableSettingsTab === "request" && (
                               <div className="space-y-5 max-h-[68vh] overflow-y-auto pr-1">
+                                {tableSourceType === "schema" && (
+                                  <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                        Data loading
+                                      </label>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        Loads the all-items response in one request.
+                                        Use with care for large schemas.
+                                      </p>
+                                    </div>
+                                    <select
+                                      value={cleanDesignerTableDataMode(
+                                        tableConfig.dataMode,
+                                      )}
+                                      onChange={(event) =>
+                                        setTableConfig((current) => ({
+                                          ...current,
+                                          dataMode: cleanDesignerTableDataMode(
+                                            event.target.value,
+                                          ),
+                                        }))
+                                      }
+                                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    >
+                                      <option value="paginated">Paginated</option>
+                                      <option value="all">All items</option>
+                                      <option value="arrayField">Array field rows</option>
+                                    </select>
+                                  </div>
+                                )}
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Additional data fields
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Fetch these values with every row without
+                                      displaying them as table columns. Fields
+                                      referenced by supported action and row
+                                      conditions are included automatically.
+                                    </p>
+                                  </div>
+                                  <select
+                                    multiple
+                                    value={tableConfig.dataFields || []}
+                                    onChange={(event) => {
+                                      const dataFields = Array.from(
+                                        event.currentTarget.selectedOptions,
+                                        (option) => option.value,
+                                      );
+                                      setTableConfig((current) => ({
+                                        ...current,
+                                        dataFields: dataFields.length
+                                          ? dataFields
+                                          : undefined,
+                                      }));
+                                    }}
+                                    className="min-h-32 w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  >
+                                    {selectedFields.map((field) => (
+                                      <option key={field.name} value={field.name}>
+                                        {field.frontend?.displayName || field.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="text-xs text-neutral-500">
+                                    Hold Ctrl or Command to select multiple fields.
+                                  </p>
+                                </div>
                                 <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                                   <div className="flex items-center justify-between gap-3">
                                     <div>
@@ -6685,6 +7398,73 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     </button>
                                   </div>
                                 </div>
+
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                      Row Drag Reordering
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Drag visible rows and persist their position in an integer field.
+                                    </p>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <label className="flex items-center gap-2 text-sm text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={tableConfig.drag?.enabled === true}
+                                        onChange={(event) =>
+                                          setTableConfig((current) => ({
+                                            ...current,
+                                            drag: event.target.checked
+                                              ? {
+                                                  enabled: true,
+                                                  orderField:
+                                                    current.drag?.orderField ||
+                                                    "",
+                                                }
+                                              : undefined,
+                                          }))
+                                        }
+                                      />
+                                      Enable row dragging
+                                    </label>
+                                    <label className="space-y-1">
+                                      <span className="text-xs font-medium text-neutral-600">
+                                        Order field
+                                      </span>
+                                      <select
+                                        value={tableConfig.drag?.orderField || ""}
+                                        disabled={!tableConfig.drag?.enabled}
+                                        onChange={(event) =>
+                                          setTableConfig((current) => ({
+                                            ...current,
+                                            drag: {
+                                              enabled: true,
+                                              orderField: event.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                      >
+                                        <option value="">
+                                          Select integer field
+                                        </option>
+                                        {selectedFields
+                                          .filter(isIntegerTableOrderField)
+                                          .map((field) => (
+                                            <option
+                                              key={field.name}
+                                              value={field.name}
+                                            >
+                                              {field.frontend?.displayName ||
+                                                field.name}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </label>
+                                  </div>
+                                </div>
                               </div>
                             )}
 
@@ -6802,6 +7582,254 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                             <FiTrash2 size={16} />
                                           </button>
                                         </div>
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3 md:grid-cols-2">
+                                        <div className="grid grid-cols-[1fr_130px] gap-2">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Visibility toggle
+                                            </span>
+                                            <select
+                                              value={
+                                                column.visibilityToggle
+                                                  ?.toggleId || ""
+                                              }
+                                              onChange={(e) =>
+                                                updateTableColumn(
+                                                  column.field,
+                                                  {
+                                                    visibilityToggle: e.target
+                                                      .value
+                                                      ? {
+                                                          toggleId:
+                                                            e.target.value,
+                                                          when:
+                                                            column
+                                                              .visibilityToggle
+                                                              ?.when ?? true,
+                                                        }
+                                                      : undefined,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                            >
+                                              <option value="">Always visible</option>
+                                              {(tableConfig.toggles || []).map(
+                                                (toggle) => (
+                                                  <option
+                                                    key={toggle.id}
+                                                    value={toggle.id}
+                                                  >
+                                                    {toggle.label || toggle.id}
+                                                  </option>
+                                                ),
+                                              )}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Visible when
+                                            </span>
+                                            <select
+                                              value={String(
+                                                column.visibilityToggle
+                                                  ?.when ?? true,
+                                              )}
+                                              disabled={
+                                                !column.visibilityToggle
+                                                  ?.toggleId
+                                              }
+                                              onChange={(e) =>
+                                                updateTableColumn(
+                                                  column.field,
+                                                  {
+                                                    visibilityToggle: column
+                                                      .visibilityToggle
+                                                      ? {
+                                                          ...column.visibilityToggle,
+                                                          when:
+                                                            e.target.value ===
+                                                            "true",
+                                                        }
+                                                      : undefined,
+                                                  },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                            >
+                                              <option value="true">On</option>
+                                              <option value="false">Off</option>
+                                            </select>
+                                          </label>
+                                        </div>
+                                        {(column.type || "field") ===
+                                          "booleanSwitch" && (
+                                          <div className="space-y-2">
+                                            <div className="grid grid-cols-[1fr_130px] gap-2">
+                                              <label className="space-y-1">
+                                                <span className="text-[11px] font-medium text-neutral-600">
+                                                  Boolean display toggle
+                                                </span>
+                                                <select
+                                                  value={
+                                                    column.booleanDisplayToggle
+                                                      ?.toggleId || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateTableColumn(
+                                                      column.field,
+                                                      {
+                                                        booleanDisplayToggle: e
+                                                          .target.value
+                                                          ? {
+                                                              toggleId:
+                                                                e.target.value,
+                                                              when:
+                                                                column
+                                                                  .booleanDisplayToggle
+                                                                  ?.when ?? true,
+                                                            }
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                                >
+                                                  <option value="">
+                                                    Always show switch
+                                                  </option>
+                                                  {(tableConfig.toggles || []).map(
+                                                    (toggle) => (
+                                                      <option
+                                                        key={toggle.id}
+                                                        value={toggle.id}
+                                                      >
+                                                        {toggle.label || toggle.id}
+                                                      </option>
+                                                    ),
+                                                  )}
+                                                </select>
+                                              </label>
+                                              <label className="space-y-1">
+                                                <span className="text-[11px] font-medium text-neutral-600">
+                                                  Show switch when
+                                                </span>
+                                                <select
+                                                  value={String(
+                                                    column.booleanDisplayToggle
+                                                      ?.when ?? true,
+                                                  )}
+                                                  disabled={
+                                                    !column.booleanDisplayToggle
+                                                      ?.toggleId
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateTableColumn(
+                                                      column.field,
+                                                      {
+                                                        booleanDisplayToggle: column
+                                                          .booleanDisplayToggle
+                                                          ? {
+                                                              ...column.booleanDisplayToggle,
+                                                              when:
+                                                                e.target.value ===
+                                                                "true",
+                                                            }
+                                                          : undefined,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                                >
+                                                  <option value="true">On</option>
+                                                  <option value="false">Off</option>
+                                                </select>
+                                              </label>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_130px] gap-2">
+                                            <label className="space-y-1">
+                                              <span className="text-[11px] font-medium text-neutral-600">
+                                                Editable toggle
+                                              </span>
+                                              <select
+                                                value={
+                                                  column.booleanEditToggle
+                                                    ?.toggleId || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      booleanEditToggle: e
+                                                        .target.value
+                                                        ? {
+                                                            toggleId:
+                                                              e.target.value,
+                                                            when:
+                                                              column
+                                                                .booleanEditToggle
+                                                                ?.when ?? true,
+                                                          }
+                                                        : undefined,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                              >
+                                                <option value="">
+                                                  Always editable
+                                                </option>
+                                                {(tableConfig.toggles || []).map(
+                                                  (toggle) => (
+                                                    <option
+                                                      key={toggle.id}
+                                                      value={toggle.id}
+                                                    >
+                                                      {toggle.label || toggle.id}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                              <span className="text-[11px] font-medium text-neutral-600">
+                                                Editable when
+                                              </span>
+                                              <select
+                                                value={String(
+                                                  column.booleanEditToggle
+                                                    ?.when ?? true,
+                                                )}
+                                                disabled={
+                                                  !column.booleanEditToggle
+                                                    ?.toggleId
+                                                }
+                                                onChange={(e) =>
+                                                  updateTableColumn(
+                                                    column.field,
+                                                    {
+                                                      booleanEditToggle: column
+                                                        .booleanEditToggle
+                                                        ? {
+                                                            ...column.booleanEditToggle,
+                                                            when:
+                                                              e.target.value ===
+                                                              "true",
+                                                          }
+                                                        : undefined,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100"
+                                              >
+                                                <option value="true">On</option>
+                                                <option value="false">Off</option>
+                                              </select>
+                                            </label>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                       {(column.type || "field") ===
                                         "lookupLabel" && (
@@ -6960,6 +7988,29 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               />
                                             </div>
                                           </div>
+                                        </div>
+                                      )}
+                                      {(column.type || "field") ===
+                                        "template" && (
+                                        <div className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                                          <label className="block text-[11px] font-medium text-neutral-600">
+                                            Template
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={column.template || ""}
+                                            onChange={(event) =>
+                                              updateTableColumn(column.field, {
+                                                template: event.target.value,
+                                              })
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="{{name}} {{surname}}"
+                                          />
+                                          <p className="text-xs text-neutral-500">
+                                            Use {"{{fieldName}}"} placeholders to
+                                            combine values from the same row.
+                                          </p>
                                         </div>
                                       )}
                                       {(column.type || "field") ===
@@ -7449,19 +8500,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                               placeholder="status = 'active'"
                                             />
-                                            <input
-                                              type="text"
-                                              value={rule.className}
-                                              onChange={(e) =>
-                                                updateTableColumnRule(
-                                                  column.field,
-                                                  ruleIndex,
-                                                  { className: e.target.value },
-                                                )
-                                              }
-                                              className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                              placeholder="text-green-600"
-                                            />
+                                            <div>
+                                              <input
+                                                type="text"
+                                                value={rule.className}
+                                                onChange={(e) =>
+                                                  updateTableColumnRule(
+                                                    column.field,
+                                                    ruleIndex,
+                                                    {
+                                                      className: e.target.value,
+                                                    },
+                                                  )
+                                                }
+                                                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                placeholder="text-green-600"
+                                              />
+                                              <p className="mt-1 text-[11px] text-neutral-500">
+                                                Row class: {"{{colorClass}}"} · Raw
+                                                color: bg-[{"{{backgroundColor}}"}]
+                                              </p>
+                                            </div>
                                             <button
                                               type="button"
                                               onClick={() =>
@@ -7540,6 +8599,121 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                             {activeTableSettingsTab === "nestedRows" && (
                               <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                                        Array Source Rows
+                                      </label>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        Render each item in a parent array as a
+                                        table row.
+                                      </p>
+                                    </div>
+                                    <label className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          tableConfig.arraySource?.enabled ===
+                                          true
+                                        }
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            enabled: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Enabled
+                                    </label>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Parent Array Field
+                                      </label>
+                                      <input
+                                        type="text"
+                                        list="table-array-source-fields"
+                                        value={tableConfig.arraySource?.field || ""}
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            field: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="products"
+                                      />
+                                      <datalist id="table-array-source-fields">
+                                        {arrayTableFields.map((field) => (
+                                          <option
+                                            key={field.name}
+                                            value={field.name}
+                                          />
+                                        ))}
+                                      </datalist>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Row Identity Field
+                                      </label>
+                                      <select
+                                        value={
+                                          tableConfig.arraySource
+                                            ?.rowIdentityField || ""
+                                        }
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            rowIdentityField: e.target.value,
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                      >
+                                        <option value="">Select identity</option>
+                                        {arrayTableIdentityFields.map((field) => (
+                                          <option key={field.name} value={field.name}>
+                                            {field.frontend?.displayName || field.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                                    <div>
+                                      <label className="block text-[11px] font-medium text-neutral-600 mb-1">
+                                        Parent ID
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={String(
+                                          tableConfig.arraySource?.parentId?.source === "static"
+                                            ? tableConfig.arraySource.parentId.value ?? ""
+                                            : "",
+                                        )}
+                                        onChange={(e) =>
+                                          updateTableArraySource({
+                                            parentId: { source: "static", value: e.target.value },
+                                          })
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="{{route.id}}"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        !selectedArrayTableField ||
+                                        !tableConfig.arraySource?.rowIdentityField ||
+                                        !tableConfig.arraySource?.parentId
+                                      }
+                                      onClick={generateTableArraySource}
+                                      className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+                                    >
+                                      Generate CRUD
+                                    </button>
+                                  </div>
+                                </div>
+
                                 <div className="flex items-start justify-between gap-3">
                                   <div>
                                     <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide">
@@ -7887,6 +9061,416 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       </div>
                                     ),
                                   )
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "relations" && (
+                              <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
+                                <button
+                                  type="button"
+                                  onClick={addGeneratedRelationColumns}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                >
+                                  <FiPlus size={14} />
+                                  Add generated relation group
+                                </button>
+                                {(tableConfig.generatedRelationColumns || []).map(
+                                  (group, groupIndex) => {
+                                    const sourceFields = getLookupFieldOptions(
+                                      group.sourceSchemaName,
+                                    );
+                                    const sharesArrayWithAnotherSchema = (
+                                      tableConfig.generatedRelationColumns || []
+                                    ).some(
+                                      (candidate, candidateIndex) =>
+                                        candidateIndex !== groupIndex &&
+                                        candidate.arrayField &&
+                                        candidate.arrayField === group.arrayField &&
+                                        candidate.sourceSchemaName !==
+                                          group.sourceSchemaName,
+                                    );
+                                    return (
+                                      <div
+                                        key={group.id || groupIndex}
+                                        className="space-y-3 rounded-xl border border-neutral-200 p-4"
+                                      >
+                                        <div className="grid grid-cols-[1fr_auto] gap-3">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">
+                                              Stable group ID
+                                            </span>
+                                            <input
+                                              value={group.id}
+                                              onChange={(e) =>
+                                                updateGeneratedRelationColumns(
+                                                  groupIndex,
+                                                  { id: e.target.value },
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                            />
+                                          </label>
+                                          <div className="flex items-end gap-1">
+                                            <button type="button" disabled={groupIndex === 0} onClick={() => moveGeneratedRelationColumns(groupIndex, -1)} className="rounded-lg bg-neutral-100 p-2 disabled:opacity-40" title="Move up"><FiChevronUp size={15} /></button>
+                                            <button type="button" disabled={groupIndex === (tableConfig.generatedRelationColumns || []).length - 1} onClick={() => moveGeneratedRelationColumns(groupIndex, 1)} className="rounded-lg bg-neutral-100 p-2 disabled:opacity-40" title="Move down"><FiChevronDown size={15} /></button>
+                                            <button type="button" onClick={() => removeGeneratedRelationColumns(groupIndex)} className="rounded-lg bg-red-50 p-2 text-red-700" title="Remove"><FiTrash2 size={15} /></button>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Row array field</span>
+                                            <select value={group.arrayField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { arrayField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select array field</option>
+                                              {selectedFields.filter((field) => field.type?.toLowerCase().includes("array")).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source schema</span>
+                                            <select value={group.sourceSchemaName} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceSchemaName: e.target.value, sourceIdField: "_id", sourceLabelField: "" })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select schema</option>
+                                              {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source ID field</span>
+                                            <select value={group.sourceIdField || "_id"} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceIdField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="_id">_id</option>
+                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source label field</span>
+                                            <select value={group.sourceLabelField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLabelField: e.target.value })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Select label field</option>
+                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Source record limit</span>
+                                            <input type="number" min={1} max={100} value={group.sourceLimit || 100} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLimit: Math.min(100, Math.max(1, Number(e.target.value) || 100)) })} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Boolean edit toggle</span>
+                                            <select value={group.booleanEditToggle?.toggleId || ""} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: e.target.value ? { toggleId: e.target.value, when: group.booleanEditToggle?.when ?? true } : undefined })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                                              <option value="">Always editable</option>
+                                              {(tableConfig.toggles || []).map((toggle) => <option key={toggle.id} value={toggle.id}>{toggle.label || toggle.id}</option>)}
+                                            </select>
+                                          </label>
+                                          <label className="space-y-1">
+                                            <span className="text-[11px] font-medium text-neutral-600">Editable when</span>
+                                            <select disabled={!group.booleanEditToggle?.toggleId} value={String(group.booleanEditToggle?.when ?? true)} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: group.booleanEditToggle ? { ...group.booleanEditToggle, when: e.target.value === "true" } : undefined })} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm disabled:bg-neutral-100">
+                                              <option value="true">On</option><option value="false">Off</option>
+                                            </select>
+                                          </label>
+                                        </div>
+                                        {sharesArrayWithAnotherSchema && <p className="text-xs text-amber-700">Groups sharing this row array field must use compatible, non-overlapping ID namespaces.</p>}
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            )}
+
+                            {activeTableSettingsTab === "toggles" && (
+                              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                                      Table Display Toggles
+                                    </label>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                      Control columns, Boolean editing, and optional request filters.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={addTableToggle}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                                  >
+                                    <FiPlus size={14} /> Add toggle
+                                  </button>
+                                </div>
+                                {(tableConfig.toggles || []).map(
+                                  (toggle, toggleIndex) => (
+                                    <div
+                                      key={`${toggle.id}-${toggleIndex}`}
+                                      className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4"
+                                    >
+                                      <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-3">
+                                        <label className="space-y-1">
+                                          <span className="text-[11px] font-medium text-neutral-600">
+                                            Stable ID
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={toggle.id}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                id: e.target.value,
+                                              })
+                                            }
+                                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                          />
+                                        </label>
+                                        <label className="space-y-1">
+                                          <span className="text-[11px] font-medium text-neutral-600">
+                                            Label
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={toggle.label}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                label: e.target.value,
+                                              })
+                                            }
+                                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                          />
+                                        </label>
+                                        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={toggle.defaultValue}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                defaultValue: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Default on
+                                        </label>
+                                        <label className="flex items-end gap-2 pb-2 text-xs text-neutral-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={toggle.isUpperSide !== false}
+                                            onChange={(e) =>
+                                              updateTableToggle(toggleIndex, {
+                                                isUpperSide: e.target.checked,
+                                              })
+                                            }
+                                          />
+                                          Upper side
+                                        </label>
+                                        <div className="flex items-end gap-1">
+                                          <button
+                                            type="button"
+                                            disabled={toggleIndex === 0}
+                                            onClick={() =>
+                                              moveTableToggle(toggleIndex, -1)
+                                            }
+                                            className="rounded-lg bg-neutral-100 p-2 text-neutral-600 disabled:opacity-40"
+                                            title="Move toggle up"
+                                          >
+                                            <FiChevronUp size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={
+                                              toggleIndex ===
+                                              (tableConfig.toggles || []).length -
+                                                1
+                                            }
+                                            onClick={() =>
+                                              moveTableToggle(toggleIndex, 1)
+                                            }
+                                            className="rounded-lg bg-neutral-100 p-2 text-neutral-600 disabled:opacity-40"
+                                            title="Move toggle down"
+                                          >
+                                            <FiChevronDown size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTableToggle(toggleIndex)
+                                            }
+                                            className="rounded-lg bg-red-50 p-2 text-red-700"
+                                            title="Remove toggle"
+                                          >
+                                            <FiTrash2 size={15} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                                        <div>
+                                          <div className="text-xs font-semibold uppercase text-neutral-700">
+                                            Visible columns and groups
+                                          </div>
+                                          <p className="mt-1 text-xs text-neutral-500">
+                                            Selected targets are visible while this toggle is on and hidden while it is off.
+                                          </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                          {(tableConfig.columns || []).map(
+                                            (column) => {
+                                              const target =
+                                                `column:${column.field}` as DesignerVisibilityTarget;
+                                              return (
+                                                <label
+                                                  key={target}
+                                                  className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-neutral-700"
+                                                >
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={getDesignerToggleVisibilityTargets(
+                                                      tableConfig,
+                                                      toggle.id,
+                                                    ).includes(target)}
+                                                    onChange={(event) =>
+                                                      updateTableToggleVisibilityTarget(
+                                                        toggle.id,
+                                                        target,
+                                                        event.target.checked,
+                                                      )
+                                                    }
+                                                  />
+                                                  {column.displayName ||
+                                                    column.field}
+                                                  <span className="text-neutral-400">
+                                                    Column
+                                                  </span>
+                                                </label>
+                                              );
+                                            },
+                                          )}
+                                          {(
+                                            tableConfig.generatedRelationColumns ||
+                                            []
+                                          ).map((group) => {
+                                            const target =
+                                              `group:${group.id}` as DesignerVisibilityTarget;
+                                            return (
+                                              <label
+                                                key={target}
+                                                className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs text-neutral-700"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={getDesignerToggleVisibilityTargets(
+                                                    tableConfig,
+                                                    toggle.id,
+                                                  ).includes(target)}
+                                                  onChange={(event) =>
+                                                    updateTableToggleVisibilityTarget(
+                                                      toggle.id,
+                                                      target,
+                                                      event.target.checked,
+                                                    )
+                                                  }
+                                                />
+                                                {group.id ||
+                                                  group.sourceSchemaName ||
+                                                  group.arrayField}
+                                                <span className="text-neutral-400">
+                                                  Group
+                                                </span>
+                                              </label>
+                                            );
+                                          })}
+                                          {!(tableConfig.columns || []).length &&
+                                            !(
+                                              tableConfig.generatedRelationColumns ||
+                                              []
+                                            ).length && (
+                                              <span className="text-xs text-neutral-500">
+                                                Add table columns or generated relation groups first.
+                                              </span>
+                                            )}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        {(["off", "on"] as const).map(
+                                          (state) => {
+                                            const effect =
+                                              toggle.request?.[state];
+                                            return (
+                                              <div
+                                                key={state}
+                                                className="space-y-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3"
+                                              >
+                                                <div className="text-xs font-semibold uppercase text-neutral-600">
+                                                  When {state}
+                                                </div>
+                                                <select
+                                                  value={effect?.type || "none"}
+                                                  onChange={(e) => {
+                                                    const type = e.target.value;
+                                                    updateTableToggleRequestEffect(
+                                                      toggleIndex,
+                                                      state,
+                                                      type === "set"
+                                                        ? {
+                                                            type: "set",
+                                                            field: "",
+                                                            value: false,
+                                                          }
+                                                        : type === "omit"
+                                                          ? { type: "omit" }
+                                                          : undefined,
+                                                    );
+                                                  }}
+                                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                                >
+                                                  <option value="none">
+                                                    No request effect
+                                                  </option>
+                                                  <option value="set">
+                                                    Set field/value
+                                                  </option>
+                                                  <option value="omit">
+                                                    Omit contribution
+                                                  </option>
+                                                </select>
+                                                {effect?.type === "set" && (
+                                                  <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                      type="text"
+                                                      value={effect.field}
+                                                      onChange={(e) =>
+                                                        updateTableToggleRequestEffect(
+                                                          toggleIndex,
+                                                          state,
+                                                          {
+                                                            ...effect,
+                                                            field:
+                                                              e.target.value,
+                                                          },
+                                                        )
+                                                      }
+                                                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                                      placeholder="deleted"
+                                                    />
+                                                    <input
+                                                      key={`${toggle.id}-${state}-${JSON.stringify(effect.value)}`}
+                                                      type="text"
+                                                      defaultValue={JSON.stringify(
+                                                        effect.value,
+                                                      )}
+                                                      onBlur={(e) =>
+                                                        updateTableToggleRequestEffect(
+                                                          toggleIndex,
+                                                          state,
+                                                          {
+                                                            ...effect,
+                                                            value:
+                                                              parseToggleRequestValue(
+                                                                e.target.value,
+                                                              ),
+                                                          },
+                                                        )
+                                                      }
+                                                      className="rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm"
+                                                      placeholder="false"
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          },
+                                        )}
+                                      </div>
+                                    </div>
+                                  ),
                                 )}
                               </div>
                             )}
@@ -8693,6 +10277,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     </div>
                                   </div>
 
+                                  <ActionFormLayoutEditor
+                                    action={currentAddButton}
+                                    onChange={(formLayout) =>
+                                      updateTableAddButton({ formLayout })
+                                    }
+                                  />
+
+                                  <ActionConstantValuesEditor
+                                    values={currentAddButton.constantValues || {}}
+                                    onChange={(constantValues) =>
+                                      updateTableAddButton({ constantValues })
+                                    }
+                                  />
+
                                   <div className="space-y-3 rounded-lg border border-blue-100 bg-white p-3">
                                     <div className="flex items-center justify-between">
                                       <label className="text-xs font-semibold text-neutral-700">
@@ -8771,17 +10369,56 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 )}
                                               </select>
                                             </label>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                removeAddButtonFormField(
-                                                  fieldIndex,
-                                                )
-                                              }
-                                              className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                            >
-                                              <FiTrash2 size={14} />
-                                            </button>
+                                            <div className="flex items-stretch gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  moveAddButtonFormField(
+                                                    fieldIndex,
+                                                    -1,
+                                                  )
+                                                }
+                                                disabled={fieldIndex === 0}
+                                                className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Move field up"
+                                                title="Move field up"
+                                              >
+                                                <FiChevronUp size={15} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  moveAddButtonFormField(
+                                                    fieldIndex,
+                                                    1,
+                                                  )
+                                                }
+                                                disabled={
+                                                  fieldIndex ===
+                                                  (currentAddButton.formFields
+                                                    ?.length || 0) -
+                                                    1
+                                                }
+                                                className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Move field down"
+                                                title="Move field down"
+                                              >
+                                                <FiChevronDown size={15} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeAddButtonFormField(
+                                                    fieldIndex,
+                                                  )
+                                                }
+                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                aria-label="Remove field"
+                                                title="Remove field"
+                                              >
+                                                <FiTrash2 size={14} />
+                                              </button>
+                                            </div>
                                           </div>
                                           <div className="grid grid-cols-4 gap-2">
                                             <label className="space-y-1">
@@ -9586,24 +11223,20 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                       </div>
 
                                       <div className="grid grid-cols-2 gap-3">
-                                        <textarea
-                                          value={
-                                            action.constantValuesJson ||
-                                            JSON.stringify(
-                                              action.constantValues || {},
-                                              null,
-                                              2,
-                                            )
+                                        <ActionConstantValuesEditor
+                                          values={
+                                            action.constantValues ||
+                                            parseJsonObject(
+                                              action.constantValuesJson,
+                                            ) ||
+                                            {}
                                           }
-                                          onChange={(e) =>
+                                          onChange={(constantValues) =>
                                             updateTableAction(actionIndex, {
-                                              constantValuesJson:
-                                                e.target.value,
-                                              constantValues: undefined,
+                                              constantValues,
+                                              constantValuesJson: undefined,
                                             })
                                           }
-                                          className="min-h-24 px-3 py-2 text-sm font-mono border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                          placeholder='{"status":"approved"}'
                                         />
                                         <div className="space-y-3">
                                           <select
@@ -9672,6 +11305,19 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </label>
                                         </div>
                                       </div>
+
+                                      {(action.kind === "create" ||
+                                        action.kind === "edit" ||
+                                        action.modalType === "form") && (
+                                        <ActionFormLayoutEditor
+                                          action={action}
+                                          onChange={(formLayout) =>
+                                            updateTableAction(actionIndex, {
+                                              formLayout,
+                                            })
+                                          }
+                                        />
+                                      )}
 
                                       <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                                         <div className="flex items-center justify-between">
@@ -9760,18 +11406,59 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                     )}
                                                   </select>
                                                 </label>
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    removeActionFormField(
-                                                      actionIndex,
-                                                      fieldIndex,
-                                                    )
-                                                  }
-                                                  className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                                >
-                                                  <FiTrash2 size={14} />
-                                                </button>
+                                                <div className="flex items-stretch gap-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      moveActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        -1,
+                                                      )
+                                                    }
+                                                    disabled={fieldIndex === 0}
+                                                    className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                    aria-label="Move field up"
+                                                    title="Move field up"
+                                                  >
+                                                    <FiChevronUp size={15} />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      moveActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                        1,
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      fieldIndex ===
+                                                      (action.formFields
+                                                        ?.length || 0) -
+                                                        1
+                                                    }
+                                                    className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                    aria-label="Move field down"
+                                                    title="Move field down"
+                                                  >
+                                                    <FiChevronDown size={15} />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      removeActionFormField(
+                                                        actionIndex,
+                                                        fieldIndex,
+                                                      )
+                                                    }
+                                                    className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                    aria-label="Remove field"
+                                                    title="Remove field"
+                                                  >
+                                                    <FiTrash2 size={14} />
+                                                  </button>
+                                                </div>
                                               </div>
                                               <div className="grid grid-cols-4 gap-2">
                                                 <label className="space-y-1">
@@ -10673,7 +12360,28 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     )}
 
                                     {key === "edit" && (
-                                      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+                                      <div className="space-y-3">
+                                        <ActionFormLayoutEditor
+                                          action={currentBulkEditAction}
+                                          defaultAllowOverflow
+                                          onChange={(formLayout) =>
+                                            updateTableBulkAction("edit", {
+                                              formLayout,
+                                            })
+                                          }
+                                        />
+                                        <ActionConstantValuesEditor
+                                          values={
+                                            currentBulkEditAction.constantValues ||
+                                            {}
+                                          }
+                                          onChange={(constantValues) =>
+                                            updateTableBulkAction("edit", {
+                                              constantValues,
+                                            })
+                                          }
+                                        />
+                                        <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
                                         <div className="flex items-center justify-between">
                                           <label className="text-xs font-semibold text-neutral-700">
                                             Bulk Edit Fields
@@ -10793,20 +12501,61 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 className="px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                                 placeholder="Label"
                                               />
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  removeBulkEditFormField(
-                                                    fieldIndex,
-                                                  )
-                                                }
-                                                className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
-                                              >
-                                                <FiTrash2 size={14} />
-                                              </button>
+                                              <div className="flex items-stretch gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveBulkEditFormField(
+                                                      fieldIndex,
+                                                      -1,
+                                                    )
+                                                  }
+                                                  disabled={fieldIndex === 0}
+                                                  className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                  aria-label="Move field up"
+                                                  title="Move field up"
+                                                >
+                                                  <FiChevronUp size={15} />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveBulkEditFormField(
+                                                      fieldIndex,
+                                                      1,
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    fieldIndex ===
+                                                    (currentBulkEditAction
+                                                      .formFields?.length ||
+                                                      0) -
+                                                      1
+                                                  }
+                                                  className="px-2 text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                                                  aria-label="Move field down"
+                                                  title="Move field down"
+                                                >
+                                                  <FiChevronDown size={15} />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    removeBulkEditFormField(
+                                                      fieldIndex,
+                                                    )
+                                                  }
+                                                  className="px-2 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                                                  aria-label="Remove field"
+                                                  title="Remove field"
+                                                >
+                                                  <FiTrash2 size={14} />
+                                                </button>
+                                              </div>
                                             </div>
                                           ),
                                         )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -11238,17 +12987,25 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
                         {/* Tables in Tab */}
                         <div className="space-y-2">
-                          {tab.components.length === 0 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setTableEditorTarget({ tabIndex: index })
-                              }
-                              className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <FiPlus size={15} strokeWidth={2.5} />
-                              Add table to this tab
-                            </button>
+                          {canAddTabChild(tab) && (
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <button
+                                type="button"
+                                onClick={() => setTableEditorTarget({ tabIndex: index, componentType: "table" })}
+                                className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <FiPlus size={15} strokeWidth={2.5} />
+                                Add Table
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTableEditorTarget({ tabIndex: index, componentType: "relationMatrix" })}
+                                className="w-full px-3 py-2 text-sm font-medium text-violet-700 border border-dashed border-violet-300 rounded-lg hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <FiPlus size={15} strokeWidth={2.5} />
+                                Add Relation Matrix
+                              </button>
+                            </div>
                           )}
 
                           {tab.components.length > 0 && (
@@ -11260,11 +13017,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 >
                                   <div className="flex items-center gap-2">
                                     <MdTableChart
-                                      className="text-blue-600"
+                                      className={comp.type === "relationMatrix" ? "text-violet-600" : "text-blue-600"}
                                       size={16}
                                     />
                                     <span className="text-neutral-700 font-medium">
-                                      {comp.dataBinding?.schemaName}
+                                      {comp.type === "relationMatrix"
+                                        ? comp.title || `${comp.relationMatrix?.rowSchemaName} × ${comp.relationMatrix?.columnSchemaName}`
+                                        : comp.title || comp.dataBinding?.schemaName}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
@@ -11277,7 +13036,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         })
                                       }
                                       className="p-1 text-violet-700 bg-violet-50 hover:bg-violet-100 rounded transition-colors"
-                                      title="Edit table"
+                                      title={`Edit ${comp.type === "relationMatrix" ? "relation matrix" : "table"}`}
                                     >
                                       <FiEdit2 size={13} strokeWidth={2} />
                                     </button>
@@ -11287,7 +13046,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         removeTableFromTab(index, comp.id)
                                       }
                                       className="p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                      title="Remove table"
+                                      title="Remove component"
                                     >
                                       <FiTrash2 size={13} strokeWidth={2} />
                                     </button>
@@ -11317,16 +13076,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           <button
             onClick={handleAdd}
             disabled={
-              (componentType !== "tabPanel" &&
-                componentType !== "infoBlocks" &&
-                componentType !== "distributionBlocks" &&
-                !schemaName) ||
+              (requiresComponentSchemaName(componentType) && !schemaName) ||
               (componentType === "table" &&
                 tableSourceType === "pipeline" &&
                 !pipelineName) ||
               (componentType === "table" &&
                 tableSourceType === "workflow" &&
                 !workflowName) ||
+              (componentType === "table" &&
+                tableConfig.dataMode === "arrayField" &&
+                !cleanArrayTableSource(tableConfig.arraySource)) ||
+              (componentType === "relationMatrix" &&
+                !isRelationMatrixConfigComplete(relationMatrixConfig)) ||
               (componentType === "infoBlocks" &&
                 infoBlocksSource !== "static" &&
                 !schemaName) ||
@@ -11401,7 +13162,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           page={page}
           currentCellId={currentCellId}
           editingComponent={tableBeingEdited}
-          fixedComponentType="table"
+          fixedComponentType={
+            tableBeingEdited?.type || tableEditorTarget.componentType || "table"
+          }
           onClose={() => setTableEditorTarget(null)}
           onAdd={saveTableToTab}
         />

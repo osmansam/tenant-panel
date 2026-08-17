@@ -1,5 +1,4 @@
 import { useQueryClient } from "@tanstack/react-query";
-import Cookies from "js-cookie";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -46,6 +45,7 @@ export const Sidebar = () => {
       if (isInProject) {
         // Show project management and hide projects list
         if (route.path === "/project-management") return true;
+        if (route.path === "/localization") return true;
         if (route.path === "/projects") return false;
 
         // Show other routes based on roles
@@ -57,6 +57,7 @@ export const Sidebar = () => {
       } else {
         // In tenant context - hide project management
         if (route.path === "/project-management") return false;
+        if (route.path === "/localization") return false;
 
         // Show other routes based on roles
         if (route.requiredRoles) {
@@ -78,8 +79,6 @@ export const Sidebar = () => {
     localStorage.clear();
     localStorage.setItem("loggedOut", "true");
     setTimeout(() => localStorage.removeItem("loggedOut"), 500);
-    Cookies.remove("jwt");
-    Cookies.remove("refreshToken");
     setUser(undefined);
     queryClient.clear();
     navigate("/login");

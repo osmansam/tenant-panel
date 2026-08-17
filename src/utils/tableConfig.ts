@@ -5,6 +5,7 @@ import {
   TableNestedRowColumnConfig,
 } from "../types/page";
 import { Field, Frontend } from "./api/container";
+import { getTableTemplateFields } from "./tableColumnTemplate";
 
 const CONDITION_KEYWORD_VALUES = new Set([
   "true",
@@ -28,6 +29,18 @@ type LookupColumnConfig =
   | TableColumnConfig
   | (TableNestedRowColumnConfig & { fallbackValue?: string });
 export type TableLookupSelectionDataMap = Map<string, GenericTableRow[]>;
+export type ArraySourceTableRow<T extends GenericTableRow = GenericTableRow> =
+  GenericTableRow & {
+    _id: string;
+    __arraySource?: {
+      parentId: unknown;
+      parentRow: T;
+      arrayField: string;
+      rowIdentityField: string;
+      rowIdentityValue: unknown;
+      index: number;
+    };
+  };
 type NestedTableRow<T extends GenericTableRow> = T & {
   collapsible?: {
     collapsibleHeader?: string;
@@ -46,6 +59,76 @@ const nestedRowValue = (item: unknown): GenericTableRow =>
     ? (item as GenericTableRow)
     : { value: item };
 
+const normalizeTableValue = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
+export const isTableArraySourceEnabled = (
+  tableConfig: TableComponentConfig | undefined,
+): boolean =>
+  tableConfig?.arraySource?.enabled === true &&
+  Boolean(tableConfig.arraySource.field?.trim());
+
+export const applyTableArraySource = <T extends GenericTableRow>(
+  rows: T[],
+  tableConfig: TableComponentConfig | undefined,
+): ArraySourceTableRow<T>[] | T[] => {
+  const config = tableConfig?.arraySource;
+  const arrayField = config?.field?.trim();
+  const rowIdentityField = config?.rowIdentityField?.trim();
+  if (!config?.enabled || !arrayField || !rowIdentityField) return rows;
+
+  return rows.flatMap((parentRow, parentIndex) => {
+    const childRows = Array.isArray(parentRow[arrayField])
+      ? (parentRow[arrayField] as unknown[])
+      : [];
+    const parentId = parentRow._id ?? parentRow.id ?? parentIndex;
+
+    return childRows.map((child, index) => {
+      const childRow = nestedRowValue(child);
+      const rowIdentityValue = childRow[rowIdentityField];
+      const identity = normalizeTableValue(rowIdentityValue) ?? String(index);
+      return {
+        ...childRow,
+        _id: `${normalizeTableValue(parentId) ?? String(parentIndex)}:${arrayField}:${identity}`,
+        __arraySource: {
+          parentId,
+          parentRow,
+          arrayField,
+          rowIdentityField,
+          rowIdentityValue,
+          index,
+        },
+      };
+    });
+  });
+};
+
+export interface ArraySourceMutationTarget {
+  parentId: string | number;
+  arrayField: string;
+  rowIdentityField: string;
+  rowIdentity: unknown;
+  index: number;
+}
+
+export const getArraySourceMutationTarget = (
+  row: GenericTableRow | undefined,
+): ArraySourceMutationTarget | undefined => {
+  const source = (row as ArraySourceTableRow | undefined)?.__arraySource;
+  if (!source) return undefined;
+  if (source.parentId === undefined || source.parentId === null) return undefined;
+  return {
+    parentId: source.parentId as string | number,
+    arrayField: source.arrayField,
+    rowIdentityField: source.rowIdentityField,
+    rowIdentity: source.rowIdentityValue,
+    index: source.index,
+  };
+};
+
 export const getTableLookupKey = (
   lookup: TableLookupLabelConfig | undefined,
 ): string =>
@@ -55,11 +138,7 @@ export const getTableLookupKey = (
     lookup?.labelField?.trim() || "",
   ].join("::");
 
-const normalizeLookupValue = (value: unknown): string | undefined => {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-};
+const normalizeLookupValue = normalizeTableValue;
 
 const rawColumnValue = (
   column: Pick<LookupColumnConfig, "field">,
@@ -265,24 +344,66 @@ const extractConditionFieldCandidates = (condition: string): string[] => {
   return Array.from(fields);
 };
 
+const extractClassTemplateFieldCandidates = (className: string): string[] =>
+  Array.from(
+    className.matchAll(/\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g),
+    (match) => match[1],
+  );
+
 export const getTableDataFieldNames = (
   tableConfig: TableComponentConfig | undefined,
   availableFieldNames?: string[],
 ): string[] | undefined => {
-  if (!tableConfig?.columns?.length) return undefined;
+  if (
+    !tableConfig?.columns?.length &&
+    !tableConfig?.generatedRelationColumns?.length &&
+    !tableConfig?.arraySource?.field?.trim() &&
+    !tableConfig?.drag?.orderField?.trim() &&
+    !tableConfig?.dataFields?.length &&
+    !tableConfig?.filterPanel?.inputs?.length &&
+    !tableConfig?.addButton &&
+    !tableConfig?.actions?.length &&
+    !tableConfig?.bulkActions &&
+    !tableConfig?.rows?.className?.length
+  )
+    return undefined;
 
   const available = availableFieldNames?.length
     ? new Set(availableFieldNames)
     : undefined;
   const fields = new Set<string>();
+  const addKnownField = (fieldName: string | undefined) => {
+    const field = fieldName?.trim();
+    if (field && (!available || available.has(field))) fields.add(field);
+  };
+  const addConditionFields = (condition: string | undefined) => {
+    extractConditionFieldCandidates(condition || "").forEach(addKnownField);
+  };
 
-  tableConfig.columns.forEach((column) => {
-    if (column.type !== "computedLabel" && column.field) {
-      fields.add(column.field);
+  const usesArraySource = isTableArraySourceEnabled(tableConfig);
+
+  (tableConfig.columns || []).forEach((column) => {
+    if (
+      column.type !== "computedLabel" &&
+      column.type !== "template" &&
+      column.field
+    ) {
+      if (!usesArraySource) fields.add(column.field);
+    }
+
+    if (column.type === "template") {
+      getTableTemplateFields(column.template).forEach(addKnownField);
     }
 
     column.cellClassName?.forEach((rule) => {
       extractConditionFieldCandidates(rule.condition || "").forEach(
+        (candidate) => {
+          if (!available || available.has(candidate)) {
+            fields.add(candidate);
+          }
+        },
+      );
+      extractClassTemplateFieldCandidates(rule.className || "").forEach(
         (candidate) => {
           if (!available || available.has(candidate)) {
             fields.add(candidate);
@@ -322,9 +443,54 @@ export const getTableDataFieldNames = (
     }
   });
 
+  tableConfig.filterPanel?.inputs?.forEach((input) =>
+    addKnownField(input.formKey),
+  );
+
+  const actions = [
+    ...(tableConfig.addButton ? [tableConfig.addButton] : []),
+    ...(tableConfig.actions || []),
+    ...(tableConfig.bulkActions?.edit ? [tableConfig.bulkActions.edit] : []),
+    ...(tableConfig.bulkActions?.delete
+      ? [tableConfig.bulkActions.delete]
+      : []),
+  ];
+  actions.forEach((action) => {
+    addConditionFields(action.disabledCondition);
+    addConditionFields(action.hiddenCondition);
+    addConditionFields(action.requiredCondition);
+    action.formFields?.forEach((field) => addKnownField(field.formKey));
+    action.fieldOverrides?.forEach((override) => {
+      addKnownField(override.field);
+      addConditionFields(override.disabledCondition);
+    });
+  });
+
+  tableConfig.rows?.className?.forEach((rule) =>
+    addConditionFields(rule.condition),
+  );
+
   if (tableConfig.nestedRows?.enabled && tableConfig.nestedRows.field?.trim()) {
     fields.add(tableConfig.nestedRows.field.trim());
   }
+
+  if (tableConfig.arraySource?.enabled && tableConfig.arraySource.field?.trim()) {
+    fields.add(tableConfig.arraySource.field.trim());
+  }
+
+  tableConfig.generatedRelationColumns?.forEach((group) => {
+    const arrayField = group.arrayField?.trim();
+    if (arrayField && (!available || available.has(arrayField))) {
+      fields.add(arrayField);
+    }
+  });
+
+  const dragOrderField = tableConfig.drag?.orderField?.trim();
+  if (dragOrderField && (!available || available.has(dragOrderField))) {
+    fields.add(dragOrderField);
+  }
+
+  tableConfig.dataFields?.forEach(addKnownField);
 
   return Array.from(fields);
 };

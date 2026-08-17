@@ -14,6 +14,7 @@ export enum Routes {
   Dashboard = "/dashboard",
   Projects = "/projects",
   ProjectManagement = "/project-management",
+  Localization = "/localization",
   Integrations = "/integrations",
   Settings = "/settings",
   Users = "/users",
@@ -56,6 +57,12 @@ export const systemRoutes: RouteConfig[] = [
       "project_editor",
       "project_viewer",
     ],
+  },
+  {
+    name: "Localization",
+    path: Routes.Localization,
+    isOnSidebar: true,
+    icon: "🌐",
   },
   {
     name: "Integrations",

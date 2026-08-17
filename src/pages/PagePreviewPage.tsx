@@ -6,6 +6,7 @@ import DynamicChart, {
 import DistributionBlocks from "../components/panelComponents/FormElements/DistributionBlocks";
 import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
+import GenericUnpaginatedPage from "../components/panelComponents/FormElements/GenericUnpaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
 import DynamicForm from "../components/forms/DynamicForm";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../types/page";
 import { useGetTenantPages } from "../utils/api/page";
 import { useGetSelection } from "../utils/dynamic";
+import { resolveTableComponentMode } from "../utils/tableDataMode";
 import {
   extractRouteParamsFromPath,
   RouteParams,
@@ -68,9 +70,14 @@ const RenderComponent: React.FC<{
     ([
       props?.columns,
       props?.rows,
+      props?.nestedRows,
+      props?.arraySource,
       props?.cache,
       props?.actions,
       props?.filterPanel,
+      props?.generatedRelationColumns,
+      props?.toggles,
+      props?.drag,
     ].some(Boolean)
       ? (props as TableComponentConfig)
       : undefined);
@@ -128,6 +135,24 @@ const RenderComponent: React.FC<{
   );
 
   switch (type) {
+    case "relationMatrix":
+      return component.relationMatrix ? (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-5">
+          <div className="font-semibold text-violet-950">
+            {title || "Relation Matrix"}
+          </div>
+          <div className="mt-2 text-sm text-violet-800">
+            Rows: {component.relationMatrix.rowSchemaName} ({component.relationMatrix.rowLabelField}) · Columns: {component.relationMatrix.columnSchemaName} ({component.relationMatrix.columnLabelField})
+          </div>
+          <div className="mt-1 text-xs text-violet-600">
+            Updates {component.relationMatrix.columnSchemaName}.{component.relationMatrix.targetArrayField}[].{component.relationMatrix.targetItemMatchField}
+          </div>
+        </div>
+      ) : (
+        <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          Relation matrix requires configuration.
+        </div>
+      );
     case "form": {
       const formConfig =
         component.form ||
@@ -145,6 +170,23 @@ const RenderComponent: React.FC<{
         resolvedDataBinding?.schemaName &&
         ["schema", "pipeline", "workflow"].includes(resolvedDataBinding.kind)
       ) {
+        if (
+          resolveTableComponentMode(
+            resolvedDataBinding.kind,
+            tableConfig?.dataMode,
+          ) === "unpaginated"
+        ) {
+          return (
+            <GenericUnpaginatedPage
+              schemaName={resolvedDataBinding.schemaName}
+              isHeader={false}
+              tableConfig={tableConfig}
+              customTitle={title}
+              dataBinding={resolvedDataBinding}
+              actionsEnabled
+            />
+          );
+        }
         return (
           <GenericPaginatedPage
             schemaName={resolvedDataBinding.schemaName}

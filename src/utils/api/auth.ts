@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Cookies from "js-cookie";
 import { useTranslation } from "react-i18next";
 import { Location, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -49,8 +48,6 @@ export interface TenantLoginResponse {
   status: number;
   message: string;
   data: {
-    accessToken: string;
-    refreshToken: string;
     user: TenantUser;
     tenant: Tenant;
     allTenants: Tenant[];
@@ -82,10 +79,8 @@ export function useLogin(
     mutationFn: loginMethod,
     // We are updating tables query data with new item
     onSuccess: async (response: LoginResponse) => {
-      const { token, user } = response;
-      Cookies.set("jwt", token);
+      const { user } = response;
       toast.success(t("Logged in successfully"));
-      localStorage.setItem("jwt", token);
       localStorage.setItem("loggedIn", "true");
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
@@ -120,7 +115,6 @@ export function useLogout(onError?: (error: unknown) => void) {
       localStorage.clear();
       localStorage.setItem("loggedOut", "true");
       setTimeout(() => localStorage.removeItem("loggedOut"), 500);
-      Cookies.remove("jwt");
       setUser(undefined);
       queryClient.clear();
       navigate("/login");
@@ -154,15 +148,7 @@ export function useTenantLogin(
     mutationFn: tenantLoginMethod,
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
-      const { accessToken, refreshToken, user, tenant, allTenants, roles } =
-        data;
-
-      // Store tenant token separately
-      Cookies.set("jwt", accessToken);
-      Cookies.set("refreshToken", refreshToken);
-      localStorage.setItem("jwt", accessToken);
-      localStorage.setItem("tenantToken", accessToken); // Store tenant token separately
-      localStorage.setItem("refreshToken", refreshToken);
+      const { user, tenant, allTenants, roles } = data;
       localStorage.setItem("loggedIn", "true");
       toast.success(t("Logged in successfully"));
 
@@ -219,14 +205,8 @@ export function useTenantRegister(
     mutationFn: tenantRegisterMethod,
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
-      const { accessToken, refreshToken, user, tenant, allTenants, roles } =
-        data;
-
-      Cookies.set("jwt", accessToken);
-      Cookies.set("refreshToken", refreshToken);
+      const { user, tenant, allTenants, roles } = data;
       toast.success(t("Account created and logged in successfully"));
-      localStorage.setItem("jwt", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("loggedIn", "true");
 
       if (user) {
@@ -308,14 +288,8 @@ export function useGoogleCallback(
     mutationFn: handleGoogleCallbackMethod,
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
-      const { accessToken, refreshToken, user, tenant, allTenants, roles } =
-        data;
-
-      Cookies.set("jwt", accessToken);
-      Cookies.set("refreshToken", refreshToken);
+      const { user, tenant, allTenants, roles } = data;
       toast.success(t("Logged in with Google successfully"));
-      localStorage.setItem("jwt", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("loggedIn", "true");
 
       if (user) {
@@ -366,8 +340,6 @@ export function useTenantLogout(onError?: (error: unknown) => void) {
       localStorage.clear();
       localStorage.setItem("loggedOut", "true");
       setTimeout(() => localStorage.removeItem("loggedOut"), 500);
-      Cookies.remove("jwt");
-      Cookies.remove("refreshToken");
       setUser(undefined);
       queryClient.clear();
       navigate("/login");
@@ -380,17 +352,9 @@ export function useTenantLogout(onError?: (error: unknown) => void) {
 
 // Refresh token functionality
 async function refreshTokenMethod() {
-  const refreshToken = Cookies.get("refreshToken");
-  if (!refreshToken) {
-    throw new Error("No refresh token available");
-  }
-
-  return post<
-    { refreshToken: string },
-    { status: number; data: { accessToken: string } }
-  >({
+  return post<undefined, { status: number; data: null }>({
     path: "/tenant/auth/refresh",
-    payload: { refreshToken },
+    payload: undefined,
   });
 }
 
@@ -398,16 +362,9 @@ export function useRefreshToken(onError?: (error: unknown) => void) {
   const { setUser } = useUserContext();
   const { mutateAsync: refreshToken } = useMutation({
     mutationFn: refreshTokenMethod,
-    onSuccess: (response) => {
-      const { data } = response;
-      Cookies.set("jwt", data.accessToken);
-      localStorage.setItem("jwt", data.accessToken);
-    },
     onError: (error) => {
       // If refresh fails, logout user
       localStorage.clear();
-      Cookies.remove("jwt");
-      Cookies.remove("refreshToken");
       setUser(undefined);
       window.location.href = "/login";
       if (onError) onError(error);
@@ -426,8 +383,6 @@ export interface SwitchToProjectResponse {
   status: number;
   message: string;
   data: {
-    accessToken: string;
-    refreshToken: string;
     project: {
       id: string;
       tenantId: string;
@@ -461,14 +416,7 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
     mutationFn: switchToProjectMethod,
     onSuccess: async (response: SwitchToProjectResponse) => {
       const { data } = response;
-      const { accessToken, refreshToken, project, roles } = data;
-
-      // Store project token separately and set as active
-      Cookies.set("jwt", accessToken);
-      Cookies.set("refreshToken", refreshToken);
-      localStorage.setItem("jwt", accessToken);
-      localStorage.setItem("projectToken", accessToken); // Store project token separately
-      localStorage.setItem("refreshToken", refreshToken);
+      const { project, roles } = data;
 
       // Update user context with project information
       const currentUserData = localStorage.getItem("user");
@@ -540,35 +488,6 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         localStorage.removeItem("currentProject");
         setUser(updatedUser);
 
-        // Switch to tenant token if available, otherwise refresh
-        const tenantToken = localStorage.getItem("tenantToken");
-        if (tenantToken) {
-          console.log("Switching to cached tenant token");
-          Cookies.set("jwt", tenantToken);
-          localStorage.setItem("jwt", tenantToken);
-        } else {
-          // No tenant token cached, refresh to get one
-          const refreshToken = Cookies.get("refreshToken");
-          if (refreshToken) {
-            try {
-              console.log("Refreshing token for tenant scope...");
-              const response = await refreshTokenMethod();
-              const { data } = response;
-              const newTenantToken = data.accessToken;
-              Cookies.set("jwt", newTenantToken);
-              localStorage.setItem("jwt", newTenantToken);
-              localStorage.setItem("tenantToken", newTenantToken);
-              console.log("Token refreshed successfully for tenant scope");
-            } catch (refreshError) {
-              console.warn(
-                "Token refresh failed when switching to tenant:",
-                refreshError
-              );
-              // Continue anyway - the interceptor will handle it on next API call
-            }
-          }
-        }
-
         toast.success(t("Switched back to tenant context"));
         navigate("/projects");
       } catch (parseError) {
@@ -580,8 +499,6 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
       // If no user or tenant data, something is wrong - redirect to login
       console.warn("Missing user or tenant data when switching back");
       localStorage.clear();
-      Cookies.remove("jwt");
-      Cookies.remove("refreshToken");
       setUser(undefined);
       navigate("/login");
     }

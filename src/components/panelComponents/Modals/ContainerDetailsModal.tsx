@@ -40,6 +40,7 @@ import {
 } from "../../../utils/api/container";
 import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
+import { getContainerDetailsContentClass } from "../../../utils/containerDetailsModalLayout";
 import {
   addMissingSystemTimestampFields,
   hasAllSystemTimestampFields,
@@ -666,17 +667,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           </div>
 
           {/* Content */}
-          <div
-            className={
-              viewMode === "permissions" ||
-              viewMode === "routes" ||
-              viewMode === "pipelines" ||
-              viewMode === "workflows" ||
-              viewMode === "apis"
-                ? "h-[70vh]"
-                : "max-h-[70vh] overflow-y-auto"
-            }
-          >
+          <div className={getContainerDetailsContentClass(viewMode)}>
             {viewMode === "permissions" ? (
               <FieldPermissions containerId={container.id} />
             ) : viewMode === "routes" ? (

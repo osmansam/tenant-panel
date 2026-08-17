@@ -12,7 +12,9 @@ import {
 } from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
 import { normalizePageJsonPayload } from "../../../utils/jsonCreate";
+import { updatePageEditorMetadata } from "../../../utils/pageEditorMetadata";
 import { buildPageOrderSwap, sortPagesForDisplay } from "../../../utils/pageOrdering";
+import { PAGE_ICON_OPTIONS } from "../../../utils/pageIcons";
 import { PageDesigner } from "../../PageDesigner/PageDesigner";
 import { GenericButton } from "../FormElements/GenericButton";
 import { CreatePageModal } from "../Modals/CreatePageModal";
@@ -554,14 +556,76 @@ export const PagesSection: React.FC = () => {
         <div className="fixed inset-0 bg-white z-50 overflow-hidden">
           <div className="h-full flex flex-col">
             {/* Designer Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  {t("Design Page")}: {editingPage.name}
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-end justify-between gap-6">
+              <div className="flex min-w-0 flex-1 items-end gap-4">
+                <div className="min-w-0 flex-1 max-w-sm">
+                  <label
+                    htmlFor="page-designer-name"
+                    className="mb-1 block text-xs font-medium text-gray-600"
+                  >
+                    {t("Page Name")}
+                  </label>
+                  <input
+                    id="page-designer-name"
+                    type="text"
+                    value={editingPage.name}
+                    onChange={(event) =>
+                      setEditingPage((currentPage) =>
+                        currentPage
+                          ? updatePageEditorMetadata(
+                              currentPage,
+                              "name",
+                              event.target.value,
+                            )
+                          : currentPage,
+                      )
+                    }
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <div className="min-w-0 flex-1 max-w-sm">
+                  <label
+                    htmlFor="page-designer-icon"
+                    className="mb-1 block text-xs font-medium text-gray-600"
+                  >
+                    {t("Page Icon")}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const PageIcon = getIconByName(
+                        editingPage.icon || "MdSpaceDashboard",
+                      );
+                      return <PageIcon className="h-5 w-5 shrink-0 text-gray-700" />;
+                    })()}
+                    <select
+                      id="page-designer-icon"
+                      value={editingPage.icon || "MdSpaceDashboard"}
+                      onChange={(event) =>
+                        setEditingPage((currentPage) =>
+                          currentPage
+                            ? updatePageEditorMetadata(
+                                currentPage,
+                                "icon",
+                                event.target.value,
+                              )
+                            : currentPage,
+                        )
+                      }
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      {PAGE_ICON_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label} ({option.value})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pb-2 text-sm text-gray-500">
                   {editingPage.slug && `/${editingPage.slug}`}
-                </p>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -570,6 +634,7 @@ export const PagesSection: React.FC = () => {
                 </GenericButton>
 
                 <GenericButton
+                  disabled={!editingPage.name.trim()}
                   onClick={() =>
                     handleSavePageStructure(editingPage.sections || [])
                   }
