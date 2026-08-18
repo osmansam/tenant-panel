@@ -20,18 +20,17 @@ import Select, {
 import { OptionType } from "../../../types";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
+import { SelectOptionContent } from "./SelectOptionContent";
 
 const CustomOption = (
   props: OptionProps<
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { value: any; label: string },
+    OptionType,
     boolean,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    GroupBase<{ value: any; label: string }>
+    GroupBase<OptionType>
   >
 ) => (
   <components.Option {...props}>
-    {props.label}
+    <SelectOptionContent option={props.data} />
     {props.isSelected && (
       <MdOutlineDone className="text-blue-700 font-bold text-xl " />
     )}
