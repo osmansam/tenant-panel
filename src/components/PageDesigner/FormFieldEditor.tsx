@@ -266,7 +266,7 @@ const FormFieldEditor = ({
                 </select>
               </Control>
               <Control label="Source schema">
-                <select value={field.sourceSchemaName || ""} onChange={(event) => onChange({ sourceSchemaName: event.target.value, sourceValueField: "_id", sourceLabelField: "" })} disabled={field.optionsSource !== "schema"} className={inputClass}>
+                <select value={field.sourceSchemaName || ""} onChange={(event) => onChange({ sourceSchemaName: event.target.value, sourceValueField: "_id", sourceLabelField: "", sourceDataFields: [], optionDisplay: undefined })} disabled={field.optionsSource !== "schema"} className={inputClass}>
                   <option value="">Select schema</option>
                   {containers.map((container) => <option key={container.schemaName} value={container.schemaName}>{container.schemaName}</option>)}
                 </select>
@@ -282,6 +282,54 @@ const FormFieldEditor = ({
                 </select>
               </Control>
             </div>
+            {field.optionsSource === "schema" && field.sourceSchemaName && (
+              <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+                <div>
+                  <div className="text-xs font-semibold text-neutral-700">Additional option data</div>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {sourceFields.map((sourceField) => {
+                      const checked = (field.sourceDataFields || []).includes(sourceField.name);
+                      return (
+                        <label key={sourceField.name} className="flex items-center gap-2 text-xs text-neutral-700">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => onChange({
+                              sourceDataFields: event.target.checked
+                                ? [...(field.sourceDataFields || []), sourceField.name]
+                                : (field.sourceDataFields || []).filter((name) => name !== sourceField.name),
+                            })}
+                          />
+                          {sourceField.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <Control label="Left option template">
+                    <input
+                      value={field.optionDisplay?.leftTemplate || ""}
+                      onChange={(event) => onChange({ optionDisplay: { ...field.optionDisplay, leftTemplate: event.target.value } })}
+                      className={inputClass}
+                      placeholder="{{name}}"
+                    />
+                  </Control>
+                  <Control label="Right option template">
+                    <input
+                      value={field.optionDisplay?.rightTemplate || ""}
+                      onChange={(event) => onChange({ optionDisplay: { ...field.optionDisplay, rightTemplate: event.target.value } })}
+                      className={inputClass}
+                      placeholder="{{price}} ₺"
+                    />
+                  </Control>
+                </div>
+                <div className="flex items-center justify-between rounded-md border border-dashed border-neutral-300 px-3 py-2 text-sm text-neutral-600">
+                  <span>{field.optionDisplay?.leftTemplate || (field.sourceLabelField ? `{{${field.sourceLabelField}}}` : "Left label")}</span>
+                  <span className="text-right font-medium">{field.optionDisplay?.rightTemplate || "Right label"}</span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               <Control label="Source filter condition"><input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} className={inputClass} placeholder={'tenantId = {{tenantId}}'} /></Control>
               <Control label="Request filters">

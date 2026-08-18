@@ -1664,6 +1664,16 @@ export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig
       invalidateKeys: field.invalidateKeys
         ?.map((key) => key.trim())
         .filter(Boolean),
+      sourceDataFields: Array.from(new Set(
+        (field.sourceDataFields || []).map((key) => key.trim()).filter(Boolean),
+      )),
+      optionDisplay: field.optionDisplay && (
+        field.optionDisplay.leftTemplate?.trim() ||
+        field.optionDisplay.rightTemplate?.trim()
+      ) ? {
+          leftTemplate: field.optionDisplay.leftTemplate?.trim() || "",
+          rightTemplate: field.optionDisplay.rightTemplate?.trim() || "",
+        } : undefined,
     })),
   objectLists: (form.objectLists || [])
     .filter((objectList) => objectList.key.trim())

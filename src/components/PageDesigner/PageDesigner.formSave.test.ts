@@ -14,6 +14,12 @@ describe("PageDesigner form save serialization", () => {
 
     const cleaned = cleanFormConfig!({
       schemaName: "orders",
+      fields: [{
+        formKey: "productId",
+        type: "select",
+        sourceDataFields: [" name ", "price", "price"],
+        optionDisplay: { leftTemplate: " {{name}} ", rightTemplate: " {{price}} ₺ " },
+      }],
       objectLists: [{
         key: "items",
         itemFields: ["productId", "quantity"],
@@ -38,6 +44,11 @@ describe("PageDesigner form save serialization", () => {
         targetField: " total ",
         format: { style: "currency", currency: "try", precision: 2 },
       }],
+    });
+
+    expect(cleaned.fields?.[0]).toMatchObject({
+      sourceDataFields: ["name", "price"],
+      optionDisplay: { leftTemplate: "{{name}}", rightTemplate: "{{price}} ₺" },
     });
 
     expect(cleaned.objectLists?.[0].fieldMappings).toEqual([{
