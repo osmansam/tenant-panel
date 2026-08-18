@@ -411,14 +411,22 @@ export const buildFormSubmitPayload = (
   });
   (form.objectLists || []).forEach((objectList) => {
     const items = normalizeObjectListValue(formElements[objectList.key]);
-    payload[objectList.key] = objectList.itemFields?.length
+    const persistedItemFields = [
+      ...(objectList.itemFields || []),
+      ...(objectList.fieldMappings || []).map((mapping) => mapping.targetField),
+      ...(objectList.itemCalculations || []).map((calculation) => calculation.targetField),
+    ].filter((key, index, keys) => key && keys.indexOf(key) === index);
+    payload[objectList.key] = persistedItemFields.length
       ? items.map((item) =>
-          objectList.itemFields!.reduce<EmbeddedFormObject>((projected, key) => {
+          persistedItemFields.reduce<EmbeddedFormObject>((projected, key) => {
             projected[key] = item[key];
             return projected;
           }, {}),
         )
       : items;
+  });
+  (form.summaries || []).forEach((summary) => {
+    payload[summary.targetField] = formElements[summary.targetField];
   });
   return { ...payload, ...(form.submit?.constantValues || {}) };
 };

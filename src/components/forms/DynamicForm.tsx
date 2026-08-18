@@ -33,7 +33,9 @@ import { validateField, ValidationRules } from "../../utils/validationHelper";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 import DynamicFormField from "./DynamicFormField";
 import DynamicFormObjectList from "./DynamicFormObjectList";
+import DynamicFormSummary from "./DynamicFormSummary";
 import { useFormSelectionData } from "./useFormSelectionData";
+import { FormCalculationError, recalculateFormState, snapshotMappedFields } from "../../utils/formCalculations";
 
 type Props = {
   form: FormComponentConfig;
@@ -197,13 +199,26 @@ const DynamicForm = ({ form, title }: Props) => {
       ? action.sourceFields
       : objectList.itemFields || [];
     if (!validateFields(sourceFields)) return;
-    const item = enrichItemDisplayValues(
+    const enrichedItem = enrichItemDisplayValues(
       copySourceFieldsToObject(formElements, sourceFields),
       sourceFields,
     );
+    const selectedSourceItems = sourceFields.reduce<Record<string, Record<string, unknown> | undefined>>((records, fieldKey) => {
+      const input = inputMap.get(fieldKey);
+      const value = formElements[fieldKey];
+      if (!Array.isArray(value)) records[fieldKey] = input?.options?.find((option) => option.value === value)?.sourceItem;
+      return records;
+    }, {});
+    let item: Record<string, unknown>;
+    try {
+      item = snapshotMappedFields(objectList, enrichedItem, selectedSourceItems);
+    } catch (error) {
+      toast.error(error instanceof FormCalculationError ? error.message : t("Unable to calculate item"));
+      return;
+    }
     const editingIndex =
       editing?.listKey === objectList.key ? editing.index : null;
-    setFormElements((current) => ({
+    setFormElements((current) => recalculateFormState(form, {
       ...current,
       [objectList.key]: addOrReplaceObjectListItem(
         current[objectList.key],
@@ -286,6 +301,7 @@ const DynamicForm = ({ form, title }: Props) => {
       .filter((field): field is FormFieldConfig => !!field)
       .map(getFieldArea),
     ...(form.objectLists || []).map(getObjectListArea),
+    ...(form.summaries || []).map((summary) => summary.area || "right"),
   ]);
 
   const resolveActionArea = (action: FormActionConfig): FormAreaKey => {
@@ -324,13 +340,14 @@ const DynamicForm = ({ form, title }: Props) => {
     const areaLists = (form.objectLists || []).filter(
       (objectList) => getObjectListArea(objectList) === area,
     );
+    const areaSummaries = (form.summaries || []).filter((summary) => (summary.area || "right") === area);
     const areaActions = [
       ...addActions,
       ...(submitAction ? [submitAction] : []),
     ].filter((action) => resolveActionArea(action) === area);
-    if (!areaInputs.length && !areaLists.length && !areaActions.length)
+    if (!areaInputs.length && !areaLists.length && !areaSummaries.length && !areaActions.length)
       return null;
-    const hasBody = areaInputs.length > 0 || areaLists.length > 0;
+    const hasBody = areaInputs.length > 0 || areaLists.length > 0 || areaSummaries.length > 0;
     return (
       <section
         key={area}
@@ -388,7 +405,7 @@ const DynamicForm = ({ form, title }: Props) => {
                       handleEditObject(objectList, item, index)
                     }
                     onRemove={(index) => {
-                      setFormElements((current) => ({
+                      setFormElements((current) => recalculateFormState(form, {
                         ...current,
                         [objectList.key]: removeObjectListItem(
                           current[objectList.key],
@@ -403,7 +420,7 @@ const DynamicForm = ({ form, title }: Props) => {
                       }
                     }}
                     onAdjust={(index, field, delta, min, max) =>
-                      setFormElements((current) => ({
+                      setFormElements((current) => recalculateFormState(form, {
                         ...current,
                         [objectList.key]: adjustObjectListNumber(
                           current[objectList.key],
@@ -419,6 +436,7 @@ const DynamicForm = ({ form, title }: Props) => {
                 ))}
               </div>
             )}
+            <DynamicFormSummary summaries={form.summaries || []} values={formElements} area={area} />
           </div>
         )}
         {areaActions.length > 0 && (
