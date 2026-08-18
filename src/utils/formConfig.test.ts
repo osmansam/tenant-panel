@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildFormSubmitRequestBody } from "./formConfig";
+import { buildFormConfigReference, buildFormSubmitRequestBody } from "./formConfig";
 import { FormComponentConfig } from "../types/page";
 
 describe("buildFormSubmitRequestBody", () => {
+  it("creates a config reference only for calculated forms", () => {
+    const calculated = { schemaName: "orders", summaries: [{ key: "total", operation: "copy", sourceField: "subtotal", targetField: "total" }] } as FormComponentConfig;
+    expect(buildFormConfigReference(calculated, "page", "component")).toEqual({ pageId: "page", componentId: "component" });
+    expect(buildFormConfigReference({ schemaName: "orders" }, "page", "component")).toBeUndefined();
+  });
   it("includes calculated targets while excluding transient picker fields", () => {
     const form: FormComponentConfig = {
       schemaName: "davinciOrder",

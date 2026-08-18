@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { FormElementsState, FormElementValue } from "../../types";
@@ -14,6 +15,7 @@ import {
   addOrReplaceObjectListItem,
   adjustObjectListNumber,
   buildFormInputs,
+  buildFormConfigReference,
   buildFormSubmitRequestBody,
   buildFormSubmitPayload,
   buildInitialFormState,
@@ -40,6 +42,7 @@ import { FormCalculationError, recalculateFormState, snapshotMappedFields } from
 type Props = {
   form: FormComponentConfig;
   title?: string;
+  componentId?: string;
 };
 
 type DynamicRecord = Record<string, unknown> & { _id: string | number };
@@ -63,8 +66,9 @@ const isEmpty = (value: unknown) =>
   value === "" ||
   (Array.isArray(value) && value.length === 0);
 
-const DynamicForm = ({ form, title }: Props) => {
+const DynamicForm = ({ form, title, componentId }: Props) => {
   const { t } = useTranslation();
+  const { pageId } = useParams<{ pageId: string }>();
   const selectionDataMap = useFormSelectionData(form);
   const inputs = useMemo(
     () => buildFormInputs(form, selectionDataMap),
@@ -269,10 +273,13 @@ const DynamicForm = ({ form, title }: Props) => {
         toast.error(t("Workflow configuration is incomplete"));
         return;
       }
+      const envelope = Array.isArray(requestBody)
+        ? requestBody
+        : { ...requestBody, formConfigRef: buildFormConfigReference(form, pageId, componentId) };
       await executeWorkflowMutation.mutateAsync({
         workflowName: form.submit.workflowName,
         workflowSchema: form.submit.workflowSchema,
-        body: requestBody as
+        body: envelope as
           | Record<string, unknown>
           | Array<Record<string, unknown>>,
       });

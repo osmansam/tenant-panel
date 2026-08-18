@@ -434,6 +434,16 @@ export const buildFormSubmitPayload = (
 export const getFormSubmitMode = (form: FormComponentConfig) =>
   form.submit?.mode || "create";
 
+export const buildFormConfigReference = (
+  form: FormComponentConfig,
+  pageId?: string,
+  componentId?: string,
+) => {
+  const hasCalculations = (form.summaries?.length || 0) > 0 ||
+    (form.objectLists || []).some((list) => (list.fieldMappings?.length || 0) > 0 || (list.itemCalculations?.length || 0) > 0);
+  return hasCalculations && pageId && componentId ? { pageId, componentId } : undefined;
+};
+
 export const buildFormSubmitRequestBody = (
   form: FormComponentConfig,
   formElements: FormElementsState,

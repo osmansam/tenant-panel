@@ -158,7 +158,7 @@ const RenderComponent: React.FC<{
         component.form ||
         (props?.form as ComponentBlock["form"] | undefined);
       return formConfig ? (
-        <DynamicForm form={formConfig} title={title} />
+        <DynamicForm form={formConfig} title={title} componentId={component.id} />
       ) : (
         <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
           Form component requires form configuration.
