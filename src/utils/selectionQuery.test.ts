@@ -51,4 +51,14 @@ describe("getSelectionQueryConfig", () => {
       category: "featured",
     });
   });
+
+  it("serializes stable dependency fields", () => {
+    const config = getSelectionQueryConfig({
+      schemaName: "product",
+      fieldName: "name",
+      dataFields: ["taxRate", "price", "discountRate", "price"],
+    });
+    expect(config.path).toBe("/dynamic/selection?schemaName=product&fieldName=name&dataFields=discountRate%2Cprice%2CtaxRate");
+    expect(config.queryKey).toContain("discountRate,price,taxRate");
+  });
 });

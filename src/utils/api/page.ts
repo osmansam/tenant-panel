@@ -267,6 +267,11 @@ export interface PageTableActionFormFieldConfig {
   sourceSchemaName?: string;
   sourceValueField?: string;
   sourceLabelField?: string;
+  sourceDataFields?: string[];
+  optionDisplay?: {
+    leftTemplate?: string;
+    rightTemplate?: string;
+  };
   sourceRequestFilters?: Record<string, unknown>;
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
