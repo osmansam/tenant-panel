@@ -118,6 +118,7 @@ import {
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import { normalizeDesignerCalculations } from "./formCalculationEditor";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
 import PageFilterModal from "./PageFilterModal";
@@ -1631,7 +1632,11 @@ const cleanTableConfig = (
     : {}),
 });
 
-const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
+// Exported for a save-boundary regression test; this remains a pure serializer.
+// eslint-disable-next-line react-refresh/only-export-components
+export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig => {
+  const form = normalizeDesignerCalculations(input);
+  return {
   title: form.title?.trim() || "",
   schemaName: form.schemaName.trim(),
   layout: {
@@ -1703,6 +1708,7 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
         field: action.field?.trim() || "",
       })),
     })),
+  summaries: form.summaries,
   actions: (form.actions || []).map((action, index) => ({
     ...action,
     label: action.label?.trim() || "",
@@ -1730,7 +1736,8 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
         }
       : {}),
   },
-});
+  };
+};
 
 const ActionFormLayoutEditor = ({
   action,
