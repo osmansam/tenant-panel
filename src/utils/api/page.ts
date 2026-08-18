@@ -421,6 +421,38 @@ export interface PageFormObjectActionConfig {
   step?: number;
 }
 
+export interface PageFormFieldMappingConfig {
+  sourceFormKey: string;
+  sourceField: string;
+  targetField: string;
+  required?: boolean;
+}
+
+export interface PageFormItemCalculationConfig {
+  operation: "multiply";
+  inputs: string[];
+  targetField: string;
+  precision?: number;
+}
+
+export interface PageFormValueFormatConfig {
+  style?: "currency" | "number";
+  currency?: string;
+  precision?: number;
+}
+
+export interface PageFormSummaryConfig {
+  key: string;
+  label?: string;
+  area?: PageFormAreaKey;
+  order?: number;
+  operation: "sum" | "copy";
+  objectListKey?: string;
+  sourceField: string;
+  targetField: string;
+  format?: PageFormValueFormatConfig;
+}
+
 export interface PageFormActionConfig {
   kind: "addObject" | "submit";
   label?: string;
@@ -440,6 +472,8 @@ export interface PageFormObjectListConfig {
   area?: PageFormAreaKey;
   source?: "embedded";
   itemFields?: string[];
+  fieldMappings?: PageFormFieldMappingConfig[];
+  itemCalculations?: PageFormItemCalculationConfig[];
   addAction?: PageFormActionConfig;
   display?: PageFormObjectListDisplayConfig;
   actions?: PageFormObjectActionConfig[];
@@ -462,6 +496,7 @@ export interface PageFormComponentConfig {
   layout?: PageFormLayoutConfig;
   fields?: PageFormFieldConfig[];
   objectLists?: PageFormObjectListConfig[];
+  summaries?: PageFormSummaryConfig[];
   actions?: PageFormActionConfig[];
   submit?: PageFormSubmitConfig;
 }
