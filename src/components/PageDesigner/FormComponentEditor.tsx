@@ -10,6 +10,16 @@ import {
 import { buildFormSubmitRequestPreview } from "../../utils/formConfig";
 import { ContainerModel, Field } from "../../utils/api/container";
 import FormFieldEditor from "./FormFieldEditor";
+import {
+  addFieldMapping,
+  addItemCalculation,
+  addSummary,
+  removeFieldMapping,
+  removeItemCalculation,
+  updateFieldMapping,
+  updateItemCalculation,
+  validateDesignerCalculations,
+} from "./formCalculationEditor";
 
 type Props = {
   value: FormComponentConfig;
@@ -89,6 +99,7 @@ const FormComponentEditor = ({
       })),
   ];
   const requestPreview = buildFormSubmitRequestPreview(value);
+  const calculationErrors = validateDesignerCalculations(value);
 
   const addCustomField = () => {
     const index = (value.fields || []).length + 1;
@@ -477,6 +488,54 @@ const FormComponentEditor = ({
                 <FiTrash2 />
               </button>
             </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-700">Source field snapshots</div>
+                    <div className="text-[11px] text-neutral-500">Copy product fields such as price into each cart item.</div>
+                  </div>
+                  <button type="button" onClick={() => onChange(addFieldMapping(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Mapping</button>
+                </div>
+                <div className="space-y-2">
+                  {(objectList.fieldMappings || []).map((mapping, mappingIndex) => (
+                    <div key={mappingIndex} className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                      <select value={mapping.sourceFormKey} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceFormKey: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
+                        <option value="">Source select</option>
+                        {(value.fields || []).filter((field) => field.type === "select" && field.optionsSource === "schema").map((field) => <option key={field.formKey} value={field.formKey}>{field.label || field.formKey}</option>)}
+                      </select>
+                      <input value={mapping.sourceField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Source field (price)" />
+                      <input value={mapping.targetField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Item field (unitPrice)" />
+                      <label className="flex items-center gap-2 text-xs text-neutral-600"><input type="checkbox" checked={mapping.required ?? false} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { required: event.target.checked }))} /> Required</label>
+                      <button type="button" aria-label="Remove mapping" onClick={() => onChange(removeFieldMapping(value, listIndex, mappingIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-700">Item calculations</div>
+                    <div className="text-[11px] text-neutral-500">Calculate fields such as unitPrice × quantity.</div>
+                  </div>
+                  <button type="button" onClick={() => onChange(addItemCalculation(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Calculation</button>
+                </div>
+                <div className="space-y-2">
+                  {(objectList.itemCalculations || []).map((calculation, calculationIndex) => (
+                    <div key={calculationIndex} className="grid grid-cols-1 gap-2 md:grid-cols-6">
+                      <select value={calculation.operation} disabled className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="multiply">Multiply</option></select>
+                      <input value={calculation.inputs[0] || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs: [event.target.value, calculation.inputs[1] || ""] }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="unitPrice" />
+                      <input value={calculation.inputs[1] || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs: [calculation.inputs[0] || "", event.target.value] }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="quantity" />
+                      <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
+                      <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />
+                      <button type="button" aria-label="Remove calculation" onClick={() => onChange(removeItemCalculation(value, listIndex, calculationIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <input
                 value={objectList.key}
@@ -649,6 +708,34 @@ const FormComponentEditor = ({
           </section>
         ))}
       </div>
+
+      <section className="border-t border-neutral-200 pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h5 className="text-sm font-semibold text-neutral-800">Order summaries</h5>
+            <p className="text-xs text-neutral-500">Display subtotal and total in a form area.</p>
+          </div>
+          <button type="button" onClick={() => onChange(addSummary(value))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Summary</button>
+        </div>
+        <div className="space-y-2">
+          {(value.summaries || []).map((summary, summaryIndex) => {
+            const updateSummary = (patch: Partial<typeof summary>) => onChange({ ...value, summaries: (value.summaries || []).map((item, index) => index === summaryIndex ? { ...item, ...patch } : item) });
+            return <div key={summaryIndex} className="grid grid-cols-2 gap-2 rounded-lg border border-neutral-200 p-3 md:grid-cols-10">
+              <input value={summary.key} onChange={(event) => updateSummary({ key: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Key" />
+              <input value={summary.label || ""} onChange={(event) => updateSummary({ label: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Label" />
+              <select value={summary.operation} onChange={(event) => updateSummary({ operation: event.target.value as "sum" | "copy" })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="sum">Sum list</option><option value="copy">Copy summary</option></select>
+              <select value={summary.objectListKey || ""} disabled={summary.operation !== "sum"} onChange={(event) => updateSummary({ objectListKey: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="">List</option>{(value.objectLists || []).map((list) => <option key={list.key} value={list.key}>{list.title || list.key}</option>)}</select>
+              <input value={summary.sourceField} onChange={(event) => updateSummary({ sourceField: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Source field" />
+              <input value={summary.targetField} onChange={(event) => updateSummary({ targetField: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Target field" />
+              <select value={summary.area || "right"} onChange={(event) => updateSummary({ area: event.target.value as FormAreaKey })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">{FORM_AREAS.map((area) => <option key={area.value} value={area.value}>{area.label}</option>)}</select>
+              <input maxLength={3} value={summary.format?.currency || "TRY"} onChange={(event) => updateSummary({ format: { ...summary.format, style: "currency", currency: event.target.value.toUpperCase() } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="TRY" />
+              <input type="number" min={0} max={6} value={summary.format?.precision ?? 2} onChange={(event) => updateSummary({ format: { ...summary.format, precision: Number(event.target.value) } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Summary precision" />
+              <button type="button" aria-label="Remove summary" onClick={() => onChange({ ...value, summaries: (value.summaries || []).filter((_item, index) => index !== summaryIndex) })} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+            </div>;
+          })}
+        </div>
+        {calculationErrors.length > 0 && <div role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700"><div className="font-semibold">Fix calculation configuration before saving:</div><ul className="mt-1 list-disc pl-5">{calculationErrors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
+      </section>
     </div>
   );
 };
