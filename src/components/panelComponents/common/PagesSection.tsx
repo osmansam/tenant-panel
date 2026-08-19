@@ -677,6 +677,7 @@ export const PagesSection: React.FC = () => {
                     sections,
                   });
                 }}
+                onComponentSave={handleSavePageStructure}
                 onFiltersChange={(filters) => {
                   setEditingPage((currentPage) => currentPage && {
                     ...currentPage,
