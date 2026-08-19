@@ -4,8 +4,10 @@ import {
   FormAreaKey,
   FormComponentConfig,
   FormFieldConfig,
+  FormObjectListDisplayConfig,
   FormObjectListConfig,
 } from "../types/page";
+import { renderOptionTemplate } from "./selectOptionConfig";
 import {
   FormKeyType,
   FormKeyTypeEnum,
@@ -93,6 +95,12 @@ const getFieldOptions = (
   return (selectionDataMap.get(field.formKey) || []).map((item) => ({
     value: String(item[valueField] ?? item._id ?? ""),
     label: String(item[labelField] ?? item[valueField] ?? item._id ?? ""),
+    leftLabel: field.optionDisplay?.leftTemplate
+      ? renderOptionTemplate(field.optionDisplay.leftTemplate, item)
+      : String(item[labelField] ?? item[valueField] ?? item._id ?? ""),
+    rightLabel: field.optionDisplay?.rightTemplate
+      ? renderOptionTemplate(field.optionDisplay.rightTemplate, item)
+      : "",
     sourceItem: item,
   }));
 };
@@ -291,6 +299,15 @@ export const getObjectDisplayText = (
   return value === undefined || value === null ? "" : String(value);
 };
 
+export const getObjectListDisplayValues = (
+  item: EmbeddedFormObject,
+  display?: FormObjectListDisplayConfig,
+) => ({
+  primary: getObjectDisplayText(item, display?.primaryField, display?.primaryTemplate),
+  secondary: getObjectDisplayText(item, display?.secondaryField, display?.secondaryTemplate),
+  right: getObjectDisplayText(item, undefined, display?.rightTemplate),
+});
+
 export const getEnabledFormActions = (
   form: FormComponentConfig,
   kind: FormActionConfig["kind"],
@@ -411,20 +428,38 @@ export const buildFormSubmitPayload = (
   });
   (form.objectLists || []).forEach((objectList) => {
     const items = normalizeObjectListValue(formElements[objectList.key]);
-    payload[objectList.key] = objectList.itemFields?.length
+    const persistedItemFields = [
+      ...(objectList.itemFields || []),
+      ...(objectList.fieldMappings || []).map((mapping) => mapping.targetField),
+      ...(objectList.itemCalculations || []).map((calculation) => calculation.targetField),
+    ].filter((key, index, keys) => key && keys.indexOf(key) === index);
+    payload[objectList.key] = persistedItemFields.length
       ? items.map((item) =>
-          objectList.itemFields!.reduce<EmbeddedFormObject>((projected, key) => {
+          persistedItemFields.reduce<EmbeddedFormObject>((projected, key) => {
             projected[key] = item[key];
             return projected;
           }, {}),
         )
       : items;
   });
+  (form.summaries || []).forEach((summary) => {
+    payload[summary.targetField] = formElements[summary.targetField];
+  });
   return { ...payload, ...(form.submit?.constantValues || {}) };
 };
 
 export const getFormSubmitMode = (form: FormComponentConfig) =>
   form.submit?.mode || "create";
+
+export const buildFormConfigReference = (
+  form: FormComponentConfig,
+  pageId?: string,
+  componentId?: string,
+) => {
+  const hasCalculations = (form.summaries?.length || 0) > 0 ||
+    (form.objectLists || []).some((list) => (list.fieldMappings?.length || 0) > 0 || (list.itemCalculations?.length || 0) > 0);
+  return hasCalculations && pageId && componentId ? { pageId, componentId } : undefined;
+};
 
 export const buildFormSubmitRequestBody = (
   form: FormComponentConfig,

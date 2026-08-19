@@ -93,6 +93,8 @@ export interface OptionType {
   bgColor?: string;
   textColor?: string;
   sourceItem?: Record<string, unknown>;
+  leftLabel?: string;
+  rightLabel?: string;
   [key: string]: string | number | boolean | Record<string, unknown> | undefined;
 }
 

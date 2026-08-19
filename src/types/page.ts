@@ -302,6 +302,11 @@ export interface TableActionFormOptionConfig {
   label: string;
 }
 
+export interface SelectOptionDisplayConfig {
+  leftTemplate?: string;
+  rightTemplate?: string;
+}
+
 export interface TableActionFormFieldConfig {
   id?: string;
   formKey: string;
@@ -321,6 +326,8 @@ export interface TableActionFormFieldConfig {
   sourceSchemaName?: string;
   sourceValueField?: string;
   sourceLabelField?: string;
+  sourceDataFields?: string[];
+  optionDisplay?: SelectOptionDisplayConfig;
   sourceRequestFilters?: Record<string, unknown>;
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
@@ -458,6 +465,7 @@ export interface FormObjectListDisplayConfig {
   primaryTemplate?: string;
   secondaryField?: string;
   secondaryTemplate?: string;
+  rightTemplate?: string;
   imageField?: string;
 }
 
@@ -470,6 +478,38 @@ export interface FormObjectActionConfig {
   min?: number;
   max?: number;
   step?: number;
+}
+
+export interface FormFieldMappingConfig {
+  sourceFormKey: string;
+  sourceField: string;
+  targetField: string;
+  required?: boolean;
+}
+
+export interface FormItemCalculationConfig {
+  operation: "multiply";
+  inputs: string[];
+  targetField: string;
+  precision?: number;
+}
+
+export interface FormValueFormatConfig {
+  style?: "currency" | "number";
+  currency?: string;
+  precision?: number;
+}
+
+export interface FormSummaryConfig {
+  key: string;
+  label?: string;
+  area?: FormAreaKey;
+  order?: number;
+  operation: "sum" | "copy";
+  objectListKey?: string;
+  sourceField: string;
+  targetField: string;
+  format?: FormValueFormatConfig;
 }
 
 export interface FormActionConfig {
@@ -491,6 +531,8 @@ export interface FormObjectListConfig {
   area?: FormAreaKey;
   source?: "embedded";
   itemFields?: string[];
+  fieldMappings?: FormFieldMappingConfig[];
+  itemCalculations?: FormItemCalculationConfig[];
   addAction?: FormActionConfig;
   display?: FormObjectListDisplayConfig;
   actions?: FormObjectActionConfig[];
@@ -513,6 +555,7 @@ export interface FormComponentConfig {
   layout?: FormLayoutConfig;
   fields?: FormFieldConfig[];
   objectLists?: FormObjectListConfig[];
+  summaries?: FormSummaryConfig[];
   actions?: FormActionConfig[];
   submit?: FormSubmitConfig;
 }

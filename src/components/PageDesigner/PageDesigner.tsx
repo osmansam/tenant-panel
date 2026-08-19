@@ -118,6 +118,8 @@ import {
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
+import { normalizeDesignerCalculations } from "./formCalculationEditor";
+import { commitDesignerComponent } from "./componentCommit";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
 import PageFilterModal from "./PageFilterModal";
@@ -126,6 +128,7 @@ import ParameterBindingsEditor from "./ParameterBindingsEditor";
 interface PageDesignerProps {
   sections: GridSection[];
   onChange: (sections: GridSection[]) => void;
+  onComponentSave?: (sections: GridSection[]) => Promise<void> | void;
   filters?: PageFilterDefinition[];
   onFiltersChange?: (filters: PageFilterDefinition[]) => void;
 }
@@ -1631,7 +1634,11 @@ const cleanTableConfig = (
     : {}),
 });
 
-const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
+// Exported for a save-boundary regression test; this remains a pure serializer.
+// eslint-disable-next-line react-refresh/only-export-components
+export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig => {
+  const form = normalizeDesignerCalculations(input);
+  return {
   title: form.title?.trim() || "",
   schemaName: form.schemaName.trim(),
   layout: {
@@ -1659,6 +1666,16 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
       invalidateKeys: field.invalidateKeys
         ?.map((key) => key.trim())
         .filter(Boolean),
+      sourceDataFields: Array.from(new Set(
+        (field.sourceDataFields || []).map((key) => key.trim()).filter(Boolean),
+      )),
+      optionDisplay: field.optionDisplay && (
+        field.optionDisplay.leftTemplate?.trim() ||
+        field.optionDisplay.rightTemplate?.trim()
+      ) ? {
+          leftTemplate: field.optionDisplay.leftTemplate?.trim() || "",
+          rightTemplate: field.optionDisplay.rightTemplate?.trim() || "",
+        } : undefined,
     })),
   objectLists: (form.objectLists || [])
     .filter((objectList) => objectList.key.trim())
@@ -1674,6 +1691,7 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
         primaryTemplate: objectList.display?.primaryTemplate?.trim() || "",
         secondaryField: objectList.display?.secondaryField?.trim() || "",
         secondaryTemplate: objectList.display?.secondaryTemplate?.trim() || "",
+        rightTemplate: objectList.display?.rightTemplate?.trim() || "",
         imageField: objectList.display?.imageField?.trim() || "",
       },
       addAction: objectList.addAction
@@ -1703,6 +1721,7 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
         field: action.field?.trim() || "",
       })),
     })),
+  summaries: form.summaries,
   actions: (form.actions || []).map((action, index) => ({
     ...action,
     label: action.label?.trim() || "",
@@ -1730,7 +1749,8 @@ const cleanFormConfig = (form: FormComponentConfig): FormComponentConfig => ({
         }
       : {}),
   },
-});
+  };
+};
 
 const ActionFormLayoutEditor = ({
   action,
@@ -1814,6 +1834,7 @@ const ActionFormLayoutEditor = ({
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
   onChange,
+  onComponentSave,
   filters = [],
   onFiltersChange,
 }) => {
@@ -2050,21 +2071,6 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
     setSelectedCell(null);
   };
 
-  // Add component to cell
-  const addComponentToCell = (
-    sectionIndex: number,
-    cellId: string,
-    component: ComponentBlock,
-  ) => {
-    const section = sections[sectionIndex];
-    const cells = section.cells.map((cell) =>
-      cell.id === cellId
-        ? { ...cell, components: [...cell.components, component] }
-        : cell,
-    );
-    updateSection(sectionIndex, { cells });
-  };
-
   // Delete component from cell
   const deleteComponent = (
     sectionIndex: number,
@@ -2088,27 +2094,6 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
         ? {
             ...cell,
             components: cell.components.filter((c) => c.id !== componentId),
-          }
-        : cell,
-    );
-    updateSection(sectionIndex, { cells });
-  };
-
-  // Update component in cell
-  const updateComponent = (
-    sectionIndex: number,
-    cellId: string,
-    componentId: string,
-    updatedComponent: ComponentBlock,
-  ) => {
-    const section = sections[sectionIndex];
-    const cells = section.cells.map((cell) =>
-      cell.id === cellId
-        ? {
-            ...cell,
-            components: cell.components.map((c) =>
-              c.id === componentId ? updatedComponent : c,
-            ),
           }
         : cell,
     );
@@ -2216,15 +2201,19 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
               updateCell(selectedSection, cellId, updates)
             }
             onDeleteCell={(cellId) => deleteCell(selectedSection, cellId)}
-            onAddComponent={(cellId, component) =>
-              addComponentToCell(selectedSection, cellId, component)
-            }
             onDeleteComponent={(cellId, componentId) =>
               deleteComponent(selectedSection, cellId, componentId)
             }
-            onUpdateComponent={(cellId, componentId, component) =>
-              updateComponent(selectedSection, cellId, componentId, component)
-            }
+            onCommitComponent={async (cellId, component, editingComponentId) => {
+              const nextSections = await commitDesignerComponent({
+                sections,
+                cellId,
+                component,
+                editingComponentId,
+                persist: onComponentSave || (() => undefined),
+              });
+              onChange(nextSections);
+            }}
             onAddPageFilter={(cellId) =>
               setFilterModal({ cellId, filter: null })
             }
@@ -2287,13 +2276,12 @@ interface SectionEditorProps {
   onAddCellWithExcel: () => void;
   onUpdateCell: (cellId: string, updates: Partial<GridCell>) => void;
   onDeleteCell: (cellId: string) => void;
-  onAddComponent: (cellId: string, component: ComponentBlock) => void;
   onDeleteComponent: (cellId: string, componentId: string) => void;
-  onUpdateComponent: (
+  onCommitComponent: (
     cellId: string,
-    componentId: string,
     component: ComponentBlock,
-  ) => void;
+    editingComponentId?: string,
+  ) => Promise<void> | void;
   onAddPageFilter: (cellId: string) => void;
   onEditPageFilter: (cellId: string, filter: PageFilterDefinition) => void;
   onDeletePageFilter: (filterId: string) => void;
@@ -2314,9 +2302,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onAddCellWithExcel,
   onUpdateCell,
   onDeleteCell,
-  onAddComponent,
   onDeleteComponent,
-  onUpdateComponent,
+  onCommitComponent,
   onAddPageFilter,
   onEditPageFilter,
   onDeletePageFilter,
@@ -2478,14 +2465,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             setShowComponentModal(false);
             setEditingComponent(null);
           }}
-          onAdd={(component) => {
-            if (editingComponent) {
-              // Update existing component
-              onUpdateComponent(currentCellId, editingComponent.id, component);
-            } else {
-              // Add new component
-              onAddComponent(currentCellId, component);
-            }
+          onAdd={async (component) => {
+            await onCommitComponent(currentCellId, component, editingComponent?.id);
             setShowComponentModal(false);
             setEditingComponent(null);
           }}
@@ -2859,7 +2840,7 @@ interface ComponentModalProps {
   editingComponent: ComponentBlock | null;
   fixedComponentType?: ComponentBlock["type"];
   onClose: () => void;
-  onAdd: (component: ComponentBlock) => void;
+  onAdd: (component: ComponentBlock) => Promise<void> | void;
 }
 
 const ComponentModal: React.FC<ComponentModalProps> = ({
@@ -3861,7 +3842,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     return visibleIssues.length === 0;
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     let component: ComponentBlock = {
       ...(editingComponent || {}),
       id:
@@ -4080,7 +4061,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
 
     component = applyRuntimeBindings(component);
     if (!validateComponentBindings(component)) return;
-    onAdd(component);
+    await onAdd(component);
   };
 
   const resetTableColumnsForSchema = (nextSchemaName: string) => {

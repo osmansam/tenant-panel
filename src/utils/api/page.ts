@@ -267,6 +267,11 @@ export interface PageTableActionFormFieldConfig {
   sourceSchemaName?: string;
   sourceValueField?: string;
   sourceLabelField?: string;
+  sourceDataFields?: string[];
+  optionDisplay?: {
+    leftTemplate?: string;
+    rightTemplate?: string;
+  };
   sourceRequestFilters?: Record<string, unknown>;
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
@@ -407,6 +412,7 @@ export interface PageFormObjectListDisplayConfig {
   primaryTemplate?: string;
   secondaryField?: string;
   secondaryTemplate?: string;
+  rightTemplate?: string;
   imageField?: string;
 }
 
@@ -419,6 +425,38 @@ export interface PageFormObjectActionConfig {
   min?: number;
   max?: number;
   step?: number;
+}
+
+export interface PageFormFieldMappingConfig {
+  sourceFormKey: string;
+  sourceField: string;
+  targetField: string;
+  required?: boolean;
+}
+
+export interface PageFormItemCalculationConfig {
+  operation: "multiply";
+  inputs: string[];
+  targetField: string;
+  precision?: number;
+}
+
+export interface PageFormValueFormatConfig {
+  style?: "currency" | "number";
+  currency?: string;
+  precision?: number;
+}
+
+export interface PageFormSummaryConfig {
+  key: string;
+  label?: string;
+  area?: PageFormAreaKey;
+  order?: number;
+  operation: "sum" | "copy";
+  objectListKey?: string;
+  sourceField: string;
+  targetField: string;
+  format?: PageFormValueFormatConfig;
 }
 
 export interface PageFormActionConfig {
@@ -440,6 +478,8 @@ export interface PageFormObjectListConfig {
   area?: PageFormAreaKey;
   source?: "embedded";
   itemFields?: string[];
+  fieldMappings?: PageFormFieldMappingConfig[];
+  itemCalculations?: PageFormItemCalculationConfig[];
   addAction?: PageFormActionConfig;
   display?: PageFormObjectListDisplayConfig;
   actions?: PageFormObjectActionConfig[];
@@ -462,6 +502,7 @@ export interface PageFormComponentConfig {
   layout?: PageFormLayoutConfig;
   fields?: PageFormFieldConfig[];
   objectLists?: PageFormObjectListConfig[];
+  summaries?: PageFormSummaryConfig[];
   actions?: PageFormActionConfig[];
   submit?: PageFormSubmitConfig;
 }

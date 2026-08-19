@@ -2,7 +2,7 @@ import { FiEdit2, FiMinus, FiPlus, FiTrash2 } from "react-icons/fi";
 import { FormObjectListConfig } from "../../types/page";
 import {
   EmbeddedFormObject,
-  getObjectDisplayText,
+  getObjectListDisplayValues,
 } from "../../utils/formConfig";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
@@ -114,16 +114,7 @@ const DynamicFormObjectList = ({
       ) : (
         <div className="divide-y divide-neutral-100">
           {visibleItems.map(({ item, index }) => {
-            const primary = getObjectDisplayText(
-              item,
-              config.display?.primaryField,
-              config.display?.primaryTemplate,
-            );
-            const secondary = getObjectDisplayText(
-              item,
-              config.display?.secondaryField,
-              config.display?.secondaryTemplate,
-            );
+            const { primary, secondary, right } = getObjectListDisplayValues(item, config.display);
             const image = config.display?.imageField
               ? item[config.display.imageField]
               : undefined;
@@ -150,6 +141,7 @@ const DynamicFormObjectList = ({
                     </div>
                   )}
                 </div>
+                {right && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{right}</div>}
                 {renderActions(item, index, "end")}
               </div>
             );
