@@ -23,6 +23,19 @@ export class FormCalculationError extends Error {
 
 type EmbeddedItem = Record<string, unknown>;
 
+const qualifiedSource = (field: string): [string, string] | undefined => {
+  const separator = field.indexOf(".");
+  return separator > 0 && separator < field.length - 1 ? [field.slice(0, separator), field.slice(separator + 1)] : undefined;
+};
+
+const calculationValue = (item: EmbeddedItem, field: string): unknown => {
+  const qualified = qualifiedSource(field);
+  if (!qualified) return item[field];
+  const [formKey, sourceField] = qualified;
+  const optionData = item._optionData as Record<string, EmbeddedItem> | undefined;
+  return optionData?.[formKey]?.[sourceField];
+};
+
 const numericValue = (value: unknown, field: string): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
@@ -61,6 +74,15 @@ export const snapshotMappedFields = (
     }
     if (value !== undefined) result[mapping.targetField] = value;
   });
+  const optionData: Record<string, EmbeddedItem> = {};
+  (config.itemCalculations || []).flatMap((calculation) => calculation.inputs).forEach((input) => {
+    const qualified = qualifiedSource(input);
+    if (!qualified) return;
+    const [formKey, sourceField] = qualified;
+    const value = sourceItems[formKey]?.[sourceField];
+    if (value !== undefined) optionData[formKey] = { ...(optionData[formKey] || {}), [sourceField]: value };
+  });
+  if (Object.keys(optionData).length > 0) result._optionData = optionData;
   return result;
 };
 
@@ -77,8 +99,8 @@ export const calculateObjectListItem = (
       );
     }
     const [leftField, rightField] = calculation.inputs;
-    const left = numericValue(result[leftField], leftField);
-    const right = numericValue(result[rightField], rightField);
+    const left = numericValue(calculationValue(result, leftField), leftField);
+    const right = numericValue(calculationValue(result, rightField), rightField);
     result[calculation.targetField] = roundDecimal(
       left * right,
       calculation.precision ?? 2,

@@ -4,6 +4,7 @@ import {
   FormAreaKey,
   FormComponentConfig,
   FormFieldConfig,
+  FormObjectListDisplayConfig,
   FormObjectListConfig,
 } from "../types/page";
 import { renderOptionTemplate } from "./selectOptionConfig";
@@ -297,6 +298,15 @@ export const getObjectDisplayText = (
   const value = field ? item[field] : undefined;
   return value === undefined || value === null ? "" : String(value);
 };
+
+export const getObjectListDisplayValues = (
+  item: EmbeddedFormObject,
+  display?: FormObjectListDisplayConfig,
+) => ({
+  primary: getObjectDisplayText(item, display?.primaryField, display?.primaryTemplate),
+  secondary: getObjectDisplayText(item, display?.secondaryField, display?.secondaryTemplate),
+  right: getObjectDisplayText(item, undefined, display?.rightTemplate),
+});
 
 export const getEnabledFormActions = (
   form: FormComponentConfig,

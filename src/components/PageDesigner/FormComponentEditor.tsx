@@ -14,6 +14,7 @@ import {
   addFieldMapping,
   addItemCalculation,
   addSummary,
+  getAvailableCalculationInputs,
   removeFieldMapping,
   removeItemCalculation,
   updateFieldMapping,
@@ -526,8 +527,23 @@ const FormComponentEditor = ({
                   {(objectList.itemCalculations || []).map((calculation, calculationIndex) => (
                     <div key={calculationIndex} className="grid grid-cols-1 gap-2 md:grid-cols-6">
                       <select value={calculation.operation} disabled className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="multiply">Multiply</option></select>
-                      <input value={calculation.inputs[0] || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs: [event.target.value, calculation.inputs[1] || ""] }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="unitPrice" />
-                      <input value={calculation.inputs[1] || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs: [calculation.inputs[0] || "", event.target.value] }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="quantity" />
+                      {[0, 1].map((inputIndex) => {
+                        const options = getAvailableCalculationInputs(value, listIndex, calculationIndex);
+                        const groups = ["Item fields", "Additional option data", "Calculated fields"] as const;
+                        return (
+                          <select key={inputIndex} aria-label={`Calculation input ${inputIndex + 1}`} value={calculation.inputs[inputIndex] || ""} onChange={(event) => {
+                            const inputs = [...calculation.inputs];
+                            inputs[inputIndex] = event.target.value;
+                            onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs }));
+                          }} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
+                            <option value="">Select input</option>
+                            {groups.map((group) => {
+                              const groupOptions = options.filter((option) => option.group === group);
+                              return groupOptions.length > 0 ? <optgroup key={group} label={group}>{groupOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</optgroup> : null;
+                            })}
+                          </select>
+                        );
+                      })}
                       <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
                       <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />
                       <button type="button" aria-label="Remove calculation" onClick={() => onChange(removeItemCalculation(value, listIndex, calculationIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
@@ -651,6 +667,16 @@ const FormComponentEditor = ({
                   }
                   className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Image field"
+                />
+                <input
+                  value={objectList.display?.rightTemplate || ""}
+                  onChange={(event) =>
+                    updateObjectList(listIndex, {
+                      display: { ...objectList.display, rightTemplate: event.target.value },
+                    })
+                  }
+                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  placeholder="Right-side template, e.g. {{lineTotal}} TRY"
                 />
               </div>
             </div>

@@ -1691,6 +1691,7 @@ export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig
         primaryTemplate: objectList.display?.primaryTemplate?.trim() || "",
         secondaryField: objectList.display?.secondaryField?.trim() || "",
         secondaryTemplate: objectList.display?.secondaryTemplate?.trim() || "",
+        rightTemplate: objectList.display?.rightTemplate?.trim() || "",
         imageField: objectList.display?.imageField?.trim() || "",
       },
       addAction: objectList.addAction

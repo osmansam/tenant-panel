@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildFormConfigReference, buildFormInputs, buildFormSubmitRequestBody } from "./formConfig";
+import { buildFormConfigReference, buildFormInputs, buildFormSubmitRequestBody, getObjectListDisplayValues } from "./formConfig";
 import { FormComponentConfig } from "../types/page";
 
 describe("buildFormSubmitRequestBody", () => {
+  it("resolves a right-side object-list template", () => {
+    expect(getObjectListDisplayValues(
+      { productLabel: "Tea", quantity: 2, lineTotal: 240 },
+      { primaryField: "productLabel", secondaryTemplate: "{{quantity}} items", rightTemplate: "{{lineTotal}} TRY" },
+    )).toEqual({ primary: "Tea", secondary: "2 items", right: "240 TRY" });
+  });
+
   it("builds schema options with left and right labels and retained dependencies", () => {
     const form: FormComponentConfig = {
       schemaName: "orders",

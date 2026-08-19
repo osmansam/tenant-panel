@@ -412,6 +412,7 @@ export interface PageFormObjectListDisplayConfig {
   primaryTemplate?: string;
   secondaryField?: string;
   secondaryTemplate?: string;
+  rightTemplate?: string;
   imageField?: string;
 }
 

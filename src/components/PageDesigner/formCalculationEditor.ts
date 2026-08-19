@@ -13,6 +13,37 @@ const updateList = (
   objectLists: (form.objectLists || []).map((list, index) => index === listIndex ? update(list) : list),
 });
 
+export interface CalculationInputOption {
+  value: string;
+  label: string;
+  group: "Item fields" | "Additional option data" | "Calculated fields";
+}
+
+export const getAvailableCalculationInputs = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+): CalculationInputOption[] => {
+  const list = form.objectLists?.[listIndex];
+  if (!list) return [];
+  const options: CalculationInputOption[] = (list.itemFields || []).map((field) => ({ value: field, label: field, group: "Item fields" }));
+  (list.fieldMappings || []).forEach((mapping) => {
+    if (mapping.targetField.trim()) options.push({ value: mapping.targetField, label: mapping.targetField, group: "Item fields" });
+  });
+  (form.fields || []).forEach((field) => {
+    if (field.type !== "select" || field.optionsSource !== "schema") return;
+    (field.sourceDataFields || []).forEach((sourceField) => options.push({
+      value: `${field.formKey}.${sourceField}`,
+      label: `${field.label || field.formKey} → ${sourceField}`,
+      group: "Additional option data",
+    }));
+  });
+  (list.itemCalculations || []).slice(0, calculationIndex).forEach((calculation) => {
+    if (calculation.targetField.trim()) options.push({ value: calculation.targetField, label: calculation.targetField, group: "Calculated fields" });
+  });
+  return options;
+};
+
 export const addFieldMapping = (form: FormComponentConfig, listIndex: number) =>
   updateList(form, listIndex, (list) => ({
     ...list,
@@ -82,6 +113,11 @@ export const validateDesignerCalculations = (form: FormComponentConfig): string[
   const listFields = new Map<string, Set<string>>();
   (form.objectLists || []).forEach((list) => {
     const available = new Set(list.itemFields || []);
+    (form.fields || []).forEach((field) => {
+      if (field.type === "select" && field.optionsSource === "schema") {
+        (field.sourceDataFields || []).forEach((sourceField) => available.add(`${field.formKey}.${sourceField}`));
+      }
+    });
     (list.fieldMappings || []).forEach((mapping, index) => {
       const source = formFields.get(mapping.sourceFormKey.trim());
       if (!source || source.type !== "select" || source.optionsSource !== "schema") errors.push(`${list.key} mapping ${index + 1}: source must be a schema-backed select`);

@@ -4,6 +4,7 @@ import {
   addFieldMapping,
   addItemCalculation,
   addSummary,
+  getAvailableCalculationInputs,
   normalizeDesignerCalculations,
   removeFieldMapping,
   updateFieldMapping,
@@ -13,13 +14,34 @@ import {
 const form = (): FormComponentConfig => ({
   schemaName: "davinciOrder",
   fields: [
-    { formKey: "productId", type: "select", optionsSource: "schema", sourceSchemaName: "product" },
+    { formKey: "productId", label: "Product", type: "select", optionsSource: "schema", sourceSchemaName: "product", sourceDataFields: ["price", "taxRate"] },
     { formKey: "quantity", type: "number" },
   ],
   objectLists: [{ key: "items", itemFields: ["productId", "quantity"] }],
 });
 
 describe("form calculation editor helpers", () => {
+  it("offers qualified additional option fields as calculation inputs", () => {
+    expect(getAvailableCalculationInputs(form(), 0, 0)).toEqual([
+      { value: "productId", label: "productId", group: "Item fields" },
+      { value: "quantity", label: "quantity", group: "Item fields" },
+      { value: "productId.price", label: "Product → price", group: "Additional option data" },
+      { value: "productId.taxRate", label: "Product → taxRate", group: "Additional option data" },
+    ]);
+  });
+
+  it("accepts a qualified additional option field in an item calculation", () => {
+    const configured = form();
+    configured.objectLists![0].itemCalculations = [{
+      operation: "multiply",
+      inputs: ["productId.price", "quantity"],
+      targetField: "lineTotal",
+      precision: 2,
+    }];
+
+    expect(validateDesignerCalculations(configured)).toEqual([]);
+  });
+
   it("adds, updates, and removes mappings immutably", () => {
     const original = form();
     const added = addFieldMapping(original, 0);

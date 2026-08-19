@@ -23,6 +23,7 @@ describe("PageDesigner form save serialization", () => {
       objectLists: [{
         key: "items",
         itemFields: ["productId", "quantity"],
+        display: { rightTemplate: " {{lineTotal}} TRY " },
         fieldMappings: [{
           sourceFormKey: " productId ",
           sourceField: " price ",
@@ -31,7 +32,7 @@ describe("PageDesigner form save serialization", () => {
         }],
         itemCalculations: [{
           operation: "multiply",
-          inputs: [" unitPrice ", " quantity "],
+          inputs: [" productId.price ", " quantity "],
           targetField: " lineTotal ",
           precision: 2,
         }],
@@ -59,10 +60,11 @@ describe("PageDesigner form save serialization", () => {
     }]);
     expect(cleaned.objectLists?.[0].itemCalculations).toEqual([{
       operation: "multiply",
-      inputs: ["unitPrice", "quantity"],
+      inputs: ["productId.price", "quantity"],
       targetField: "lineTotal",
       precision: 2,
     }]);
+    expect(cleaned.objectLists?.[0].display?.rightTemplate).toBe("{{lineTotal}} TRY");
     expect(cleaned.summaries).toEqual([{
       key: "total",
       operation: "sum",

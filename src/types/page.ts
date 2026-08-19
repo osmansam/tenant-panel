@@ -465,6 +465,7 @@ export interface FormObjectListDisplayConfig {
   primaryTemplate?: string;
   secondaryField?: string;
   secondaryTemplate?: string;
+  rightTemplate?: string;
   imageField?: string;
 }
 
