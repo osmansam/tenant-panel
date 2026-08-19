@@ -9,9 +9,14 @@ import {
   useGetTenantPages,
   useUpdatePage,
   CreatePagePayload,
+  UpdatePagePayload,
 } from "../../../utils/api/page";
 import { getIconByName } from "../../../utils/menuIcons";
-import { normalizePageJsonPayload } from "../../../utils/jsonCreate";
+import {
+  buildPageJsonUpdate,
+  getEditablePageJson,
+  normalizePageJsonPayload,
+} from "../../../utils/jsonCreate";
 import { updatePageEditorMetadata } from "../../../utils/pageEditorMetadata";
 import { buildPageOrderSwap, sortPagesForDisplay } from "../../../utils/pageOrdering";
 import { PAGE_ICON_OPTIONS } from "../../../utils/pageIcons";
@@ -28,11 +33,12 @@ export const PagesSection: React.FC = () => {
   const { user } = useUserContext();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateJsonModalOpen, setIsCreateJsonModalOpen] = useState(false);
+  const [editingJsonPage, setEditingJsonPage] = useState<PageModel | null>(null);
   const [selectedPage, setSelectedPage] = useState<PageModel | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
-  const { updatePage, updatePageAsync } = useUpdatePage();
+  const { updatePage, updatePageAsync, isUpdating } = useUpdatePage();
   const { createPage, isCreating } = useCreatePage();
 
   // Get pages for the current project with error handling
@@ -67,6 +73,15 @@ export const PagesSection: React.FC = () => {
 
   const handleCreatePageWithJson = (payload: unknown) => {
     createPage(payload as CreatePagePayload);
+  };
+
+  const handleEditPageWithJson = (payload: unknown) => {
+    if (!editingJsonPage) return;
+    const update = buildPageJsonUpdate(
+      editingJsonPage as PageModel & Record<string, unknown>,
+      payload as Record<string, unknown>,
+    );
+    updatePage({ id: update.id, payload: update.payload as UpdatePagePayload });
   };
 
   const buildPageOrderPayload = (page: PageModel, order: number) => ({
@@ -453,6 +468,14 @@ export const PagesSection: React.FC = () => {
                   <GenericButton
                     variant="outline"
                     size="sm"
+                    onClick={() => setEditingJsonPage(page)}
+                    iconLeft={<FiCode size={12} />}
+                  >
+                    {t("Edit with JSON")}
+                  </GenericButton>
+                  <GenericButton
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       // Navigate to page preview in the same tab
                       navigate(`/page-preview/${page.id}`);
@@ -550,6 +573,26 @@ export const PagesSection: React.FC = () => {
         onSubmit={handleCreatePageWithJson}
         onClose={() => setIsCreateJsonModalOpen(false)}
       />
+
+      {editingJsonPage && (
+        <CreateWithJsonModal
+          isOpen
+          title="Edit Page with JSON"
+          description="Edit the complete page configuration"
+          submitLabel="Save Changes"
+          initialJson={getEditablePageJson(
+            editingJsonPage as PageModel & Record<string, unknown>,
+          )}
+          isSubmitting={isUpdating}
+          validate={(payload) => {
+            const name = String(payload.name || payload.Name || "").trim();
+            return name ? null : "Page JSON requires name";
+          }}
+          normalize={(payload) => normalizePageJsonPayload(payload)}
+          onSubmit={handleEditPageWithJson}
+          onClose={() => setEditingJsonPage(null)}
+        />
+      )}
 
       {/* Page Designer Modal */}
       {showDesigner && editingPage && (

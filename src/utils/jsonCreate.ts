@@ -42,6 +42,24 @@ export function normalizePageJsonPayload(value: Record<string, unknown>) {
   };
 }
 
+type PageJsonRecord = Record<string, unknown> & { id?: string; _id?: string };
+
+export function getEditablePageJson(page: PageJsonRecord): Record<string, unknown> {
+  return stripIdentityFields(page);
+}
+
+export function buildPageJsonUpdate(
+  originalPage: PageJsonRecord,
+  editedPayload: Record<string, unknown>,
+) {
+  const id = originalPage._id || originalPage.id;
+  if (!id) throw new Error("Page JSON update requires the original page id");
+  return {
+    id,
+    payload: normalizePageJsonPayload(stripIdentityFields(editedPayload)),
+  };
+}
+
 export function normalizeContainerJsonPayload(value: Record<string, unknown>) {
   return {
     ...value,
