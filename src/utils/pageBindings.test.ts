@@ -225,6 +225,31 @@ describe("labels and stable references", () => {
 });
 
 describe("validation and dependencies", () => {
+  it("accepts info-block selection outputs and rejects a missing value key", () => {
+    const valid = {
+      id: "cmp_summary",
+      stateKey: "summary",
+      type: "infoBlocks" as const,
+      outputs: [{
+        id: "out_minimum",
+        key: "minimum",
+        type: "number" as const,
+        source: { kind: "infoBlockSelection" as const, valueKey: "minimum" },
+      }],
+    };
+    expect(validatePageBindings(pageWith(valid)).map((item) => item.code))
+      .not.toContain("unsupported_output_source");
+
+    const invalid = {
+      ...valid,
+      outputs: [{
+        ...valid.outputs[0],
+        source: { kind: "infoBlockSelection" as const, valueKey: "" },
+      }],
+    };
+    expect(validatePageBindings(pageWith(invalid)).map((item) => item.code))
+      .toContain("missing_output_value_key");
+  });
   it("reports duplicate ids and aliases in deterministic order", () => {
     const page = pageWith(
       table(),

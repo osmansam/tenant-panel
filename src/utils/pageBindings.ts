@@ -1443,6 +1443,27 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
       } else if (source.kind === "tableSearch") {
         tableSource = true;
         expected = "string";
+      } else if (source.kind === "infoBlockSelection") {
+        if (component.type !== "infoBlocks") {
+          issues.push(
+            issue(
+              "incompatible_output_source",
+              "Information-block output source requires an infoBlocks component.",
+              outputPath,
+              { componentId: component.id },
+            ),
+          );
+        }
+        if (!source.valueKey) {
+          issues.push(
+            issue(
+              "missing_output_value_key",
+              "Information-block output requires a value key.",
+              outputPath,
+              { componentId: component.id },
+            ),
+          );
+        }
       } else {
         issues.push(
           issue(

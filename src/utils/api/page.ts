@@ -61,7 +61,8 @@ export interface PageFilterDefinition {
 export type ComponentOutputSource =
   | { kind: "tableFilter"; filterId: string }
   | { kind: "tableSelectedIds" }
-  | { kind: "tableSearch" };
+  | { kind: "tableSearch" }
+  | { kind: "infoBlockSelection"; valueKey: string };
 
 export interface ComponentOutputDefinition {
   id: string;

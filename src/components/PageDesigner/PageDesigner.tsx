@@ -5574,7 +5574,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                       />
                     </div>
 
-                    {componentType === "table" && (
+                    {(componentType === "table" || componentType === "infoBlocks") && (
                       <ComponentOutputsEditor
                         page={page}
                         component={draftRuntimeComponent}
@@ -5585,6 +5585,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                             >,
                           )
                         }
+                        infoBlockItems={infoBlockItems}
                       />
                     )}
 
@@ -6267,6 +6268,43 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                               }
                               className="h-[42px] w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2"
                               title="Side color"
+                            />
+                            <textarea
+                              key={`click-values-${index}-${JSON.stringify(item.clickValues || {})}`}
+                              defaultValue={
+                                item.clickValues && Object.keys(item.clickValues).length
+                                  ? JSON.stringify(item.clickValues, null, 2)
+                                  : ""
+                              }
+                              onBlur={(event) => {
+                                const value = event.target.value.trim();
+                                if (!value) {
+                                  setInfoBlockItems((current) =>
+                                    current.map((block, itemIndex) =>
+                                      itemIndex === index
+                                        ? { ...block, clickValues: undefined }
+                                        : block,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                try {
+                                  const parsed = JSON.parse(value);
+                                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                                    setInfoBlockItems((current) =>
+                                      current.map((block, itemIndex) =>
+                                        itemIndex === index
+                                          ? { ...block, clickValues: parsed }
+                                          : block,
+                                      ),
+                                    );
+                                  }
+                                } catch {
+                                  // Keep the previous valid value; validation happens on blur.
+                                }
+                              }}
+                              className="min-h-24 w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 font-mono text-xs md:col-span-2"
+                              placeholder={'Click values JSON, e.g. {"minimum": 3, "maximum": 5}'}
                             />
                             <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-white p-3">
                               <div className="mb-2 flex items-center justify-between gap-3">

@@ -5,6 +5,7 @@ import type {
   ComponentOutputDefinition,
   PageModel,
 } from "../../utils/api/page";
+import type { InfoBlockItemConfig } from "../../types/page";
 import {
   createRuntimeId,
   dependentBindings,
@@ -16,10 +17,12 @@ interface ComponentOutputsEditorProps {
   page: PageModel;
   component: ComponentBlock;
   onChange: (component: ComponentBlock) => void;
+  infoBlockItems?: InfoBlockItemConfig[];
 }
 
 function outputSourceKey(output: ComponentOutputDefinition): string {
   if (output.source.kind === "tableFilter") return `tableFilter:${output.source.filterId}`;
+  if (output.source.kind === "infoBlockSelection") return `infoBlockSelection:${output.source.valueKey}`;
   return output.source.kind;
 }
 
@@ -27,12 +30,19 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
   page,
   component,
   onChange,
+  infoBlockItems = [],
 }) => {
-  if (component.type !== "table") return null;
+  if (component.type !== "table" && component.type !== "infoBlocks") return null;
 
   const outputs = component.outputs ?? [];
   const exposedSources = new Set(outputs.map(outputSourceKey));
   const filters = component.table?.filterPanel?.inputs ?? [];
+  const infoBlockValues = new Map<string, unknown>();
+  infoBlockItems.forEach((item) =>
+    Object.entries(item.clickValues || {}).forEach(([key, value]) => {
+      if (!infoBlockValues.has(key)) infoBlockValues.set(key, value);
+    }),
+  );
 
   const addOutput = (output: ComponentOutputDefinition) => {
     onChange({ ...component, outputs: [...outputs, output] });
@@ -79,6 +89,19 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
       source: { kind: "tableSelectedIds" },
     });
 
+  const addInfoBlockOutput = (valueKey: string, value: unknown) =>
+    addOutput({
+      id: createRuntimeId("out"),
+      key: uniqueOutputKey(component, valueKey),
+      type:
+        typeof value === "number"
+          ? "number"
+          : typeof value === "boolean"
+            ? "boolean"
+            : "string",
+      source: { kind: "infoBlockSelection", valueKey },
+    });
+
   return (
     <div className="space-y-4 rounded-xl border border-neutral-200 bg-white p-4">
       <div>
@@ -86,7 +109,7 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
           Component Outputs
         </h4>
         <p className="mt-1 text-xs text-neutral-500">
-          Expose table interaction values so other component requests can bind to
+          Expose interaction values so other component requests can bind to
           stable output IDs.
         </p>
       </div>
@@ -142,7 +165,7 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
         )}
       </div>
 
-      <div className="space-y-2 border-t border-neutral-100 pt-3">
+      {component.type === "table" && <div className="space-y-2 border-t border-neutral-100 pt-3">
         <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Table filters
         </div>
@@ -188,9 +211,9 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
             );
           })
         )}
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 pt-3">
+      {component.type === "table" && <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 pt-3">
         <button
           type="button"
           disabled={exposedSources.has("tableSearch")}
@@ -207,7 +230,37 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
         >
           Expose tableSelectedIds
         </button>
-      </div>
+      </div>}
+
+      {component.type === "infoBlocks" && (
+        <div className="space-y-2 border-t border-neutral-100 pt-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Click values
+          </div>
+          {infoBlockValues.size === 0 ? (
+            <div className="text-xs text-neutral-500">
+              Add click-value JSON to a block before exposing outputs.
+            </div>
+          ) : (
+            Array.from(infoBlockValues.entries()).map(([valueKey, value]) => {
+              const exposed = exposedSources.has(`infoBlockSelection:${valueKey}`);
+              return (
+                <div key={valueKey} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                  <span className="text-xs font-mono text-neutral-700">{valueKey}</span>
+                  <button
+                    type="button"
+                    disabled={exposed}
+                    onClick={() => addInfoBlockOutput(valueKey, value)}
+                    className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white disabled:bg-neutral-200 disabled:text-neutral-500"
+                  >
+                    {exposed ? "Exposed" : "Expose as component output"}
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 };
