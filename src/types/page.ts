@@ -55,7 +55,8 @@ export interface PageFilterDefinition {
 export type ComponentOutputSource =
   | { kind: "tableFilter"; filterId: string }
   | { kind: "tableSelectedIds" }
-  | { kind: "tableSearch" };
+  | { kind: "tableSearch" }
+  | { kind: "infoBlockSelection"; valueKey: string };
 
 export interface ComponentOutputDefinition {
   id: string;
@@ -574,6 +575,7 @@ export interface InfoBlockItemConfig {
   color?: string;
   titleColorRules?: InfoBlockColorRule[];
   footerColorRules?: InfoBlockColorRule[];
+  clickValues?: Record<string, unknown>;
 }
 
 export interface InfoBlocksConfig {
