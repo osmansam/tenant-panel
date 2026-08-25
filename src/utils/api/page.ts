@@ -6,6 +6,7 @@ import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetList } from "./factory";
 import { normalizePageRuntimeConfig } from "../pageBindings";
+import type { PageNavigatorConfig } from "../../types/page";
 
 // Type definitions based on Go models
 export type BindingKind =
@@ -569,6 +570,7 @@ export interface ComponentBlock {
   form?: PageFormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   props?: Record<string, any>;
   tabs?: TabPanelTab[];
 }
@@ -632,6 +634,7 @@ export interface PageModel {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }
@@ -650,6 +653,7 @@ export interface CreatePagePayload {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }

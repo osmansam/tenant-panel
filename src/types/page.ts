@@ -699,6 +699,34 @@ export interface GridSection {
   cells: GridCell[];
 }
 
+export type PageNavigatorMode = "automatic" | "custom";
+
+export type PageNavigatorDestination =
+  | { type: "page"; pageId: string }
+  | { type: "external"; url: string };
+
+export interface PageNavigatorOverride {
+  pageId: string;
+  label?: string;
+  hidden?: boolean;
+}
+
+export interface PageNavigatorAdditionalItem {
+  id: string;
+  label: string;
+  destination: PageNavigatorDestination;
+  openInNewTab?: boolean;
+}
+
+export interface PageNavigatorConfig {
+  enabled: boolean;
+  mode: PageNavigatorMode;
+  showHome: boolean;
+  homeLabel?: string;
+  overrides?: PageNavigatorOverride[];
+  additionalItems?: PageNavigatorAdditionalItem[];
+}
+
 export interface PageModel {
   variables?: PageVariableDefinition[];
   filters?: PageFilterDefinition[];
@@ -706,6 +734,7 @@ export interface PageModel {
   name: string;
   icon?: string;
   slug?: string;
+  parentPageId?: string | null;
   order?: number;
   isGroupOnly?: boolean;
   isOnSidebar?: boolean;
@@ -713,6 +742,7 @@ export interface PageModel {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections: GridSection[]; // Array of grid sections directly
   subPage?: PageModel; // Nested sub-page
 }
