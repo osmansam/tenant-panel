@@ -20,6 +20,17 @@ export function normalizeBrandingResponse(
   return "effective" in value ? value : value.data;
 }
 
+export function brandingUploadErrorMessage(error: unknown): string {
+  const response = (error as {
+    response?: { data?: { message?: string; error?: string } };
+  })?.response;
+  return (
+    response?.data?.message ||
+    response?.data?.error ||
+    "The image could not be uploaded"
+  );
+}
+
 function brandingPath(scope: BrandingScope, projectId?: string) {
   return scope === "tenant"
     ? "/tenant/branding"

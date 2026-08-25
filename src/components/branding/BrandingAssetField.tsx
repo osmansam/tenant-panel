@@ -3,6 +3,7 @@ import type {
   BrandingAsset,
   BrandingAssetSlot,
 } from "../../types/branding";
+import { brandingUploadErrorMessage } from "../../utils/api/branding";
 
 interface BrandingAssetFieldProps {
   label: string;
@@ -45,10 +46,8 @@ export function BrandingAssetField({
     setError("");
     try {
       await onUpload(slot, file);
-    } catch (uploadError: any) {
-      setError(
-        uploadError?.response?.data?.message || "The image could not be uploaded",
-      );
+    } catch (uploadError: unknown) {
+      setError(brandingUploadErrorMessage(uploadError));
     } finally {
       if (inputRef.current) inputRef.current.value = "";
     }

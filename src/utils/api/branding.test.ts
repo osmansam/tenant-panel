@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   brandingQueryKey,
+  brandingUploadErrorMessage,
   normalizeBrandingResponse,
 } from "./branding";
 
@@ -39,5 +40,14 @@ describe("branding API contracts", () => {
       "project",
       "project-1",
     ]);
+  });
+
+  it("shows backend upload errors returned in either supported error field", () => {
+    expect(
+      brandingUploadErrorMessage({ response: { data: { error: "Request body too large" } } }),
+    ).toBe("Request body too large");
+    expect(
+      brandingUploadErrorMessage({ response: { data: { message: "Unsupported image" } } }),
+    ).toBe("Unsupported image");
   });
 });
