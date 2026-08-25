@@ -7,3 +7,4 @@ export { PageDesignerPage } from "./PageDesignerPage";
 export { PagePreviewPage } from "./PagePreviewPage";
 export { default as ProjectManagementPage } from "./ProjectManagementPage";
 export { default as RegisterPage } from "./RegisterPage";
+export { default as TenantBrandingPage } from "./TenantBrandingPage";

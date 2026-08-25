@@ -8,6 +8,7 @@ import {
   PagePreviewPage,
   ProjectManagementPage,
   RegisterPage,
+  TenantBrandingPage,
 } from "../pages";
 import ProjectsPage from "../pages/ProjectsPage";
 import { PrivateRoutes } from "./PrivateRoutes";
@@ -59,7 +60,7 @@ const RouterContainer = () => {
         <Route path="/page-preview/:pageId/*" element={<PagePreviewPage />} />
         <Route path="/page-preview/:pageId" element={<PagePreviewPage />} />
         {/* <Route path={ProtectedRoutes.Users} element={<UsersPage />} /> */}
-        {/* <Route path={ProtectedRoutes.Settings} element={<SettingsPage />} /> */}
+        <Route path={ProtectedRoutes.Settings} element={<TenantBrandingPage />} />
         {/* <Route path={ProtectedRoutes.Profile} element={<ProfilePage />} /> */}
       </Route>
 

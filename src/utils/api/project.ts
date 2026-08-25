@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { axiosClient } from "./axiosClient";
 import { useGet, useMutationApi } from "./factory";
+import type { BrandingOverrides } from "../../types/branding";
 
 // Project types - Updated to match API response
 export interface Project {
@@ -22,6 +23,7 @@ export interface Project {
   defaultLocale?: string;
   enabledLocales?: string[];
   localizationVersion?: number;
+  branding?: BrandingOverrides;
   status?: "active" | "inactive" | "archived"; // Keep for compatibility
   createdAt: string;
   updatedAt: string;

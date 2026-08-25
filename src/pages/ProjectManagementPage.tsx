@@ -7,6 +7,7 @@ import { PagesSection } from "../components/panelComponents/common/PagesSection"
 import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
+import { BrandingEditor } from "../components/branding/BrandingEditor";
 
 const ProjectManagementPage: React.FC = () => {
   const { t } = useTranslation();
@@ -60,6 +61,12 @@ const ProjectManagementPage: React.FC = () => {
 
       {/* Content Sections */}
       <div className="space-y-6">
+        <BrandingEditor
+          scope="project"
+          tenantId={currentProject.tenantId}
+          projectId={currentProject.id}
+        />
+
         {/* Containers Management */}
         <ContainersSection />
 
