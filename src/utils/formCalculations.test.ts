@@ -102,6 +102,50 @@ describe("form calculations", () => {
     });
   });
 
+  it("applies a quantity discount only at or above the configured line threshold", () => {
+    const configured: FormObjectListConfig = {
+      key: "items",
+      itemFields: ["unitPrice", "quantity"],
+      itemCalculations: [{
+        operation: "quantityDiscount",
+        inputs: ["unitPrice", "quantity"],
+        originalTargetField: "originalLineTotal",
+        targetField: "lineTotal",
+        minimumQuantity: 6,
+        discountPercentage: 30,
+        precision: 2,
+      }],
+    };
+    const inputs = [5, 6, 7].map((quantity) => ({ unitPrice: 100, quantity }));
+
+    expect(inputs.map((item) => calculateObjectListItem(configured, item))).toEqual([
+      { unitPrice: 100, quantity: 5, originalLineTotal: 500, lineTotal: 500 },
+      { unitPrice: 100, quantity: 6, originalLineTotal: 600, lineTotal: 420 },
+      { unitPrice: 100, quantity: 7, originalLineTotal: 700, lineTotal: 490 },
+    ]);
+    expect(inputs[1]).toEqual({ unitPrice: 100, quantity: 6 });
+  });
+
+  it("rounds the original and discounted line totals to configured precision", () => {
+    const configured: FormObjectListConfig = {
+      key: "items",
+      itemCalculations: [{
+        operation: "quantityDiscount",
+        inputs: ["unitPrice", "quantity"],
+        originalTargetField: "originalLineTotal",
+        targetField: "lineTotal",
+        minimumQuantity: 6,
+        discountPercentage: 30,
+        precision: 2,
+      }],
+    };
+
+    expect(calculateObjectListItem(configured, { unitPrice: 19.99, quantity: 6 })).toMatchObject({
+      originalLineTotal: 119.94,
+      lineTotal: 83.96,
+    });
+  });
+
   it("evaluates sum and copy summaries in order", () => {
     expect(
       calculateFormSummaries(form, {

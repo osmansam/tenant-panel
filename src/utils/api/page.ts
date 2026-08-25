@@ -415,6 +415,14 @@ export interface PageFormObjectListDisplayConfig {
   secondaryTemplate?: string;
   rightTemplate?: string;
   imageField?: string;
+  priceComparison?: PageFormPriceComparisonConfig;
+}
+
+export interface PageFormPriceComparisonConfig {
+  originalField: string;
+  discountedField: string;
+  currency?: string;
+  precision?: number;
 }
 
 export interface PageFormObjectActionConfig {
@@ -436,9 +444,12 @@ export interface PageFormFieldMappingConfig {
 }
 
 export interface PageFormItemCalculationConfig {
-  operation: "multiply";
+  operation: "multiply" | "quantityDiscount";
   inputs: string[];
+  originalTargetField?: string;
   targetField: string;
+  minimumQuantity?: number;
+  discountPercentage?: number;
   precision?: number;
 }
 

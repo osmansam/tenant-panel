@@ -92,15 +92,30 @@ export const calculateObjectListItem = (
 ): EmbeddedItem => {
   const result = { ...item };
   (config.itemCalculations || []).forEach((calculation) => {
+    const [leftField, rightField] = calculation.inputs;
+    const left = numericValue(calculationValue(result, leftField), leftField);
+    const right = numericValue(calculationValue(result, rightField), rightField);
+    if (calculation.operation === "quantityDiscount") {
+      if (
+        !calculation.originalTargetField ||
+        calculation.minimumQuantity === undefined ||
+        calculation.discountPercentage === undefined
+      ) {
+        throw new FormCalculationError("invalid_operation", "Quantity discount configuration is incomplete");
+      }
+      const original = roundDecimal(left * right, calculation.precision ?? 2);
+      result[calculation.originalTargetField] = original;
+      result[calculation.targetField] = right >= calculation.minimumQuantity
+        ? roundDecimal(original * (1 - calculation.discountPercentage / 100), calculation.precision ?? 2)
+        : original;
+      return;
+    }
     if (calculation.operation !== "multiply") {
       throw new FormCalculationError(
         "invalid_operation",
         `Unsupported item operation '${calculation.operation}'`,
       );
     }
-    const [leftField, rightField] = calculation.inputs;
-    const left = numericValue(calculationValue(result, leftField), leftField);
-    const right = numericValue(calculationValue(result, rightField), rightField);
     result[calculation.targetField] = roundDecimal(
       left * right,
       calculation.precision ?? 2,

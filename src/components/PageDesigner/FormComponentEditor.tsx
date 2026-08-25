@@ -525,8 +525,24 @@ const FormComponentEditor = ({
                 </div>
                 <div className="space-y-2">
                   {(objectList.itemCalculations || []).map((calculation, calculationIndex) => (
-                    <div key={calculationIndex} className="grid grid-cols-1 gap-2 md:grid-cols-6">
-                      <select value={calculation.operation} disabled className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="multiply">Multiply</option></select>
+                    <div key={calculationIndex} className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                      <select value={calculation.operation} onChange={(event) => {
+                        const operation = event.target.value as typeof calculation.operation;
+                        onChange(updateItemCalculation(value, listIndex, calculationIndex, operation === "quantityDiscount" ? {
+                          operation,
+                          originalTargetField: calculation.originalTargetField || "originalLineTotal",
+                          minimumQuantity: calculation.minimumQuantity ?? 6,
+                          discountPercentage: calculation.discountPercentage ?? 30,
+                        } : {
+                          operation,
+                          originalTargetField: undefined,
+                          minimumQuantity: undefined,
+                          discountPercentage: undefined,
+                        }));
+                      }} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
+                        <option value="multiply">Multiply</option>
+                        <option value="quantityDiscount">Quantity discount</option>
+                      </select>
                       {[0, 1].map((inputIndex) => {
                         const options = getAvailableCalculationInputs(value, listIndex, calculationIndex);
                         const groups = ["Item fields", "Additional option data", "Calculated fields"] as const;
@@ -544,6 +560,11 @@ const FormComponentEditor = ({
                           </select>
                         );
                       })}
+                      {calculation.operation === "quantityDiscount" && <>
+                        <input value={calculation.originalTargetField || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { originalTargetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Original total field" aria-label="Original total field" />
+                        <input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
+                        <input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discount %" aria-label="Discount percentage" />
+                      </>}
                       <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
                       <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />
                       <button type="button" aria-label="Remove calculation" onClick={() => onChange(removeItemCalculation(value, listIndex, calculationIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
@@ -678,6 +699,34 @@ const FormComponentEditor = ({
                   className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Right-side template, e.g. {{lineTotal}} TRY"
                 />
+              </div>
+              <div className="mt-3 rounded-lg border border-neutral-200 p-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(objectList.display?.priceComparison)}
+                    onChange={(event) => updateObjectList(listIndex, {
+                      display: {
+                        ...objectList.display,
+                        priceComparison: event.target.checked ? {
+                          originalField: "originalLineTotal",
+                          discountedField: "lineTotal",
+                          currency: "TRY",
+                          precision: 2,
+                        } : undefined,
+                      },
+                    })}
+                  />
+                  Show original and discounted prices
+                </label>
+                {objectList.display?.priceComparison && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-4">
+                    <input value={objectList.display.priceComparison.originalField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, originalField: event.target.value } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Original price field" aria-label="Original price field" />
+                    <input value={objectList.display.priceComparison.discountedField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, discountedField: event.target.value } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discounted price field" aria-label="Discounted price field" />
+                    <input value={objectList.display.priceComparison.currency || ""} maxLength={3} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, currency: event.target.value.toUpperCase() } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="TRY" aria-label="Price currency" />
+                    <input type="number" min={0} max={6} value={objectList.display.priceComparison.precision ?? 2} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, precision: Number(event.target.value) } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Price precision" />
+                  </div>
+                )}
               </div>
             </div>
 

@@ -81,4 +81,69 @@ describe("form calculation editor helpers", () => {
     expect(normalized.objectLists![0].fieldMappings![0]).toMatchObject({ sourceFormKey: "productId", sourceField: "price", targetField: "unitPrice" });
     expect(normalized.summaries![0]).toMatchObject({ key: "subtotal", sourceField: "lineTotal", targetField: "subtotal", format: { currency: "TRY", precision: 2 } });
   });
+
+  it("validates quantity-discount thresholds, percentages, outputs, and price comparisons", () => {
+    let configured = updateFieldMapping(addFieldMapping(form(), 0), 0, 0, {
+      sourceFormKey: "productId",
+      sourceField: "price",
+      targetField: "unitPrice",
+    });
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: ["unitPrice", "quantity"],
+      originalTargetField: "lineTotal",
+      targetField: "lineTotal",
+      minimumQuantity: 0,
+      discountPercentage: 101,
+      precision: 2,
+    }];
+    configured.objectLists![0].display = {
+      priceComparison: {
+        originalField: "missing",
+        discountedField: "",
+        currency: "try",
+        precision: 7,
+      },
+    };
+
+    const errors = validateDesignerCalculations(configured).join(" ");
+    expect(errors).toContain("distinct output fields");
+    expect(errors).toContain("minimum quantity");
+    expect(errors).toContain("discount percentage");
+    expect(errors).toContain("price comparison fields");
+    expect(errors).toContain("currency");
+    expect(errors).toContain("precision");
+  });
+
+  it("normalizes quantity-discount outputs and price-comparison settings", () => {
+    const configured = form();
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: [" unitPrice ", " quantity "],
+      originalTargetField: " originalLineTotal ",
+      targetField: " lineTotal ",
+      minimumQuantity: 6,
+      discountPercentage: 30,
+    }];
+    configured.objectLists![0].display = {
+      priceComparison: {
+        originalField: " originalLineTotal ",
+        discountedField: " lineTotal ",
+        currency: " try ",
+      },
+    };
+
+    const normalized = normalizeDesignerCalculations(configured);
+    expect(normalized.objectLists![0].itemCalculations![0]).toMatchObject({
+      originalTargetField: "originalLineTotal",
+      targetField: "lineTotal",
+      precision: 2,
+    });
+    expect(normalized.objectLists![0].display?.priceComparison).toEqual({
+      originalField: "originalLineTotal",
+      discountedField: "lineTotal",
+      currency: "TRY",
+      precision: 2,
+    });
+  });
 });

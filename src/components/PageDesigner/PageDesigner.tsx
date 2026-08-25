@@ -1700,6 +1700,7 @@ export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig
         secondaryTemplate: objectList.display?.secondaryTemplate?.trim() || "",
         rightTemplate: objectList.display?.rightTemplate?.trim() || "",
         imageField: objectList.display?.imageField?.trim() || "",
+        priceComparison: objectList.display?.priceComparison,
       },
       addAction: objectList.addAction
         ? {
