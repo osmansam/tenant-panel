@@ -21,6 +21,7 @@ import { updatePageEditorMetadata } from "../../../utils/pageEditorMetadata";
 import { buildPageOrderSwap, sortPagesForDisplay } from "../../../utils/pageOrdering";
 import { PAGE_ICON_OPTIONS } from "../../../utils/pageIcons";
 import { PageDesigner } from "../../PageDesigner/PageDesigner";
+import { PageNavigatorEditor } from "../../PageDesigner/PageNavigatorEditor";
 import { GenericButton } from "../FormElements/GenericButton";
 import { CreatePageModal } from "../Modals/CreatePageModal";
 import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
@@ -99,6 +100,7 @@ export const PagesSection: React.FC = () => {
     filters: page.filters,
     sections: page.sections,
     subPage: page.subPage,
+    pageNavigator: page.pageNavigator,
   });
 
   const handleMovePage = async (index: number, direction: "up" | "down") => {
@@ -175,6 +177,7 @@ export const PagesSection: React.FC = () => {
         filters: page.filters,
         sections: page.sections,
         subPage: page.subPage,
+        pageNavigator: page.pageNavigator,
       },
     });
   };
@@ -203,6 +206,7 @@ export const PagesSection: React.FC = () => {
           authorizeRole: editingPage.authorizeRole,
           filters,
           sections: sections,
+          pageNavigator: editingPage.pageNavigator,
         },
       });
       setEditingPage({
@@ -239,6 +243,7 @@ export const PagesSection: React.FC = () => {
         filters: page.filters,
         sections: page.sections,
         subPage: page.subPage,
+        pageNavigator: page.pageNavigator,
       },
     });
   };
@@ -264,6 +269,7 @@ export const PagesSection: React.FC = () => {
         filters: page.filters,
         sections: page.sections,
         subPage: page.subPage,
+        pageNavigator: page.pageNavigator,
       },
     });
   };
@@ -689,6 +695,26 @@ export const PagesSection: React.FC = () => {
 
             {/* Page Designer */}
             <div className="flex-1 overflow-hidden">
+              <div className="max-h-[46vh] overflow-y-auto border-b border-neutral-200 bg-white p-5">
+                <PageNavigatorEditor
+                  value={editingPage.pageNavigator}
+                  currentPageId={getPageId(editingPage)}
+                  pages={pages.map((page) => ({
+                    id: getPageId(page),
+                    name: page.name,
+                    slug: page.slug,
+                    parentPageId: page.parentPageId,
+                    isMainPage: page.isMainPage,
+                    isGroupOnly: page.isGroupOnly,
+                    sections: [],
+                  }))}
+                  onChange={(pageNavigator) =>
+                    setEditingPage((currentPage) =>
+                      currentPage ? { ...currentPage, pageNavigator } : currentPage,
+                    )
+                  }
+                />
+              </div>
               <PageDesigner
                 sections={
                   (editingPage.sections

@@ -672,6 +672,7 @@ export interface UpdatePagePayload {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }
