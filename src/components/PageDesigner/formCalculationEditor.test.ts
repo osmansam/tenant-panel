@@ -146,4 +146,16 @@ describe("form calculation editor helpers", () => {
       precision: 2,
     });
   });
+
+  it("validates and normalizes merge-on-add fields", () => {
+    const configured = form();
+    configured.objectLists![0].mergeOnAdd = { matchField: " missing ", quantityField: " quantity " };
+    expect(validateDesignerCalculations(configured).join(" ")).toContain("merge match field");
+
+    configured.objectLists![0].mergeOnAdd.matchField = " productId ";
+    expect(normalizeDesignerCalculations(configured).objectLists![0].mergeOnAdd).toEqual({
+      matchField: "productId",
+      quantityField: "quantity",
+    });
+  });
 });

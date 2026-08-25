@@ -728,6 +728,33 @@ const FormComponentEditor = ({
                   </div>
                 )}
               </div>
+              <div className="mt-3 rounded-lg border border-neutral-200 p-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(objectList.mergeOnAdd)}
+                    onChange={(event) => updateObjectList(listIndex, {
+                      mergeOnAdd: event.target.checked ? {
+                        matchField: objectList.itemFields?.includes("productId") ? "productId" : objectList.itemFields?.[0] || "",
+                        quantityField: objectList.itemFields?.includes("quantity") ? "quantity" : objectList.itemFields?.[1] || objectList.itemFields?.[0] || "",
+                      } : undefined,
+                    })}
+                  />
+                  Merge repeated items when adding
+                </label>
+                {objectList.mergeOnAdd && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <select value={objectList.mergeOnAdd.matchField} onChange={(event) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, matchField: event.target.value } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Merge match field">
+                      <option value="">Match field</option>
+                      {(objectList.itemFields || []).map((field) => <option key={field} value={field}>{field}</option>)}
+                    </select>
+                    <select value={objectList.mergeOnAdd.quantityField} onChange={(event) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, quantityField: event.target.value } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Merge quantity field">
+                      <option value="">Quantity field</option>
+                      {(objectList.itemFields || []).map((field) => <option key={field} value={field}>{field}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 space-y-2">

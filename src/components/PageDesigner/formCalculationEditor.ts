@@ -126,6 +126,10 @@ export const validateDesignerCalculations = (form: FormComponentConfig): string[
       if (available.has(mapping.targetField.trim())) errors.push(`${list.key}: duplicate item target ${mapping.targetField.trim()}`);
       available.add(mapping.targetField.trim());
     });
+    if (list.mergeOnAdd) {
+      if (!available.has(list.mergeOnAdd.matchField.trim())) errors.push(`${list.key}: merge match field must reference an available item field`);
+      if (!available.has(list.mergeOnAdd.quantityField.trim())) errors.push(`${list.key}: merge quantity field must reference an available item field`);
+    }
     (list.itemCalculations || []).forEach((calculation, index) => {
       if (calculation.inputs.length !== 2 || calculation.inputs.some((input) => !available.has(input.trim()))) errors.push(`${list.key} calculation ${index + 1}: inputs must reference available item fields`);
       if (calculation.precision !== undefined && (calculation.precision < 0 || calculation.precision > 6)) errors.push(`${list.key} calculation ${index + 1}: precision must be between 0 and 6`);
@@ -166,6 +170,10 @@ export const normalizeDesignerCalculations = (form: FormComponentConfig): FormCo
   objectLists: (form.objectLists || []).map((list) => ({
     ...list,
     fieldMappings: (list.fieldMappings || []).map((mapping) => ({ ...mapping, sourceFormKey: mapping.sourceFormKey.trim(), sourceField: mapping.sourceField.trim(), targetField: mapping.targetField.trim() })),
+    mergeOnAdd: list.mergeOnAdd ? {
+      matchField: list.mergeOnAdd.matchField.trim(),
+      quantityField: list.mergeOnAdd.quantityField.trim(),
+    } : undefined,
     itemCalculations: (list.itemCalculations || []).map((calculation) => ({ ...calculation, inputs: calculation.inputs.map((input) => input.trim()), originalTargetField: calculation.originalTargetField?.trim(), targetField: calculation.targetField.trim(), precision: calculation.precision ?? 2 })),
     display: list.display ? {
       ...list.display,

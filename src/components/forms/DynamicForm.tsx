@@ -228,6 +228,7 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
         current[objectList.key],
         item,
         editingIndex,
+        objectList.mergeOnAdd,
       ),
     }));
     clearSourceFields(action);

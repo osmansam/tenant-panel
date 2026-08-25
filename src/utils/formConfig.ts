@@ -240,14 +240,27 @@ export const addOrReplaceObjectListItem = (
   currentItems: unknown,
   item: EmbeddedFormObject,
   editingIndex: number | null,
+  mergeOnAdd?: FormObjectListConfig["mergeOnAdd"],
 ): EmbeddedFormObject[] => {
   const items = normalizeObjectListValue(currentItems);
-  if (editingIndex === null || !items[editingIndex]) {
-    return [...items, item];
+  if (editingIndex !== null && items[editingIndex]) {
+    return items.map((current, index) =>
+      index === editingIndex ? item : current,
+    );
   }
-  return items.map((current, index) =>
-    index === editingIndex ? item : current,
-  );
+  if (mergeOnAdd) {
+    const matchingIndex = items.findIndex((current) => current[mergeOnAdd.matchField] === item[mergeOnAdd.matchField]);
+    const currentQuantity = Number(items[matchingIndex]?.[mergeOnAdd.quantityField]);
+    const addedQuantity = Number(item[mergeOnAdd.quantityField]);
+    if (matchingIndex >= 0 && Number.isFinite(currentQuantity) && Number.isFinite(addedQuantity)) {
+      return items.map((current, index) => index === matchingIndex ? {
+        ...current,
+        ...item,
+        [mergeOnAdd.quantityField]: currentQuantity + addedQuantity,
+      } : current);
+    }
+  }
+  return [...items, item];
 };
 
 export const removeObjectListItem = (

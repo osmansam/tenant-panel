@@ -443,6 +443,11 @@ export interface PageFormFieldMappingConfig {
   required?: boolean;
 }
 
+export interface PageFormObjectListMergeConfig {
+  matchField: string;
+  quantityField: string;
+}
+
 export interface PageFormItemCalculationConfig {
   operation: "multiply" | "quantityDiscount";
   inputs: string[];
@@ -490,6 +495,7 @@ export interface PageFormObjectListConfig {
   area?: PageFormAreaKey;
   source?: "embedded";
   itemFields?: string[];
+  mergeOnAdd?: PageFormObjectListMergeConfig;
   fieldMappings?: PageFormFieldMappingConfig[];
   itemCalculations?: PageFormItemCalculationConfig[];
   addAction?: PageFormActionConfig;
