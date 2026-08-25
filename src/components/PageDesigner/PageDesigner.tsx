@@ -71,6 +71,7 @@ import {
 } from "../../utils/pageBindings";
 import {
   TABLE_COLUMN_TYPE_OPTIONS,
+  TABLE_DATE_FORMAT_OPTIONS,
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
   cleanDesignerActionFormLayout,
@@ -1407,6 +1408,9 @@ const cleanTableConfig = (
       ...(column.displayName?.trim()
         ? { displayName: column.displayName.trim() }
         : {}),
+      ...(column.type === "date" && column.dateFormat
+        ? { dateFormat: column.dateFormat }
+        : {}),
       ...(column.type === "lookupLabel" &&
       column.lookup?.schemaName?.trim() &&
       column.lookup?.labelField?.trim()
@@ -1519,6 +1523,9 @@ const cleanTableConfig = (
                 : {}),
               ...(column.type && column.type !== "field"
                 ? { type: column.type }
+                : {}),
+              ...(column.type === "date" && column.dateFormat
+                ? { dateFormat: column.dateFormat }
                 : {}),
               ...(column.type === "lookupLabel" &&
               column.lookup?.schemaName?.trim() &&
@@ -7602,6 +7609,26 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                           </button>
                                         </div>
                                       </div>
+                                      {column.type === "date" && (
+                                        <label className="block max-w-xs space-y-1">
+                                          <span className="text-[11px] font-medium text-neutral-600">
+                                            Date Format
+                                          </span>
+                                          <select
+                                            value={column.dateFormat || "MM-DD-YYYY"}
+                                            onChange={(e) =>
+                                              updateTableColumn(column.field, {
+                                                dateFormat: e.target.value as TableColumnConfig["dateFormat"],
+                                              })
+                                            }
+                                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                                          >
+                                            {TABLE_DATE_FORMAT_OPTIONS.map((format) => (
+                                              <option key={format} value={format}>{format}</option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                      )}
                                       <div className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3 md:grid-cols-2">
                                         <div className="grid grid-cols-[1fr_130px] gap-2">
                                           <label className="space-y-1">

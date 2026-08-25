@@ -25,6 +25,8 @@ import {
   OutsideSearchProps,
 } from "../../../utils/outsideSearch";
 import { outsideSort } from "../../../utils/outsideSort";
+import { formatTableDate } from "../../../utils/tableDateFormat";
+import type { TableDateFormat } from "../../../types/page";
 import { GenericButton } from "../FormElements/GenericButton";
 import ImageModal from "../Modals/ImageModal";
 import { OrientationToggle } from "../TabPanel/OrientationToggle";
@@ -247,48 +249,8 @@ const GenericTable = <T,>({
   };
 
   // Helper function to format dates
-  const formatDate = (value: unknown): string | null => {
-    if (!value) return null;
-    try {
-      // handle ISO strings safely
-      const str = String(value);
-
-      // Detect "YYYY-MM-DD" or "YYYY/MM/DD" manually
-      const match = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
-      let date: Date;
-
-      if (match) {
-        const [, y, m, d] = match;
-        // ✅ Create date in local time
-        date = new Date(Number(y), Number(m) - 1, Number(d));
-      } else {
-        date = new Date(value as string | number | Date);
-      }
-
-      if (isNaN(date.getTime())) return null;
-
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
-
-      switch (dateFormat) {
-        case DateFormatEnum["DD/MM/YYYY"]:
-          return `${day}/${month}/${year}`;
-        case DateFormatEnum["DD-MM-YYYY"]:
-          return `${day}-${month}-${year}`;
-        case DateFormatEnum["YYYY/MM/DD"]:
-          return `${year}/${month}/${day}`;
-        case DateFormatEnum["YYYY-MM-DD"]:
-          return `${year}-${month}-${day}`;
-        case DateFormatEnum["MM-DD-YYYY"]:
-          return `${month}-${day}-${year}`;
-        case DateFormatEnum["MM/DD/YYYY"]:
-        default:
-          return `${month}/${day}/${year}`;
-      }
-    } catch {
-      return null;
-    }
+  const formatDate = (value: unknown, format?: TableDateFormat): string | null => {
+    return formatTableDate(value, format || (dateFormat as TableDateFormat));
   };
 
   const {
@@ -774,7 +736,7 @@ const GenericTable = <T,>({
             // Format date if explicitly marked as date field
             const rawValue = row[rowKey.key as keyof T];
             const cellValue = rowKey.isDate
-              ? formatDate(rawValue) || `${rawValue}`
+              ? formatDate(rawValue, rowKey.dateFormat) || `${rawValue}`
               : `${rawValue}`;
 
             const displayValue =
@@ -912,7 +874,7 @@ const GenericTable = <T,>({
                               const rawValue =
                                 collapsibleRow[rowKey?.key as keyof T];
                               const cellValue = rowKey.isDate
-                                ? formatDate(rawValue) || `${rawValue}`
+                                ? formatDate(rawValue, rowKey.dateFormat) || `${rawValue}`
                                 : `${rawValue}`;
 
                               const computedClassName =

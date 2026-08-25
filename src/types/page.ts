@@ -144,6 +144,14 @@ export type TableColumnType =
   | "badge"
   | "array";
 
+export type TableDateFormat =
+  | "MM/DD/YYYY"
+  | "DD/MM/YYYY"
+  | "YYYY/MM/DD"
+  | "DD-MM-YYYY"
+  | "MM-DD-YYYY"
+  | "YYYY-MM-DD";
+
 export interface TableComputedLabelRule {
   condition?: string;
   value?: string;
@@ -230,6 +238,7 @@ export interface TableColumnConfig {
   field: string;
   type?: TableColumnType;
   displayName?: string;
+  dateFormat?: TableDateFormat;
   lookup?: TableLookupLabelConfig;
   computedLabelRules?: TableComputedLabelRule[];
   template?: string;
@@ -250,6 +259,7 @@ export interface TableNestedRowColumnConfig {
   field: string;
   displayName?: string;
   type?: TableColumnType;
+  dateFormat?: TableDateFormat;
   lookup?: TableLookupLabelConfig;
   fallbackValue?: string;
 }

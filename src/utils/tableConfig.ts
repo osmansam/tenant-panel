@@ -230,6 +230,9 @@ export const applyTableNestedRows = <T extends GenericTableRow>(
         collapsibleRowKeys: columns.map((column) => ({
           key: column.field.trim(),
           isDate: column.type === "date",
+          ...(column.type === "date" && column.dateFormat
+            ? { dateFormat: column.dateFormat }
+            : {}),
           ...(column.type === "lookupLabel"
             ? {
                 node: (nestedRow: GenericTableRow) =>

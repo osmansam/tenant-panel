@@ -48,6 +48,7 @@ export interface RowKeyType<T> {
   isOptional?: boolean;
   isImage?: boolean;
   isDate?: boolean;
+  dateFormat?: import("../../../types/page").TableDateFormat;
   isBoolean?: boolean;
   className?: string | ((row: T) => string);
   style?: React.CSSProperties | ((row: T) => React.CSSProperties);
