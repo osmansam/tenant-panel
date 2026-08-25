@@ -21,6 +21,27 @@ type Props = {
   ) => void;
 };
 
+const renderPriceComparison = (
+  item: EmbeddedFormObject,
+  config: FormObjectListConfig["display"],
+) => {
+  const comparison = config?.priceComparison;
+  if (!comparison) return undefined;
+  const original = item[comparison.originalField];
+  const discounted = item[comparison.discountedField];
+  if (typeof original !== "number" || !Number.isFinite(original) || typeof discounted !== "number" || !Number.isFinite(discounted)) return undefined;
+  const precision = comparison.precision ?? 2;
+  const suffix = comparison.currency ? ` ${comparison.currency}` : "";
+  const format = (value: number) => `${value.toFixed(precision)}${suffix}`;
+  if (discounted >= original) return <span>{format(discounted)}</span>;
+  return (
+    <span className="flex items-baseline gap-2">
+      <del className="font-normal text-neutral-400">{format(original)}</del>
+      <span>{format(discounted)}</span>
+    </span>
+  );
+};
+
 const DynamicFormObjectList = ({
   config,
   items,
@@ -115,6 +136,7 @@ const DynamicFormObjectList = ({
         <div className="divide-y divide-neutral-100">
           {visibleItems.map(({ item, index }) => {
             const { primary, secondary, right } = getObjectListDisplayValues(item, config.display);
+            const comparedPrice = renderPriceComparison(item, config.display);
             const image = config.display?.imageField
               ? item[config.display.imageField]
               : undefined;
@@ -141,7 +163,7 @@ const DynamicFormObjectList = ({
                     </div>
                   )}
                 </div>
-                {right && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{right}</div>}
+                {(comparedPrice || right) && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{comparedPrice || right}</div>}
                 {renderActions(item, index, "end")}
               </div>
             );
