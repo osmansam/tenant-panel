@@ -164,10 +164,8 @@ const DEFAULT_RELATION_MATRIX: RelationMatrixConfig = {
   targetItemMatchField: "",
   columnLimit: 100,
   toggles: [
-    { id: "show-relations", label: "Show relations", defaultValue: true, isUpperSide: true },
     { id: "edit-relations", label: "Edit relations", defaultValue: false, isUpperSide: true },
   ],
-  visibilityToggle: { toggleId: "show-relations", when: true },
   editToggle: { toggleId: "edit-relations", when: true },
 };
 
@@ -6013,7 +6011,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </label>
                   <div className="space-y-2">
                     <span className="text-xs font-semibold uppercase text-neutral-600">Controls</span>
-                    {(relationMatrixConfig.toggles || []).map((toggle) => (
+                    {(relationMatrixConfig.toggles || []).filter((toggle) => toggle.id !== "show-relations").map((toggle) => (
                       <label key={toggle.id} className="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" checked={toggle.defaultValue} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, toggles: (current.toggles || []).map((item) => item.id === toggle.id ? { ...item, defaultValue: event.target.checked } : item) }))} />
                         {toggle.label}

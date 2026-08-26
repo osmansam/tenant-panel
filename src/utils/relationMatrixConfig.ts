@@ -38,9 +38,8 @@ export const cleanRelationMatrixConfig = (
     targetArrayField: config.targetArrayField?.trim() || "",
     targetItemMatchField: config.targetItemMatchField?.trim() || "",
     columnLimit: Math.min(100, Math.max(1, Number(config.columnLimit) || 100)),
-    ...(config.toggles?.length ? { toggles: config.toggles } : {}),
-    ...(cleanToggleBinding(config.visibilityToggle)
-      ? { visibilityToggle: cleanToggleBinding(config.visibilityToggle) }
+    ...(config.toggles?.length
+      ? { toggles: config.toggles.filter((toggle) => toggle.id !== "show-relations") }
       : {}),
     ...(cleanToggleBinding(config.editToggle)
       ? { editToggle: cleanToggleBinding(config.editToggle) }

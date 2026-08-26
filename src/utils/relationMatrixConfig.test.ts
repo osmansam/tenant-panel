@@ -16,10 +16,11 @@ const complete = {
   targetItemMatchField: " product ",
   columnLimit: 140,
   toggles: [
-    { id: "show-lists", label: "Show count lists", defaultValue: true },
+    { id: "show-relations", label: "Show relations", defaultValue: false },
+    { id: "edit-relations", label: "Edit relations", defaultValue: false },
   ],
-  visibilityToggle: { toggleId: " show-lists ", when: true },
-  editToggle: { toggleId: "edit-lists", when: true },
+  visibilityToggle: { toggleId: " show-relations ", when: false },
+  editToggle: { toggleId: "edit-relations", when: true },
 };
 
 describe("relation matrix configuration", () => {
@@ -40,10 +41,9 @@ describe("relation matrix configuration", () => {
       targetItemMatchField: "product",
       columnLimit: 100,
       toggles: [
-        { id: "show-lists", label: "Show count lists", defaultValue: true },
+        { id: "edit-relations", label: "Edit relations", defaultValue: false },
       ],
-      visibilityToggle: { toggleId: "show-lists", when: true },
-      editToggle: { toggleId: "edit-lists", when: true },
+      editToggle: { toggleId: "edit-relations", when: true },
     });
     expect(isRelationMatrixConfigComplete(complete)).toBe(true);
   });
@@ -55,7 +55,6 @@ describe("relation matrix configuration", () => {
         rowIdField: "",
         columnIdField: "",
         columnLimit: undefined,
-        visibilityToggle: undefined,
         editToggle: undefined,
       }),
     ).toMatchObject({
