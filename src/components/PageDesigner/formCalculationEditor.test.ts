@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { FormComponentConfig } from "../../types/page";
 import {
+  addDiscountTier,
   addFieldMapping,
   addItemCalculation,
   addSummary,
   getAvailableCalculationInputs,
   normalizeDesignerCalculations,
+  removeDiscountTier,
   removeFieldMapping,
   updateFieldMapping,
+  updateDiscountTier,
   validateDesignerCalculations,
 } from "./formCalculationEditor";
 
@@ -80,5 +83,140 @@ describe("form calculation editor helpers", () => {
     const normalized = normalizeDesignerCalculations(configured);
     expect(normalized.objectLists![0].fieldMappings![0]).toMatchObject({ sourceFormKey: "productId", sourceField: "price", targetField: "unitPrice" });
     expect(normalized.summaries![0]).toMatchObject({ key: "subtotal", sourceField: "lineTotal", targetField: "subtotal", format: { currency: "TRY", precision: 2 } });
+  });
+
+  it("validates quantity-discount thresholds, percentages, outputs, and price comparisons", () => {
+    let configured = updateFieldMapping(addFieldMapping(form(), 0), 0, 0, {
+      sourceFormKey: "productId",
+      sourceField: "price",
+      targetField: "unitPrice",
+    });
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: ["unitPrice", "quantity"],
+      originalTargetField: "lineTotal",
+      targetField: "lineTotal",
+      minimumQuantity: 0,
+      discountPercentage: 101,
+      precision: 2,
+    }];
+    configured.objectLists![0].display = {
+      priceComparison: {
+        originalField: "missing",
+        discountedField: "",
+        currency: "try",
+        precision: 7,
+      },
+    };
+
+    const errors = validateDesignerCalculations(configured).join(" ");
+    expect(errors).toContain("distinct output fields");
+    expect(errors).toContain("minimum quantity");
+    expect(errors).toContain("discount percentage");
+    expect(errors).toContain("price comparison fields");
+    expect(errors).toContain("currency");
+    expect(errors).toContain("precision");
+  });
+
+  it("normalizes quantity-discount outputs and price-comparison settings", () => {
+    const configured = form();
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: [" unitPrice ", " quantity "],
+      originalTargetField: " originalLineTotal ",
+      targetField: " lineTotal ",
+      minimumQuantity: 6,
+      discountPercentage: 30,
+    }];
+    configured.objectLists![0].display = {
+      priceComparison: {
+        originalField: " originalLineTotal ",
+        discountedField: " lineTotal ",
+        currency: " try ",
+      },
+    };
+
+    const normalized = normalizeDesignerCalculations(configured);
+    expect(normalized.objectLists![0].itemCalculations![0]).toMatchObject({
+      originalTargetField: "originalLineTotal",
+      targetField: "lineTotal",
+      precision: 2,
+    });
+    expect(normalized.objectLists![0].display?.priceComparison).toEqual({
+      originalField: "originalLineTotal",
+      discountedField: "lineTotal",
+      currency: "TRY",
+      precision: 2,
+    });
+  });
+
+  it("validates and normalizes merge-on-add fields", () => {
+    const configured = form();
+    configured.objectLists![0].mergeOnAdd = { matchField: " missing ", quantityField: " quantity " };
+    expect(validateDesignerCalculations(configured).join(" ")).toContain("merge match field");
+
+    configured.objectLists![0].mergeOnAdd.matchField = " productId ";
+    expect(normalizeDesignerCalculations(configured).objectLists![0].mergeOnAdd).toEqual({
+      matchField: "productId",
+      quantityField: "quantity",
+    });
+  });
+
+  it("adds, updates, and removes discount tiers immutably", () => {
+    const original = form();
+    original.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: ["unitPrice", "quantity"],
+      originalTargetField: "originalLineTotal",
+      targetField: "lineTotal",
+      discountTiers: [{ minimumQuantity: 6, discountPercentage: 30 }],
+    }];
+    const added = addDiscountTier(original, 0, 0);
+    const updated = updateDiscountTier(added, 0, 0, 1, { minimumQuantity: 12, discountPercentage: 45 });
+    const removed = removeDiscountTier(updated, 0, 0, 0);
+
+    expect(original.objectLists![0].itemCalculations![0].discountTiers).toEqual([{ minimumQuantity: 6, discountPercentage: 30 }]);
+    expect(added.objectLists![0].itemCalculations![0].discountTiers).toEqual([
+      { minimumQuantity: 6, discountPercentage: 30 },
+      { minimumQuantity: 10, discountPercentage: 40 },
+    ]);
+    expect(removed.objectLists![0].itemCalculations![0].discountTiers).toEqual([{ minimumQuantity: 12, discountPercentage: 45 }]);
+  });
+
+  it("validates discount tier ordering and ranges", () => {
+    const configured = form();
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: ["productId", "quantity"],
+      originalTargetField: "originalLineTotal",
+      targetField: "lineTotal",
+      discountTiers: [
+        { minimumQuantity: 6, discountPercentage: 30 },
+        { minimumQuantity: 6, discountPercentage: 30 },
+        { minimumQuantity: 12, discountPercentage: 101 },
+      ],
+    }];
+    const errors = validateDesignerCalculations(configured).join(" ");
+    expect(errors).toContain("strictly ascending minimum quantity");
+    expect(errors).toContain("strictly ascending discount percentage");
+    expect(errors).toContain("greater than 0 and at most 100");
+  });
+
+  it("normalizes and preserves tier values", () => {
+    const configured = form();
+    configured.objectLists![0].itemCalculations = [{
+      operation: "quantityDiscount",
+      inputs: [" productId ", " quantity "],
+      originalTargetField: " originalLineTotal ",
+      targetField: " lineTotal ",
+      discountTiers: [
+        { minimumQuantity: 6, discountPercentage: 30 },
+        { minimumQuantity: 10, discountPercentage: 40 },
+      ],
+    }];
+    expect(normalizeDesignerCalculations(configured).objectLists![0].itemCalculations![0].discountTiers).toEqual([
+      { minimumQuantity: 6, discountPercentage: 30 },
+      { minimumQuantity: 10, discountPercentage: 40 },
+    ]);
   });
 });

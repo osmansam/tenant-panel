@@ -4,6 +4,7 @@ import {
   EmbeddedFormObject,
   getObjectListDisplayValues,
 } from "../../utils/formConfig";
+import { getNextQuantityDiscountTier } from "../../utils/formCalculations";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
 type Props = {
@@ -21,6 +22,27 @@ type Props = {
   ) => void;
 };
 
+const renderPriceComparison = (
+  item: EmbeddedFormObject,
+  config: FormObjectListConfig["display"],
+) => {
+  const comparison = config?.priceComparison;
+  if (!comparison) return undefined;
+  const original = item[comparison.originalField];
+  const discounted = item[comparison.discountedField];
+  if (typeof original !== "number" || !Number.isFinite(original) || typeof discounted !== "number" || !Number.isFinite(discounted)) return undefined;
+  const precision = comparison.precision ?? 2;
+  const suffix = comparison.currency ? ` ${comparison.currency}` : "";
+  const format = (value: number) => `${value.toFixed(precision)}${suffix}`;
+  if (discounted >= original) return <span>{format(discounted)}</span>;
+  return (
+    <span className="flex items-baseline gap-2">
+      <del className="font-normal text-neutral-400">{format(original)}</del>
+      <span>{format(discounted)}</span>
+    </span>
+  );
+};
+
 const DynamicFormObjectList = ({
   config,
   items,
@@ -32,6 +54,21 @@ const DynamicFormObjectList = ({
   const visibleItems = items
     .map((item, index) => ({ item, index }))
     .filter(({ index }) => index !== editingIndex);
+
+  const getDiscountOffer = (item: EmbeddedFormObject) => {
+    const calculation = (config.itemCalculations || []).find(
+      (candidate) => candidate.operation === "quantityDiscount" && candidate.inputs.length === 2,
+    );
+    if (!calculation) return undefined;
+    const quantityField = calculation.inputs[1];
+    const quantity = item[quantityField];
+    if (typeof quantity !== "number" || !Number.isFinite(quantity)) return undefined;
+    const tier = getNextQuantityDiscountTier(calculation, quantity);
+    if (!tier) return undefined;
+    const missingQuantity = tier.minimumQuantity - quantity;
+    if (!Number.isFinite(missingQuantity) || missingQuantity <= 0) return undefined;
+    return { quantityField, missingQuantity, tier };
+  };
 
   const renderActions = (
     item: EmbeddedFormObject,
@@ -115,9 +152,11 @@ const DynamicFormObjectList = ({
         <div className="divide-y divide-neutral-100">
           {visibleItems.map(({ item, index }) => {
             const { primary, secondary, right } = getObjectListDisplayValues(item, config.display);
+            const comparedPrice = renderPriceComparison(item, config.display);
             const image = config.display?.imageField
               ? item[config.display.imageField]
               : undefined;
+            const discountOffer = getDiscountOffer(item);
             return (
               <div
                 key={`${config.key}-${index}`}
@@ -140,8 +179,18 @@ const DynamicFormObjectList = ({
                       {secondary}
                     </div>
                   )}
+                  {discountOffer && (
+                    <button
+                      type="button"
+                      className="mt-1.5 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                      aria-label={`Add ${discountOffer.missingQuantity} items to unlock ${discountOffer.tier.discountPercentage}% discount`}
+                      onClick={() => onAdjust(index, discountOffer.quantityField, discountOffer.missingQuantity)}
+                    >
+                      +{discountOffer.missingQuantity} → %{discountOffer.tier.discountPercentage}
+                    </button>
+                  )}
                 </div>
-                {right && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{right}</div>}
+                {(comparedPrice || right) && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{comparedPrice || right}</div>}
                 {renderActions(item, index, "end")}
               </div>
             );

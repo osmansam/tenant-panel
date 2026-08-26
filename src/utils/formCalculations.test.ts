@@ -3,6 +3,8 @@ import { FormComponentConfig, FormObjectListConfig } from "../types/page";
 import {
   calculateFormSummaries,
   calculateObjectListItem,
+  getNextQuantityDiscountTier,
+  getQuantityDiscountTiers,
   recalculateFormState,
   snapshotMappedFields,
 } from "./formCalculations";
@@ -99,6 +101,84 @@ describe("form calculations", () => {
       unitPrice: 19.99,
       quantity: 3,
       lineTotal: 59.97,
+    });
+  });
+
+  it("applies a quantity discount only at or above the configured line threshold", () => {
+    const configured: FormObjectListConfig = {
+      key: "items",
+      itemFields: ["unitPrice", "quantity"],
+      itemCalculations: [{
+        operation: "quantityDiscount",
+        inputs: ["unitPrice", "quantity"],
+        originalTargetField: "originalLineTotal",
+        targetField: "lineTotal",
+        minimumQuantity: 6,
+        discountPercentage: 30,
+        precision: 2,
+      }],
+    };
+    const inputs = [5, 6, 7].map((quantity) => ({ unitPrice: 100, quantity }));
+
+    expect(inputs.map((item) => calculateObjectListItem(configured, item))).toEqual([
+      { unitPrice: 100, quantity: 5, originalLineTotal: 500, lineTotal: 500 },
+      { unitPrice: 100, quantity: 6, originalLineTotal: 600, lineTotal: 420 },
+      { unitPrice: 100, quantity: 7, originalLineTotal: 700, lineTotal: 490 },
+    ]);
+    expect(inputs[1]).toEqual({ unitPrice: 100, quantity: 6 });
+  });
+
+  it("normalizes configured and legacy quantity discount tiers", () => {
+    const tiered = {
+      operation: "quantityDiscount" as const,
+      inputs: ["unitPrice", "quantity"], originalTargetField: "originalLineTotal", targetField: "lineTotal",
+      discountTiers: [{ minimumQuantity: 6, discountPercentage: 30 }, { minimumQuantity: 10, discountPercentage: 40 }],
+    };
+    expect(getQuantityDiscountTiers(tiered)).toEqual(tiered.discountTiers);
+    expect(getQuantityDiscountTiers({ ...tiered, discountTiers: undefined, minimumQuantity: 6, discountPercentage: 30 }))
+      .toEqual([{ minimumQuantity: 6, discountPercentage: 30 }]);
+    expect(getNextQuantityDiscountTier(tiered, 3)).toEqual({ minimumQuantity: 6, discountPercentage: 30 });
+    expect(getNextQuantityDiscountTier(tiered, 6)).toEqual({ minimumQuantity: 10, discountPercentage: 40 });
+    expect(getNextQuantityDiscountTier(tiered, 8)).toEqual({ minimumQuantity: 10, discountPercentage: 40 });
+    expect(getNextQuantityDiscountTier(tiered, 10)).toBeUndefined();
+  });
+
+  it("applies the highest reached tier to the complete row", () => {
+    const configured: FormObjectListConfig = {
+      key: "items",
+      itemCalculations: [{
+        operation: "quantityDiscount", inputs: ["unitPrice", "quantity"],
+        originalTargetField: "originalLineTotal", targetField: "lineTotal",
+        discountTiers: [{ minimumQuantity: 6, discountPercentage: 30 }, { minimumQuantity: 10, discountPercentage: 40 }],
+        precision: 2,
+      }],
+    };
+    expect([3, 6, 8, 10, 12].map((quantity) => calculateObjectListItem(configured, { unitPrice: 100, quantity }))).toEqual([
+      { unitPrice: 100, quantity: 3, originalLineTotal: 300, lineTotal: 300 },
+      { unitPrice: 100, quantity: 6, originalLineTotal: 600, lineTotal: 420 },
+      { unitPrice: 100, quantity: 8, originalLineTotal: 800, lineTotal: 560 },
+      { unitPrice: 100, quantity: 10, originalLineTotal: 1000, lineTotal: 600 },
+      { unitPrice: 100, quantity: 12, originalLineTotal: 1200, lineTotal: 720 },
+    ]);
+  });
+
+  it("rounds the original and discounted line totals to configured precision", () => {
+    const configured: FormObjectListConfig = {
+      key: "items",
+      itemCalculations: [{
+        operation: "quantityDiscount",
+        inputs: ["unitPrice", "quantity"],
+        originalTargetField: "originalLineTotal",
+        targetField: "lineTotal",
+        minimumQuantity: 6,
+        discountPercentage: 30,
+        precision: 2,
+      }],
+    };
+
+    expect(calculateObjectListItem(configured, { unitPrice: 19.99, quantity: 6 })).toMatchObject({
+      originalLineTotal: 119.94,
+      lineTotal: 83.96,
     });
   });
 

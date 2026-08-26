@@ -81,6 +81,7 @@ import {
 } from "../../../utils/tableActions";
 import { resolveTableActionFormLayout } from "../../../utils/tableActionFormLayout";
 import { renderTableColumnTemplate } from "../../../utils/tableColumnTemplate";
+import { formatTableDate } from "../../../utils/tableDateFormat";
 import {
   reorderCurrentPageRows,
   resolveTableDragState,
@@ -563,19 +564,7 @@ export default function GenericUnpaginatedPage({
           rowKey.node = (row: GenericItem) => {
             const v = row[f.name];
             if (!v) return <span>-</span>;
-            try {
-              const d = new Date(v as string | number);
-              if (isNaN(d.getTime())) return <span>{String(v)}</span>;
-              return (
-                <span>
-                  {String(d.getDate()).padStart(2, "0")}/
-                  {String(d.getMonth() + 1).padStart(2, "0")}/
-                  {d.getFullYear()}
-                </span>
-              );
-            } catch {
-              return <span>{String(v)}</span>;
-            }
+            return <span>{formatTableDate(v, columnConfig.dateFormat) || String(v)}</span>;
           };
           return rowKey;
         }

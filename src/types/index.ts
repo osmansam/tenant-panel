@@ -63,6 +63,7 @@ export type Tenant = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  branding?: import("./branding").BrandingOverrides;
 };
 
 export type Project = {
@@ -82,7 +83,17 @@ export type Project = {
   localizationVersion?: number;
   createdAt: string;
   updatedAt: string;
+  branding?: import("./branding").BrandingOverrides;
 };
+
+export type {
+  BrandingAsset,
+  BrandingAssetSlot,
+  BrandingManagementResponse,
+  BrandingOverrides,
+  BrandingPatch,
+  EffectiveBranding,
+} from "./branding";
 
 export type Role = {
   id: string;

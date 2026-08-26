@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { buildFormConfigReference, buildFormInputs, buildFormSubmitRequestBody, getObjectListDisplayValues } from "./formConfig";
+import { addOrReplaceObjectListItem, buildFormConfigReference, buildFormInputs, buildFormSubmitRequestBody, getObjectListDisplayValues } from "./formConfig";
 import { FormComponentConfig } from "../types/page";
 
 describe("buildFormSubmitRequestBody", () => {
+  it("merges a repeated product by summing its configured quantity field", () => {
+    expect(addOrReplaceObjectListItem(
+      [{ productId: "flip", quantity: 1, unitPrice: 100 }],
+      { productId: "flip", quantity: 2, unitPrice: 100 },
+      null,
+      { matchField: "productId", quantityField: "quantity" },
+    )).toEqual([{ productId: "flip", quantity: 3, unitPrice: 100 }]);
+  });
+
+  it("keeps different products separate and preserves edit replacement", () => {
+    const current = [{ productId: "flip", quantity: 1 }, { productId: "other", quantity: 4 }];
+    expect(addOrReplaceObjectListItem(current, { productId: "new", quantity: 2 }, null, { matchField: "productId", quantityField: "quantity" })).toHaveLength(3);
+    expect(addOrReplaceObjectListItem(current, { productId: "flip", quantity: 9 }, 1, { matchField: "productId", quantityField: "quantity" })).toEqual([
+      { productId: "flip", quantity: 1 },
+      { productId: "flip", quantity: 9 },
+    ]);
+  });
   it("resolves a right-side object-list template", () => {
     expect(getObjectListDisplayValues(
       { productLabel: "Tea", quantity: 2, lineTotal: 240 },

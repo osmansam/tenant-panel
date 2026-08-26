@@ -6,6 +6,7 @@ import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetList } from "./factory";
 import { normalizePageRuntimeConfig } from "../pageBindings";
+import type { PageNavigatorConfig } from "../../types/page";
 
 // Type definitions based on Go models
 export type BindingKind =
@@ -415,6 +416,14 @@ export interface PageFormObjectListDisplayConfig {
   secondaryTemplate?: string;
   rightTemplate?: string;
   imageField?: string;
+  priceComparison?: PageFormPriceComparisonConfig;
+}
+
+export interface PageFormPriceComparisonConfig {
+  originalField: string;
+  discountedField: string;
+  currency?: string;
+  precision?: number;
 }
 
 export interface PageFormObjectActionConfig {
@@ -435,10 +444,24 @@ export interface PageFormFieldMappingConfig {
   required?: boolean;
 }
 
+export interface PageFormObjectListMergeConfig {
+  matchField: string;
+  quantityField: string;
+}
+
+export interface PageFormQuantityDiscountTierConfig {
+  minimumQuantity: number;
+  discountPercentage: number;
+}
+
 export interface PageFormItemCalculationConfig {
-  operation: "multiply";
+  operation: "multiply" | "quantityDiscount";
   inputs: string[];
+  originalTargetField?: string;
   targetField: string;
+  minimumQuantity?: number;
+  discountPercentage?: number;
+  discountTiers?: PageFormQuantityDiscountTierConfig[];
   precision?: number;
 }
 
@@ -479,6 +502,7 @@ export interface PageFormObjectListConfig {
   area?: PageFormAreaKey;
   source?: "embedded";
   itemFields?: string[];
+  mergeOnAdd?: PageFormObjectListMergeConfig;
   fieldMappings?: PageFormFieldMappingConfig[];
   itemCalculations?: PageFormItemCalculationConfig[];
   addAction?: PageFormActionConfig;
@@ -552,6 +576,7 @@ export interface ComponentBlock {
   form?: PageFormComponentConfig;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   props?: Record<string, any>;
   tabs?: TabPanelTab[];
 }
@@ -615,6 +640,7 @@ export interface PageModel {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }
@@ -633,6 +659,7 @@ export interface CreatePagePayload {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }
@@ -651,6 +678,7 @@ export interface UpdatePagePayload {
   isAuthenticated?: boolean;
   isAuthorized?: boolean;
   authorizeRole?: string[];
+  pageNavigator?: PageNavigatorConfig;
   sections?: Section[];
   subPage?: PageModel;
 }

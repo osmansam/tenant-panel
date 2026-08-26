@@ -298,6 +298,15 @@ export const TABLE_COLUMN_TYPE_OPTIONS: {
   { value: "progressBar", label: "Progress Bar" },
 ];
 
+export const TABLE_DATE_FORMAT_OPTIONS = [
+  "MM/DD/YYYY",
+  "DD/MM/YYYY",
+  "YYYY/MM/DD",
+  "DD-MM-YYYY",
+  "MM-DD-YYYY",
+  "YYYY-MM-DD",
+] as const;
+
 export const TABLE_NESTED_COLUMN_TYPE_OPTIONS: {
   value: NonNullable<TableColumnConfig["type"]>;
   label: string;

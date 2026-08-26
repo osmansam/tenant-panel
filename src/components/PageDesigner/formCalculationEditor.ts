@@ -2,6 +2,7 @@ import {
   FormComponentConfig,
   FormFieldMappingConfig,
   FormItemCalculationConfig,
+  FormQuantityDiscountTierConfig,
 } from "../../types/page";
 
 const updateList = (
@@ -39,6 +40,7 @@ export const getAvailableCalculationInputs = (
     }));
   });
   (list.itemCalculations || []).slice(0, calculationIndex).forEach((calculation) => {
+    if (calculation.originalTargetField?.trim()) options.push({ value: calculation.originalTargetField, label: calculation.originalTargetField, group: "Calculated fields" });
     if (calculation.targetField.trim()) options.push({ value: calculation.targetField, label: calculation.targetField, group: "Calculated fields" });
   });
   return options;
@@ -93,6 +95,50 @@ export const removeItemCalculation = (form: FormComponentConfig, listIndex: numb
     itemCalculations: (list.itemCalculations || []).filter((_calculation, index) => index !== calculationIndex),
   }));
 
+export const addDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  const tiers = calculation?.discountTiers || [];
+  const previous = tiers[tiers.length - 1];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: [
+      ...tiers,
+      {
+        minimumQuantity: previous ? previous.minimumQuantity + 4 : 6,
+        discountPercentage: previous ? Math.min(previous.discountPercentage + 10, 100) : 30,
+      },
+    ],
+  });
+};
+
+export const updateDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+  tierIndex: number,
+  patch: Partial<FormQuantityDiscountTierConfig>,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: (calculation?.discountTiers || []).map((tier, index) => index === tierIndex ? { ...tier, ...patch } : tier),
+  });
+};
+
+export const removeDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+  tierIndex: number,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: (calculation?.discountTiers || []).filter((_tier, index) => index !== tierIndex),
+  });
+};
+
 export const addSummary = (form: FormComponentConfig): FormComponentConfig => ({
   ...form,
   summaries: [...(form.summaries || []), {
@@ -125,12 +171,41 @@ export const validateDesignerCalculations = (form: FormComponentConfig): string[
       if (available.has(mapping.targetField.trim())) errors.push(`${list.key}: duplicate item target ${mapping.targetField.trim()}`);
       available.add(mapping.targetField.trim());
     });
+    if (list.mergeOnAdd) {
+      if (!available.has(list.mergeOnAdd.matchField.trim())) errors.push(`${list.key}: merge match field must reference an available item field`);
+      if (!available.has(list.mergeOnAdd.quantityField.trim())) errors.push(`${list.key}: merge quantity field must reference an available item field`);
+    }
     (list.itemCalculations || []).forEach((calculation, index) => {
       if (calculation.inputs.length !== 2 || calculation.inputs.some((input) => !available.has(input.trim()))) errors.push(`${list.key} calculation ${index + 1}: inputs must reference available item fields`);
       if (calculation.precision !== undefined && (calculation.precision < 0 || calculation.precision > 6)) errors.push(`${list.key} calculation ${index + 1}: precision must be between 0 and 6`);
-      if (!calculation.targetField.trim() || available.has(calculation.targetField.trim())) errors.push(`${list.key}: duplicate item target ${calculation.targetField.trim()}`);
+      const originalTarget = calculation.originalTargetField?.trim() || "";
+      const target = calculation.targetField.trim();
+      if (calculation.operation === "quantityDiscount") {
+        if (!originalTarget || originalTarget === target) errors.push(`${list.key} calculation ${index + 1}: quantity discount requires distinct output fields`);
+        if (available.has(originalTarget)) errors.push(`${list.key}: duplicate item target ${originalTarget}`);
+        if (calculation.discountTiers?.length) {
+          calculation.discountTiers.forEach((tier, tierIndex) => {
+            if (!Number.isFinite(tier.minimumQuantity) || tier.minimumQuantity <= 0) errors.push(`${list.key} calculation ${index + 1} tier ${tierIndex + 1}: minimum quantity must be greater than 0`);
+            if (!Number.isFinite(tier.discountPercentage) || tier.discountPercentage <= 0 || tier.discountPercentage > 100) errors.push(`${list.key} calculation ${index + 1} tier ${tierIndex + 1}: discount percentage must be greater than 0 and at most 100`);
+            const previous = calculation.discountTiers?.[tierIndex - 1];
+            if (previous && tier.minimumQuantity <= previous.minimumQuantity) errors.push(`${list.key} calculation ${index + 1}: discount tiers require strictly ascending minimum quantity`);
+            if (previous && tier.discountPercentage <= previous.discountPercentage) errors.push(`${list.key} calculation ${index + 1}: discount tiers require strictly ascending discount percentage`);
+          });
+        } else {
+          if (!Number.isFinite(calculation.minimumQuantity) || (calculation.minimumQuantity ?? 0) <= 0) errors.push(`${list.key} calculation ${index + 1}: minimum quantity must be greater than 0`);
+          if (!Number.isFinite(calculation.discountPercentage) || (calculation.discountPercentage ?? 0) <= 0 || (calculation.discountPercentage ?? 0) > 100) errors.push(`${list.key} calculation ${index + 1}: discount percentage must be greater than 0 and at most 100`);
+        }
+        if (originalTarget) available.add(originalTarget);
+      }
+      if (!target || available.has(target)) errors.push(`${list.key}: duplicate item target ${target}`);
       available.add(calculation.targetField.trim());
     });
+    const comparison = list.display?.priceComparison;
+    if (comparison) {
+      if (!available.has(comparison.originalField.trim()) || !available.has(comparison.discountedField.trim())) errors.push(`${list.key}: price comparison fields must reference available item fields`);
+      if (comparison.currency && !/^[A-Z]{3}$/.test(comparison.currency)) errors.push(`${list.key}: price comparison currency must be three uppercase letters`);
+      if (comparison.precision !== undefined && (comparison.precision < 0 || comparison.precision > 6)) errors.push(`${list.key}: price comparison precision must be between 0 and 6`);
+    }
     listFields.set(list.key.trim(), available);
   });
   const summaries = new Set<string>();
@@ -150,7 +225,21 @@ export const normalizeDesignerCalculations = (form: FormComponentConfig): FormCo
   objectLists: (form.objectLists || []).map((list) => ({
     ...list,
     fieldMappings: (list.fieldMappings || []).map((mapping) => ({ ...mapping, sourceFormKey: mapping.sourceFormKey.trim(), sourceField: mapping.sourceField.trim(), targetField: mapping.targetField.trim() })),
-    itemCalculations: (list.itemCalculations || []).map((calculation) => ({ ...calculation, inputs: calculation.inputs.map((input) => input.trim()), targetField: calculation.targetField.trim(), precision: calculation.precision ?? 2 })),
+    mergeOnAdd: list.mergeOnAdd ? {
+      matchField: list.mergeOnAdd.matchField.trim(),
+      quantityField: list.mergeOnAdd.quantityField.trim(),
+    } : undefined,
+    itemCalculations: (list.itemCalculations || []).map((calculation) => ({ ...calculation, inputs: calculation.inputs.map((input) => input.trim()), originalTargetField: calculation.originalTargetField?.trim(), targetField: calculation.targetField.trim(), precision: calculation.precision ?? 2 })),
+    display: list.display ? {
+      ...list.display,
+      priceComparison: list.display.priceComparison ? {
+        ...list.display.priceComparison,
+        originalField: list.display.priceComparison.originalField.trim(),
+        discountedField: list.display.priceComparison.discountedField.trim(),
+        currency: list.display.priceComparison.currency?.trim().toUpperCase(),
+        precision: list.display.priceComparison.precision ?? 2,
+      } : undefined,
+    } : undefined,
   })),
   summaries: (form.summaries || []).map((summary) => ({
     ...summary,

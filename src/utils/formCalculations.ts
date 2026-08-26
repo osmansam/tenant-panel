@@ -1,7 +1,9 @@
 import { FormElementsState } from "../types";
 import {
   FormComponentConfig,
+  FormItemCalculationConfig,
   FormObjectListConfig,
+  FormQuantityDiscountTierConfig,
 } from "../types/page";
 
 export type FormCalculationErrorCode =
@@ -54,6 +56,20 @@ const roundDecimal = (value: number, precision = 2): number => {
   return Math.round((value + Number.EPSILON) * scale) / scale;
 };
 
+export const getQuantityDiscountTiers = (
+  calculation: FormItemCalculationConfig,
+): FormQuantityDiscountTierConfig[] => calculation.discountTiers?.length
+  ? calculation.discountTiers
+  : calculation.minimumQuantity !== undefined && calculation.discountPercentage !== undefined
+    ? [{ minimumQuantity: calculation.minimumQuantity, discountPercentage: calculation.discountPercentage }]
+    : [];
+
+export const getNextQuantityDiscountTier = (
+  calculation: FormItemCalculationConfig,
+  quantity: number,
+): FormQuantityDiscountTierConfig | undefined => getQuantityDiscountTiers(calculation)
+  .find((tier) => tier.minimumQuantity > quantity);
+
 export const snapshotMappedFields = (
   config: FormObjectListConfig,
   item: EmbeddedItem,
@@ -92,15 +108,31 @@ export const calculateObjectListItem = (
 ): EmbeddedItem => {
   const result = { ...item };
   (config.itemCalculations || []).forEach((calculation) => {
+    const [leftField, rightField] = calculation.inputs;
+    const left = numericValue(calculationValue(result, leftField), leftField);
+    const right = numericValue(calculationValue(result, rightField), rightField);
+    if (calculation.operation === "quantityDiscount") {
+      const tiers = getQuantityDiscountTiers(calculation);
+      if (!calculation.originalTargetField || tiers.length === 0) {
+        throw new FormCalculationError("invalid_operation", "Quantity discount configuration is incomplete");
+      }
+      const original = roundDecimal(left * right, calculation.precision ?? 2);
+      const reachedTier = tiers.reduce<FormQuantityDiscountTierConfig | undefined>(
+        (selected, tier) => right >= tier.minimumQuantity ? tier : selected,
+        undefined,
+      );
+      result[calculation.originalTargetField] = original;
+      result[calculation.targetField] = reachedTier
+        ? roundDecimal(original * (1 - reachedTier.discountPercentage / 100), calculation.precision ?? 2)
+        : original;
+      return;
+    }
     if (calculation.operation !== "multiply") {
       throw new FormCalculationError(
         "invalid_operation",
         `Unsupported item operation '${calculation.operation}'`,
       );
     }
-    const [leftField, rightField] = calculation.inputs;
-    const left = numericValue(calculationValue(result, leftField), leftField);
-    const right = numericValue(calculationValue(result, rightField), rightField);
     result[calculation.targetField] = roundDecimal(
       left * right,
       calculation.precision ?? 2,
