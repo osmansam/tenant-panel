@@ -88,4 +88,33 @@ describe("PageDesigner form save serialization", () => {
       format: { style: "currency", currency: "TRY", precision: 2 },
     }]);
   });
+
+  it("keeps quantity discount tiers in the saved form", () => {
+    const cleanFormConfig = (
+      PageDesignerModule as typeof PageDesignerModule & {
+        cleanFormConfig?: (form: FormComponentConfig) => FormComponentConfig;
+      }
+    ).cleanFormConfig!;
+    const cleaned = cleanFormConfig({
+      schemaName: "orders",
+      objectLists: [{
+        key: "items",
+        itemFields: ["unitPrice", "quantity"],
+        itemCalculations: [{
+          operation: "quantityDiscount",
+          inputs: [" unitPrice ", " quantity "],
+          originalTargetField: " originalLineTotal ",
+          targetField: " lineTotal ",
+          discountTiers: [
+            { minimumQuantity: 6, discountPercentage: 30 },
+            { minimumQuantity: 10, discountPercentage: 40 },
+          ],
+        }],
+      }],
+    });
+    expect(cleaned.objectLists?.[0].itemCalculations?.[0].discountTiers).toEqual([
+      { minimumQuantity: 6, discountPercentage: 30 },
+      { minimumQuantity: 10, discountPercentage: 40 },
+    ]);
+  });
 });

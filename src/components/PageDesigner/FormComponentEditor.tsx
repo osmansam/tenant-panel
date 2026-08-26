@@ -11,13 +11,16 @@ import { buildFormSubmitRequestPreview } from "../../utils/formConfig";
 import { ContainerModel, Field } from "../../utils/api/container";
 import FormFieldEditor from "./FormFieldEditor";
 import {
+  addDiscountTier,
   addFieldMapping,
   addItemCalculation,
   addSummary,
   getAvailableCalculationInputs,
   removeFieldMapping,
+  removeDiscountTier,
   removeItemCalculation,
   updateFieldMapping,
+  updateDiscountTier,
   updateItemCalculation,
   validateDesignerCalculations,
 } from "./formCalculationEditor";
@@ -531,11 +534,13 @@ const FormComponentEditor = ({
                         onChange(updateItemCalculation(value, listIndex, calculationIndex, operation === "quantityDiscount" ? {
                           operation,
                           originalTargetField: calculation.originalTargetField || "originalLineTotal",
-                          minimumQuantity: calculation.minimumQuantity ?? 6,
-                          discountPercentage: calculation.discountPercentage ?? 30,
+                          discountTiers: calculation.discountTiers?.length ? calculation.discountTiers : [{ minimumQuantity: 6, discountPercentage: 30 }],
+                          minimumQuantity: undefined,
+                          discountPercentage: undefined,
                         } : {
                           operation,
                           originalTargetField: undefined,
+                          discountTiers: undefined,
                           minimumQuantity: undefined,
                           discountPercentage: undefined,
                         }));
@@ -562,8 +567,24 @@ const FormComponentEditor = ({
                       })}
                       {calculation.operation === "quantityDiscount" && <>
                         <input value={calculation.originalTargetField || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { originalTargetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Original total field" aria-label="Original total field" />
-                        <input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
-                        <input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discount %" aria-label="Discount percentage" />
+                        {calculation.discountTiers ? (
+                          <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 md:col-span-2 xl:col-span-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-neutral-600">Discount tiers</span>
+                              <button type="button" onClick={() => onChange(addDiscountTier(value, listIndex, calculationIndex))} className="inline-flex h-7 items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 text-[11px] font-medium text-neutral-700"><FiPlus /> Add tier</button>
+                            </div>
+                            {calculation.discountTiers.map((tier, tierIndex) => (
+                              <div key={tierIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                <input type="number" min={0.000001} value={tier.minimumQuantity} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs" placeholder="Minimum quantity" aria-label={`Tier ${tierIndex + 1} minimum quantity`} />
+                                <input type="number" min={0.000001} max={100} value={tier.discountPercentage} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs" placeholder="Discount %" aria-label={`Tier ${tierIndex + 1} discount percentage`} />
+                                <button type="button" aria-label={`Remove discount tier ${tierIndex + 1}`} onClick={() => onChange(removeDiscountTier(value, listIndex, calculationIndex, tierIndex))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><FiTrash2 /></button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <>
+                          <input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
+                          <input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discount %" aria-label="Discount percentage" />
+                        </>}
                       </>}
                       <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
                       <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />

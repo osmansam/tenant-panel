@@ -2,6 +2,7 @@ import {
   FormComponentConfig,
   FormFieldMappingConfig,
   FormItemCalculationConfig,
+  FormQuantityDiscountTierConfig,
 } from "../../types/page";
 
 const updateList = (
@@ -94,6 +95,50 @@ export const removeItemCalculation = (form: FormComponentConfig, listIndex: numb
     itemCalculations: (list.itemCalculations || []).filter((_calculation, index) => index !== calculationIndex),
   }));
 
+export const addDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  const tiers = calculation?.discountTiers || [];
+  const previous = tiers[tiers.length - 1];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: [
+      ...tiers,
+      {
+        minimumQuantity: previous ? previous.minimumQuantity + 4 : 6,
+        discountPercentage: previous ? Math.min(previous.discountPercentage + 10, 100) : 30,
+      },
+    ],
+  });
+};
+
+export const updateDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+  tierIndex: number,
+  patch: Partial<FormQuantityDiscountTierConfig>,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: (calculation?.discountTiers || []).map((tier, index) => index === tierIndex ? { ...tier, ...patch } : tier),
+  });
+};
+
+export const removeDiscountTier = (
+  form: FormComponentConfig,
+  listIndex: number,
+  calculationIndex: number,
+  tierIndex: number,
+) => {
+  const calculation = form.objectLists?.[listIndex]?.itemCalculations?.[calculationIndex];
+  return updateItemCalculation(form, listIndex, calculationIndex, {
+    discountTiers: (calculation?.discountTiers || []).filter((_tier, index) => index !== tierIndex),
+  });
+};
+
 export const addSummary = (form: FormComponentConfig): FormComponentConfig => ({
   ...form,
   summaries: [...(form.summaries || []), {
@@ -138,8 +183,18 @@ export const validateDesignerCalculations = (form: FormComponentConfig): string[
       if (calculation.operation === "quantityDiscount") {
         if (!originalTarget || originalTarget === target) errors.push(`${list.key} calculation ${index + 1}: quantity discount requires distinct output fields`);
         if (available.has(originalTarget)) errors.push(`${list.key}: duplicate item target ${originalTarget}`);
-        if (!Number.isFinite(calculation.minimumQuantity) || (calculation.minimumQuantity ?? 0) <= 0) errors.push(`${list.key} calculation ${index + 1}: minimum quantity must be greater than 0`);
-        if (!Number.isFinite(calculation.discountPercentage) || (calculation.discountPercentage ?? 0) <= 0 || (calculation.discountPercentage ?? 0) > 100) errors.push(`${list.key} calculation ${index + 1}: discount percentage must be greater than 0 and at most 100`);
+        if (calculation.discountTiers?.length) {
+          calculation.discountTiers.forEach((tier, tierIndex) => {
+            if (!Number.isFinite(tier.minimumQuantity) || tier.minimumQuantity <= 0) errors.push(`${list.key} calculation ${index + 1} tier ${tierIndex + 1}: minimum quantity must be greater than 0`);
+            if (!Number.isFinite(tier.discountPercentage) || tier.discountPercentage <= 0 || tier.discountPercentage > 100) errors.push(`${list.key} calculation ${index + 1} tier ${tierIndex + 1}: discount percentage must be greater than 0 and at most 100`);
+            const previous = calculation.discountTiers?.[tierIndex - 1];
+            if (previous && tier.minimumQuantity <= previous.minimumQuantity) errors.push(`${list.key} calculation ${index + 1}: discount tiers require strictly ascending minimum quantity`);
+            if (previous && tier.discountPercentage <= previous.discountPercentage) errors.push(`${list.key} calculation ${index + 1}: discount tiers require strictly ascending discount percentage`);
+          });
+        } else {
+          if (!Number.isFinite(calculation.minimumQuantity) || (calculation.minimumQuantity ?? 0) <= 0) errors.push(`${list.key} calculation ${index + 1}: minimum quantity must be greater than 0`);
+          if (!Number.isFinite(calculation.discountPercentage) || (calculation.discountPercentage ?? 0) <= 0 || (calculation.discountPercentage ?? 0) > 100) errors.push(`${list.key} calculation ${index + 1}: discount percentage must be greater than 0 and at most 100`);
+        }
         if (originalTarget) available.add(originalTarget);
       }
       if (!target || available.has(target)) errors.push(`${list.key}: duplicate item target ${target}`);
