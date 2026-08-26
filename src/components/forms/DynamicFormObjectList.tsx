@@ -4,6 +4,7 @@ import {
   EmbeddedFormObject,
   getObjectListDisplayValues,
 } from "../../utils/formConfig";
+import { getNextQuantityDiscountTier } from "../../utils/formCalculations";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
 type Props = {
@@ -53,6 +54,21 @@ const DynamicFormObjectList = ({
   const visibleItems = items
     .map((item, index) => ({ item, index }))
     .filter(({ index }) => index !== editingIndex);
+
+  const getDiscountOffer = (item: EmbeddedFormObject) => {
+    const calculation = (config.itemCalculations || []).find(
+      (candidate) => candidate.operation === "quantityDiscount" && candidate.inputs.length === 2,
+    );
+    if (!calculation) return undefined;
+    const quantityField = calculation.inputs[1];
+    const quantity = item[quantityField];
+    if (typeof quantity !== "number" || !Number.isFinite(quantity)) return undefined;
+    const tier = getNextQuantityDiscountTier(calculation, quantity);
+    if (!tier) return undefined;
+    const missingQuantity = tier.minimumQuantity - quantity;
+    if (!Number.isFinite(missingQuantity) || missingQuantity <= 0) return undefined;
+    return { quantityField, missingQuantity, tier };
+  };
 
   const renderActions = (
     item: EmbeddedFormObject,
@@ -140,6 +156,7 @@ const DynamicFormObjectList = ({
             const image = config.display?.imageField
               ? item[config.display.imageField]
               : undefined;
+            const discountOffer = getDiscountOffer(item);
             return (
               <div
                 key={`${config.key}-${index}`}
@@ -161,6 +178,16 @@ const DynamicFormObjectList = ({
                     <div className="mt-0.5 truncate text-sm text-neutral-500">
                       {secondary}
                     </div>
+                  )}
+                  {discountOffer && (
+                    <button
+                      type="button"
+                      className="mt-1.5 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                      aria-label={`Add ${discountOffer.missingQuantity} items to unlock ${discountOffer.tier.discountPercentage}% discount`}
+                      onClick={() => onAdjust(index, discountOffer.quantityField, discountOffer.missingQuantity)}
+                    >
+                      +{discountOffer.missingQuantity} → %{discountOffer.tier.discountPercentage}
+                    </button>
                   )}
                 </div>
                 {(comparedPrice || right) && <div className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">{comparedPrice || right}</div>}

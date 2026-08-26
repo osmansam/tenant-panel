@@ -511,6 +511,11 @@ export interface FormObjectListMergeConfig {
   quantityField: string;
 }
 
+export interface FormQuantityDiscountTierConfig {
+  minimumQuantity: number;
+  discountPercentage: number;
+}
+
 export interface FormItemCalculationConfig {
   operation: "multiply" | "quantityDiscount";
   inputs: string[];
@@ -518,6 +523,7 @@ export interface FormItemCalculationConfig {
   targetField: string;
   minimumQuantity?: number;
   discountPercentage?: number;
+  discountTiers?: FormQuantityDiscountTierConfig[];
   precision?: number;
 }
 

@@ -449,6 +449,11 @@ export interface PageFormObjectListMergeConfig {
   quantityField: string;
 }
 
+export interface PageFormQuantityDiscountTierConfig {
+  minimumQuantity: number;
+  discountPercentage: number;
+}
+
 export interface PageFormItemCalculationConfig {
   operation: "multiply" | "quantityDiscount";
   inputs: string[];
@@ -456,6 +461,7 @@ export interface PageFormItemCalculationConfig {
   targetField: string;
   minimumQuantity?: number;
   discountPercentage?: number;
+  discountTiers?: PageFormQuantityDiscountTierConfig[];
   precision?: number;
 }
 
