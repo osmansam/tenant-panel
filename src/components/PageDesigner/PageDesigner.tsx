@@ -118,6 +118,7 @@ import {
 } from "../../utils/tabChildComponents";
 import SelectInput from "../panelComponents/FormElements/SelectInput";
 import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
+import RelationMatrixFilterEditor from "./RelationMatrixRowFilterEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 import { normalizeDesignerCalculations } from "./formCalculationEditor";
 import { commitDesignerComponent } from "./componentCommit";
@@ -5965,7 +5966,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                   </label>
                   <label className="space-y-1">
                     <span className="text-xs font-semibold uppercase text-neutral-600">Row schema</span>
-                    <select value={relationMatrixConfig.rowSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowSchemaName: event.target.value, rowIdField: "_id", rowLabelField: "" }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+                    <select value={relationMatrixConfig.rowSchemaName} onChange={(event) => setRelationMatrixConfig((current) => ({ ...current, rowSchemaName: event.target.value, rowIdField: "_id", rowLabelField: "", filterPanel: undefined }))} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
                       <option value="">Select row schema</option>
                       {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
@@ -6019,6 +6020,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                     ))}
                   </div>
                 </div>
+                <RelationMatrixFilterEditor
+                  value={relationMatrixConfig}
+                  rowFields={relationRowContainer?.fields || []}
+                  onChange={setRelationMatrixConfig}
+                />
               </div>
             )}
 
