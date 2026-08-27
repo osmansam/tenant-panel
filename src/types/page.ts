@@ -207,6 +207,7 @@ export interface RelationMatrixConfig {
   targetArrayField: string;
   targetItemMatchField: string;
   columnLimit?: number;
+  filterPanel?: TableFilterPanelConfig;
   toggles?: TableToggleConfig[];
   visibilityToggle?: ToggleBinding;
   editToggle?: ToggleBinding;

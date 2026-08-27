@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { RelationMatrixConfig } from "../types/page";
 import {
   cleanRelationMatrixConfig,
   isRelationMatrixConfigComplete,
@@ -21,7 +22,21 @@ const complete = {
   ],
   visibilityToggle: { toggleId: " show-relations ", when: false },
   editToggle: { toggleId: "edit-relations", when: true },
-};
+  filterPanel: {
+    inputs: [
+      {
+        formKey: " status ",
+        type: "select",
+        formKeyType: "string",
+        label: " Status ",
+        placeholder: " Choose status ",
+        optionsSource: "static",
+        staticOptionsJson: " [] ",
+      },
+      { formKey: "   ", type: "text", label: "Ignored" },
+    ],
+  },
+} satisfies RelationMatrixConfig;
 
 describe("relation matrix configuration", () => {
   it("does not require the legacy component schema name", () => {
@@ -44,8 +59,22 @@ describe("relation matrix configuration", () => {
         { id: "edit-relations", label: "Edit relations", defaultValue: false },
       ],
       editToggle: { toggleId: "edit-relations", when: true },
+      filterPanel: {
+        inputs: [
+          {
+            formKey: "status",
+            type: "select",
+            formKeyType: "string",
+            label: "Status",
+            placeholder: "Choose status",
+            optionsSource: "static",
+            staticOptionsJson: "[]",
+          },
+        ],
+      },
     });
     expect(isRelationMatrixConfigComplete(complete)).toBe(true);
+    expect(complete.filterPanel.inputs[0].formKey).toBe(" status ");
   });
 
   it("defaults id fields and the column limit", () => {
@@ -68,5 +97,14 @@ describe("relation matrix configuration", () => {
     const incomplete = { ...complete, targetItemMatchField: "" };
     expect(cleanRelationMatrixConfig(incomplete)).toBeUndefined();
     expect(isRelationMatrixConfigComplete(incomplete)).toBe(false);
+  });
+
+  it("omits a filter panel when every filter key is blank", () => {
+    expect(
+      cleanRelationMatrixConfig({
+        ...complete,
+        filterPanel: { inputs: [{ formKey: " ", type: "text" }] },
+      }),
+    ).not.toHaveProperty("filterPanel");
   });
 });
