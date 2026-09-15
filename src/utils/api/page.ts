@@ -462,6 +462,7 @@ export interface PageFormItemCalculationConfig {
   minimumQuantity?: number;
   discountPercentage?: number;
   discountTiers?: PageFormQuantityDiscountTierConfig[];
+  discountMessage?: string;
   precision?: number;
 }
 

@@ -3,6 +3,7 @@ import { FormObjectListConfig } from "../../types/page";
 import {
   EmbeddedFormObject,
   getObjectListDisplayValues,
+  resolveFormTemplate,
 } from "../../utils/formConfig";
 import { getNextQuantityDiscountTier } from "../../utils/formCalculations";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
@@ -67,7 +68,13 @@ const DynamicFormObjectList = ({
     if (!tier) return undefined;
     const missingQuantity = tier.minimumQuantity - quantity;
     if (!Number.isFinite(missingQuantity) || missingQuantity <= 0) return undefined;
-    return { quantityField, missingQuantity, tier };
+    const customMessage = resolveFormTemplate(calculation.discountMessage, {
+      discountPercentage: tier.discountPercentage,
+      missingQuantity,
+    });
+    const message = customMessage.trim() ? customMessage : `+${missingQuantity} → %${tier.discountPercentage}`;
+    const accessibleMessage = customMessage.trim() ? customMessage : `Add ${missingQuantity} items to unlock ${tier.discountPercentage}% discount`;
+    return { quantityField, missingQuantity, tier, message, accessibleMessage };
   };
 
   const renderActions = (
@@ -182,11 +189,11 @@ const DynamicFormObjectList = ({
                   {discountOffer && (
                     <button
                       type="button"
-                      className="mt-1.5 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-                      aria-label={`Add ${discountOffer.missingQuantity} items to unlock ${discountOffer.tier.discountPercentage}% discount`}
+                      className="mt-1.5 inline-flex max-w-full whitespace-normal break-words text-left items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                      aria-label={discountOffer.accessibleMessage}
                       onClick={() => onAdjust(index, discountOffer.quantityField, discountOffer.missingQuantity)}
                     >
-                      +{discountOffer.missingQuantity} → %{discountOffer.tier.discountPercentage}
+                      {discountOffer.message}
                     </button>
                   )}
                 </div>
