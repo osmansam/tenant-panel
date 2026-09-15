@@ -525,6 +525,7 @@ export interface FormItemCalculationConfig {
   minimumQuantity?: number;
   discountPercentage?: number;
   discountTiers?: FormQuantityDiscountTierConfig[];
+  discountMessage?: string;
   precision?: number;
 }
 

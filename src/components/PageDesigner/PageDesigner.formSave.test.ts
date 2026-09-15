@@ -89,7 +89,7 @@ describe("PageDesigner form save serialization", () => {
     }]);
   });
 
-  it("keeps quantity discount tiers in the saved form", () => {
+  it("keeps quantity discount tiers and custom message in the saved form", () => {
     const cleanFormConfig = (
       PageDesignerModule as typeof PageDesignerModule & {
         cleanFormConfig?: (form: FormComponentConfig) => FormComponentConfig;
@@ -105,6 +105,7 @@ describe("PageDesigner form save serialization", () => {
           inputs: [" unitPrice ", " quantity "],
           originalTargetField: " originalLineTotal ",
           targetField: " lineTotal ",
+          discountMessage: "%{{discountPercentage}} indirim için {{missingQuantity}} ürün daha ekleyin",
           discountTiers: [
             { minimumQuantity: 6, discountPercentage: 30 },
             { minimumQuantity: 10, discountPercentage: 40 },
@@ -112,6 +113,7 @@ describe("PageDesigner form save serialization", () => {
         }],
       }],
     });
+    expect(cleaned.objectLists?.[0].itemCalculations?.[0].discountMessage).toBe("%{{discountPercentage}} indirim için {{missingQuantity}} ürün daha ekleyin");
     expect(cleaned.objectLists?.[0].itemCalculations?.[0].discountTiers).toEqual([
       { minimumQuantity: 6, discountPercentage: 30 },
       { minimumQuantity: 10, discountPercentage: 40 },

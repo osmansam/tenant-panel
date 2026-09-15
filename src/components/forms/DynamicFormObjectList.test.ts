@@ -28,8 +28,8 @@ const config: FormObjectListConfig = {
   },
 };
 
-const renderItem = (item: Record<string, unknown>) => renderToStaticMarkup(createElement(DynamicFormObjectList, {
-  config,
+const renderItem = (item: Record<string, unknown>, listConfig = config) => renderToStaticMarkup(createElement(DynamicFormObjectList, {
+  config: listConfig,
   items: [item],
   onEdit: () => undefined,
   onRemove: () => undefined,
@@ -70,5 +70,24 @@ describe("DynamicFormObjectList price comparison", () => {
     const html = renderItem({ name: "Tea", quantity: 10, originalLineTotal: 1000, lineTotal: 600 });
     expect(html).not.toContain("unlock");
     expect(html).not.toContain("→");
+  });
+});
+
+describe("discount message templates", () => {
+  it.each([
+    [1, "%30 indirim için 5 ürün daha ekleyin"],
+    [6, "%40 indirim için 4 ürün daha ekleyin"],
+  ])("updates the message for quantity %s", (quantity, expected) => {
+    const custom = { ...config, itemCalculations: config.itemCalculations!.map(c => ({ ...c, discountMessage: "%{{discountPercentage}} indirim için {{missingQuantity}} ürün daha ekleyin" })) };
+    const html = renderItem({ quantity }, custom);
+    expect(html).toContain(`>${expected}</button>`);
+    expect(html).toContain(`aria-label="${expected}"`);
+  });
+
+  it("renders custom text safely and keeps blank messages on the default", () => {
+    const custom = (discountMessage: string) => ({ ...config, itemCalculations: config.itemCalculations!.map(c => ({ ...c, discountMessage })) });
+    expect(renderItem({ quantity: 3 }, custom("<b>Add more</b>"))).toContain("&lt;b&gt;Add more&lt;/b&gt;");
+    expect(renderItem({ quantity: 3 }, custom("   "))).toContain("+3 → %30");
+    expect(renderItem({ quantity: 10 }, custom("Add more"))).not.toContain("Add more");
   });
 });

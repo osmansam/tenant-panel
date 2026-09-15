@@ -585,6 +585,18 @@ const FormComponentEditor = ({
                           <input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
                           <input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discount %" aria-label="Discount percentage" />
                         </>}
+                        <label className="space-y-1 md:col-span-2 xl:col-span-4">
+                          <span className="text-xs font-medium text-neutral-700">Discount message</span>
+                          <input
+                            value={calculation.discountMessage || ""}
+                            onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountMessage: event.target.value }))}
+                            className="w-full rounded-md border border-neutral-300 px-2 py-2 text-xs"
+                            placeholder="%{{discountPercentage}} indirim için {{missingQuantity}} ürün daha ekleyin"
+                          />
+                          <span className="block text-[11px] text-neutral-500">
+                            {"Use {{discountPercentage}} for the next discount and {{missingQuantity}} for the number of items to add. Leave empty for the default message."}
+                          </span>
+                        </label>
                       </>}
                       <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
                       <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />
