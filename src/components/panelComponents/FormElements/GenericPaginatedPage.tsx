@@ -858,7 +858,7 @@ export default function GenericPaginatedPage({
       }));
     const withGenerated = [...baseCols, ...generatedRelationTableColumns.columns];
     return isActionsActive
-      ? [...withGenerated, { key: t("Actions"), isSortable: false }]
+      ? [...withGenerated, { key: t("Actions"), label: tableConfig?.actionsColumnLabel?.trim() ? tableConfig.actionsColumnLabel : undefined, isSortable: false }]
       : withGenerated;
   }, [displayFields, t, isActionsActive, constantFilter, tableConfig, generatedRelationTableColumns.columns]);
 
@@ -2279,6 +2279,7 @@ export default function GenericPaginatedPage({
     <>
       <div className="w-[95%] mx-auto">
         <GenericTable
+          searchPlaceholder={tableConfig?.searchPlaceholder}
           rowKeys={rowKeys}
           actions={actions}
           columns={columns}
