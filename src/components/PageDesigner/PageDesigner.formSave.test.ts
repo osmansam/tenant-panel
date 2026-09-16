@@ -120,3 +120,12 @@ describe("PageDesigner form save serialization", () => {
     ]);
   });
 });
+
+it("preserves custom table labels and omits blank overrides", () => {
+  const cleaned = PageDesignerModule.cleanTableConfig({ actionsColumnLabel: "İşlemler", searchPlaceholder: "Ara" });
+  expect(cleaned.actionsColumnLabel).toBe("İşlemler");
+  expect(cleaned.searchPlaceholder).toBe("Ara");
+  const blank = PageDesignerModule.cleanTableConfig({ actionsColumnLabel: "  ", searchPlaceholder: "" });
+  expect(blank.actionsColumnLabel).toBeUndefined();
+  expect(blank.searchPlaceholder).toBeUndefined();
+});

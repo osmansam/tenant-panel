@@ -8,6 +8,7 @@ type MonthYearOption = {
 
 type MonthYearInputProps = {
   label?: string;
+  language?: string;
   value?: string | Date | null;
   onChange: (value: string) => void;
   requiredField?: boolean;
@@ -20,7 +21,7 @@ const generateOptions = (start: number, end: number) =>
     return { value, label: value };
   });
 
-const monthOptions = generateOptions(1, 12).map((opt) => ({
+const numericMonthOptions = generateOptions(1, 12).map((opt) => ({
   value: opt.value.padStart(2, "0"),
   label: opt.value.padStart(2, "0"),
 }));
@@ -68,11 +69,17 @@ const normalizeMonthYearValue = (value: MonthYearInputProps["value"]) => {
 
 const MonthYearInput = ({
   label,
+  language,
   value,
   onChange,
   requiredField = false,
   isReadOnly = false,
 }: MonthYearInputProps) => {
+  const monthOptions = useMemo(() => {
+    if (!language) return numericMonthOptions;
+    const formatter = new Intl.DateTimeFormat(language === "tr" ? "tr-TR" : "en-US", { month: "long", timeZone: "UTC" });
+    return numericMonthOptions.map((option, index) => ({ ...option, label: formatter.format(new Date(Date.UTC(2026, index, 1))) }));
+  }, [language]);
   const { selectedMonth, selectedYear } = useMemo(() => {
     return normalizeMonthYearValue(value);
   }, [value]);
@@ -102,7 +109,9 @@ const MonthYearInput = ({
             option && handleChange(option.value, selectedYear)
           }
           isDisabled={isReadOnly}
-          className="w-28"
+          className={language ? "min-w-36 flex-1" : "w-28"}
+          aria-label={language === "tr" ? "Ay" : "Month"}
+          noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
           menuPosition="fixed"
           menuPortalTarget={menuPortalTarget}
           styles={selectMenuStyles}
@@ -117,6 +126,8 @@ const MonthYearInput = ({
           }
           isDisabled={isReadOnly}
           className="w-32"
+          aria-label={language === "tr" ? "Yıl" : "Year"}
+          noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
           menuPosition="fixed"
           menuPortalTarget={menuPortalTarget}
           styles={selectMenuStyles}

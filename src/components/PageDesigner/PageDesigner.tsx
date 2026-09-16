@@ -1389,7 +1389,7 @@ const cleanConstantSort = (
   };
 };
 
-const cleanTableConfig = (
+export const cleanTableConfig = (
   tableConfig: TableComponentConfig,
 ): TableComponentConfig => ({
   dataMode: cleanDesignerTableDataMode(
@@ -1398,6 +1398,8 @@ const cleanTableConfig = (
   ...(cleanDesignerTableDataFields(tableConfig.dataFields)
     ? { dataFields: cleanDesignerTableDataFields(tableConfig.dataFields) }
     : {}),
+  ...(tableConfig.actionsColumnLabel?.trim() ? { actionsColumnLabel: tableConfig.actionsColumnLabel } : {}),
+  ...(tableConfig.searchPlaceholder?.trim() ? { searchPlaceholder: tableConfig.searchPlaceholder } : {}),
   ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
   columns: (tableConfig.columns || [])
     .filter((column) => column.field.trim())
@@ -7174,6 +7176,18 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                     />
                                     Enabled
                                   </label>
+                                </div>
+                                <div className="space-y-3 rounded-xl border border-neutral-200 p-4">
+                                  <h4 className="text-sm font-semibold">Table labels</h4>
+                                  <label className="block text-sm">
+                                    Actions column heading
+                                    <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" value={tableConfig.actionsColumnLabel || ""} placeholder="Actions" onChange={(event) => setTableConfig((current) => ({ ...current, actionsColumnLabel: event.target.value }))} />
+                                  </label>
+                                  <label className="block text-sm">
+                                    Search placeholder
+                                    <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" value={tableConfig.searchPlaceholder || ""} placeholder="Search" onChange={(event) => setTableConfig((current) => ({ ...current, searchPlaceholder: event.target.value }))} />
+                                  </label>
+                                  <p className="text-xs text-neutral-500">Leave empty to use the default translated text.</p>
                                 </div>
                               </div>
                             )}

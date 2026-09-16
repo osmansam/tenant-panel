@@ -39,6 +39,7 @@ export interface PageFilterPlacement {
 }
 
 export interface PageFilterDefinition {
+  language?: string;
   id: string;
   key: string;
   label: string;
@@ -346,6 +347,8 @@ export interface PageTableActionConfig {
 }
 
 export interface PageTableComponentConfig {
+  actionsColumnLabel?: string;
+  searchPlaceholder?: string;
   dataMode?: "paginated" | "all" | "arrayField";
   columns?: PageTableColumnConfig[];
   dataFields?: string[];

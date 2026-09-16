@@ -54,6 +54,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const [language, setLanguage] = useState(filter?.language ?? "en");
   const [key, setKey] = useState(filter?.key ?? "filter");
   const [label, setLabel] = useState(filter?.label ?? "");
   const [type, setType] = useState<RuntimeValueType>(filter?.type ?? "string");
@@ -156,6 +157,19 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
               ))}
             </select>
           </label>
+          {type === "monthYear" && (
+            <label className="block text-sm font-medium text-neutral-700">
+              Language
+              <select
+                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+              >
+                <option value="tr">Türkçe</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+          )}
           <label className="block text-sm font-medium text-neutral-700">
             Default mode
             <select
@@ -253,6 +267,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
                 key: key.trim(),
                 label: label.trim(),
                 type,
+                ...(type === "monthYear" ? { language } : {}),
                 ...(defaultMode === "static" && normalizedDefaultValue !== undefined
                   ? { defaultValue: normalizedDefaultValue }
                   : {}),
