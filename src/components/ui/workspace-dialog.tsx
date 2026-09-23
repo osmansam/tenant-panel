@@ -37,6 +37,7 @@ export function WorkspaceDialog({
 }: WorkspaceDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
 
@@ -54,7 +55,13 @@ export function WorkspaceDialog({
 
     document.addEventListener("keydown", handleKeyDown);
     const focusFrame = window.requestAnimationFrame(() => {
-      closeButtonRef.current?.focus();
+      const activeElement = document.activeElement;
+      if (
+        activeElement === document.body ||
+        !dialogRef.current?.contains(activeElement)
+      ) {
+        closeButtonRef.current?.focus();
+      }
     });
 
     return () => {
@@ -80,6 +87,7 @@ export function WorkspaceDialog({
       onMouseDown={handleBackdropMouseDown}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -131,5 +139,6 @@ export function WorkspaceDialog({
       </div>
     </div>,
     document.body,
+    `workspace-dialog-${layer}`,
   );
 }

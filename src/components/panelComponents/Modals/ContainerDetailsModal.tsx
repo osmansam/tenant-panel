@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiChevronDown,
@@ -14,7 +14,6 @@ import {
   FiPlus,
   FiShield,
   FiTrash2,
-  FiX,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
@@ -42,30 +41,54 @@ import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
 import { getContainerDetailsContentClass } from "../../../utils/containerDetailsModalLayout";
 import {
+  canReorderFilteredFields,
+  filterContainerFields,
+} from "../../../utils/containerFieldView";
+import {
   addMissingSystemTimestampFields,
   hasAllSystemTimestampFields,
 } from "../../../utils/containerTimestamps";
 import { GenericButton } from "../FormElements/GenericButton";
+import { WorkspaceDialog } from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
 import { AddFieldModal } from "./AddFieldModal";
 import { AddPipelineModal } from "./AddPipelineModal";
 import { AddWorkflowModal } from "./AddWorkflowModal";
 
+export type ContainerDialogSection =
+  | "structured"
+  | "pipelines"
+  | "workflows"
+  | "apis"
+  | "permissions"
+  | "routes"
+  | "json";
+
 interface ContainerDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   container: ContainerModel | null;
+  intent?: "details" | "manage";
+  initialSection?: ContainerDialogSection;
+  focusArea?: "summary" | "fields";
 }
 
 export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   isOpen,
   onClose,
   container,
+  intent = "details",
+  initialSection = "structured",
+  focusArea = "summary",
 }) => {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<
-    "structured" | "json" | "permissions" | "routes" | "pipelines" | "workflows" | "apis"
-  >("structured");
+  const [viewMode, setViewMode] = useState<ContainerDialogSection>(initialSection);
+  const [fieldQuery, setFieldQuery] = useState("");
+  const fieldsSectionRef = useRef<HTMLDivElement>(null);
+  const dialogContextKey = isOpen
+    ? `${container?.id || "unknown"}:${intent}:${initialSection}:${focusArea}`
+    : "closed";
+  const [activeDialogContextKey, setActiveDialogContextKey] = useState(dialogContextKey);
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
@@ -117,7 +140,29 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     () => hasAllSystemTimestampFields(container?.fields || []),
     [container?.fields]
   );
+  const visibleFields = useMemo(
+    () => filterContainerFields(container?.fields || [], fieldQuery),
+    [container?.fields, fieldQuery],
+  );
+  const fieldReorderingEnabled = canReorderFilteredFields(fieldQuery);
   const { createAuthUser, isCreatingAuthUser } = useCreateProjectAuthUser();
+
+  if (activeDialogContextKey !== dialogContextKey) {
+    setActiveDialogContextKey(dialogContextKey);
+    if (isOpen) {
+      setViewMode(initialSection);
+      setFieldQuery("");
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen || focusArea !== "fields") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      fieldsSectionRef.current?.scrollIntoView({ block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [dialogContextKey, focusArea, isOpen]);
 
   const buildContainerUpdatePayload = useCallback(
     (overrides: Partial<ContainerModel> = {}) => {
@@ -549,36 +594,46 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   if (!isOpen || !container) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
-
-        {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-7xl sm:p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {container.schemaName}
-              </h3>
-              <div className="flex items-center space-x-2">
-                <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                  {container.id}
-                </span>
-                {container.isAuthContainer && (
-                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800">
-                    {t("Auth Container")}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {/* View Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
+    <>
+      <WorkspaceDialog
+        open={isOpen}
+        onClose={onClose}
+        size="workspace"
+        title={
+          intent === "manage"
+            ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
+            : container.schemaName
+        }
+        description={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex rounded bg-blue-100 px-2 py-1 font-mono text-xs font-medium text-blue-800">
+              {container.id}
+            </span>
+            {container.isAuthContainer && (
+              <span className="inline-flex rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                {t("Auth Container")}
+              </span>
+            )}
+          </div>
+        }
+        closeLabel={t("Close container")}
+        bodyClassName="p-0 sm:p-0"
+        footer={
+          <div className="flex justify-end gap-3">
+            <GenericButton variant="outline" onClick={onClose}>
+              {t("Close")}
+            </GenericButton>
+            <GenericButton
+              onClick={() => copyToClipboard(containerJson)}
+              iconLeft={<FiCopy size={16} />}
+            >
+              {t("Copy JSON")}
+            </GenericButton>
+          </div>
+        }
+      >
+        <div className="sticky top-0 z-10 overflow-x-auto border-b border-ui-border bg-ui-surface px-4 py-3 sm:px-6">
+          <div className="flex w-max min-w-full rounded-lg bg-gray-100 p-1">
                 <button
                   onClick={() => setViewMode("structured")}
                   className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
@@ -656,17 +711,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   <FiCode size={12} />
                   <span>{t("JSON")}</span>
                 </button>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <FiX size={20} />
-              </button>
-            </div>
           </div>
+        </div>
 
-          {/* Content */}
+        <div className="p-4 sm:p-6">
           <div className={getContainerDetailsContentClass(viewMode)}>
             {viewMode === "permissions" ? (
               <FieldPermissions containerId={container.id} />
@@ -1244,12 +1292,31 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                 </div>
 
                 {/* Fields */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
+                <div ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
+                  <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <h4 className="text-sm font-medium text-gray-900">
-                      {t("Fields")} ({(container.fields || []).length})
+                      {t("Fields")} ({visibleFields.length}/{(container.fields || []).length})
                     </h4>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex min-w-[240px] flex-1 items-center gap-2 lg:min-w-[320px]">
+                        <input
+                          type="search"
+                          aria-label={t("Search fields")}
+                          placeholder={t("Search fields by name, type, tag, or relation")}
+                          value={fieldQuery}
+                          onChange={(event) => setFieldQuery(event.target.value)}
+                          className="h-9 min-w-0 flex-1 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground outline-none transition focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20"
+                        />
+                        {fieldQuery && (
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setFieldQuery("")}
+                          >
+                            {t("Clear field search")}
+                          </GenericButton>
+                        )}
+                      </div>
                       <GenericButton
                         variant="outline"
                         size="sm"
@@ -1273,10 +1340,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {(container.fields || []).map((field, index) => (
+                    {visibleFields.map((field, index) => {
+                      const sourceIndex = (container.fields || []).findIndex(
+                        (candidate) => candidate === field || candidate.name === field.name,
+                      );
+                      const reorderTitle = fieldReorderingEnabled
+                        ? undefined
+                        : t("Clear field search to reorder fields");
+
+                      return (
                       <div
                         key={field.name || index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
@@ -1315,21 +1390,22 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         </div>
                         <div className="flex items-center space-x-1">
                           <button
-                            onClick={() => handleMoveFieldUp(index)}
-                            disabled={index === 0 || isUpdating}
+                            onClick={() => handleMoveFieldUp(sourceIndex)}
+                            disabled={!fieldReorderingEnabled || sourceIndex === 0 || isUpdating}
                             className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={t("Move Up")}
+                            title={reorderTitle || t("Move Up")}
                           >
                             <FiChevronUp size={16} />
                           </button>
                           <button
-                            onClick={() => handleMoveFieldDown(index)}
+                            onClick={() => handleMoveFieldDown(sourceIndex)}
                             disabled={
-                              index === (container.fields || []).length - 1 ||
+                              !fieldReorderingEnabled ||
+                              sourceIndex === (container.fields || []).length - 1 ||
                               isUpdating
                             }
                             className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={t("Move Down")}
+                            title={reorderTitle || t("Move Down")}
                           >
                             <FiChevronDown size={16} />
                           </button>
@@ -1353,7 +1429,22 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           </GenericButton>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
+
+                    {(container.fields || []).length > 0 && visibleFields.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-ui-border py-10 text-center text-ui-muted">
+                        <p>{t("No fields match your search")}</p>
+                        <GenericButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFieldQuery("")}
+                          className="mt-3"
+                        >
+                          {t("Clear field search")}
+                        </GenericButton>
+                      </div>
+                    )}
 
                     {(!container.fields || container.fields.length === 0) && (
                       <div className="text-center py-8 text-gray-500">
@@ -1456,21 +1547,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={onClose}>
-              {t("Close")}
-            </GenericButton>
-            <GenericButton
-              onClick={() => copyToClipboard(containerJson)}
-              iconLeft={<FiCopy size={16} />}
-            >
-              {t("Copy JSON")}
-            </GenericButton>
-          </div>
         </div>
-      </div>
+      </WorkspaceDialog>
 
       {/* Add Field Modal */}
       <AddFieldModal
@@ -1481,6 +1559,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         }}
         onAddField={handleAddField}
         containerFields={container?.fields || []}
+        containerName={container.schemaName}
         editField={editingField}
       />
 
@@ -1558,6 +1637,6 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           "Are you sure you want to delete this Dynamic API? This action cannot be undone."
         )}
       />
-    </div>
+    </>
   );
 };
