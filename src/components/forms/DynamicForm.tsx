@@ -27,17 +27,17 @@ import {
   getFieldArea,
   getFormSubmitMode,
   getObjectListArea,
-  isFormConditionMet,
   normalizeObjectListValue,
   removeObjectListItem,
 } from "../../utils/formConfig";
 import { validateField, ValidationRules } from "../../utils/validationHelper";
-import { GenericButton } from "../panelComponents/FormElements/GenericButton";
+import { Button } from "../ui";
 import DynamicFormField from "./DynamicFormField";
 import DynamicFormObjectList from "./DynamicFormObjectList";
 import DynamicFormSummary from "./DynamicFormSummary";
 import { useFormSelectionData } from "./useFormSelectionData";
 import { FormCalculationError, recalculateFormState, snapshotMappedFields } from "../../utils/formCalculations";
+import { resolveDynamicFieldState } from "./dynamicFieldAdapter";
 
 type Props = {
   form: FormComponentConfig;
@@ -56,8 +56,8 @@ const columnClasses = {
 };
 const widthClasses = {
   full: "col-span-full",
-  half: "md:col-span-1",
-  third: "lg:col-span-1",
+  half: "md:col-span-1 lg:col-span-3",
+  third: "md:col-span-1 lg:col-span-2",
 };
 
 const isEmpty = (value: unknown) =>
@@ -95,6 +95,16 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
   );
   const [editing, setEditing] = useState<EditingState>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const resolvedFieldStates = useMemo(
+    () =>
+      new Map(
+        inputs.map((input) => [
+          input.formKey,
+          resolveDynamicFieldState(input, formElements),
+        ]),
+      ),
+    [inputs, formElements],
+  );
   const hasImageField = (form.fields || []).some(
     (field) => field.type === "image",
   );
@@ -126,9 +136,7 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
       const field = fieldMap.get(key);
       if (!field) return;
       const rules: ValidationRules = {
-        required:
-          !!field.required ||
-          isFormConditionMet(field.requiredCondition, formElements),
+        required: resolvedFieldStates.get(key)?.required ?? !!field.required,
         minlength: field.minLength,
         maxlength: field.maxLength,
         min: field.min,
@@ -299,8 +307,7 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
     widthClasses[field?.width || "full"];
 
   const isInputVisible = (input: (typeof inputs)[number]) =>
-    !input.isDisabled &&
-    !isFormConditionMet(input.disabledCondition, formElements);
+    !resolvedFieldStates.get(input.formKey)?.hidden;
 
   const bodyAreas = new Set<FormAreaKey>([
     ...inputs
@@ -359,19 +366,19 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
     return (
       <section
         key={area}
-        className={`${getAreaClassName(area)} overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm ${areaConfig?.className || ""}`}
+        className={`${getAreaClassName(area)} overflow-hidden rounded-ui-lg border border-ui-border bg-ui-surface shadow-ui-sm ${areaConfig?.className || ""}`}
       >
         {areaConfig?.title && (
-          <header className="border-b border-neutral-100 px-5 py-4 sm:px-6">
-            <h3 className="text-base font-semibold text-neutral-950">
+          <header className="border-b border-ui-border px-4 py-4 md:px-6">
+            <h3 className="text-base font-semibold text-ui-foreground">
               {areaConfig.title}
             </h3>
           </header>
         )}
         {hasBody && (
-          <div className="px-5 py-5 sm:px-6 sm:py-6">
+          <div className="p-4 md:p-6">
             {areaInputs.length > 0 && (
-              <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-6">
                 {areaInputs.map((input) => (
                   <div
                     key={input.formKey}
@@ -381,11 +388,8 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
                       input={{
                         ...filterFormInputOptions(input, formElements),
                         required:
-                          input.required ||
-                          isFormConditionMet(
-                            input.requiredCondition,
-                            formElements,
-                          ),
+                          resolvedFieldStates.get(input.formKey)?.required ||
+                          false,
                       }}
                       formElements={formElements}
                       error={errors[input.formKey]}
@@ -449,11 +453,11 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
         )}
         {areaActions.length > 0 && (
           <footer
-            className={`flex flex-wrap justify-end gap-2 bg-neutral-50/70 px-5 py-4 sm:px-6 ${hasBody || areaConfig?.title ? "border-t border-neutral-100" : ""}`}
+            className={`flex flex-wrap justify-end gap-2 bg-ui-surface-subtle px-4 py-4 md:px-6 ${hasBody || areaConfig?.title ? "border-t border-ui-border" : ""}`}
           >
             {areaActions.map((action, index) =>
               action.kind === "addObject" ? (
-                <GenericButton
+                <Button
                   key={`${action.kind}-${action.targetObjectList}-${index}`}
                   variant="outline"
                   size="lg"
@@ -462,13 +466,13 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
                   {editing?.listKey === action.targetObjectList
                     ? t("Save Item")
                     : t(action.buttonName || action.label || "Add Item")}
-                </GenericButton>
+                </Button>
               ) : (
-                <GenericButton
+                <Button
                   key={`${action.kind}-${index}`}
                   variant="primary"
                   size="lg"
-                    isLoading={isSubmitPending}
+                  loading={isSubmitPending}
                   onClick={handleSubmit}
                 >
                   {t(
@@ -477,7 +481,7 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
                       form.submit?.buttonName ||
                       "Save",
                   )}
-                </GenericButton>
+                </Button>
               ),
             )}
           </footer>
@@ -488,7 +492,7 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
 
   if (!form.schemaName) {
     return (
-      <div className="border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+      <div className="rounded-ui-md border border-ui-border bg-ui-surface-subtle p-4 text-sm text-ui-foreground">
         {t("Form component requires schema configuration")}
       </div>
     );
@@ -496,12 +500,12 @@ const DynamicForm = ({ form, title, componentId }: Props) => {
 
   const columns = form.layout?.columns || 2;
   return (
-    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 ">
-      <h2 className="mb-6 text-2xl font-semibold text-neutral-950">
+    <div className="mx-auto w-full max-w-[1200px] px-4 py-6 font-ui md:px-6 md:py-8">
+      <h2 className="mb-6 text-2xl font-semibold tracking-tight text-ui-foreground">
         {form.title || title || t("Form")}
       </h2>
       <div
-        className={`grid grid-cols-1 items-start gap-5 ${columnClasses[columns]}`}
+        className={`grid grid-cols-1 items-start gap-4 md:gap-5 ${columnClasses[columns]}`}
       >
         {areaOrder.map(renderArea)}
       </div>

@@ -43,7 +43,8 @@ export const FieldShell = ({
             <span aria-hidden="true" className="ml-1 text-ui-danger">
               *
             </span>
-            <span className="sr-only"> required</span>
+            {" "}
+            <span className="sr-only">required</span>
           </>
         ) : optionalLabel ? (
           <span className="ml-1 font-normal text-ui-muted">{optionalLabel}</span>
