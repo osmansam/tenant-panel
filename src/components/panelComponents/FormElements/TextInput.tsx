@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { SketchPicker } from "react-color";
 import "react-day-picker/dist/style.css";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
@@ -61,11 +61,16 @@ const TextInput = ({
   className = "px-4 py-2.5 border rounded-md __className_a182b8",
 }: TextInputProps) => {
   const [localValue, setLocalValue] = useState(value);
+  const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   const handleDivClick = () => {
     if (inputRef.current) {
@@ -258,21 +263,26 @@ const TextInput = ({
       className={` flex ${isTopFlexRow ? "flex-row gap-4 " : "flex-col gap-2"}`}
       onClick={handleDivClick}
     >
-      <H6 className={`${isTopFlexRow ? "min-w-20 " : "min-w-10"} my-auto`}>
+      <label
+        htmlFor={inputId}
+        className={`text-sm font-medium leading-6 ${
+          isTopFlexRow ? "min-w-20 " : "min-w-10"
+        } my-auto`}
+      >
         {label}
         {requiredField && (
           <>
             <span className="text-red-400">* </span>
           </>
         )}
-      </H6>
+      </label>
       <div
         className={`flex items-center justify-end ${
           isNumberButtonsActive ? "gap-4" : "gap-2"
         } ${inputWidth ? inputWidth : "w-full"} relative`}
       >
         <input
-          id={"number-input"}
+          id={inputId}
           ref={inputRef}
           type={
             type === "password" && !showPassword
