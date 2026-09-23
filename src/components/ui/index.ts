@@ -7,3 +7,5 @@ export type { InputProps } from "./input";
 export { Label } from "./label";
 export { Textarea } from "./textarea";
 export type { TextareaProps } from "./textarea";
+export { WorkspaceDialog } from "./workspace-dialog";
+export type { WorkspaceDialogProps } from "./workspace-dialog";
