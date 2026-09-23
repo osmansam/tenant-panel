@@ -5,3 +5,4 @@ export { ContainerDetailsModal } from "./panelComponents/Modals/ContainerDetails
 export { PageDetailsModal } from "./panelComponents/Modals/PageDetailsModal";
 export { default as RoutePermissions } from "./RoutePermissions";
 export * from "./ui";
+export * from "./form-fields";
