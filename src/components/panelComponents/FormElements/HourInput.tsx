@@ -1,4 +1,4 @@
-import { useState } from "react";
+import type { AriaAttributes } from "react";
 import Select from "react-select";
 
 type HourInputProps = {
@@ -7,6 +7,13 @@ type HourInputProps = {
   onChange: (value: string) => void;
   requiredField?: boolean;
   isReadOnly?: boolean;
+  disabled?: boolean;
+  id?: string;
+  name?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: AriaAttributes["aria-invalid"];
+  className?: string;
+  hideLabel?: boolean;
 };
 
 const generateOptions = (start: number, end: number) =>
@@ -24,24 +31,25 @@ const HourInput = ({
   onChange,
   requiredField = false,
   isReadOnly = false,
+  disabled = false,
+  id,
+  name,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
+  className,
+  hideLabel = false,
 }: HourInputProps) => {
-  const [selectedHour, setSelectedHour] = useState<string>(
-    value ? value.split(":")[0] : "00"
-  );
-  const [selectedMinute, setSelectedMinute] = useState<string>(
-    value ? value.split(":")[1] : "00"
-  );
+  const [selectedHour = "00", selectedMinute = "00"] =
+    typeof value === "string" ? value.split(":") : [];
 
-  const handleChange = (newHour: string, newMinute: string) => {
-    const formattedTime = `${newHour}:${newMinute}`;
-    setSelectedHour(newHour);
-    setSelectedMinute(newMinute);
-    onChange(formattedTime);
-  };
+  const handleHourChange = (hour: string) =>
+    onChange(`${hour}:${selectedMinute}`);
+  const handleMinuteChange = (minute: string) =>
+    onChange(`${selectedHour}:${minute}`);
 
   return (
-    <div className="flex flex-col gap-2 w-full">
-      {label && (
+    <div className={`flex flex-col gap-2 w-full ${className || ""}`}>
+      {!hideLabel && label && (
         <label className="text-sm font-medium">
           {label} {requiredField && <span className="text-red-500">*</span>}
         </label>
@@ -51,10 +59,13 @@ const HourInput = ({
         <Select
           options={hourOptions}
           value={hourOptions.find((option) => option.value === selectedHour)}
-          onChange={(option) =>
-            option && handleChange(option.value, selectedMinute)
-          }
-          isDisabled={isReadOnly}
+          onChange={(option) => option && handleHourChange(option.value)}
+          isDisabled={disabled || isReadOnly}
+          inputId={id}
+          name={name}
+          aria-label="Hour"
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           className="w-24"
           menuPosition="fixed"
         />
@@ -67,10 +78,11 @@ const HourInput = ({
           value={minuteOptions.find(
             (option) => option.value === selectedMinute
           )}
-          onChange={(option) =>
-            option && handleChange(selectedHour, option.value)
-          }
-          isDisabled={isReadOnly}
+          onChange={(option) => option && handleMinuteChange(option.value)}
+          isDisabled={disabled || isReadOnly}
+          aria-label="Minute"
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           className="w-24"
           menuPosition="fixed"
         />

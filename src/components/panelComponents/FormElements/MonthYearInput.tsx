@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type AriaAttributes } from "react";
 import Select, { StylesConfig } from "react-select";
 
 type MonthYearOption = {
@@ -13,6 +13,13 @@ type MonthYearInputProps = {
   onChange: (value: string) => void;
   requiredField?: boolean;
   isReadOnly?: boolean;
+  disabled?: boolean;
+  id?: string;
+  name?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: AriaAttributes["aria-invalid"];
+  className?: string;
+  hideLabel?: boolean;
 };
 
 const generateOptions = (start: number, end: number) =>
@@ -74,6 +81,13 @@ const MonthYearInput = ({
   onChange,
   requiredField = false,
   isReadOnly = false,
+  disabled = false,
+  id,
+  name,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
+  className,
+  hideLabel = false,
 }: MonthYearInputProps) => {
   const monthOptions = useMemo(() => {
     if (!language) return numericMonthOptions;
@@ -94,8 +108,8 @@ const MonthYearInput = ({
     typeof document === "undefined" ? undefined : document.body;
 
   return (
-    <div className="flex flex-col gap-2 w-full">
-      {label && (
+    <div className={`flex flex-col gap-2 w-full ${className || ""}`}>
+      {!hideLabel && label && (
         <label className="text-sm font-medium">
           {label} {requiredField && <span className="text-red-500">*</span>}
         </label>
@@ -108,9 +122,13 @@ const MonthYearInput = ({
           onChange={(option) =>
             option && handleChange(option.value, selectedYear)
           }
-          isDisabled={isReadOnly}
+          isDisabled={disabled || isReadOnly}
+          inputId={id}
+          name={name}
           className={language ? "min-w-36 flex-1" : "w-28"}
           aria-label={language === "tr" ? "Ay" : "Month"}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
           menuPosition="fixed"
           menuPortalTarget={menuPortalTarget}
@@ -124,9 +142,11 @@ const MonthYearInput = ({
           onChange={(option) =>
             option && handleChange(selectedMonth, option.value)
           }
-          isDisabled={isReadOnly}
+          isDisabled={disabled || isReadOnly}
           className="w-32"
           aria-label={language === "tr" ? "Yıl" : "Year"}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
           menuPosition="fixed"
           menuPortalTarget={menuPortalTarget}
