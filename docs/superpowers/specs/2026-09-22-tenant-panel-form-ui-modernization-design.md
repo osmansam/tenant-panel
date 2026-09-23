@@ -244,7 +244,9 @@ src/
       field.types.ts
       text-field.tsx
       number-field.tsx
+      color-field.tsx
       checkbox-field.tsx
+      textarea-field.tsx
       select-field.tsx
       date-field.tsx
       time-field.tsx
@@ -290,7 +292,9 @@ export { Textarea } from "./textarea";
 export { FieldShell } from "./field-shell";
 export { TextField } from "./text-field";
 export { NumberField } from "./number-field";
+export { ColorField } from "./color-field";
 export { CheckboxField } from "./checkbox-field";
+export { TextareaField } from "./textarea-field";
 export { SelectField } from "./select-field";
 export { DateField } from "./date-field";
 export { TimeField } from "./time-field";
@@ -415,6 +419,26 @@ export interface CheckboxFieldProps extends FieldPresentationProps {
   onChange: (value: boolean) => void;
 }
 
+export interface ColorFieldProps extends FieldPresentationProps {
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
+}
+
+export interface TextareaFieldProps extends FieldPresentationProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}
+
+export interface TimeFieldProps extends FieldPresentationProps {
+  value: string;
+  onChange: (value: string) => void;
+  variant?: "native" | "segmented";
+  onClear?: () => void;
+}
+
 export interface FileFieldProps extends FieldPresentationProps {
   value: File | null;
   onChange: (value: File | null) => void;
@@ -440,7 +464,7 @@ export interface SelectFieldProps extends FieldPresentationProps {
 
 The implementation preserves custom option content, source items, normalized Turkish-character search, sorting, suggestion actions, auto-fill, multi-select, and current clear behavior. The dynamic adapter remains responsible for converting selected option objects to the existing scalar/array form-state representation.
 
-Date, time, and month-year components preserve their existing string formats. No `Date` object replaces serialized form-state values.
+Date, time, and month-year components preserve their existing string formats. `InputTypes.TIME` uses the native time variant and `InputTypes.HOUR` uses the existing segmented hour/minute behavior. No `Date` object replaces serialized form-state values.
 
 ## 8. Dynamic field adapter and data flow
 
@@ -534,7 +558,7 @@ The representative form is `DynamicForm` as rendered by `PagePreviewPage`.
 ### 10.1 Included
 
 - Page title and form-section surfaces.
-- Text, password, number, checkbox, textarea, image/file, date, time/hour, month-year, single-select, and multi-select presentation.
+- Text, password, number, color, checkbox, textarea, image/file, date, time/hour, month-year, single-select, and multi-select presentation.
 - Shared labels, required markers, descriptions when supported, and errors.
 - Conditional required and current legacy-hidden behavior.
 - Relation-backed selection loading and filtering.
