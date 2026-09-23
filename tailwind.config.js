@@ -10,6 +10,21 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        "ui-page": "hsl(var(--ui-page) / <alpha-value>)",
+        "ui-surface": "hsl(var(--ui-surface) / <alpha-value>)",
+        "ui-surface-subtle": "hsl(var(--ui-surface-subtle) / <alpha-value>)",
+        "ui-foreground": "hsl(var(--ui-foreground) / <alpha-value>)",
+        "ui-muted": "hsl(var(--ui-muted-foreground) / <alpha-value>)",
+        "ui-placeholder": "hsl(var(--ui-placeholder) / <alpha-value>)",
+        "ui-border": "hsl(var(--ui-border) / <alpha-value>)",
+        "ui-border-hover": "hsl(var(--ui-border-hover) / <alpha-value>)",
+        "ui-primary": "hsl(var(--ui-primary) / <alpha-value>)",
+        "ui-primary-hover": "hsl(var(--ui-primary-hover) / <alpha-value>)",
+        "ui-focus": "hsl(var(--ui-focus) / <alpha-value>)",
+        "ui-danger": "hsl(var(--ui-danger) / <alpha-value>)",
+        "ui-danger-subtle": "hsl(var(--ui-danger-subtle) / <alpha-value>)",
+        "ui-success": "hsl(var(--ui-success) / <alpha-value>)",
+        "ui-disabled": "hsl(var(--ui-disabled) / <alpha-value>)",
         primary: {
           50: "#f0f9ff",
           100: "#e0f2fe",
@@ -51,6 +66,7 @@ export default {
         },
       },
       fontFamily: {
+        ui: ["var(--ui-font-sans)"],
         sans: [
           "Inter var",
           "-apple-system",
@@ -90,10 +106,15 @@ export default {
         128: "32rem",
       },
       borderRadius: {
+        "ui-sm": "var(--ui-radius-sm)",
+        "ui-md": "var(--ui-radius-md)",
+        "ui-lg": "var(--ui-radius-lg)",
         "4xl": "2rem",
         "5xl": "2.5rem",
       },
       boxShadow: {
+        "ui-sm": "var(--ui-shadow-sm)",
+        "ui-dialog": "var(--ui-shadow-dialog)",
         sm: "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
         DEFAULT:
           "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)",
@@ -125,6 +146,11 @@ export default {
       },
       backdropBlur: {
         xs: "2px",
+      },
+      height: {
+        "ui-sm": "var(--ui-control-sm)",
+        "ui-md": "var(--ui-control-md)",
+        "ui-lg": "var(--ui-control-lg)",
       },
     },
   },
