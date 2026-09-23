@@ -6,7 +6,7 @@ export const SelectOptionContent = ({ option }: { option: OptionType }) => {
     <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
       <span data-option-left className="min-w-0 flex-1 truncate">{option.leftLabel || option.label}</span>
       {option.rightLabel && (
-        <span data-option-right className="shrink-0 text-right font-medium text-neutral-700">{option.rightLabel}</span>
+        <span data-option-right className="shrink-0 text-right font-medium text-ui-foreground">{option.rightLabel}</span>
       )}
     </span>
   );
