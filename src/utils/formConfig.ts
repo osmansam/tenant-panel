@@ -207,11 +207,11 @@ export const getAreaClassName = (area: FormAreaKey) => {
   switch (area) {
     case "top":
     case "bottom":
-      return "lg:col-span-full";
+      return "xl:col-span-full";
     case "left":
-      return "lg:col-start-1";
+      return "xl:col-start-1";
     case "right":
-      return "lg:col-start-2";
+      return "xl:col-start-2";
     default:
       return "";
   }

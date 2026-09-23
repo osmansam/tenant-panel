@@ -179,6 +179,31 @@ beforeEach(() => {
 });
 
 describe("DynamicForm representative integration", () => {
+  it("keeps multi-area layouts stacked until wide desktop space is available", () => {
+    render(
+      <DynamicForm
+        form={{
+          ...representativeForm,
+          fields: representativeForm.fields?.map((field, index) =>
+            index === 0 ? { ...field, area: "right" as const } : field,
+          ),
+          layout: {
+            columns: 2,
+            areas: [
+              { key: "main", title: "Details" },
+              { key: "right", title: "Review" },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Representative form" }).nextElementSibling)
+      .toHaveClass("xl:grid-cols-2");
+    expect(screen.getByRole("heading", { name: "Review" }).closest("section"))
+      .toHaveClass("xl:col-start-2");
+  });
+
   it("keeps legacy-hidden values, validates inline, submits, and resets", async () => {
     const user = userEvent.setup();
     render(<DynamicForm form={representativeForm} componentId="form-1" />);

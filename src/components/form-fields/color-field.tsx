@@ -46,14 +46,14 @@ export const ColorField = ({
               aria-describedby={describedBy}
               aria-invalid={invalid || undefined}
               onClick={() => setOpen((current) => !current)}
-              className="min-w-40 justify-start"
+              className="min-w-0 flex-1 justify-start"
             >
               <span
                 aria-hidden="true"
                 className="size-5 rounded-ui-sm border border-ui-border"
                 style={{ backgroundColor: value || "transparent" }}
               />
-              <span>{value || "No color"}</span>
+              <span className="truncate">{value || "No color"}</span>
             </Button>
             <Button
               type="button"

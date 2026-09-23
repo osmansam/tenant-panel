@@ -54,6 +54,7 @@ export const TextField = ({
                   size="sm"
                   disabled={disabled}
                   onClick={() => setPasswordVisible((visible) => !visible)}
+                  aria-label={`${passwordVisible ? "Hide" : "Show"} password`}
                   className="h-8 px-2 shadow-none"
                 >
                   {passwordVisible ? "Hide" : "Show"}

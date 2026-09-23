@@ -65,6 +65,25 @@ describe("shared form fields", () => {
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("after");
   });
 
+  it("reveals and hides password values without changing the value", async () => {
+    const user = userEvent.setup();
+    render(
+      <TextField
+        name="password"
+        label="Password"
+        type="password"
+        value="secret"
+        onChange={() => undefined}
+      />,
+    );
+    const input = screen.getByLabelText("Password");
+    expect(input).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(input).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(input).toHaveAttribute("type", "password");
+  });
+
   it("uses a native checkbox and emits its checked state", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -134,5 +153,21 @@ describe("shared form fields", () => {
     await user.upload(screen.getByLabelText("Image"), file);
     expect(onChange).toHaveBeenCalledWith(file);
     expect(screen.getByText(/accepted file types: image\/png/i)).toBeVisible();
+  });
+
+  it("removes an already selected file without transforming the callback", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+    render(
+      <FileField
+        name="image"
+        label="Image"
+        value={file}
+        onChange={onChange}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(onChange).toHaveBeenCalledWith(null);
   });
 });

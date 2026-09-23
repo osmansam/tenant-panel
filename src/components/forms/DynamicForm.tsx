@@ -50,9 +50,9 @@ type EditingState = { listKey: string; index: number } | null;
 
 const areaOrder: FormAreaKey[] = ["top", "left", "main", "right", "bottom"];
 const columnClasses = {
-  1: "lg:grid-cols-1",
-  2: "lg:grid-cols-2",
-  3: "lg:grid-cols-3",
+  1: "xl:grid-cols-1",
+  2: "xl:grid-cols-2",
+  3: "xl:grid-cols-3",
 };
 const widthClasses = {
   full: "col-span-full",

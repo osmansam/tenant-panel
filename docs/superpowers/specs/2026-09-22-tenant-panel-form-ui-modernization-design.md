@@ -220,7 +220,8 @@ Breakpoints follow the existing Tailwind configuration.
 
 - Below `md` (768px), all form fields are one column regardless of schema width.
 - At `md`, half-width fields may form two columns.
-- At `lg`, schema layout columns and third-width fields become active.
+- At `lg`, third-width fields become active when their section has sufficient width.
+- Multi-area form layouts remain stacked until `xl`, preventing compound controls from being compressed inside half-width sections at the 1024px review viewport.
 - Sections never cause horizontal page scrolling at 320px viewport width.
 - Action footers wrap; at 320–479px, submit actions may become full width while secondary actions remain logically ordered.
 - React Select menus must stay within the viewport and above section overflow boundaries.

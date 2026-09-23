@@ -129,6 +129,10 @@ describe("date, time, month-year, and color fields", () => {
     render(<Harness />);
 
     expect(screen.getByText("#abcdef")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose Brand color" })).toHaveClass(
+      "min-w-0",
+      "flex-1",
+    );
     await user.click(screen.getByRole("button", { name: "Choose Brand color" }));
     await user.click(screen.getByRole("button", { name: "Pick test color" }));
     expect(values).toContain("#123456");
