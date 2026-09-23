@@ -9,9 +9,15 @@ import {
   useContainers,
   useCreateContainer,
 } from "../../../utils/api/container";
+import {
+  CONTAINER_PAGE_SIZES,
+  DEFAULT_CONTAINER_PAGE_SIZE,
+  getContainerCollectionPage,
+} from "../../../utils/containerCollectionView";
 import { normalizeContainerJsonPayload } from "../../../utils/jsonCreate";
 import { ExcelUploadModal } from "../../PageDesigner/ExcelUploadModal";
 import { GenericButton } from "../FormElements/GenericButton";
+import { ContainerDataModal } from "../Modals/ContainerDataModal";
 import { ContainerDetailsModal } from "../Modals/ContainerDetailsModal";
 import { CreateContainerModal } from "../Modals/CreateContainerModal";
 import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
@@ -25,6 +31,13 @@ export const ContainersSection: React.FC = () => {
   const [selectedContainer, setSelectedContainer] =
     useState<ContainerModel | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [detailsIntent, setDetailsIntent] = useState<"details" | "manage">("details");
+  const [detailsFocusArea, setDetailsFocusArea] = useState<"summary" | "fields">("summary");
+  const [dataContainer, setDataContainer] = useState<ContainerModel | null>(null);
+  const [draftQuery, setDraftQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_CONTAINER_PAGE_SIZE);
   const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
   const { createContainer, isCreating } = useCreateContainer();
 
@@ -38,6 +51,19 @@ export const ContainersSection: React.FC = () => {
   } catch (err) {
     error = err;
   }
+
+  const collectionPage = getContainerCollectionPage(
+    containers,
+    appliedQuery,
+    currentPage,
+    pageSize,
+  );
+
+  useEffect(() => {
+    if (currentPage !== collectionPage.page) {
+      setCurrentPage(collectionPage.page);
+    }
+  }, [collectionPage.page, currentPage]);
 
   // Update selectedContainer when containers data changes
   useEffect(() => {
@@ -60,14 +86,31 @@ export const ContainersSection: React.FC = () => {
     ["project_admin", "project_developer"].includes(role)
   );
 
-  const handleViewContainer = (container: ContainerModel) => {
+  const handleViewContainer = (
+    container: ContainerModel,
+    intent: "details" | "manage" = "details",
+  ) => {
     setSelectedContainer(container);
+    setDetailsIntent(intent);
+    setDetailsFocusArea(intent === "manage" ? "fields" : "summary");
     setIsDetailsModalOpen(true);
   };
 
   const handleCloseDetailsModal = () => {
     setIsDetailsModalOpen(false);
     setSelectedContainer(null);
+  };
+
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAppliedQuery(draftQuery.trim());
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setDraftQuery("");
+    setAppliedQuery("");
+    setCurrentPage(1);
   };
 
   const handleCreateContainerWithJson = (payload: unknown) => {
@@ -112,6 +155,41 @@ export const ContainersSection: React.FC = () => {
         )}
       </div>
 
+      {containers.length > 0 && !error && (
+        <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <form
+            role="search"
+            onSubmit={handleSearch}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center"
+          >
+            <label htmlFor="container-search" className="sr-only">
+              {t("Search containers")}
+            </label>
+            <input
+              id="container-search"
+              type="search"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+              placeholder={t("Search by schema, collection, or container ID")}
+              className="h-10 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <GenericButton type="submit" size="sm">
+              {t("Search")}
+            </GenericButton>
+            {(draftQuery || appliedQuery) && (
+              <GenericButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearSearch}
+              >
+                {t("Clear search")}
+              </GenericButton>
+            )}
+          </form>
+        </div>
+      )}
+
       {/* Container List */}
       <div className="space-y-3">
         {error ? (
@@ -123,11 +201,12 @@ export const ContainersSection: React.FC = () => {
               )}
             </p>
           </div>
-        ) : containers && containers.length > 0 ? (
-          containers.map((container) => (
-            <div
+        ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
+          collectionPage.items.map((container) => (
+            <article
               key={container.id}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              aria-label={`${container.schemaName} ${t("container")}`}
+              className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50 lg:flex-row lg:items-center lg:justify-between"
               onClick={() => handleViewContainer(container)}
             >
               <div className="flex-1">
@@ -147,7 +226,7 @@ export const ContainersSection: React.FC = () => {
                 )}
               </div>
               <div
-                className="flex items-center space-x-2"
+                className="flex flex-wrap items-center gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GenericButton
@@ -161,26 +240,24 @@ export const ContainersSection: React.FC = () => {
                 <GenericButton
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    // TODO: Navigate to container details/edit page
-                    console.log("Edit container:", container.id);
-                  }}
+                  onClick={() => handleViewContainer(container, "manage")}
                 >
                   {t("Edit")}
                 </GenericButton>
                 <GenericButton
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    // TODO: Navigate to container data view
-                    console.log("View data:", container.id);
-                  }}
+                  onClick={() => setDataContainer(container)}
                 >
                   {t("View Data")}
                 </GenericButton>
               </div>
-            </div>
+            </article>
           ))
+        ) : appliedQuery ? (
+          <div className="rounded-lg border border-dashed border-gray-300 py-10 text-center">
+            <p className="text-gray-500">{t("No containers match your search")}</p>
+          </div>
         ) : (
           <div className="text-center py-8">
             <div className="text-gray-400 text-6xl mb-4">🗄️</div>
@@ -198,6 +275,84 @@ export const ContainersSection: React.FC = () => {
           </div>
         )}
       </div>
+
+      {containers.length > 0 && collectionPage.totalItems > 0 && (
+        <nav
+          aria-label={t("Container pagination")}
+          className="mt-5 flex flex-col gap-3 border-t border-gray-200 pt-4 lg:flex-row lg:items-center lg:justify-between"
+        >
+          <p className="text-sm text-gray-600">
+            {t("Showing {{start}}–{{end}} of {{total}} containers", {
+              start: collectionPage.startNumber,
+              end: collectionPage.endNumber,
+              total: collectionPage.totalItems,
+            })}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="container-page-size" className="text-sm text-gray-600">
+              {t("Containers per page")}
+            </label>
+            <select
+              id="container-page-size"
+              value={pageSize}
+              onChange={(event) => {
+                const nextSize = Number(event.target.value);
+                if (
+                  CONTAINER_PAGE_SIZES.includes(
+                    nextSize as (typeof CONTAINER_PAGE_SIZES)[number],
+                  )
+                ) {
+                  setPageSize(nextSize);
+                  setCurrentPage(1);
+                }
+              }}
+              className="h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm"
+            >
+              {CONTAINER_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <GenericButton
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={collectionPage.page === 1}
+            >
+              {t("Previous")}
+            </GenericButton>
+            {Array.from({ length: collectionPage.totalPages }, (_, index) => index + 1).map(
+              (page) => (
+                <button
+                  key={page}
+                  type="button"
+                  aria-label={t("Page {{page}}", { page })}
+                  aria-current={page === collectionPage.page ? "page" : undefined}
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-8 min-w-8 rounded-md border px-2 text-sm ${
+                    page === collectionPage.page
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ),
+            )}
+            <GenericButton
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCurrentPage((page) => Math.min(collectionPage.totalPages, page + 1))
+              }
+              disabled={collectionPage.page === collectionPage.totalPages}
+            >
+              {t("Next")}
+            </GenericButton>
+          </div>
+        </nav>
+      )}
 
       {/* Container Statistics */}
       {containers && containers.length > 0 && (
@@ -267,6 +422,15 @@ export const ContainersSection: React.FC = () => {
         isOpen={isDetailsModalOpen}
         onClose={handleCloseDetailsModal}
         container={selectedContainer}
+        intent={detailsIntent}
+        initialSection="structured"
+        focusArea={detailsFocusArea}
+      />
+
+      <ContainerDataModal
+        isOpen={!!dataContainer}
+        onClose={() => setDataContainer(null)}
+        container={dataContainer}
       />
 
       {/* Excel Upload Modal */}
