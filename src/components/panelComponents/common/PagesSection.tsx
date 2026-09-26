@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiLayout, FiNavigation, FiPlus, FiSettings } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -42,6 +43,15 @@ export const PagesSection: React.FC = () => {
   const [editorTab, setEditorTab] = useState<"content" | "navigation" | "settings">("content");
   const { updatePage, updatePageAsync, isUpdating } = useUpdatePage();
   const { createPage, isCreating } = useCreatePage();
+
+  useEffect(() => {
+    if (!showDesigner) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showDesigner]);
 
   // Get pages for the current project with error handling
   let pages: PageModel[] = [];
@@ -604,8 +614,8 @@ export const PagesSection: React.FC = () => {
       )}
 
       {/* Page Designer Modal */}
-      {showDesigner && editingPage && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-ui-canvas font-ui">
+      {showDesigner && editingPage && createPortal(
+        <div data-testid="page-editor-workspace" className="fixed inset-0 z-[100] overflow-hidden bg-ui-page font-ui">
           <div className="flex h-full min-h-0 flex-col">
             <header className="shrink-0 border-b border-ui-border bg-ui-surface">
               <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6">
@@ -739,7 +749,8 @@ export const PagesSection: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Page Details Modal */}

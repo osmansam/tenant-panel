@@ -36,8 +36,13 @@ vi.mock("../Modals/PageDetailsModal", () => ({ PageDetailsModal: () => null }));
 describe("PagesSection designer workspace", () => {
   it("separates content, navigation, and page settings into accessible tabs", async () => {
     const user = userEvent.setup();
-    render(<PagesSection />);
+    const { container } = render(<PagesSection />);
     await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    const workspace = screen.getByTestId("page-editor-workspace");
+    expect(workspace).toHaveClass("bg-ui-page");
+    expect(container).not.toContainElement(workspace);
+    expect(document.body).toContainElement(workspace);
 
     const tabs = screen.getByRole("tablist", { name: "Page editor sections" });
     expect(tabs).toBeInTheDocument();
