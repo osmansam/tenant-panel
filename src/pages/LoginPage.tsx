@@ -4,7 +4,6 @@ import { Link, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { GoogleCallbackHandler } from "../components/auth/GoogleCallbackHandler";
 import { TenantLoginForm } from "../components/auth/TenantLoginForm";
-import { H1, H6 } from "../components/panelComponents/Typography";
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
@@ -33,29 +32,30 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <main className="flex min-h-screen flex-col justify-center bg-ui-page px-4 py-8 font-ui sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-md">
         <div className="text-center">
-          <H1 className="text-3xl font-extrabold text-gray-900">
+          <div className="mx-auto mb-5 flex h-10 w-10 items-center justify-center rounded-ui-lg bg-ui-foreground text-sm font-semibold text-ui-surface" aria-hidden="true">TP</div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ui-foreground">
             {t("Welcome Back")}
-          </H1>
-          <H6 className="mt-2 text-sm text-gray-600">
+          </h1>
+          <p className="mt-2 text-sm text-ui-muted">
             {t("Sign in to your tenant account")}
-          </H6>
+          </p>
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      <div className="mx-auto mt-7 w-full max-w-md">
+        <div className="rounded-ui-lg border border-ui-border bg-ui-surface px-5 py-6 shadow-sm sm:px-8">
           <TenantLoginForm onError={handleError} />
 
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-ui-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
+                <span className="px-2 bg-ui-surface text-ui-muted">
                   {t("New to our platform?")}
                 </span>
               </div>
@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
             <div className="mt-6 text-center">
               <Link
                 to="/register"
-                className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
+                className="font-medium text-ui-primary hover:opacity-80 transition-colors duration-200"
               >
                 {t("Create a new tenant account")}
               </Link>
@@ -73,19 +73,19 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-8 text-center">
-        <p className="text-xs text-gray-500">
+      <div className="mx-auto mt-6 max-w-md px-2 text-center">
+        <p className="text-xs text-ui-muted">
           {t("By signing in, you agree to our")}{" "}
-          <a href="#" className="text-blue-600 hover:text-blue-500">
+          <a href="#" className="text-ui-primary hover:opacity-80">
             {t("Terms of Service")}
           </a>{" "}
           {t("and")}{" "}
-          <a href="#" className="text-blue-600 hover:text-blue-500">
+          <a href="#" className="text-ui-primary hover:opacity-80">
             {t("Privacy Policy")}
           </a>
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 
