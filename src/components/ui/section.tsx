@@ -25,7 +25,7 @@ export function Section({
   );
 }
 
-export interface SectionHeaderProps extends HTMLAttributes<HTMLDivElement> {
+export interface SectionHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;

@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
             >
               <FiMenu className="h-4 w-4" aria-hidden="true" />
             </button>
-            <GenericButton onClick={tenantLogout} variant="outline" size="sm">
+            <GenericButton onClick={() => tenantLogout()} variant="outline" size="sm">
               {t("Logout")}
             </GenericButton>
           </PageActions>
