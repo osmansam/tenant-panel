@@ -11,6 +11,8 @@ import {
 } from "../../utils/api/branding";
 import { BrandingAssetField } from "./BrandingAssetField";
 import { BrandingPreview } from "./BrandingPreview";
+import { GenericButton } from "../panelComponents/FormElements/GenericButton";
+import { EmptyState, Section, SectionHeader, Switch } from "../ui";
 import {
   buildBrandingPatch,
   validateBrandingDraft,
@@ -73,10 +75,10 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
   }, [data, draft, reset]);
 
   if (query.isError) {
-    return <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">Branding settings could not be loaded.</div>;
+    return <div role="alert" className="rounded-ui-lg border border-ui-danger/30 bg-ui-danger-subtle p-5 text-sm text-ui-danger">Branding settings could not be loaded.</div>;
   }
   if (query.isLoading || !draft || !data || !preview) {
-    return <div className="rounded-xl border bg-white p-6 text-sm text-neutral-500">Loading branding…</div>;
+    return <EmptyState title="Loading branding…" />;
   }
 
   const updateField = <K extends keyof BrandingDraft>(field: K, value: BrandingDraft[K]) => {
@@ -125,57 +127,55 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
   return (
     <section className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-semibold text-neutral-900">{scope === "tenant" ? "Tenant branding" : "Project branding"}</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              {scope === "tenant"
-                ? "Defaults used by every project in this tenant."
-                : "Override tenant defaults only where this project needs a different identity."}
-            </p>
-          </div>
+        <Section surface="outlined" className="space-y-5">
+          <SectionHeader
+            title={scope === "tenant" ? "Tenant branding" : "Project branding"}
+            description={scope === "tenant" ? "Defaults used by every project in this tenant." : "Override tenant defaults only where this project needs a different identity."}
+          />
           <div className="grid gap-5 sm:grid-cols-2">
-            {scalarFields.map((field) => (
-              <label key={field.key} className="block">
+            {scalarFields.map((field) => {
+              const inputId = `branding-${field.key}`;
+              const descriptionId = `${inputId}-description`;
+              return (
+              <div key={field.key} className="min-w-0">
                 <span className="flex items-center justify-between gap-2 text-sm font-medium text-neutral-800">
-                  {field.label}
+                  <label htmlFor={inputId}>{field.label}</label>
                   {scope === "project" && data.overrides?.[field.key] !== undefined && (
                     <button type="button" onClick={() => inheritField(field.key)} className="text-xs font-semibold text-violet-600">Use tenant default</button>
                   )}
                 </span>
                 <input
+                  id={inputId}
+                  aria-describedby={descriptionId}
                   value={draft[field.key]}
                   onChange={(event) => updateField(field.key, event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                  className="mt-2 min-w-0 w-full rounded-ui-md border border-ui-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
                 />
-                <span className="mt-1 block text-xs text-neutral-500">{field.hint}</span>
+                <span id={descriptionId} className="mt-1 block text-xs text-neutral-500">{field.hint}</span>
                 {errors[field.key] && <span className="mt-1 block text-xs text-red-600">{errors[field.key]}</span>}
-              </label>
-            ))}
-            <label className="block">
+              </div>
+            )})}
+            <div className="block">
               <span className="flex items-center justify-between gap-2 text-sm font-medium text-neutral-800">
-                Primary color
+                <label htmlFor="branding-primary-color">Primary color</label>
                 {scope === "project" && data.overrides?.primaryColor !== undefined && (
                   <button type="button" onClick={() => inheritField("primaryColor")} className="text-xs font-semibold text-violet-600">Use tenant default</button>
                 )}
               </span>
               <div className="mt-2 flex gap-2">
                 <input type="color" value={draft.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} className="h-10 w-12 rounded border p-1" />
-                <input value={draft.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value)} className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm uppercase" />
+                <input id="branding-primary-color" aria-invalid={Boolean(errors.primaryColor)} aria-describedby={errors.primaryColor ? "branding-primary-color-error" : undefined} value={draft.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value)} className="min-w-0 flex-1 rounded-ui-md border border-ui-border px-3 py-2 text-sm uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus" />
               </div>
-              {errors.primaryColor && <span className="mt-1 block text-xs text-red-600">{errors.primaryColor}</span>}
-            </label>
-            <label className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 p-4">
-              <span><span className="block text-sm font-medium text-neutral-800">Brand the login page</span><span className="mt-1 block text-xs text-neutral-500">Show this identity before users sign in.</span></span>
-              <input type="checkbox" checked={draft.loginBrandingEnabled} onChange={(event) => updateField("loginBrandingEnabled", event.target.checked)} className="h-5 w-5 rounded text-violet-600" />
-            </label>
+              {errors.primaryColor && <span id="branding-primary-color-error" className="mt-1 block text-xs text-red-600">{errors.primaryColor}</span>}
+            </div>
+            <Switch checked={draft.loginBrandingEnabled} onCheckedChange={(checked) => updateField("loginBrandingEnabled", checked)} label="Brand the login page" description="Show this identity before users sign in." />
           </div>
           <div className="flex justify-end">
-            <button type="button" disabled={patchMutation.isPending} onClick={() => void save()} className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50">
+            <GenericButton variant="primary" disabled={patchMutation.isPending} onClick={() => void save()}>
               {patchMutation.isPending ? "Saving…" : "Save branding"}
-            </button>
+            </GenericButton>
           </div>
-        </div>
+        </Section>
         <BrandingPreview branding={preview} />
       </div>
       <div className="grid gap-4 lg:grid-cols-3">

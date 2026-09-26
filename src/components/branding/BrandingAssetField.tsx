@@ -4,6 +4,7 @@ import type {
   BrandingAssetSlot,
 } from "../../types/branding";
 import { brandingUploadErrorMessage } from "../../utils/api/branding";
+import { Badge } from "../ui";
 
 interface BrandingAssetFieldProps {
   label: string;
@@ -54,7 +55,7 @@ export function BrandingAssetField({
   };
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+    <div className="border-t border-ui-border py-4 first:border-t-0">
       <div className="flex items-start gap-4">
         <div className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 p-2">
           {effectiveUrl ? (
@@ -67,9 +68,7 @@ export function BrandingAssetField({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold text-neutral-900">{label}</h3>
             {inherited && (
-              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
-                Inherited
-              </span>
+              <Badge variant="info">Inherited</Badge>
             )}
           </div>
           <p className="mt-1 text-xs text-neutral-500">{hint}</p>
