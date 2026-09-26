@@ -40,6 +40,7 @@ describe("ProjectLocalizationSection", () => {
   it("saves the existing locale settings payload", async () => {
     const user = userEvent.setup();
     render(<ProjectLocalizationSection project={project} />);
+    await user.click(screen.getByRole("tab", { name: "Languages" }));
     await user.click(screen.getByRole("button", { name: "Save language settings" }));
     expect(state.save).toHaveBeenCalledWith({
       sourceLocale: "en",
@@ -47,6 +48,30 @@ describe("ProjectLocalizationSection", () => {
       enabledLocales: ["en", "tr"],
       generateWithAI: true,
     });
+  });
+
+  it("opens on translations and separates language configuration into a keyboard-accessible tab", async () => {
+    const user = userEvent.setup();
+    state.translations = [{
+      translationKey: "product.title",
+      resourceType: "field",
+      status: "translated",
+      sourceText: "Product",
+      translatedText: "Ürün",
+      origin: "manual",
+    }];
+    render(<ProjectLocalizationSection project={project} />);
+
+    const translationsTab = screen.getByRole("tab", { name: "Translations" });
+    expect(translationsTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("table", { name: "Translations" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Source language")).not.toBeInTheDocument();
+
+    translationsTab.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Languages" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Source language")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Translations" })).not.toBeInTheDocument();
   });
 
   it("shows a semantic empty translation state", () => {
@@ -75,9 +100,11 @@ describe("ProjectLocalizationSection", () => {
     expect(input.closest("[data-layout]")).toHaveAttribute("data-layout", "stacked-until-medium");
   });
 
-  it("disables duplicate settings submissions while saving", () => {
+  it("disables duplicate settings submissions while saving", async () => {
+    const user = userEvent.setup();
     state.savePending = true;
     render(<ProjectLocalizationSection project={project} />);
+    await user.click(screen.getByRole("tab", { name: "Languages" }));
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 });
