@@ -3,6 +3,8 @@ import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   FiCopy,
+  FiEye,
+  FiEyeOff,
   FiKey,
   FiPlus,
   FiRefreshCw,
@@ -11,6 +13,16 @@ import {
   FiX,
 } from "react-icons/fi";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
+import {
+  Badge,
+  EmptyState,
+  PageActions,
+  PageHeader,
+  PageShell,
+  Section,
+  SectionHeader,
+  WorkspaceDialog,
+} from "../components/ui";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import {
   ContainerModel,
@@ -85,25 +97,25 @@ function formatDate(value?: string | null) {
 
 function getCredentialStatus(credential: IntegrationCredential) {
   if (credential.revokedAt) {
-    return { label: "Revoked", className: "bg-red-50 text-red-700" };
+    return { label: "Revoked", variant: "danger" as const };
   }
   if (new Date(credential.expiresAt).getTime() <= Date.now()) {
-    return { label: "Expired", className: "bg-amber-50 text-amber-700" };
+    return { label: "Expired", variant: "warning" as const };
   }
-  return { label: "Active", className: "bg-emerald-50 text-emerald-700" };
+  return { label: "Active", variant: "success" as const };
 }
 
 function getExternalCredentialStatus(credential: ExternalAPICredential) {
   if (credential.revokedAt) {
-    return { label: "Revoked", className: "bg-red-50 text-red-700" };
+    return { label: "Revoked", variant: "danger" as const };
   }
   if (
     credential.expiresAt &&
     new Date(credential.expiresAt).getTime() <= Date.now()
   ) {
-    return { label: "Expired", className: "bg-amber-50 text-amber-700" };
+    return { label: "Expired", variant: "warning" as const };
   }
-  return { label: "Active", className: "bg-emerald-50 text-emerald-700" };
+  return { label: "Active", variant: "success" as const };
 }
 
 function getPermissionName(permission: IntegrationPermission) {
@@ -163,6 +175,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
   const [externalSecret, setExternalSecret] = useState("");
   const [externalAllowedDomains, setExternalAllowedDomains] = useState("");
   const [externalExpiresAt, setExternalExpiresAt] = useState("");
+  const [showExternalSecret, setShowExternalSecret] = useState(false);
 
   const schemaNames = useMemo(
     () => containers.map((container) => container.schemaName).filter(Boolean),
@@ -181,6 +194,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
     setExternalSecret("");
     setExternalAllowedDomains("");
     setExternalExpiresAt("");
+    setShowExternalSecret(false);
   };
 
   const updatePermission = (
@@ -327,30 +341,21 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="sticky top-0 z-10 border-b border-neutral-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-8 lg:px-12">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-900 text-white">
-                <FiShield className="h-4 w-4" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-neutral-900">
-                  Integrations
-                </h1>
-                <p className="text-xs text-neutral-500">{currentProject.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+    <PageShell width="wide">
+      <PageHeader
+        title="Integrations"
+        description={currentProject.name}
+        context={<Badge variant="info"><FiShield className="mr-1 h-3 w-3" aria-hidden="true" />Project credentials</Badge>}
+        actions={
+          <PageActions aria-label="Integration actions">
               <button
                 type="button"
                 onClick={() => {
                   refetch();
                   refetchExternalCredentials();
                 }}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
-                title="Refresh"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-ui-md border border-ui-border bg-ui-surface text-ui-muted hover:bg-ui-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+                aria-label="Refresh credentials"
               >
                 <FiRefreshCw className="h-4 w-4" />
               </button>
@@ -370,12 +375,11 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
               >
                 New credential
               </GenericButton>
-            </div>
-          </div>
-        </div>
-      </div>
+          </PageActions>
+        }
+      />
 
-      <main className="max-w-[1400px] mx-auto px-8 lg:px-12 py-8 space-y-6">
+      <div className="space-y-2">
         {createdToken && (
           <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-start justify-between gap-4">
@@ -409,27 +413,13 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
           </section>
         )}
 
-        {isCreateOpen && (
-          <section className="rounded-lg border border-neutral-200 bg-white">
-            <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-              <div>
-                <h2 className="text-sm font-semibold text-neutral-900">
-                  Create integration credential
-                </h2>
-                <p className="mt-1 text-xs text-neutral-500">
-                  The token is shown once after creation.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"
-                title="Close"
-              >
-                <FiX className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-5 p-5">
+        <WorkspaceDialog
+          open={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          title="Create integration credential"
+          description="The token is shown once after creation."
+        >
+            <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-medium text-neutral-700">
@@ -600,30 +590,15 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                 </GenericButton>
               </div>
             </div>
-          </section>
-        )}
+        </WorkspaceDialog>
 
-        {isExternalCreateOpen && (
-          <section className="rounded-lg border border-neutral-200 bg-white">
-            <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-              <div>
-                <h2 className="text-sm font-semibold text-neutral-900">
-                  Create external API credential
-                </h2>
-                <p className="mt-1 text-xs text-neutral-500">
-                  Paste the token given by another backend. Saved tokens are encrypted and never shown again.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsExternalCreateOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"
-                title="Close"
-              >
-                <FiX className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-5 p-5">
+        <WorkspaceDialog
+          open={isExternalCreateOpen}
+          onClose={() => setIsExternalCreateOpen(false)}
+          title="Create external API credential"
+          description="Paste a token from another backend. Saved tokens are encrypted and never shown again."
+        >
+            <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-medium text-neutral-700">
@@ -683,19 +658,30 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   />
                 </label>
 
-                <label className="block md:col-span-2">
-                  <span className="text-xs font-medium text-neutral-700">
+                <div className="block md:col-span-2">
+                  <label htmlFor="external-api-token" className="text-xs font-medium text-neutral-700">
                     External API token
-                  </span>
-                  <input
-                    type="password"
-                    value={externalSecret}
-                    onChange={(event) => setExternalSecret(event.target.value)}
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
-                    placeholder="Token from Davinci or another backend"
-                    autoComplete="off"
-                  />
-                </label>
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      id="external-api-token"
+                      type={showExternalSecret ? "text" : "password"}
+                      value={externalSecret}
+                      onChange={(event) => setExternalSecret(event.target.value)}
+                      className="h-10 w-full rounded-md border border-neutral-300 px-3 pr-10 text-sm outline-none focus:border-neutral-900"
+                      placeholder="Token from Davinci or another backend"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      aria-label={showExternalSecret ? "Hide external API token" : "Show external API token"}
+                      onClick={() => setShowExternalSecret((visible) => !visible)}
+                      className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-ui-muted hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus"
+                    >
+                      {showExternalSecret ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
+                    </button>
+                  </div>
+                </div>
 
                 <label className="block">
                   <span className="text-xs font-medium text-neutral-700">
@@ -731,25 +717,18 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                 </GenericButton>
               </div>
             </div>
-          </section>
-        )}
+        </WorkspaceDialog>
 
-        <section className="rounded-lg border border-neutral-200 bg-white">
-          <div className="border-b border-neutral-200 px-5 py-4">
-            <h2 className="text-sm font-semibold text-neutral-900">
-              External API credentials
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500">
-              Tokens from other backends used by workflow call_api steps.
-            </p>
-          </div>
+        <Section surface="outlined">
+          <SectionHeader
+            title="External API credentials"
+            description="Tokens from other backends used by workflow call_api steps."
+          />
 
           {externalCredentialsLoading ? (
             <div className="p-8 text-sm text-neutral-500">Loading...</div>
           ) : externalCredentials.length === 0 ? (
-            <div className="p-8 text-sm text-neutral-500">
-              No external API credentials yet.
-            </div>
+            <EmptyState title="No external API credentials yet" description="Add a credential when a workflow needs to call another backend." />
           ) : (
             <div className="divide-y divide-neutral-200">
               {externalCredentials.map((credential) => {
@@ -762,11 +741,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                           <h3 className="text-sm font-semibold text-neutral-900">
                             {credential.name}
                           </h3>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
-                          >
-                            {status.label}
-                          </span>
+                          <Badge variant={status.variant}>{status.label}</Badge>
                           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
                             {credential.authType === "header"
                               ? credential.headerName
@@ -785,7 +760,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                           </span>
                         </div>
                         <div className="mt-3 flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-                          <code className="min-w-0 flex-1 truncate text-xs text-neutral-700">
+                          <code className="min-w-0 flex-1 break-all text-xs text-neutral-700">
                             {credential.id}
                           </code>
                           <button
@@ -813,24 +788,18 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
               })}
             </div>
           )}
-        </section>
+        </Section>
 
-        <section className="rounded-lg border border-neutral-200 bg-white">
-          <div className="border-b border-neutral-200 px-5 py-4">
-            <h2 className="text-sm font-semibold text-neutral-900">
-              Integration credentials
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500">
-              Tokens generated by this app for external systems calling your project.
-            </p>
-          </div>
+        <Section surface="outlined">
+          <SectionHeader
+            title="Integration credentials"
+            description="Tokens generated by this app for external systems calling your project."
+          />
 
           {isLoading ? (
             <div className="p-8 text-sm text-neutral-500">Loading...</div>
           ) : credentials.length === 0 ? (
-            <div className="p-8 text-sm text-neutral-500">
-              No integration credentials yet.
-            </div>
+            <EmptyState title="No integration credentials yet" description="Create a scoped credential for systems that call this project." />
           ) : (
             <div className="divide-y divide-neutral-200">
               {credentials.map((credential) => {
@@ -843,11 +812,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                           <h3 className="text-sm font-semibold text-neutral-900">
                             {credential.name}
                           </h3>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
-                          >
-                            {status.label}
-                          </span>
+                          <Badge variant={status.variant}>{status.label}</Badge>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
                           <span>Expires {formatDate(credential.expiresAt)}</span>
@@ -881,9 +846,9 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
               })}
             </div>
           )}
-        </section>
-      </main>
-    </div>
+        </Section>
+      </div>
+    </PageShell>
   );
 };
 
