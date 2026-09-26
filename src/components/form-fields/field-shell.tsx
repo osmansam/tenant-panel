@@ -14,7 +14,9 @@ export const FieldShell = ({
   children,
   className,
   description,
+  descriptionId: providedDescriptionId,
   error,
+  errorId: providedErrorId,
   id,
   label,
   optionalLabel,
@@ -23,8 +25,10 @@ export const FieldShell = ({
   const generatedId = useId();
   const controlId =
     id || `field-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const descriptionId = description ? `${controlId}-description` : undefined;
-  const errorId = error ? `${controlId}-error` : undefined;
+  const descriptionId = description
+    ? providedDescriptionId || `${controlId}-description`
+    : undefined;
+  const errorId = error ? providedErrorId || `${controlId}-error` : undefined;
   const describedBy = [descriptionId, errorId].filter(Boolean).join(" ") || undefined;
   const accessibility: FieldControlAccessibility = {
     controlId,

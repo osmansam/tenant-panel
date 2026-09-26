@@ -5,7 +5,9 @@ export interface FieldPresentationProps {
   name: string;
   label: ReactNode;
   description?: ReactNode;
+  descriptionId?: string;
   error?: ReactNode;
+  errorId?: string;
   required?: boolean;
   optionalLabel?: ReactNode;
   disabled?: boolean;

@@ -54,6 +54,30 @@ describe("shared form fields", () => {
     expect(firstId).not.toBe(secondId);
   });
 
+  it("allows deterministic description and error IDs without changing wiring", () => {
+    render(
+      <TextField
+        id="project-locale"
+        name="locale"
+        label="Source locale"
+        description="Used for new content"
+        descriptionId="localization-description"
+        error="Choose a locale"
+        errorId="localization-error"
+        value=""
+        onChange={() => undefined}
+      />,
+    );
+
+    const control = screen.getByRole("textbox", { name: "Source locale" });
+    expect(control).toHaveAttribute(
+      "aria-describedby",
+      "localization-description localization-error",
+    );
+    expect(screen.getByText("Used for new content")).toHaveAttribute("id", "localization-description");
+    expect(screen.getByText("Choose a locale")).toHaveAttribute("id", "localization-error");
+  });
+
   it("immediately reflects an externally controlled value", () => {
     const onChange = vi.fn();
     const { rerender } = render(

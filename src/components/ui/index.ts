@@ -24,3 +24,7 @@ export { EmptyState } from "./empty-state";
 export type { EmptyStateProps } from "./empty-state";
 export { ResponsiveActionBar } from "./action-bar";
 export type { ActionBarAlign, ResponsiveActionBarProps } from "./action-bar";
+export { Switch } from "./switch";
+export type { SwitchProps } from "./switch";
+export { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
+export type { TabsContentProps, TabsProps, TabsTriggerProps } from "./tabs";
