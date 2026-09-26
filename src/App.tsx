@@ -30,9 +30,9 @@ function App() {
       <UserContextProvider>
         <GeneralContextProvider>
           {isMutating ? <Loading /> : null}
-          <div className="flex h-screen">
+          <div className="flex h-screen bg-ui-page font-ui text-ui-foreground">
             {showSidebar && <Sidebar />}
-            <main className="flex-1 overflow-auto">
+            <main className="min-w-0 flex-1 overflow-auto bg-ui-page">
               <RouterContainer />
             </main>
           </div>

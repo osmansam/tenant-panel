@@ -107,15 +107,16 @@ export const Sidebar = () => {
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 z-40"
+          className="fixed inset-0 z-40 bg-[hsl(var(--ui-overlay)/0.48)] md:hidden"
           onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       <aside
         className={`
-          flex-shrink-0 flex flex-col border-r border-neutral-200 bg-white
-          transition-all duration-300 ease-in-out
+          flex-shrink-0 flex flex-col border-r border-ui-border bg-ui-surface
+          transition-[width,transform] duration-200 ease-out
           ${isSidebarOpen ? "w-64" : "w-16"}
           md:relative md:translate-x-0
           ${
@@ -127,11 +128,11 @@ export const Sidebar = () => {
         `}
       >
         {/* Header */}
-        <div className="h-16 flex items-center border-b border-neutral-200 bg-white">
+        <div className="flex h-14 items-center border-b border-ui-border bg-ui-surface">
           {isSidebarOpen ? (
             <div className="flex items-center justify-between w-full px-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-ui-md bg-ui-primary">
                   <svg
                     className="w-5 h-5 text-white"
                     fill="none"
@@ -147,10 +148,10 @@ export const Sidebar = () => {
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-sm font-semibold text-neutral-900 tracking-tight">
+                  <div className="text-sm font-semibold tracking-tight text-ui-foreground">
                     Tenant Panel
-                  </h1>
-                  <p className="text-xs text-neutral-500">
+                  </div>
+                  <p className="text-xs text-ui-muted">
                     {user?.email?.split("@")[0] || "User"}
                   </p>
                 </div>
@@ -160,7 +161,7 @@ export const Sidebar = () => {
                   setOpenGroups({});
                   setIsSidebarOpen(false);
                 }}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all active:scale-95"
+                className="ui-focus-ring flex h-8 w-8 items-center justify-center rounded-ui-md text-ui-muted transition-colors hover:bg-ui-surface-subtle hover:text-ui-foreground"
                 aria-label="Collapse Sidebar"
               >
                 <FiChevronLeft className="text-lg" strokeWidth={2.5} />
@@ -170,7 +171,7 @@ export const Sidebar = () => {
             <div className="w-full flex items-center justify-center">
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="flex items-center justify-center w-10 h-10 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all active:scale-95"
+                className="ui-focus-ring flex h-10 w-10 items-center justify-center rounded-ui-md text-ui-muted transition-colors hover:bg-ui-surface-subtle hover:text-ui-foreground"
                 aria-label="Expand Sidebar"
               >
                 <FiChevronRight className="text-lg" strokeWidth={2.5} />
@@ -179,26 +180,26 @@ export const Sidebar = () => {
           )}
         </div>
 
-        <div className="flex flex-col h-[calc(100%-4rem)] py-4 px-3 bg-white overflow-y-auto">
+        <div className="flex h-[calc(100%-3.5rem)] flex-col overflow-y-auto bg-ui-surface px-3 py-3">
           {/* Project Context Section */}
           {isInProject && currentProject && (
-            <div className="mb-4 p-3 bg-violet-50 rounded-xl border border-violet-200">
+            <div className="mb-3 rounded-ui-md bg-ui-surface-subtle p-3">
               {isSidebarOpen ? (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center">
-                      <MdBusinessCenter className="text-violet-600 text-sm" />
+                    <div className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-[hsl(var(--ui-info-subtle))]">
+                      <MdBusinessCenter className="text-sm text-[hsl(var(--ui-info))]" />
                     </div>
-                    <span className="text-xs font-semibold text-violet-900">
+                    <span className="text-xs font-semibold text-ui-foreground">
                       {t("Current Project")}
                     </span>
                   </div>
-                  <div className="text-sm font-medium text-violet-800 mb-2.5 truncate">
+                  <div className="mb-2.5 truncate text-sm font-medium text-ui-foreground">
                     {currentProject.name}
                   </div>
                   <button
                     onClick={handleSwitchBackToTenant}
-                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-violet-700 bg-white border border-violet-200 rounded-lg hover:bg-violet-50 transition-all active:scale-95 w-full justify-center"
+                    className="ui-focus-ring flex w-full items-center justify-center gap-1.5 rounded-ui-md border border-ui-border bg-ui-surface px-2 py-1.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle"
                   >
                     <MdArrowBack className="text-sm" />
                     {t("Back to Tenant")}
@@ -212,7 +213,7 @@ export const Sidebar = () => {
                 >
                   <button
                     onClick={handleSwitchBackToTenant}
-                    className="w-full flex items-center justify-center p-2 text-violet-600 hover:text-violet-800 hover:bg-violet-100 rounded-lg transition-all active:scale-95"
+                    className="ui-focus-ring flex w-full items-center justify-center rounded-ui-md p-2 text-ui-primary transition-colors hover:bg-[hsl(var(--ui-info-subtle))]"
                   >
                     <MdBusinessCenter className="text-lg" />
                   </button>
@@ -278,6 +279,7 @@ export const Sidebar = () => {
                         .map((child) => (
                           <button
                             key={child.name}
+                            aria-current={child.path === currentRoute ? "page" : undefined}
                             className={`
                             w-full flex items-center pl-10 pr-3 py-2 rounded-lg mt-0.5
                             text-sm transition-all active:scale-[0.98]
@@ -317,6 +319,7 @@ export const Sidebar = () => {
                     content={t(routeChildren[0].name)}
                   >
                     <button
+                      aria-current={routeChildren[0].path === currentRoute ? "page" : undefined}
                       className={`
                       w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
                       text-sm transition-all active:scale-[0.98]
@@ -358,6 +361,7 @@ export const Sidebar = () => {
               return (
                 <SidebarTooltip key={route.name} content={t(route.name)}>
                   <button
+                    aria-current={route.path === currentRoute ? "page" : undefined}
                     className={`
                     w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
                     text-sm transition-all active:scale-[0.98]
