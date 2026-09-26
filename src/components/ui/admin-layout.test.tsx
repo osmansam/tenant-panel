@@ -14,16 +14,19 @@ import {
 describe("admin layout primitives", () => {
   it("renders_page_heading_and_context_in_landmark_order", () => {
     render(
-      <PageShell>
-        <PageHeader
-          title="Projects"
-          description="Manage tenant projects"
-          context={<span>12 projects</span>}
-          actions={<PageActions aria-label="Project actions">Create project</PageActions>}
-        />
-      </PageShell>,
+      <main>
+        <PageShell>
+          <PageHeader
+            title="Projects"
+            description="Manage tenant projects"
+            context={<span>12 projects</span>}
+            actions={<PageActions aria-label="Project actions">Create project</PageActions>}
+          />
+        </PageShell>
+      </main>,
     );
 
+    expect(screen.getAllByRole("main")).toHaveLength(1);
     const main = screen.getByRole("main");
     const heading = screen.getByRole("heading", { name: "Projects", level: 1 });
     const context = screen.getByText("12 projects");

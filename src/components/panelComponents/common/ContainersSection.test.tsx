@@ -10,6 +10,11 @@ const makeContainer = (number: number): ContainerModel => ({
   schemaName: `schema-${number}`,
   collectionName: `collection-${number}`,
   fields: [{ name: `field-${number}`, type: "string" }],
+  routes: {},
+  redis: { isRedisCached: false, cacheTime: 0, triggeredRedisCaches: [] },
+  pipelines: [],
+  dynamicFunctions: [],
+  dynamicApis: [],
   populatedRoutes: [],
 });
 
@@ -106,6 +111,17 @@ describe("ContainersSection", () => {
     await user.selectOptions(screen.getByLabelText("Containers per page"), "20");
     expect(screen.getAllByRole("article")).toHaveLength(20);
     expect(screen.getByRole("article", { name: "schema-20 container" })).toBeInTheDocument();
+  });
+
+  it("exposes one primary create action and a named container toolbar", () => {
+    render(<ContainersSection />);
+
+    const actions = screen.getByRole("group", { name: "Container actions" });
+    expect(within(actions).getByRole("button", { name: "Create Container" })).toHaveAttribute(
+      "data-primary-action",
+      "true",
+    );
+    expect(screen.getByRole("search", { name: "Container toolbar" })).toBeInTheDocument();
   });
 
   it("searches schema, collection, and ID and distinguishes no results", async () => {

@@ -124,4 +124,19 @@ describe("AddFieldModal", () => {
       }),
     );
   });
+
+  it("keeps the primary nested-editor action reachable on narrow screens", async () => {
+    render(
+      <AddFieldModal
+        isOpen
+        onClose={vi.fn()}
+        onAddField={vi.fn().mockResolvedValue(true)}
+        containerName="stock"
+      />,
+    );
+
+    const submit = await screen.findByRole("button", { name: "Add Field" });
+    expect(submit.parentElement).toHaveClass("flex-col-reverse");
+    expect(submit).toHaveAttribute("data-primary-action", "true");
+  });
 });

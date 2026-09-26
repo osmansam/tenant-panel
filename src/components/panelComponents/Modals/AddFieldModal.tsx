@@ -570,7 +570,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
           <GenericButton variant="outline" onClick={handleClose}>
             {t("Cancel")}
           </GenericButton>
-          <GenericButton onClick={handleSubmit}>
+          <GenericButton onClick={handleSubmit} data-primary-action="true">
             {editField ? t("Update Field") : t("Add Field")}
           </GenericButton>
         </div>

@@ -49,7 +49,7 @@ import {
   hasAllSystemTimestampFields,
 } from "../../../utils/containerTimestamps";
 import { GenericButton } from "../FormElements/GenericButton";
-import { WorkspaceDialog } from "../../ui";
+import { Badge, WorkspaceDialog } from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
 import { AddFieldModal } from "./AddFieldModal";
 import { AddPipelineModal } from "./AddPipelineModal";
@@ -606,13 +606,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         }
         description={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded bg-blue-100 px-2 py-1 font-mono text-xs font-medium text-blue-800">
+            <Badge variant="info" className="font-mono">
               {container.id}
-            </span>
+            </Badge>
             {container.isAuthContainer && (
-              <span className="inline-flex rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+              <Badge variant="success">
                 {t("Auth Container")}
-              </span>
+              </Badge>
             )}
           </div>
         }
@@ -1139,7 +1139,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "structured" ? (
               <div className="space-y-6">
                 {/* Basic Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="rounded-ui-md bg-ui-surface-subtle p-4">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">
                     {t("Container Information")}
                   </h4>
@@ -1175,7 +1175,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </span>
                     </div>
                     {container.isAuthContainer && (
-                      <div className="space-y-4 rounded-lg border border-green-200 bg-green-50 p-4 md:col-span-2">
+                      <section
+                        aria-label={t("Authentication")}
+                        className="space-y-4 border-t border-ui-border pt-4 md:col-span-2"
+                      >
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
                             <span className="text-gray-600">
@@ -1270,7 +1273,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             </GenericButton>
                           </div>
                         </div>
-                      </div>
+                      </section>
                     )}
                     <div>
                       <span className="text-gray-500">
@@ -1297,7 +1300,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     <h4 className="text-sm font-medium text-gray-900">
                       {t("Fields")} ({visibleFields.length}/{(container.fields || []).length})
                     </h4>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div
+                      role="group"
+                      aria-label={t("Field toolbar")}
+                      className="flex flex-wrap items-center gap-2"
+                    >
                       <div className="flex min-w-[240px] flex-1 items-center gap-2 lg:min-w-[320px]">
                         <input
                           type="search"

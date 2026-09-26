@@ -108,8 +108,26 @@ describe("ContainerDetailsModal", () => {
     expect(
       screen.getByRole("searchbox", { name: "Search fields" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Field toolbar" })).toBeInTheDocument();
     await waitFor(() =>
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled(),
+    );
+  });
+
+  it("labels authentication configuration semantically", () => {
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{ ...stock, isAuthContainer: true }}
+        intent="details"
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "Authentication" })).toBeInTheDocument();
+    expect(screen.getAllByText("Auth Container")[0]).toHaveAttribute(
+      "data-variant",
+      "success",
     );
   });
 
@@ -129,7 +147,8 @@ describe("ContainerDetailsModal", () => {
     expect(screen.getByRole("searchbox", { name: "Search fields" })).toHaveValue("quantity");
     expect(screen.getByRole("heading", { name: "Fields (1/2)" })).toBeInTheDocument();
 
-    const currentDialog = screen.getAllByRole("dialog", { name: "stock" }).at(-1)!;
+    const stockDialogs = screen.getAllByRole("dialog", { name: "stock" });
+    const currentDialog = stockDialogs[stockDialogs.length - 1];
     expect(within(currentDialog).queryByText("product")).not.toBeInTheDocument();
     expect(within(currentDialog).getByText("quantity")).toBeInTheDocument();
     within(currentDialog)
@@ -149,7 +168,10 @@ describe("ContainerDetailsModal", () => {
     await user.type(search, "missing");
     expect(within(currentDialog).getByText("No fields match your search")).toBeInTheDocument();
     expect(within(currentDialog).getByRole("button", { name: "Add Field" })).toBeInTheDocument();
-    await user.click(within(currentDialog).getAllByRole("button", { name: "Clear field search" }).at(-1)!);
+    const clearButtons = within(currentDialog).getAllByRole("button", {
+      name: "Clear field search",
+    });
+    await user.click(clearButtons[clearButtons.length - 1]);
     expect(within(currentDialog).getByText("product")).toBeInTheDocument();
   });
 });

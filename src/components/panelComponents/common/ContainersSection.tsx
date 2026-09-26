@@ -16,12 +16,17 @@ import {
 } from "../../../utils/containerCollectionView";
 import { normalizeContainerJsonPayload } from "../../../utils/jsonCreate";
 import { ExcelUploadModal } from "../../PageDesigner/ExcelUploadModal";
+import {
+  EmptyState,
+  PageActions,
+  Section,
+  SectionHeader,
+} from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import { ContainerDataModal } from "../Modals/ContainerDataModal";
 import { ContainerDetailsModal } from "../Modals/ContainerDetailsModal";
 import { CreateContainerModal } from "../Modals/CreateContainerModal";
 import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
-import { H2 } from "../Typography";
 
 export const ContainersSection: React.FC = () => {
   const { t } = useTranslation();
@@ -118,16 +123,12 @@ export const ContainersSection: React.FC = () => {
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <div className="text-2xl mr-3">🗄️</div>
-          <H2 className="text-lg font-semibold text-gray-900">
-            {t("Containers")}
-          </H2>
-        </div>
-        {canCreateContainers && (
-          <div className="flex gap-2">
+    <Section aria-labelledby="containers-heading">
+      <SectionHeader
+        title={<span id="containers-heading">{t("Containers")}</span>}
+        description={t("Manage project schemas and their records")}
+        actions={canCreateContainers ? (
+          <PageActions aria-label={t("Container actions")}>
             <GenericButton
               size="sm"
               variant="outline"
@@ -148,17 +149,19 @@ export const ContainersSection: React.FC = () => {
               size="sm"
               onClick={() => setIsCreateModalOpen(true)}
               iconLeft={<FiPlus size={16} />}
+              data-primary-action="true"
             >
               {t("Create Container")}
             </GenericButton>
-          </div>
-        )}
-      </div>
+          </PageActions>
+        ) : undefined}
+      />
 
       {containers.length > 0 && !error && (
-        <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="mb-5 rounded-ui-md bg-ui-surface-subtle p-3">
           <form
             role="search"
+            aria-label={t("Container toolbar")}
             onSubmit={handleSearch}
             className="flex flex-col gap-2 sm:flex-row sm:items-center"
           >
@@ -171,7 +174,7 @@ export const ContainersSection: React.FC = () => {
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
               placeholder={t("Search by schema, collection, or container ID")}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="ui-control min-w-0 flex-1"
             />
             <GenericButton type="submit" size="sm">
               {t("Search")}
@@ -206,7 +209,7 @@ export const ContainersSection: React.FC = () => {
             <article
               key={container.id}
               aria-label={`${container.schemaName} ${t("container")}`}
-              className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50 lg:flex-row lg:items-center lg:justify-between"
+              className="flex flex-col gap-3 border-b border-ui-border px-1 py-3 transition-colors last:border-b-0 hover:bg-ui-surface-subtle lg:flex-row lg:items-center lg:justify-between"
               onClick={() => handleViewContainer(container)}
             >
               <div className="flex-1">
@@ -255,24 +258,21 @@ export const ContainersSection: React.FC = () => {
             </article>
           ))
         ) : appliedQuery ? (
-          <div className="rounded-lg border border-dashed border-gray-300 py-10 text-center">
-            <p className="text-gray-500">{t("No containers match your search")}</p>
-          </div>
+          <EmptyState title={t("No containers match your search")} />
         ) : (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-6xl mb-4">🗄️</div>
-            <p className="text-gray-500 mb-4">
-              {t("No containers found in this project")}
-            </p>
-            {canCreateContainers && (
+          <EmptyState
+            title={t("No containers found in this project")}
+            description={t("Create a container to define this project's data model.")}
+            action={canCreateContainers ? (
               <GenericButton
                 onClick={() => setIsCreateModalOpen(true)}
                 iconLeft={<FiPlus size={16} />}
+                data-primary-action="true"
               >
                 {t("Create Your First Container")}
               </GenericButton>
-            )}
-          </div>
+            ) : undefined}
+          />
         )}
       </div>
 
@@ -442,6 +442,6 @@ export const ContainersSection: React.FC = () => {
           // Containers list will auto-refresh due to query invalidation
         }}
       />
-    </div>
+    </Section>
   );
 };

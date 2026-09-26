@@ -20,7 +20,7 @@ export function PageShell({
   ...props
 }: PageShellProps) {
   return (
-    <main
+    <div
       className={cn(
         "mx-auto min-h-full w-full px-4 py-5 font-ui sm:px-6 sm:py-6 lg:px-8",
         widthClasses[width],
@@ -29,7 +29,7 @@ export function PageShell({
       {...props}
     >
       {children}
-    </main>
+    </div>
   );
 }
 
