@@ -15,6 +15,12 @@
   --ui-danger: 0 72% 51%;
   --ui-danger-subtle: 0 86% 97%;
   --ui-success: 158 64% 36%;
+  --ui-success-subtle: 152 76% 96%;
+  --ui-info: 201 90% 36%;
+  --ui-info-subtle: 204 100% 97%;
+  --ui-warning: 32 95% 32%;
+  --ui-warning-subtle: 48 100% 96%;
+  --ui-neutral-subtle: 210 20% 96%;
   --ui-disabled: 210 20% 97%;
   --ui-overlay: 222 47% 11%;
   --ui-radius-sm: 0.375rem;
