@@ -2321,24 +2321,25 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   };
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-[1500px] space-y-4 p-4">
       {/* Section Settings */}
-      <section aria-labelledby="section-settings-title" className="border-b border-ui-border pb-6">
-        <div className="mb-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-ui-muted">Section {sectionIndex + 1}</p>
-          <h3 id="section-settings-title" className="mt-1 text-base font-semibold text-ui-foreground">Layout settings</h3>
+      <section data-testid="section-layout-toolbar" aria-labelledby="section-settings-title" className="flex flex-col gap-3 rounded-ui-lg border border-ui-border bg-ui-surface p-3 lg:flex-row lg:items-end">
+        <div className="min-w-44 lg:self-center">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ui-muted">Section {sectionIndex + 1}</p>
+          <h3 id="section-settings-title" className="text-sm font-semibold text-ui-foreground">Layout settings</h3>
         </div>
-        <div className="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-lg">
+          <div className="grid grid-cols-[7rem_1fr] items-center gap-2 sm:block">
+            <label htmlFor="section-grid-columns" className="text-xs font-medium text-ui-muted sm:mb-1 sm:block">
               Grid Columns
             </label>
             <select
+              id="section-grid-columns"
               value={section.columns}
               onChange={(e) =>
                 onUpdateSection({ columns: parseInt(e.target.value) })
               }
-              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+              className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground focus:outline-none focus:ring-2 focus:ring-ui-focus"
             >
               {[1, 2, 3, 4].map((n) => (
                 <option key={n} value={n}>
@@ -2347,17 +2348,18 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+          <div className="grid grid-cols-[7rem_1fr] items-center gap-2 sm:block">
+            <label htmlFor="section-grid-gap" className="text-xs font-medium text-ui-muted sm:mb-1 sm:block">
               Gap (pixels)
             </label>
             <input
+              id="section-grid-gap"
               type="number"
               value={section.gap}
               onChange={(e) =>
                 onUpdateSection({ gap: parseInt(e.target.value) })
               }
-              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+              className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground focus:outline-none focus:ring-2 focus:ring-ui-focus"
               min="0"
               max="64"
             />
@@ -2367,7 +2369,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
       {/* Grid Preview */}
       <section aria-labelledby="grid-layout-title">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 id="grid-layout-title" className="text-base font-semibold text-ui-foreground">
               Grid Layout
@@ -2393,7 +2395,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         </div>
 
         <div
-          className="grid min-h-[400px] gap-3 rounded-ui-lg border border-dashed border-ui-border bg-ui-subtle/40 p-3 sm:p-4"
+          data-testid="grid-layout-canvas"
+          className="grid min-h-[280px] gap-3 rounded-ui-lg border border-dashed border-ui-border bg-ui-subtle/40 p-3"
           style={{
             gridTemplateColumns: `repeat(${section.columns}, 1fr)`,
             gap: `${section.gap}px`,

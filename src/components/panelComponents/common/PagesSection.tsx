@@ -618,28 +618,25 @@ export const PagesSection: React.FC = () => {
         <div data-testid="page-editor-workspace" className="fixed inset-0 z-[100] overflow-hidden bg-ui-page font-ui">
           <div className="flex h-full min-h-0 flex-col">
             <header className="shrink-0 border-b border-ui-border bg-ui-surface">
-              <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-ui-muted">Page editor</span>
-                    {editingPage.slug && <span className="truncate rounded-full bg-ui-subtle px-2 py-0.5 font-mono text-[11px] text-ui-muted">/{editingPage.slug}</span>}
+              <div className="overflow-x-auto">
+                <div data-testid="page-editor-toolbar" className="flex h-14 min-w-[760px] items-center gap-5 px-4 sm:px-5">
+                  <div className="flex min-w-0 w-48 shrink-0 items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ui-md bg-ui-subtle text-ui-muted"><FiLayout className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                    <h1 className="truncate text-sm font-semibold text-ui-foreground">{editingPage.name}</h1>
                   </div>
-                  <h1 className="mt-0.5 truncate text-base font-semibold text-ui-foreground">{editingPage.name}</h1>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <GenericButton variant="ghost" size="sm" onClick={handleCancelDesigner}>{t("Cancel")}</GenericButton>
-                  <GenericButton size="sm" disabled={!editingPage.name.trim()} data-primary-action="true" onClick={() => handleSavePageStructure(editingPage.sections || [])}>{t("Save Page")}</GenericButton>
-                </div>
-              </div>
-              <div className="overflow-x-auto px-4 sm:px-6">
-                <div role="tablist" aria-label="Page editor sections" className="flex min-w-max gap-6">
+                  <div role="tablist" aria-label="Page editor sections" className="flex h-full min-w-max flex-1 items-center gap-1">
                   {([[
                     "content", "Content", FiLayout,
                   ], ["navigation", "Navigation", FiNavigation], ["settings", "Page settings", FiSettings]] as const).map(([value, label, Icon]) => (
-                    <button key={value} type="button" role="tab" id={`page-editor-tab-${value}`} aria-controls={`page-editor-panel-${value}`} aria-selected={editorTab === value} tabIndex={editorTab === value ? 0 : -1} onClick={() => setEditorTab(value)} className={`relative inline-flex h-11 items-center gap-2 border-b-2 px-0.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${editorTab === value ? "border-ui-foreground text-ui-foreground" : "border-transparent text-ui-muted hover:text-ui-foreground"}`}>
-                      <Icon className="h-4 w-4" aria-hidden="true" />{label}
+                    <button key={value} type="button" role="tab" id={`page-editor-tab-${value}`} aria-controls={`page-editor-panel-${value}`} aria-selected={editorTab === value} tabIndex={editorTab === value ? 0 : -1} onClick={() => setEditorTab(value)} className={`inline-flex h-8 items-center gap-1.5 rounded-ui-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${editorTab === value ? "bg-ui-subtle text-ui-foreground" : "text-ui-muted hover:bg-ui-subtle/70 hover:text-ui-foreground"}`}>
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />{label}
                     </button>
                   ))}
+                  </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-ui-border pl-4">
+                    <GenericButton variant="ghost" size="sm" onClick={handleCancelDesigner}>{t("Cancel")}</GenericButton>
+                    <GenericButton size="sm" disabled={!editingPage.name.trim()} data-primary-action="true" onClick={() => handleSavePageStructure(editingPage.sections || [])}>{t("Save Page")}</GenericButton>
+                  </div>
                 </div>
               </div>
             </header>

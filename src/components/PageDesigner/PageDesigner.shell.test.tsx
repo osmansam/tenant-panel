@@ -72,5 +72,9 @@ describe("PageDesigner workspace shell", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete section 1" })).toBeInTheDocument();
     expect(screen.getByRole("main", { name: "Page canvas" })).toBeInTheDocument();
+    expect(screen.getByTestId("section-layout-toolbar")).toContainElement(
+      screen.getByLabelText("Grid Columns"),
+    );
+    expect(screen.getByTestId("grid-layout-canvas")).toHaveClass("min-h-[280px]");
   });
 });

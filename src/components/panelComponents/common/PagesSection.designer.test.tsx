@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { PagesSection } from "./PagesSection";
@@ -45,6 +45,11 @@ describe("PagesSection designer workspace", () => {
     expect(document.body).toContainElement(workspace);
 
     const tabs = screen.getByRole("tablist", { name: "Page editor sections" });
+    const toolbar = screen.getByTestId("page-editor-toolbar");
+    expect(toolbar).toContainElement(tabs);
+    expect(within(toolbar).getByRole("heading", { name: "Happy Friday" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Save Page" })).toBeInTheDocument();
     expect(tabs).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Content" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("designer-content")).toBeInTheDocument();
