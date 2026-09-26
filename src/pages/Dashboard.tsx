@@ -2,207 +2,154 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiMenu } from "react-icons/fi";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
-import { H1, H2, H6 } from "../components/panelComponents/Typography";
+import {
+  Badge,
+  EmptyState,
+  PageActions,
+  PageHeader,
+  PageShell,
+  Section,
+  SectionHeader,
+} from "../components/ui";
 import { useGeneralContext } from "../context/General.context";
 import { useUserContext } from "../context/User.context";
 import useTenant from "../hooks/useTenant";
 import { useTenantLogout } from "../utils/api/auth";
 
+const quickActions = ["View Analytics", "Manage Users", "Settings", "View Logs"];
+
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useUserContext();
   const { setIsSidebarOpen } = useGeneralContext();
-  const { currentTenant, allTenants, hasMultipleTenants, switchTenant } =
-    useTenant();
+  const { currentTenant, allTenants, hasMultipleTenants, switchTenant } = useTenant();
   const { tenantLogout } = useTenantLogout();
 
-  const handleLogout = () => {
-    tenantLogout();
-  };
-
-  const handleSwitchTenant = (tenantId: string) => {
-    switchTenant(tenantId);
-  };
+  const displayName = user?.name || user?.email;
 
   return (
-    <div className="h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="px-6">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="md:hidden mr-3 p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-              >
-                <FiMenu className="h-6 w-6" />
-              </button>
-              <H1 className="text-2xl font-bold text-gray-900">
-                {currentTenant?.name || t("Dashboard")}
-              </H1>
-              {currentTenant?.slug && (
-                <span className="ml-3 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                  {currentTenant.slug}
-                </span>
+    <PageShell width="content">
+      <PageHeader
+        title={currentTenant?.name || t("Dashboard")}
+        description={
+          currentTenant
+            ? `${t("Welcome")}${displayName ? `, ${displayName}` : ""}`
+            : t("Tenant context is unavailable")
+        }
+        context={currentTenant?.slug ? <Badge variant="info">{currentTenant.slug}</Badge> : undefined}
+        actions={
+          <PageActions aria-label={t("Dashboard actions")}>
+            <button
+              type="button"
+              aria-label={t("Open navigation")}
+              onClick={() => setIsSidebarOpen(true)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-ui-md text-ui-muted transition-colors hover:bg-ui-subtle hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus md:hidden"
+            >
+              <FiMenu className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <GenericButton onClick={tenantLogout} variant="outline" size="sm">
+              {t("Logout")}
+            </GenericButton>
+          </PageActions>
+        }
+      />
+
+      <Section aria-labelledby="account-overview-heading">
+        <SectionHeader
+          title={<span id="account-overview-heading">{t("Account overview")}</span>}
+          description={t("Your current tenant membership and access details.")}
+        />
+        {currentTenant ? (
+          <dl className="grid gap-x-8 gap-y-4 border-y border-ui-border py-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ui-muted">
+                {t("Current Tenant")}
+              </dt>
+              <dd className="mt-1 break-words text-sm font-medium text-ui-foreground">
+                {currentTenant.name}
+              </dd>
+              <dd className="mt-0.5 break-all text-xs text-ui-muted">{currentTenant.slug}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ui-muted">
+                {t("Your Role")}
+              </dt>
+              <dd className="mt-1 text-sm font-medium text-ui-foreground">
+                {user?.role || t("Member")}
+              </dd>
+              {user?.roles && user.roles.length > 1 && (
+                <dd className="mt-0.5 text-xs text-ui-muted">
+                  +{user.roles.length - 1} {t("more roles")}
+                </dd>
               )}
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                {t("Welcome")}, {user?.name || user?.email}
-              </span>
-              <GenericButton onClick={handleLogout} variant="outline" size="sm">
-                {t("Logout")}
-              </GenericButton>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ui-muted">
+                {t("Account Status")}
+              </dt>
+              <dd className="mt-1">
+                <Badge variant="success">{t("Active")}</Badge>
+              </dd>
+              <dd className="mt-1 text-xs text-ui-muted">{t("Full Access")}</dd>
             </div>
-          </div>
-        </div>
-      </div>
+          </dl>
+        ) : (
+          <EmptyState
+            title={t("Tenant context is unavailable")}
+            description={t("Sign in again or contact an administrator to restore tenant access.")}
+          />
+        )}
+      </Section>
 
-      {/* Main Content */}
-      <div className="p-6">
-        <div>
-          {/* Welcome Section */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
-            <div className="px-4 py-5 sm:p-6">
-              <H2 className="text-lg font-medium text-gray-900 mb-4">
-                {t("Welcome to your tenant dashboard")}
-              </H2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <H6 className="font-medium text-blue-900">
-                    {t("Current Tenant")}
-                  </H6>
-                  <p className="text-blue-700">{currentTenant?.name}</p>
-                  <p className="text-sm text-blue-600">{currentTenant?.slug}</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <H6 className="font-medium text-green-900">
-                    {t("Your Role")}
-                  </H6>
-                  <p className="text-green-700">{user?.role || t("Member")}</p>
-                  {user?.roles && user.roles.length > 1 && (
-                    <p className="text-sm text-green-600">
-                      +{user.roles.length - 1} {t("more roles")}
-                    </p>
-                  )}
-                </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <H6 className="font-medium text-purple-900">
-                    {t("Account Status")}
-                  </H6>
-                  <p className="text-purple-700">{t("Active")}</p>
-                  <p className="text-sm text-purple-600">{t("Full Access")}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+      {hasMultipleTenants() && (
+        <Section aria-labelledby="tenant-switcher-heading">
+          <SectionHeader
+            title={<span id="tenant-switcher-heading">{t("Your Tenants")}</span>}
+            description={t("Choose the tenant workspace you want to manage.")}
+          />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allTenants.map((tenant) => {
+              const isCurrent = tenant.id === currentTenant?.id;
 
-          {/* Tenant Switcher */}
-          {hasMultipleTenants() && (
-            <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
-              <div className="px-4 py-5 sm:p-6">
-                <H2 className="text-lg font-medium text-gray-900 mb-4">
-                  {t("Your Tenants")}
-                </H2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {allTenants.map((tenant) => (
-                    <div
-                      key={tenant.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                        tenant.id === currentTenant?.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 bg-white hover:border-gray-300"
-                      }`}
-                      onClick={() => {
-                        if (tenant.id !== currentTenant?.id) {
-                          handleSwitchTenant(tenant.id);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <H6
-                            className={`font-medium ${
-                              tenant.id === currentTenant?.id
-                                ? "text-blue-900"
-                                : "text-gray-900"
-                            }`}
-                          >
-                            {tenant.name}
-                          </H6>
-                          <p
-                            className={`text-sm ${
-                              tenant.id === currentTenant?.id
-                                ? "text-blue-600"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {tenant.slug}
-                          </p>
-                        </div>
-                        {tenant.id === currentTenant?.id && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            {t("Current")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <H2 className="text-lg font-medium text-gray-900 mb-4">
-                {t("Quick Actions")}
-              </H2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <GenericButton
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center"
+              return (
+                <button
+                  key={tenant.id}
+                  type="button"
+                  disabled={isCurrent}
+                  onClick={() => switchTenant(tenant.id)}
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-ui-md border border-ui-border bg-ui-surface px-4 py-3 text-left transition-colors hover:border-ui-border-strong hover:bg-ui-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus disabled:cursor-default disabled:border-ui-border-strong disabled:bg-ui-subtle disabled:opacity-100"
                 >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">📊</div>
-                    <span className="text-sm">{t("View Analytics")}</span>
-                  </div>
-                </GenericButton>
-                <GenericButton
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center"
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">👥</div>
-                    <span className="text-sm">{t("Manage Users")}</span>
-                  </div>
-                </GenericButton>
-                <GenericButton
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center"
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">⚙️</div>
-                    <span className="text-sm">{t("Settings")}</span>
-                  </div>
-                </GenericButton>
-                <GenericButton
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center"
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">📋</div>
-                    <span className="text-sm">{t("View Logs")}</span>
-                  </div>
-                </GenericButton>
-              </div>
-            </div>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-ui-foreground">
+                      {tenant.name}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-ui-muted">
+                      {tenant.slug}
+                    </span>
+                  </span>
+                  {isCurrent && <Badge variant="info">{t("Current")}</Badge>}
+                </button>
+              );
+            })}
           </div>
-        </div>
-      </div>
-    </div>
+        </Section>
+      )}
+
+      <Section aria-labelledby="quick-actions-heading">
+        <SectionHeader
+          title={<span id="quick-actions-heading">{t("Quick Actions")}</span>}
+          description={t("Common administration areas available from the main navigation.")}
+        />
+        <ul className="grid gap-x-8 gap-y-3 border-y border-ui-border py-4 sm:grid-cols-2">
+          {quickActions.map((label) => (
+            <li key={label} className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium text-ui-foreground">{t(label)}</span>
+              <span className="text-xs text-ui-muted">{t("Navigation")}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+    </PageShell>
   );
 };
 
