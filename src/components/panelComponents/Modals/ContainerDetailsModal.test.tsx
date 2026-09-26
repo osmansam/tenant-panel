@@ -131,6 +131,48 @@ describe("ContainerDetailsModal", () => {
     );
   });
 
+  it("uses keyboard-accessible workspace tabs and a compact overview", async () => {
+    const user = userEvent.setup();
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={stock}
+        intent="details"
+      />,
+    );
+
+    const structuredTab = screen.getByRole("tab", { name: "Structured" });
+    expect(structuredTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Container overview" })).toBeInTheDocument();
+
+    structuredTab.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Pipelines" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("keeps destructive field actions inside each field action menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={stock}
+        intent="details"
+      />,
+    );
+
+    const productRow = screen.getByRole("row", { name: /product/i });
+    expect(within(productRow).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+
+    await user.click(within(productRow).getByRole("button", { name: "Actions for product" }));
+    expect(within(productRow).getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    expect(within(productRow).getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
+  });
+
   it("filters fields safely and keeps the parent open after editing", async () => {
     const user = userEvent.setup();
     render(
@@ -156,7 +198,10 @@ describe("ContainerDetailsModal", () => {
       .forEach((button) => expect(button).toBeDisabled());
     expect(within(currentDialog).getByRole("button", { name: "Add Field" })).toBeInTheDocument();
 
-    await user.click(within(currentDialog).getByRole("button", { name: "Edit" }));
+    await user.click(
+      within(currentDialog).getByRole("button", { name: "Actions for quantity" }),
+    );
+    await user.click(within(currentDialog).getByRole("menuitem", { name: "Edit" }));
     expect(
       await screen.findByRole("dialog", { name: "Edit field: quantity" }),
     ).toBeInTheDocument();

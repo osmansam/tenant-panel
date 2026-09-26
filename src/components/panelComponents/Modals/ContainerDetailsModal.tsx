@@ -10,6 +10,7 @@ import {
   FiGitBranch,
   FiGlobe,
   FiList,
+  FiMoreHorizontal,
   FiPlayCircle,
   FiPlus,
   FiShield,
@@ -49,7 +50,18 @@ import {
   hasAllSystemTimestampFields,
 } from "../../../utils/containerTimestamps";
 import { GenericButton } from "../FormElements/GenericButton";
-import { Badge, WorkspaceDialog } from "../../ui";
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  WorkspaceDialog,
+} from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
 import { AddFieldModal } from "./AddFieldModal";
 import { AddPipelineModal } from "./AddPipelineModal";
@@ -199,17 +211,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
   const getFieldTypeColor = useCallback((type: string) => {
     const colors = {
-      string: "bg-blue-100 text-blue-800",
-      int: "bg-green-100 text-green-800",
-      boolean: "bg-purple-100 text-purple-800",
-      date: "bg-orange-100 text-orange-800",
-      array: "bg-yellow-100 text-yellow-800",
-      object: "bg-red-100 text-red-800",
+      string: "info",
+      int: "success",
+      boolean: "neutral",
+      date: "warning",
+      array: "warning",
+      object: "danger",
     };
     return (
       colors[type.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-100 text-gray-800"
-    );
+      "neutral"
+    ) as "info" | "success" | "warning" | "danger" | "neutral";
   }, []);
 
   const renderChildFields = useCallback(
@@ -217,36 +229,32 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       if (!children.length) return null;
 
       return (
-        <div className="mt-3 space-y-2 border-l-2 border-gray-200 pl-3">
+        <div className="mt-3 space-y-2 border-l-2 border-ui-border pl-3">
           {children.map((child, childIndex) => (
             <div
               key={`${child.name}-${childIndex}`}
-              className="rounded bg-white px-3 py-2"
+              className="rounded-ui-sm bg-ui-surface px-3 py-2"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-sm font-medium text-ui-foreground">
                   {child.name}
                 </span>
-                <span
-                  className={`inline-flex rounded px-2 py-1 text-xs font-medium ${getFieldTypeColor(
-                    child.type
-                  )}`}
-                >
+                <Badge variant={getFieldTypeColor(child.type)}>
                   {child.type}
-                </span>
+                </Badge>
                 {child.unique && (
-                  <span className="inline-flex rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800">
+                  <Badge variant="info">
                     {t("Unique")}
-                  </span>
+                  </Badge>
                 )}
                 {child.isSearchable && (
-                  <span className="inline-flex rounded bg-teal-100 px-2 py-1 text-xs font-medium text-teal-800">
+                  <Badge variant="success">
                     {t("Searchable")}
-                  </span>
+                  </Badge>
                 )}
               </div>
               {child.tag && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-ui-muted">
                   {t("Tag")}: {child.tag}
                 </p>
               )}
@@ -598,7 +606,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       <WorkspaceDialog
         open={isOpen}
         onClose={onClose}
-        size="workspace"
+        size="large"
         title={
           intent === "manage"
             ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
@@ -620,10 +628,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         bodyClassName="p-0 sm:p-0"
         footer={
           <div className="flex justify-end gap-3">
-            <GenericButton variant="outline" onClick={onClose}>
+            <GenericButton variant="outline" size="sm" onClick={onClose}>
               {t("Close")}
             </GenericButton>
             <GenericButton
+              size="sm"
               onClick={() => copyToClipboard(containerJson)}
               iconLeft={<FiCopy size={16} />}
             >
@@ -632,89 +641,28 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           </div>
         }
       >
-        <div className="sticky top-0 z-10 overflow-x-auto border-b border-ui-border bg-ui-surface px-4 py-3 sm:px-6">
-          <div className="flex w-max min-w-full rounded-lg bg-gray-100 p-1">
-                <button
-                  onClick={() => setViewMode("structured")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "structured"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiList size={12} />
-                  <span>{t("Structured")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("pipelines")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "pipelines"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiGitBranch size={12} />
-                  <span>{t("Pipelines")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("workflows")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "workflows"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiPlayCircle size={12} />
-                  <span>{t("Workflows")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("apis")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "apis"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiGlobe size={12} />
-                  <span>{t("Dynamic APIs")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("permissions")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "permissions"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiShield size={12} />
-                  <span>{t("Permissions")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("routes")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "routes"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiCode size={12} />
-                  <span>{t("Routes")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("json")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "json"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiCode size={12} />
-                  <span>{t("JSON")}</span>
-                </button>
-          </div>
+        <div className="sticky top-0 z-10 border-b border-ui-border bg-ui-surface px-4 sm:px-6">
+          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ContainerDialogSection)}>
+            <TabsList className="border-b-0">
+              {([
+                ["structured", t("Structured"), FiList],
+                ["pipelines", t("Pipelines"), FiGitBranch],
+                ["workflows", t("Workflows"), FiPlayCircle],
+                ["apis", t("Dynamic APIs"), FiGlobe],
+                ["permissions", t("Permissions"), FiShield],
+                ["routes", t("Routes"), FiCode],
+                ["json", t("JSON"), FiCode],
+              ] as const).map(([value, label, Icon]) => (
+                <TabsTrigger key={value} value={value} className="flex h-11 items-center gap-1.5 px-3 text-xs">
+                  <Icon size={13} aria-hidden="true" />
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-5">
           <div className={getContainerDetailsContentClass(viewMode)}>
             {viewMode === "permissions" ? (
               <FieldPermissions containerId={container.id} />
@@ -723,12 +671,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "pipelines" ? (
               <div className="space-y-4 h-full overflow-y-auto">
                 {/* Pipelines Header */}
-                <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b">
+                <div className="flex items-center justify-between sticky top-0 bg-ui-surface pb-4 border-b">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Pipelines")} ({(container.pipelines || []).length})
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ui-muted mt-1">
                       {t(
                         "Manage MongoDB aggregation pipelines for this container"
                       )}
@@ -750,44 +698,44 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.pipelines || []).map((pipeline, index) => (
                     <div
                       key={pipeline.name || index}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                      className="bg-ui-surface-subtle rounded-ui-md p-4 hover:bg-ui-surface-subtle transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-ui-foreground">
                               {pipeline.name}
                             </span>
                             {pipeline.isActive ? (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">
-                                {t("Active")}
-                              </span>
+                              <Badge variant="success">
+{t("Active")}
+</Badge>
                             ) : (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                                {t("Inactive")}
-                              </span>
+                              <Badge variant="neutral">
+{t("Inactive")}
+</Badge>
                             )}
                             {pipeline.isRedisCached && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                                {t("Cached")} ({pipeline.cacheTime}s)
-                              </span>
+                              <Badge variant="info">
+{t("Cached")} ({pipeline.cacheTime}s)
+</Badge>
                             )}
                             {pipeline.isAuthenticated && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
-                                {t("Auth Required")}
-                              </span>
+                              <Badge variant="warning">
+{t("Auth Required")}
+</Badge>
                             )}
                             {pipeline.isAuthorized && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">
-                                {t("Role Check")}
-                              </span>
+                              <Badge variant="warning">
+{t("Role Check")}
+</Badge>
                             )}
                           </div>
 
                           {/* Pipeline JSON Preview */}
                           <div className="mt-2">
                             <details className="text-xs">
-                              <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium">
+                              <summary className="cursor-pointer text-ui-muted hover:text-ui-foreground font-medium">
                                 {t("View Pipeline JSON")}
                               </summary>
                               <pre className="mt-2 p-3 bg-gray-900 text-green-400 rounded overflow-x-auto text-xs">
@@ -801,10 +749,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             pipeline.authorizeRole &&
                             pipeline.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}:{" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {pipeline.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -838,10 +786,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                   {(!container.pipelines ||
                     container.pipelines.length === 0) && (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-ui-muted">
                       <FiGitBranch
                         size={48}
-                        className="mx-auto mb-4 text-gray-300"
+                        className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
                         {t("No pipelines defined for this container")}
@@ -861,12 +809,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               </div>
             ) : viewMode === "workflows" ? (
               <div className="space-y-4 h-full overflow-y-auto">
-                <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b">
+                <div className="flex items-center justify-between sticky top-0 bg-ui-surface pb-4 border-b">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Workflows")} ({(container.workflows || []).length})
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ui-muted mt-1">
                       {t("Manage workflow definitions and access controls for this container")}
                     </p>
                   </div>
@@ -885,46 +833,44 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.workflows || []).map((workflow, index) => (
                     <div
                       key={workflow.name || index}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                      className="bg-ui-surface-subtle rounded-ui-md p-4 hover:bg-ui-surface-subtle transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-gray-900">{workflow.name}</span>
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                              workflow.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                            }`}>
+                            <span className="font-medium text-ui-foreground">{workflow.name}</span>
+                            <Badge variant={workflow.isActive ? "success" : "neutral"}>
                               {workflow.isActive ? t("Active") : t("Inactive")}
-                            </span>
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                              {workflow.trigger || "manual"}
-                            </span>
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                              {workflow.mode || "transactional"}
-                            </span>
+                            </Badge>
+                            <Badge variant="info">
+{workflow.trigger || "manual"}
+</Badge>
+                            <Badge variant="neutral">
+{workflow.mode || "transactional"}
+</Badge>
                             {workflow.isAuthenticated && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
-                                {t("Auth Required")}
-                              </span>
+                              <Badge variant="warning">
+{t("Auth Required")}
+</Badge>
                             )}
                             {workflow.isAuthorized && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">
-                                {t("Role Check")}
-                              </span>
+                              <Badge variant="warning">
+{t("Role Check")}
+</Badge>
                             )}
                             {!!workflow.outputFields?.length && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-indigo-100 text-indigo-800">
-                                {workflow.outputFields.length} {t("Output Fields")}
-                              </span>
+                              <Badge variant="info">
+{workflow.outputFields.length} {t("Output Fields")}
+</Badge>
                             )}
                           </div>
 
                           {workflow.description && (
-                            <p className="mb-2 text-xs text-gray-600">{workflow.description}</p>
+                            <p className="mb-2 text-xs text-ui-muted">{workflow.description}</p>
                           )}
 
                           <details className="text-xs">
-                            <summary className="cursor-pointer font-medium text-gray-600 hover:text-gray-900">
+                            <summary className="cursor-pointer font-medium text-ui-muted hover:text-ui-foreground">
                               {t("View Workflow JSON")}
                             </summary>
                             <pre className="mt-2 overflow-x-auto rounded bg-gray-900 p-3 text-xs text-green-400">
@@ -944,10 +890,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             workflow.authorizeRole &&
                             workflow.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}: {" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {workflow.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -979,8 +925,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   ))}
 
                   {(!container.workflows || container.workflows.length === 0) && (
-                    <div className="py-12 text-center text-gray-500">
-                      <FiPlayCircle size={48} className="mx-auto mb-4 text-gray-300" />
+                    <div className="py-12 text-center text-ui-muted">
+                      <FiPlayCircle size={48} className="mx-auto mb-4 text-ui-placeholder" />
                       <p className="mb-2">{t("No workflows defined for this container")}</p>
                       <GenericButton
                         variant="outline"
@@ -997,12 +943,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               </div>
             ) : viewMode === "apis" ? (
               <div className="h-full space-y-4 overflow-y-auto">
-                <div className="sticky top-0 flex items-center justify-between border-b bg-white pb-4">
+                <div className="sticky top-0 flex items-center justify-between border-b bg-ui-surface pb-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Dynamic APIs")} ({(container.dynamicApis || []).length})
                     </h4>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-ui-muted">
                       {t("Manage outbound or proxy APIs for this container")}
                     </p>
                   </div>
@@ -1021,53 +967,53 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.dynamicApis || []).map((dynamicApi, index) => (
                     <div
                       key={dynamicApi.name || index}
-                      className="rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                      className="rounded-ui-md bg-ui-surface-subtle p-4 transition-colors hover:bg-ui-surface-subtle"
                     >
                       <div className="flex items-start justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-ui-foreground">
                               {dynamicApi.name}
                             </span>
-                            <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-800">
+                            <span className="inline-flex rounded bg-ui-surface-subtle px-2 py-0.5 font-mono text-xs font-medium text-ui-foreground">
                               {dynamicApi.method || "GET"}
                             </span>
                             {dynamicApi.isActive ? (
-                              <span className="inline-flex rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                              <Badge variant="success">
                                 {t("Active")}
-                              </span>
+                              </Badge>
                             ) : (
-                              <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                              <Badge variant="neutral">
                                 {t("Inactive")}
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isRedisCached && (
-                              <span className="inline-flex rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                              <Badge variant="info">
                                 {t("Cached")} ({dynamicApi.cacheTime}s)
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isAuthenticated && (
-                              <span className="inline-flex rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
+                              <Badge variant="warning">
                                 {t("Auth Required")}
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isAuthorized && (
-                              <span className="inline-flex rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                              <Badge variant="warning">
                                 {t("Role Check")}
-                              </span>
+                              </Badge>
                             )}
                           </div>
 
-                          <p className="break-all font-mono text-xs text-gray-600">
+                          <p className="break-all font-mono text-xs text-ui-muted">
                             {dynamicApi.url}
                           </p>
 
                           {!!dynamicApi.dependencies?.length && (
                             <div className="mt-2">
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-ui-muted">
                                 {t("Dependencies")}:{" "}
                               </span>
-                              <span className="text-xs text-gray-700">
+                              <span className="text-xs text-ui-foreground">
                                 {dynamicApi.dependencies.join(", ")}
                               </span>
                             </div>
@@ -1077,10 +1023,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             dynamicApi.authorizeRole &&
                             dynamicApi.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}:{" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {dynamicApi.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -1115,10 +1061,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                   {(!container.dynamicApis ||
                     container.dynamicApis.length === 0) && (
-                    <div className="py-12 text-center text-gray-500">
+                    <div className="py-12 text-center text-ui-muted">
                       <FiGlobe
                         size={48}
-                        className="mx-auto mb-4 text-gray-300"
+                        className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
                         {t("No Dynamic APIs defined for this container")}
@@ -1137,29 +1083,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                 </div>
               </div>
             ) : viewMode === "structured" ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Basic Information */}
-                <div className="rounded-ui-md bg-ui-surface-subtle p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">
-                    {t("Container Information")}
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                <section aria-label={t("Container overview")} className="rounded-ui-lg border border-ui-border bg-ui-surface px-4 py-3">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3 xl:grid-cols-5">
                     <div>
-                      <span className="text-gray-500">{t("Schema Name")}:</span>
+                      <span className="text-ui-muted">{t("Schema Name")}:</span>
                       <span className="ml-2 font-medium">
                         {container.schemaName}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">
-                        {t("Container ID")}:
-                      </span>
-                      <span className="ml-2 font-mono text-xs">
-                        {container.id}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">
+                      <span className="text-ui-muted">
                         {t("Collection Name")}:
                       </span>
                       <span className="ml-2 font-mono text-xs">
@@ -1167,7 +1102,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">
+                      <span className="text-ui-muted">
                         {t("Auth Container")}:
                       </span>
                       <span className="ml-2">
@@ -1180,8 +1115,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="space-y-4 border-t border-ui-border pt-4 md:col-span-2"
                       >
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
-                            <span className="text-gray-600">
+                          <label className="flex items-center justify-between rounded-ui-sm bg-ui-surface px-3 py-2 text-sm">
+                            <span className="text-ui-muted">
                               {t("Registration Active")}
                             </span>
                             <CheckSwitch
@@ -1189,8 +1124,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               onChange={handleToggleRegisterActive}
                             />
                           </label>
-                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
-                            <span className="text-gray-600">
+                          <label className="flex items-center justify-between rounded-ui-sm bg-ui-surface px-3 py-2 text-sm">
+                            <span className="text-ui-muted">
                               {t("Google Login Active")}
                             </span>
                             <CheckSwitch
@@ -1200,12 +1135,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           </label>
                         </div>
 
-                        <div className="rounded-md bg-white p-3">
+                        <div className="rounded-ui-sm bg-ui-surface p-3">
                           <div className="mb-3">
-                            <h4 className="text-sm font-semibold text-gray-900">
+                            <h4 className="text-sm font-semibold text-ui-foreground">
                               {t("Create auth user")}
                             </h4>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-ui-muted">
                               {t("Creates a user in this project's auth container.")}
                             </p>
                           </div>
@@ -1232,7 +1167,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                                   }
                                   placeholder={t(fieldName)}
                                   type={inputType}
-                                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                  className="rounded-ui-sm border border-ui-border px-3 py-2 text-sm"
                                 />
                               );
                             })}
@@ -1240,7 +1175,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               <select
                                 value={authUserRole || getRoleOptionId(roleOptions[0])}
                                 onChange={(event) => setAuthUserRole(event.target.value)}
-                                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="rounded-ui-sm border border-ui-border px-3 py-2 text-sm"
                               >
                                 {roleOptions.length > 0 ? (
                                   roleOptions.map((role) => (
@@ -1276,7 +1211,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </section>
                     )}
                     <div>
-                      <span className="text-gray-500">
+                      <span className="text-ui-muted">
                         {t("Total Fields")}:
                       </span>
                       <span className="ml-2 font-medium">
@@ -1284,7 +1219,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">
+                      <span className="text-ui-muted">
                         {t("Redis Cached")}:
                       </span>
                       <span className="ml-2">
@@ -1292,12 +1227,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </span>
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* Fields */}
-                <div ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
-                  <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <h4 className="text-sm font-medium text-gray-900">
+                <section ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
+                  <div className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 lg:flex-row lg:items-center lg:justify-between">
+                    <h4 className="text-base font-semibold text-ui-foreground">
                       {t("Fields")} ({visibleFields.length}/{(container.fields || []).length})
                     </h4>
                     <div
@@ -1336,7 +1271,6 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           : t("Add Timestamps")}
                       </GenericButton>
                       <GenericButton
-                        variant="outline"
                         size="sm"
                         onClick={() => setIsAddFieldModalOpen(true)}
                         iconLeft={<FiPlus size={12} />}
@@ -1346,7 +1280,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </GenericButton>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
+                    <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_120px_minmax(180px,1fr)_auto] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
+                      <span role="columnheader">{t("Name")}</span>
+                      <span role="columnheader">{t("Type")}</span>
+                      <span role="columnheader">{t("Attributes")}</span>
+                      <span role="columnheader" className="sr-only">{t("Actions")}</span>
+                    </div>
                     {visibleFields.map((field, index) => {
                       const sourceIndex = (container.fields || []).findIndex(
                         (candidate) => candidate === field || candidate.name === field.name,
@@ -1358,48 +1298,36 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       return (
                       <div
                         key={field.name || index}
-                        className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        role="row"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-3 last:border-b-0 md:grid-cols-[minmax(180px,1.2fr)_120px_minmax(180px,1fr)_auto] md:gap-4"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900">
+                        <div role="cell" className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-medium text-ui-foreground">
                               {field.name}
                             </span>
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-medium rounded ${getFieldTypeColor(
-                                field.type
-                              )}`}
-                            >
-                              {field.type}
-                            </span>
-                            {field.unique && (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-indigo-100 text-indigo-800">
-                                {t("Unique")}
-                              </span>
-                            )}
-                            {field.isSearchable && (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800">
-                                {t("Searchable")}
-                              </span>
-                            )}
                           </div>
                           {field.tag && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="mt-0.5 truncate text-xs text-ui-muted md:hidden">
                               {t("Tag")}: {field.tag}
-                            </p>
-                          )}
-                          {field.objectSchemaName && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {t("Object Schema")}: {field.objectSchemaName}
                             </p>
                           )}
                           {renderChildFields(field.children || [])}
                         </div>
-                        <div className="flex items-center space-x-1">
+                        <div role="cell" className="hidden md:block">
+                          <Badge variant={getFieldTypeColor(field.type)}>{field.type}</Badge>
+                        </div>
+                        <div role="cell" className="hidden min-w-0 items-center gap-1.5 md:flex">
+                          {field.unique && <Badge variant="info">{t("Unique")}</Badge>}
+                          {field.isSearchable && <Badge variant="success">{t("Searchable")}</Badge>}
+                          {field.tag && <span className="truncate text-xs text-ui-muted">{field.tag}</span>}
+                          {field.objectSchemaName && <span className="truncate text-xs text-ui-muted">→ {field.objectSchemaName}</span>}
+                        </div>
+                        <div role="cell" className="flex items-center justify-end gap-0.5">
                           <button
                             onClick={() => handleMoveFieldUp(sourceIndex)}
                             disabled={!fieldReorderingEnabled || sourceIndex === 0 || isUpdating}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 text-ui-muted hover:text-ui-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title={reorderTitle || t("Move Up")}
                           >
                             <FiChevronUp size={16} />
@@ -1411,36 +1339,32 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               sourceIndex === (container.fields || []).length - 1 ||
                               isUpdating
                             }
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 text-ui-muted hover:text-ui-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title={reorderTitle || t("Move Down")}
                           >
                             <FiChevronDown size={16} />
                           </button>
-                          <GenericButton
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditField(field)}
-                            iconLeft={<FiEdit size={10} />}
-                            disabled={isUpdating}
-                          >
-                            {t("Edit")}
-                          </GenericButton>
-                          <GenericButton
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteField(field.name)}
-                            iconLeft={<FiTrash2 size={10} />}
-                            disabled={isUpdating}
-                          >
-                            {t("Delete")}
-                          </GenericButton>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger aria-label={t("Actions for {{fieldName}}", { fieldName: field.name })} className="h-8 w-8 px-0 shadow-none">
+                              <FiMoreHorizontal size={16} aria-hidden="true" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem onClick={() => handleEditField(field)} disabled={isUpdating}>
+                                <FiEdit size={14} aria-hidden="true" /> {t("Edit")}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem destructive onClick={() => handleDeleteField(field.name)} disabled={isUpdating}>
+                                <FiTrash2 size={14} aria-hidden="true" /> {t("Delete")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                       );
                     })}
 
                     {(container.fields || []).length > 0 && visibleFields.length === 0 && (
-                      <div className="rounded-lg border border-dashed border-ui-border py-10 text-center text-ui-muted">
+                      <div className="rounded-ui-md border border-dashed border-ui-border py-10 text-center text-ui-muted">
                         <p>{t("No fields match your search")}</p>
                         <GenericButton
                           variant="outline"
@@ -1454,7 +1378,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     )}
 
                     {(!container.fields || container.fields.length === 0) && (
-                      <div className="text-center py-8 text-gray-500">
+                      <div className="text-center py-8 text-ui-muted">
                         <p>{t("No fields defined for this container")}</p>
                         <GenericButton
                           variant="outline"
@@ -1468,12 +1392,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </div>
                     )}
                   </div>
-                </div>
+                </section>
 
                 {/* Routes Information */}
                 {container.routes && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                    <h4 className="text-sm font-medium text-ui-foreground mb-3">
                       {t("Available Routes")}
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1483,8 +1407,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             key={routeName}
                             className={`p-2 rounded ${
                               routeSpec.isActive
-                                ? "bg-green-50 text-green-800"
-                                : "bg-red-50 text-red-800"
+                                ? "bg-[hsl(var(--ui-success-subtle))] text-ui-success"
+                                : "bg-ui-danger-subtle text-ui-danger"
                             }`}
                           >
                             <span className="font-medium">
@@ -1502,19 +1426,19 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                 {/* Redis Configuration */}
                 {container.redis && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                  <div className="bg-[hsl(var(--ui-info-subtle))] rounded-ui-md p-4">
+                    <h4 className="text-sm font-medium text-ui-foreground mb-3">
                       {t("Redis Configuration")}
                     </h4>
                     <div className="text-sm space-y-1">
                       <div>
-                        <span className="text-gray-600">{t("Cached")}:</span>
+                        <span className="text-ui-muted">{t("Cached")}:</span>
                         <span className="ml-2">
                           {container.redis.isRedisCached ? t("Yes") : t("No")}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-600">
+                        <span className="text-ui-muted">
                           {t("Cache Time")}:
                         </span>
                         <span className="ml-2">
@@ -1523,7 +1447,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </div>
                       {container.redis.triggeredRedisCaches && (
                         <div>
-                          <span className="text-gray-600">
+                          <span className="text-ui-muted">
                             {t("Triggered Caches")}:
                           </span>
                           <span className="ml-2">
@@ -1548,7 +1472,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     {t("Copy")}
                   </GenericButton>
                 </div>
-                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">
+                <pre className="bg-gray-900 text-green-400 p-4 rounded-ui-md text-xs overflow-x-auto whitespace-pre-wrap">
                   {containerJson}
                 </pre>
               </div>
