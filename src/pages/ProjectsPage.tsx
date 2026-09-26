@@ -101,13 +101,30 @@ const ProjectsPage: React.FC = () => {
     </GenericButton>
   );
 
+  const projectAccents = [
+    "bg-violet-600",
+    "bg-sky-600",
+    "bg-emerald-600",
+    "bg-orange-600",
+    "bg-pink-600",
+    "bg-indigo-600",
+  ];
+
   return (
     <PageShell width="wide">
       <PageHeader
-        title={t("Projects")}
-        description={t("Create, switch, and manage tenant projects.")}
-        context={projects.length > 0 ? <Badge>{projects.length} {t("projects")}</Badge> : undefined}
+        title={
+          <span className="flex items-center gap-2.5">
+            {t("Projects")}
+            {projects.length > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ui-foreground px-1.5 text-[11px] font-semibold text-ui-surface">
+                {projects.length}
+              </span>
+            )}
+          </span>
+        }
         actions={<PageActions aria-label={t("Page actions")}>{newProjectButton("New Project")}</PageActions>}
+        className="pb-4"
       />
 
       <Section>
@@ -125,55 +142,66 @@ const ProjectsPage: React.FC = () => {
               const status = getProjectStatusDisplay(isActive ? "active" : "inactive", t);
 
               return (
-                <article key={projectId} className="flex min-w-0 flex-col rounded-ui-lg border border-ui-border bg-ui-surface p-4">
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm font-semibold text-ui-foreground">{project.name}</h2>
-                      <p className="mt-1 line-clamp-2 text-sm text-ui-muted">
-                        {project.description || t("No description provided")}
-                      </p>
-                    </div>
+                <article
+                  key={projectId}
+                  className="group relative min-w-0 overflow-hidden rounded-ui-lg border border-ui-border bg-ui-surface p-5 transition-colors hover:border-ui-border-strong"
+                >
+                  <button
+                    type="button"
+                    aria-label={isActive ? `${t("Switch to")} ${project.name}` : project.name}
+                    disabled={!isActive || isSwitching}
+                    onClick={() => switchToProject({ projectId })}
+                    className="absolute inset-0 z-0 rounded-ui-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus disabled:cursor-not-allowed"
+                  />
+
+                  <div className="pointer-events-none relative z-[1] flex items-start justify-between gap-3">
+                    <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ui-lg text-sm font-bold tracking-wide text-white ${projectAccents[index % projectAccents.length]}`}>
+                      {project.name.substring(0, 2).toUpperCase()}
+                    </span>
                     <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                       {project.isTemplate && (
                         <Badge variant="warning">
                           {project.templateScope === "global" ? t("Global Template") : t("Template")}
                         </Badge>
                       )}
-                      <Badge variant={isActive ? "success" : "neutral"}>{status.label}</Badge>
+                      <span className={`mt-1 h-1.5 w-1.5 rounded-full ${isActive ? "bg-ui-success" : "bg-ui-border-strong"}`} aria-hidden="true" />
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-4">
-                    <ResponsiveActionBar align="between" aria-label={t("Project actions")}>
-                      <div className="text-xs text-ui-muted">
-                        {new Date(project.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </div>
-                      <div className="flex flex-wrap justify-end gap-2">
+                  <div className="pointer-events-none relative z-[1] mt-4 min-w-0">
+                    <h2 className="truncate text-[15px] font-semibold text-ui-foreground">{project.name}</h2>
+                    <p className="mt-1 truncate text-[13px] text-ui-muted">
+                      {project.description || t("No description provided")}
+                    </p>
+                  </div>
+
+                  <div
+                    role="group"
+                    aria-label={t("Project actions")}
+                    data-layout="wrapping-actions"
+                    className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-ui-border pt-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={isActive ? "success" : "neutral"}>{status.label}</Badge>
                         {isActive && (
-                          <GenericButton variant="ghost" size="sm" onClick={() => handleRedirectToProject(project.slug)}>
-                            {t("Open panel")}
-                          </GenericButton>
+                          <button type="button" onClick={() => handleRedirectToProject(project.slug)} className="rounded-ui-sm bg-[hsl(var(--ui-info-subtle))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--ui-info))] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus">
+                            {t("Open")}
+                          </button>
                         )}
                         {canManageTenantTemplates && project.templateScope !== "global" && (
-                          <GenericButton
-                            variant="ghost"
-                            size="sm"
+                          <button
+                            type="button"
                             disabled={isUpdatingTemplate}
                             onClick={() => handleToggleProjectTemplate(projectId, !project.isTemplate)}
+                            className="rounded-ui-sm bg-ui-subtle px-2 py-0.5 text-[11px] font-medium text-ui-muted hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus disabled:opacity-50"
                           >
-                            {project.isTemplate ? t("Remove Template") : t("Make Template")}
-                          </GenericButton>
+                            {project.isTemplate ? t("Template") : t("Make Template")}
+                          </button>
                         )}
-                        <GenericButton
-                          variant="outline"
-                          size="sm"
-                          disabled={!isActive || isSwitching}
-                          onClick={() => switchToProject({ projectId })}
-                        >
-                          {isActive ? `${t("Switch to")} ${project.name}` : project.name}
-                        </GenericButton>
-                      </div>
-                    </ResponsiveActionBar>
+                    </div>
+                    <time className="text-[11px] font-medium text-ui-muted" dateTime={project.createdAt}>
+                      {new Date(project.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </time>
                   </div>
                 </article>
               );
