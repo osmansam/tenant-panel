@@ -126,6 +126,7 @@ import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
 import PageFilterModal from "./PageFilterModal";
 import ParameterBindingsEditor from "./ParameterBindingsEditor";
+import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
 interface PageDesignerProps {
   sections: GridSection[];
@@ -2110,89 +2111,73 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   };
 
   return (
-    <div className="flex h-full bg-neutral-50">
-      {/* Left Sidebar - Sections List */}
-      <div className="w-72 bg-white border-r border-neutral-200 overflow-y-auto">
-        <div className="p-5 border-b border-neutral-100">
-          <h2 className="text-sm font-semibold text-neutral-900 tracking-tight">
-            Page Structure
-          </h2>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            {sections.length} section{sections.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-
-        <div className="p-4">
-          <button
+    <div
+      data-testid="page-designer-workspace"
+      className="flex h-full min-h-0 flex-col bg-ui-canvas lg:flex-row"
+    >
+      <nav
+        aria-label="Page structure"
+        className="flex w-full shrink-0 flex-col border-b border-ui-border bg-ui-surface lg:w-64 lg:border-b-0 lg:border-r"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-ui-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ui-foreground">Structure</h2>
+            <p className="mt-0.5 text-xs text-ui-muted">
+              {sections.length} section{sections.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <GenericButton
             onClick={addSection}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm"
+            size="sm"
+            aria-label="Add section"
+            iconLeft={<FiPlus size={15} />}
           >
-            <FiPlus size={16} strokeWidth={2.5} />
-            <span>Add Section</span>
-          </button>
+            Add
+          </GenericButton>
         </div>
 
-        <div className="space-y-2 p-4 pt-0">
+        <div className="flex gap-1.5 overflow-x-auto p-2 lg:block lg:flex-1 lg:space-y-1 lg:overflow-y-auto">
           {sections.map((section, index) => (
             <div
               key={index}
-              className={`group p-3.5 rounded-xl border cursor-pointer transition-all ${
-                selectedSection === index
-                  ? "border-violet-500 bg-violet-50 shadow-sm"
-                  : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-              }`}
-              onClick={() => setSelectedSection(index)}
+              className="group relative flex min-w-52 items-center lg:min-w-0"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`p-1.5 rounded-lg ${
-                      selectedSection === index
-                        ? "bg-violet-500 text-white"
-                        : "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200"
-                    } transition-colors`}
-                  >
-                    <FiLayout size={14} />
-                  </div>
-                  <span
-                    className={`font-medium text-sm ${
-                      selectedSection === index
-                        ? "text-violet-900"
-                        : "text-neutral-900"
-                    }`}
-                  >
-                    Section {index + 1}
+              <button
+                type="button"
+                aria-label={`Section ${index + 1}, ${section.columns} column${section.columns !== 1 ? "s" : ""}, ${section.cells.length} cell${section.cells.length !== 1 ? "s" : ""}`}
+                aria-current={selectedSection === index ? "true" : "false"}
+                onClick={() => setSelectedSection(index)}
+                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-ui-md px-3 py-2.5 pr-9 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${
+                  selectedSection === index
+                    ? "bg-ui-subtle text-ui-foreground"
+                    : "text-ui-muted hover:bg-ui-subtle hover:text-ui-foreground"
+                }`}
+              >
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${selectedSection === index ? "bg-ui-foreground text-ui-surface" : "border border-ui-border bg-ui-surface"}`}>
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">Section {index + 1}</span>
+                  <span className="block truncate text-xs text-ui-muted">
+                    {section.columns} col · {section.cells.length} cell{section.cells.length !== 1 ? "s" : ""}
                   </span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSection(index);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-all"
-                >
-                  <FiTrash2 size={13} strokeWidth={2} />
-                </button>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-neutral-500">
-                <span className="flex items-center gap-1">
-                  <FiGrid size={12} />
-                  {section.columns} col{section.columns > 1 ? "s" : ""}
                 </span>
-                <span>•</span>
-                <span>
-                  {section.cells.length} cell
-                  {section.cells.length !== 1 ? "s" : ""}
-                </span>
-              </div>
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete section ${index + 1}`}
+                onClick={() => deleteSection(index)}
+                className="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded-md text-ui-muted opacity-100 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+              >
+                <FiTrash2 size={13} />
+              </button>
             </div>
           ))}
         </div>
-      </div>
+      </nav>
 
-      {/* Main Canvas */}
-      <div className="flex-1 overflow-y-auto">
-        {selectedSection !== null ? (
+      <main aria-label="Page canvas" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        {selectedSection !== null && sections[selectedSection] ? (
           <SectionEditor
             section={sections[selectedSection]}
             sectionIndex={selectedSection}
@@ -2234,22 +2219,23 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
             setSelectedCell={setSelectedCell}
           />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-50 border border-neutral-200 flex items-center justify-center">
-                <FiLayout size={36} className="text-neutral-400" />
+          <div className="flex min-h-[360px] h-full items-center justify-center p-6">
+            <div className="max-w-sm text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-ui-lg border border-ui-border bg-ui-surface text-ui-muted">
+                <FiLayout size={22} />
               </div>
-              <h3 className="text-base font-semibold text-neutral-900 mb-1">
-                No section selected
+              <h3 className="text-base font-semibold text-ui-foreground">
+                {sections.length === 0 ? "Start with a section" : "Choose a section"}
               </h3>
-              <p className="text-sm text-neutral-500 max-w-xs mx-auto">
-                Select a section from the sidebar or create a new one to start
-                designing your page
+              <p className="mt-1 text-sm text-ui-muted">
+                {sections.length === 0
+                  ? "Add the first section to define the page grid."
+                  : "Select a section in the structure panel to edit its layout and components."}
               </p>
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* Excel Upload Modal for Cells */}
       <CellExcelUploadModal
@@ -2335,13 +2321,14 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   };
 
   return (
-    <div className="space-y-5 p-8">
+    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
       {/* Section Settings */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
-        <h3 className="text-base font-semibold text-neutral-900 mb-4">
-          Section Settings
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
+      <section aria-labelledby="section-settings-title" className="border-b border-ui-border pb-6">
+        <div className="mb-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-ui-muted">Section {sectionIndex + 1}</p>
+          <h3 id="section-settings-title" className="mt-1 text-base font-semibold text-ui-foreground">Layout settings</h3>
+        </div>
+        <div className="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
               Grid Columns
@@ -2376,40 +2363,37 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             />
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Grid Preview */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-5">
+      <section aria-labelledby="grid-layout-title">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-neutral-900">
+            <h3 id="grid-layout-title" className="text-base font-semibold text-ui-foreground">
               Grid Layout
             </h3>
             <p className="text-xs text-neutral-500 mt-0.5">
               Design your page structure with cells and components
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onAddCell}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm"
-            >
-              <FiPlus size={16} strokeWidth={2.5} />
-              <span>Add Cell</span>
-            </button>
-            <button
+          <div className="flex flex-wrap gap-2">
+            <GenericButton onClick={onAddCell} size="sm" iconLeft={<FiPlus size={15} />}>
+              Add cell
+            </GenericButton>
+            <GenericButton
               onClick={onAddCellWithExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm"
+              size="sm"
+              variant="outline"
+              iconLeft={<FiUpload size={15} />}
               title="Upload Excel and create cell with table"
             >
-              <FiUpload size={16} strokeWidth={2.5} />
-              <span>Excel</span>
-            </button>
+              Import Excel
+            </GenericButton>
           </div>
         </div>
 
         <div
-          className="grid gap-3 border-2 border-dashed border-neutral-300 rounded-xl p-5 min-h-[400px] bg-neutral-50/50"
+          className="grid min-h-[400px] gap-3 rounded-ui-lg border border-dashed border-ui-border bg-ui-subtle/40 p-3 sm:p-4"
           style={{
             gridTemplateColumns: `repeat(${section.columns}, 1fr)`,
             gap: `${section.gap}px`,
@@ -2459,7 +2443,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             ))
           )}
         </div>
-      </div>
+      </section>
 
       {/* Component Modal */}
       {showComponentModal && currentCellId !== null && (
