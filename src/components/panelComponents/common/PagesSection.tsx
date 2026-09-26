@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiPlus } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiLayout, FiNavigation, FiPlus, FiSettings } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserContext } from "../../../context/User.context";
 import {
@@ -39,6 +39,7 @@ export const PagesSection: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
+  const [editorTab, setEditorTab] = useState<"content" | "navigation" | "settings">("content");
   const { updatePage, updatePageAsync, isUpdating } = useUpdatePage();
   const { createPage, isCreating } = useCreatePage();
 
@@ -125,6 +126,7 @@ export const PagesSection: React.FC = () => {
 
   const handleEditPage = (page: PageModel) => {
     setEditingPage(page);
+    setEditorTab("content");
     setShowDesigner(true);
   };
 
@@ -277,6 +279,7 @@ export const PagesSection: React.FC = () => {
   const handleCancelDesigner = () => {
     setShowDesigner(false);
     setEditingPage(null);
+    setEditorTab("content");
   };
 
   const getPageTypeColor = (page: PageModel) => {
@@ -602,100 +605,43 @@ export const PagesSection: React.FC = () => {
 
       {/* Page Designer Modal */}
       {showDesigner && editingPage && (
-        <div className="fixed inset-0 bg-white z-50 overflow-hidden">
-          <div className="h-full flex flex-col">
-            {/* Designer Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-end justify-between gap-6">
-              <div className="flex min-w-0 flex-1 items-end gap-4">
-                <div className="min-w-0 flex-1 max-w-sm">
-                  <label
-                    htmlFor="page-designer-name"
-                    className="mb-1 block text-xs font-medium text-gray-600"
-                  >
-                    {t("Page Name")}
-                  </label>
-                  <input
-                    id="page-designer-name"
-                    type="text"
-                    value={editingPage.name}
-                    onChange={(event) =>
-                      setEditingPage((currentPage) =>
-                        currentPage
-                          ? updatePageEditorMetadata(
-                              currentPage,
-                              "name",
-                              event.target.value,
-                            )
-                          : currentPage,
-                      )
-                    }
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1 max-w-sm">
-                  <label
-                    htmlFor="page-designer-icon"
-                    className="mb-1 block text-xs font-medium text-gray-600"
-                  >
-                    {t("Page Icon")}
-                  </label>
+        <div className="fixed inset-0 z-50 overflow-hidden bg-ui-canvas font-ui">
+          <div className="flex h-full min-h-0 flex-col">
+            <header className="shrink-0 border-b border-ui-border bg-ui-surface">
+              <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    {(() => {
-                      const PageIcon = getIconByName(
-                        editingPage.icon || "MdSpaceDashboard",
-                      );
-                      return <PageIcon className="h-5 w-5 shrink-0 text-gray-700" />;
-                    })()}
-                    <select
-                      id="page-designer-icon"
-                      value={editingPage.icon || "MdSpaceDashboard"}
-                      onChange={(event) =>
-                        setEditingPage((currentPage) =>
-                          currentPage
-                            ? updatePageEditorMetadata(
-                                currentPage,
-                                "icon",
-                                event.target.value,
-                              )
-                            : currentPage,
-                        )
-                      }
-                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    >
-                      {PAGE_ICON_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label} ({option.value})
-                        </option>
-                      ))}
-                    </select>
+                    <span className="text-xs font-medium uppercase tracking-wide text-ui-muted">Page editor</span>
+                    {editingPage.slug && <span className="truncate rounded-full bg-ui-subtle px-2 py-0.5 font-mono text-[11px] text-ui-muted">/{editingPage.slug}</span>}
                   </div>
+                  <h1 className="mt-0.5 truncate text-base font-semibold text-ui-foreground">{editingPage.name}</h1>
                 </div>
-
-                <div className="pb-2 text-sm text-gray-500">
-                  {editingPage.slug && `/${editingPage.slug}`}
+                <div className="flex shrink-0 items-center gap-2">
+                  <GenericButton variant="ghost" size="sm" onClick={handleCancelDesigner}>{t("Cancel")}</GenericButton>
+                  <GenericButton size="sm" disabled={!editingPage.name.trim()} data-primary-action="true" onClick={() => handleSavePageStructure(editingPage.sections || [])}>{t("Save Page")}</GenericButton>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <GenericButton variant="outline" onClick={handleCancelDesigner}>
-                  {t("Cancel")}
-                </GenericButton>
-
-                <GenericButton
-                  disabled={!editingPage.name.trim()}
-                  onClick={() =>
-                    handleSavePageStructure(editingPage.sections || [])
-                  }
-                >
-                  {t("Save Page")}
-                </GenericButton>
+              <div className="overflow-x-auto px-4 sm:px-6">
+                <div role="tablist" aria-label="Page editor sections" className="flex min-w-max gap-6">
+                  {([[
+                    "content", "Content", FiLayout,
+                  ], ["navigation", "Navigation", FiNavigation], ["settings", "Page settings", FiSettings]] as const).map(([value, label, Icon]) => (
+                    <button key={value} type="button" role="tab" id={`page-editor-tab-${value}`} aria-controls={`page-editor-panel-${value}`} aria-selected={editorTab === value} tabIndex={editorTab === value ? 0 : -1} onClick={() => setEditorTab(value)} className={`relative inline-flex h-11 items-center gap-2 border-b-2 px-0.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${editorTab === value ? "border-ui-foreground text-ui-foreground" : "border-transparent text-ui-muted hover:text-ui-foreground"}`}>
+                      <Icon className="h-4 w-4" aria-hidden="true" />{label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </header>
 
-            {/* Page Designer */}
-            <div className="flex-1 overflow-hidden">
-              <div className="max-h-[46vh] overflow-y-auto border-b border-neutral-200 bg-white p-5">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {editorTab === "navigation" && (
+              <div role="tabpanel" id="page-editor-panel-navigation" aria-labelledby="page-editor-tab-navigation" className="h-full overflow-y-auto p-4 sm:p-6">
+                <div className="mx-auto max-w-5xl">
+                  <div className="mb-5">
+                    <h2 className="text-lg font-semibold text-ui-foreground">Navigation</h2>
+                    <p className="mt-1 text-sm text-ui-muted">Control how this page appears in its hierarchy and header.</p>
+                  </div>
                 <PageNavigatorEditor
                   value={editingPage.pageNavigator}
                   currentPageId={getPageId(editingPage)}
@@ -714,7 +660,42 @@ export const PagesSection: React.FC = () => {
                     )
                   }
                 />
+                </div>
               </div>
+              )}
+              {editorTab === "settings" && (
+                <div role="tabpanel" id="page-editor-panel-settings" aria-labelledby="page-editor-tab-settings" className="h-full overflow-y-auto p-4 sm:p-6">
+                  <div className="mx-auto max-w-3xl">
+                    <div className="mb-5">
+                      <h2 className="text-lg font-semibold text-ui-foreground">Page settings</h2>
+                      <p className="mt-1 text-sm text-ui-muted">Edit the identity shown in project navigation.</p>
+                    </div>
+                    <section className="rounded-ui-lg border border-ui-border bg-ui-surface p-5 sm:p-6">
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="space-y-1.5 text-sm font-medium text-ui-foreground">
+                          {t("Page Name")}
+                          <input id="page-designer-name" type="text" value={editingPage.name} onChange={(event) => setEditingPage((currentPage) => currentPage ? updatePageEditorMetadata(currentPage, "name", event.target.value) : currentPage)} className="w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-ui-focus" />
+                        </label>
+                        <label className="space-y-1.5 text-sm font-medium text-ui-foreground">
+                          {t("Page Icon")}
+                          <div className="flex items-center gap-2">
+                            {(() => { const PageIcon = getIconByName(editingPage.icon || "MdSpaceDashboard"); return <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ui-md border border-ui-border bg-ui-subtle"><PageIcon className="h-5 w-5 text-ui-foreground" /></span>; })()}
+                            <select id="page-designer-icon" value={editingPage.icon || "MdSpaceDashboard"} onChange={(event) => setEditingPage((currentPage) => currentPage ? updatePageEditorMetadata(currentPage, "icon", event.target.value) : currentPage)} className="w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-ui-focus">
+                              {PAGE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} ({option.value})</option>)}
+                            </select>
+                          </div>
+                        </label>
+                      </div>
+                      <div className="mt-5 border-t border-ui-border pt-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-ui-muted">Page URL</div>
+                        <div className="mt-1 font-mono text-sm text-ui-foreground">/{editingPage.slug || "—"}</div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              )}
+              {editorTab === "content" && (
+              <div role="tabpanel" id="page-editor-panel-content" aria-labelledby="page-editor-tab-content" className="h-full">
               <PageDesigner
                 sections={
                   (editingPage.sections
@@ -754,6 +735,8 @@ export const PagesSection: React.FC = () => {
                   });
                 }}
               />
+              </div>
+              )}
             </div>
           </div>
         </div>

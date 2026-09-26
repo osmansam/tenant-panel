@@ -18,7 +18,7 @@ interface Props {
   onChange: (value: PageNavigatorConfig | undefined) => void;
 }
 
-const inputClass = "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20";
+const inputClass = "w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2 text-sm text-ui-foreground focus:outline-none focus:ring-2 focus:ring-ui-focus";
 
 export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: Props) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -29,21 +29,24 @@ export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: P
   const items = config.additionalItems || [];
 
   return (
-    <section className="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-violet-600">Page header</p>
-          <h3 className="mt-1 text-base font-semibold text-neutral-900">Breadcrumb navigation</h3>
-          <p className="mt-1 text-sm text-neutral-500">Generate a clear location trail from the project page hierarchy.</p>
+    <section
+      aria-label="Breadcrumb navigation"
+      data-density="compact"
+      className="rounded-ui-lg border border-ui-border bg-ui-surface"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-ui-foreground">Breadcrumb navigation</h3>
+          <p className="mt-0.5 text-xs text-ui-muted">Show the current page hierarchy in the page header.</p>
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-neutral-700">
-          <input type="checkbox" checked={config.enabled} onChange={(event) => update({ enabled: event.target.checked })} className="h-4 w-4 accent-violet-600" />
-          Enabled
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ui-foreground">
+          <input type="checkbox" checked={config.enabled} onChange={(event) => update({ enabled: event.target.checked })} className="h-4 w-4 accent-neutral-900" />
+          {config.enabled ? "Enabled" : "Disabled"}
         </label>
       </div>
 
       {config.enabled && (
-        <div className="mt-5 space-y-5">
+        <div className="space-y-5 border-t border-ui-border bg-ui-subtle/30 p-4 sm:p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <label className="space-y-1.5 text-sm font-medium text-neutral-700">Mode
               <select className={inputClass} value={config.mode} onChange={(event) => update({ mode: event.target.value as PageNavigatorConfig["mode"] })}>
