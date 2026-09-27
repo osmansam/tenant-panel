@@ -1,8 +1,50 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  currentProject: { slug: "retail" } as { slug: string } | null,
+  useQuery: vi.fn(),
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useMutation: vi.fn(),
+  useQuery: mocks.useQuery,
+  useQueryClient: vi.fn(),
+}));
+
+vi.mock("../../hooks/useTenant", () => ({
+  useTenant: () => ({ currentTenant: { slug: "acme" } }),
+}));
+
+vi.mock("../../hooks/useCurrentProject", () => ({
+  useCurrentProject: () => ({ currentProject: mocks.currentProject }),
+}));
+
 import {
   buildExternalAPICredentialPath,
   normalizeExternalAPICredentialPayload,
+  useIntegrationCredentials,
 } from "./integration";
+
+describe("useIntegrationCredentials", () => {
+  beforeEach(() => {
+    mocks.currentProject = { slug: "retail" };
+    mocks.useQuery.mockReset();
+  });
+
+  it("does not require project context when loading is disabled", () => {
+    mocks.currentProject = null;
+    const queryResult = { data: undefined, isLoading: false };
+    mocks.useQuery.mockReturnValue(queryResult);
+
+    expect(useIntegrationCredentials(false)).toBe(queryResult);
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ["integrationCredentials", "acme", "__disabled__"],
+        enabled: false,
+      }),
+    );
+  });
+});
 
 describe("external API credential API helpers", () => {
   it("builds the project-scoped external API credential path", () => {
