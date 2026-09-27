@@ -80,15 +80,15 @@ vi.mock("../utils/api/auth", () => ({
 }));
 
 vi.mock("../utils/api/project", () => ({
-  useProjects: () => ({ data: state.projects, isLoading: false }),
+  useProjects: () => state.projects,
 }));
 
 vi.mock("../utils/api/container", () => ({
-  useContainers: () => ({ data: state.containers, isLoading: false }),
+  useContainers: () => state.containers,
 }));
 
 vi.mock("../utils/api/page", () => ({
-  useGetTenantPages: () => ({ data: state.pages, isLoading: false }),
+  useGetTenantPages: () => state.pages,
 }));
 
 vi.mock("../utils/api/integration", () => ({
@@ -124,6 +124,13 @@ describe("Dashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Active")).toHaveAttribute("data-variant", "success");
     expect(screen.getByText("project_developer")).toBeInTheDocument();
+  });
+
+  it("renders project activity from the array returned by the project hook", () => {
+    render(<Dashboard />);
+
+    expect(screen.getByText("Project Alpha Project ready")).toBeInTheDocument();
+    expect(screen.getByText("Slug: alpha · Status: Active")).toBeInTheDocument();
   });
 
   it("renders actionable quick action destinations and navigates on click", async () => {
