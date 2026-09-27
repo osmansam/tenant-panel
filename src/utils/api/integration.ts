@@ -78,18 +78,21 @@ interface GeneralResponse<T> {
   data: T;
 }
 
-function useIntegrationContext() {
+function useIntegrationContext(required = true) {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
 
   const tenantSlug = currentTenant?.slug;
   const projectSlug = currentProject?.slug;
 
-  if (!tenantSlug || !projectSlug) {
+  if (required && (!tenantSlug || !projectSlug)) {
     throw new Error("Integration credentials require a selected project");
   }
 
-  return { tenantSlug, projectSlug };
+  return {
+    tenantSlug: tenantSlug || "__disabled__",
+    projectSlug: projectSlug || "__disabled__",
+  };
 }
 
 function buildIntegrationPath(tenantSlug: string, projectSlug: string) {
@@ -127,7 +130,7 @@ export function normalizeExternalAPICredentialPayload(
 }
 
 export function useIntegrationCredentials(enabled = true) {
-  const { tenantSlug, projectSlug } = useIntegrationContext();
+  const { tenantSlug, projectSlug } = useIntegrationContext(enabled);
   const path = buildIntegrationPath(tenantSlug, projectSlug);
 
   return useQuery({
