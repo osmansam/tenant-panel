@@ -46,7 +46,7 @@ const Dashboard: React.FC = () => {
 
   const projects = useProjects(Boolean(currentTenant));
   const containers = useContainers(Boolean(isInProject));
-  const pages = useGetTenantPages();
+  const pages = useGetTenantPages(Boolean(isInProject));
   const { data: integrations = [] } = useIntegrationCredentials(Boolean(isInProject));
 
   const displayName = user?.name || user?.email;

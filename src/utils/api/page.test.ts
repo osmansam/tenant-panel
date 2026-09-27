@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  currentProject: { slug: "retail" } as { slug: string } | null,
   mutateAsync: vi.fn(),
+  useGetList: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -26,7 +28,7 @@ vi.mock("../../hooks/useTenant", () => ({
 }));
 
 vi.mock("../../hooks/useCurrentProject", () => ({
-  useCurrentProject: () => ({ currentProject: { slug: "retail" } }),
+  useCurrentProject: () => ({ currentProject: mocks.currentProject }),
 }));
 
 vi.mock("./axiosClient", () => ({
@@ -35,13 +37,33 @@ vi.mock("./axiosClient", () => ({
 
 vi.mock("./factory", () => ({
   useGet: vi.fn(),
-  useGetList: vi.fn(),
+  useGetList: mocks.useGetList,
 }));
 
-import { useUpdatePage } from "./page";
+import { useGetTenantPages, useUpdatePage } from "./page";
+
+describe("useGetTenantPages", () => {
+  beforeEach(() => {
+    mocks.currentProject = { slug: "retail" };
+    mocks.useGetList.mockReset();
+  });
+
+  it("returns an empty list without project context when loading is disabled", () => {
+    mocks.currentProject = null;
+    mocks.useGetList.mockReturnValue([]);
+
+    expect(useGetTenantPages(false)).toEqual([]);
+    expect(mocks.useGetList).toHaveBeenCalledWith(
+      "/acme/__disabled__/admin/page",
+      ["pages", "acme", "__disabled__"],
+      false,
+    );
+  });
+});
 
 describe("useUpdatePage", () => {
   beforeEach(() => {
+    mocks.currentProject = { slug: "retail" };
     mocks.mutateAsync.mockReset();
   });
 

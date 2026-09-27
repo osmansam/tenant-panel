@@ -439,20 +439,23 @@ function buildContainerPath(
 }
 
 // Hook to get current tenant and project context
-function useContainerContext() {
+function useContainerContext(required = true) {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
 
   const tenantSlug = currentTenant?.slug;
   const projectSlug = currentProject?.slug;
 
-  if (!tenantSlug || !projectSlug) {
+  if (required && (!tenantSlug || !projectSlug)) {
     throw new Error(
       "Container operations require both tenant and project context"
     );
   }
 
-  return { tenantSlug, projectSlug };
+  return {
+    tenantSlug: tenantSlug || "__disabled__",
+    projectSlug: projectSlug || "__disabled__",
+  };
 }
 
 // Sort function for containers (by creation date, newest first)
@@ -510,7 +513,7 @@ export function normalizeDynamicWorkflow(workflow: any): DynamicWorkflow {
 
 // React Query hooks
 export function useContainers(enabled: boolean = true) {
-  const { tenantSlug, projectSlug } = useContainerContext();
+  const { tenantSlug, projectSlug } = useContainerContext(enabled);
   const basePath = buildContainerPath(tenantSlug, projectSlug);
   const projectSpecificQueryKey = ["containers", tenantSlug, projectSlug];
 

@@ -688,18 +688,21 @@ export interface UpdatePagePayload {
 }
 
 // Context hook for tenant and project
-function usePageContext() {
+function usePageContext(required = true) {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
 
   const tenantSlug = currentTenant?.slug;
   const projectSlug = currentProject?.slug;
 
-  if (!tenantSlug || !projectSlug) {
+  if (required && (!tenantSlug || !projectSlug)) {
     throw new Error("Page operations require tenant and project context");
   }
 
-  return { tenantSlug, projectSlug };
+  return {
+    tenantSlug: tenantSlug || "__disabled__",
+    projectSlug: projectSlug || "__disabled__",
+  };
 }
 
 // Build page API path
@@ -717,12 +720,12 @@ export function useGetAllPages() {
 }
 
 // Get all pages (tenant access)
-export function useGetTenantPages() {
-  const { tenantSlug, projectSlug } = usePageContext();
+export function useGetTenantPages(enabled = true) {
+  const { tenantSlug, projectSlug } = usePageContext(enabled);
   const path = buildPagePath(tenantSlug, projectSlug);
   const queryKey = ["pages", tenantSlug, projectSlug];
 
-  return useGetList<PageModel>(path, queryKey);
+  return useGetList<PageModel>(path, queryKey, enabled);
 }
 
 // Get single page

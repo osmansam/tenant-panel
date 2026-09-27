@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   axiosPatch: vi.fn(),
+  currentProject: { slug: "retail" } as { slug: string } | null,
+  useGet: vi.fn(),
   mutate: vi.fn(),
   mutateAsync: vi.fn(),
   mutationFn: undefined as undefined | ((variables: any) => Promise<unknown>),
@@ -32,7 +34,7 @@ vi.mock("../../hooks/useTenant", () => ({
 }));
 
 vi.mock("../../hooks/useCurrentProject", () => ({
-  useCurrentProject: () => ({ currentProject: { slug: "retail" } }),
+  useCurrentProject: () => ({ currentProject: mocks.currentProject }),
 }));
 
 vi.mock("./axiosClient", () => ({
@@ -40,17 +42,35 @@ vi.mock("./axiosClient", () => ({
 }));
 
 vi.mock("./factory", () => ({
-  useGet: vi.fn(),
+  useGet: mocks.useGet,
 }));
 
 import {
   normalizeDynamicApiModel,
   normalizeDynamicWorkflow,
+  useContainers,
   useUpdateContainer,
   useUpdateWorkflows,
 } from "./container";
 
 describe("container API normalization", () => {
+  beforeEach(() => {
+    mocks.currentProject = { slug: "retail" };
+    mocks.useGet.mockReset();
+  });
+
+  it("returns an empty list without project context when loading is disabled", () => {
+    mocks.currentProject = null;
+    mocks.useGet.mockReturnValue(undefined);
+
+    expect(useContainers(false)).toEqual([]);
+    expect(mocks.useGet).toHaveBeenCalledWith(
+      "/acme/__disabled__/container",
+      ["containers", "acme", "__disabled__"],
+      false,
+    );
+  });
+
   it("normalizes Dynamic API models returned with Go field names", () => {
     expect(
       normalizeDynamicApiModel({
