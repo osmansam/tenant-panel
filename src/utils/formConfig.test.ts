@@ -3,6 +3,21 @@ import { addOrReplaceObjectListItem, buildFormConfigReference, buildFormInputs, 
 import { FormComponentConfig } from "../types/page";
 
 describe("buildFormSubmitRequestBody", () => {
+  it("retains legacy-hidden fields in the submission payload", () => {
+    const form: FormComponentConfig = {
+      schemaName: "orders",
+      fields: [{
+        formKey: "internalNote",
+        type: "text",
+        isDisabled: true,
+      }],
+    };
+
+    expect(buildFormSubmitRequestBody(form, {
+      internalNote: "retained",
+    })).toEqual({ internalNote: "retained" });
+  });
+
   it("merges a repeated product by summing its configured quantity field", () => {
     expect(addOrReplaceObjectListItem(
       [{ productId: "flip", quantity: 1, unitPrice: 100 }],

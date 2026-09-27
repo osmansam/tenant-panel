@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiChevronDown,
@@ -12,6 +12,7 @@ import {
   FiList,
   FiPlayCircle,
   FiPlus,
+  FiSearch,
   FiShield,
   FiTrash2,
   FiX,
@@ -41,31 +42,62 @@ import {
 import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
 import { getContainerDetailsContentClass } from "../../../utils/containerDetailsModalLayout";
+import { cn } from "../../../utils/cn";
+import {
+  canReorderFilteredFields,
+  filterContainerFields,
+} from "../../../utils/containerFieldView";
 import {
   addMissingSystemTimestampFields,
   hasAllSystemTimestampFields,
 } from "../../../utils/containerTimestamps";
 import { GenericButton } from "../FormElements/GenericButton";
+import {
+  Badge,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  WorkspaceDialog,
+} from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
 import { AddFieldModal } from "./AddFieldModal";
 import { AddPipelineModal } from "./AddPipelineModal";
 import { AddWorkflowModal } from "./AddWorkflowModal";
 
+export type ContainerDialogSection =
+  | "structured"
+  | "pipelines"
+  | "workflows"
+  | "apis"
+  | "permissions"
+  | "routes"
+  | "json";
+
 interface ContainerDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   container: ContainerModel | null;
+  intent?: "details" | "manage";
+  initialSection?: ContainerDialogSection;
+  focusArea?: "summary" | "fields";
 }
 
 export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   isOpen,
   onClose,
   container,
+  intent = "details",
+  initialSection = "structured",
+  focusArea = "summary",
 }) => {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<
-    "structured" | "json" | "permissions" | "routes" | "pipelines" | "workflows" | "apis"
-  >("structured");
+  const [viewMode, setViewMode] = useState<ContainerDialogSection>(initialSection);
+  const [fieldQuery, setFieldQuery] = useState("");
+  const fieldsSectionRef = useRef<HTMLDivElement>(null);
+  const dialogContextKey = isOpen
+    ? `${container?.id || "unknown"}:${intent}:${initialSection}:${focusArea}`
+    : "closed";
+  const [activeDialogContextKey, setActiveDialogContextKey] = useState(dialogContextKey);
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
@@ -117,7 +149,29 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
     () => hasAllSystemTimestampFields(container?.fields || []),
     [container?.fields]
   );
+  const visibleFields = useMemo(
+    () => filterContainerFields(container?.fields || [], fieldQuery),
+    [container?.fields, fieldQuery],
+  );
+  const fieldReorderingEnabled = canReorderFilteredFields(fieldQuery);
   const { createAuthUser, isCreatingAuthUser } = useCreateProjectAuthUser();
+
+  if (activeDialogContextKey !== dialogContextKey) {
+    setActiveDialogContextKey(dialogContextKey);
+    if (isOpen) {
+      setViewMode(initialSection);
+      setFieldQuery("");
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen || focusArea !== "fields") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      fieldsSectionRef.current?.scrollIntoView({ block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [dialogContextKey, focusArea, isOpen]);
 
   const buildContainerUpdatePayload = useCallback(
     (overrides: Partial<ContainerModel> = {}) => {
@@ -154,17 +208,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
   const getFieldTypeColor = useCallback((type: string) => {
     const colors = {
-      string: "bg-blue-100 text-blue-800",
-      int: "bg-green-100 text-green-800",
-      boolean: "bg-purple-100 text-purple-800",
-      date: "bg-orange-100 text-orange-800",
-      array: "bg-yellow-100 text-yellow-800",
-      object: "bg-red-100 text-red-800",
+      string: "info",
+      int: "success",
+      boolean: "neutral",
+      date: "warning",
+      array: "warning",
+      object: "danger",
     };
     return (
       colors[type.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-100 text-gray-800"
-    );
+      "neutral"
+    ) as "info" | "success" | "warning" | "danger" | "neutral";
   }, []);
 
   const renderChildFields = useCallback(
@@ -172,36 +226,32 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       if (!children.length) return null;
 
       return (
-        <div className="mt-3 space-y-2 border-l-2 border-gray-200 pl-3">
+        <div className="mt-3 space-y-2 border-l-2 border-ui-border pl-3">
           {children.map((child, childIndex) => (
             <div
               key={`${child.name}-${childIndex}`}
-              className="rounded bg-white px-3 py-2"
+              className="rounded-ui-sm bg-ui-surface px-3 py-2"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-sm font-medium text-ui-foreground">
                   {child.name}
                 </span>
-                <span
-                  className={`inline-flex rounded px-2 py-1 text-xs font-medium ${getFieldTypeColor(
-                    child.type
-                  )}`}
-                >
+                <Badge variant={getFieldTypeColor(child.type)}>
                   {child.type}
-                </span>
+                </Badge>
                 {child.unique && (
-                  <span className="inline-flex rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800">
+                  <Badge variant="info">
                     {t("Unique")}
-                  </span>
+                  </Badge>
                 )}
                 {child.isSearchable && (
-                  <span className="inline-flex rounded bg-teal-100 px-2 py-1 text-xs font-medium text-teal-800">
+                  <Badge variant="success">
                     {t("Searchable")}
-                  </span>
+                  </Badge>
                 )}
               </div>
               {child.tag && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-ui-muted">
                   {t("Tag")}: {child.tag}
                 </p>
               )}
@@ -549,124 +599,88 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
   if (!isOpen || !container) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
-
-        {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-7xl sm:p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {container.schemaName}
-              </h3>
-              <div className="flex items-center space-x-2">
-                <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                  {container.id}
-                </span>
-                {container.isAuthContainer && (
-                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800">
-                    {t("Auth Container")}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {/* View Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode("structured")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "structured"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiList size={12} />
-                  <span>{t("Structured")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("pipelines")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "pipelines"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiGitBranch size={12} />
-                  <span>{t("Pipelines")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("workflows")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "workflows"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiPlayCircle size={12} />
-                  <span>{t("Workflows")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("apis")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "apis"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiGlobe size={12} />
-                  <span>{t("Dynamic APIs")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("permissions")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "permissions"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiShield size={12} />
-                  <span>{t("Permissions")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("routes")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "routes"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiCode size={12} />
-                  <span>{t("Routes")}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("json")}
-                  className={`flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded ${
-                    viewMode === "json"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FiCode size={12} />
-                  <span>{t("JSON")}</span>
-                </button>
-              </div>
+    <>
+      <WorkspaceDialog
+        open={isOpen}
+        onClose={onClose}
+        size="workspace"
+        title={
+          intent === "manage"
+            ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
+            : container.schemaName
+        }
+        description={
+          <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-ui-muted">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ui-muted">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ui-muted/70 select-none">ID</span>
+              <span className="text-ui-muted">{container.id}</span>
               <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                type="button"
+                onClick={() => copyToClipboard(container.id)}
+                className="inline-flex h-4 w-4 items-center justify-center text-ui-muted hover:text-ui-foreground transition-colors"
+                title={t("Copy ID")}
               >
-                <FiX size={20} />
+                <FiCopy size={11} />
               </button>
-            </div>
+            </span>
+            {container.isAuthContainer && (
+              <Badge variant="success">
+                {t("Auth Container")}
+              </Badge>
+            )}
           </div>
+        }
+        closeLabel={t("Close container")}
+        bodyClassName="p-0 sm:p-0"
+        footer={
+          <div className="flex justify-end gap-3">
+            <GenericButton variant="outline" size="sm" onClick={onClose}>
+              {t("Close")}
+            </GenericButton>
+            <GenericButton
+              size="sm"
+              onClick={() => copyToClipboard(containerJson)}
+              iconLeft={<FiCopy size={16} />}
+            >
+              {t("Copy JSON")}
+            </GenericButton>
+          </div>
+        }
+      >
+        <div className="sticky top-0 z-10 border-b border-ui-border bg-ui-surface px-4 sm:px-6">
+          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ContainerDialogSection)}>
+            <TabsList className="border-b-0 -mb-px gap-1">
+              {([
+                ["structured", t("Structured"), FiList],
+                ["pipelines", t("Pipelines"), FiGitBranch],
+                ["workflows", t("Workflows"), FiPlayCircle],
+                ["apis", t("Dynamic APIs"), FiGlobe],
+                ["permissions", t("Permissions"), FiShield],
+                ["routes", t("Routes"), FiCode],
+                ["json", t("JSON"), FiCode],
+              ] as const).map(([value, label, Icon]) => {
+                const isActive = viewMode === value;
+                return (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className={cn(
+                      "flex h-10 items-center gap-1.5 px-3 text-xs font-medium border-b-2 -mb-px transition-colors",
+                      isActive
+                        ? "border-ui-primary text-ui-primary font-semibold"
+                        : "border-transparent text-ui-muted hover:text-ui-foreground hover:border-ui-border/70"
+                    )}
+                  >
+                    <Icon size={13} aria-hidden="true" />
+                    {label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+        </div>
 
-          {/* Content */}
+        <div className="p-4 sm:p-5">
           <div className={getContainerDetailsContentClass(viewMode)}>
             {viewMode === "permissions" ? (
               <FieldPermissions containerId={container.id} />
@@ -675,12 +689,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "pipelines" ? (
               <div className="space-y-4 h-full overflow-y-auto">
                 {/* Pipelines Header */}
-                <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b">
+                <div className="flex items-center justify-between sticky top-0 bg-ui-surface pb-4 border-b">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Pipelines")} ({(container.pipelines || []).length})
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ui-muted mt-1">
                       {t(
                         "Manage MongoDB aggregation pipelines for this container"
                       )}
@@ -702,44 +716,44 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.pipelines || []).map((pipeline, index) => (
                     <div
                       key={pipeline.name || index}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                      className="bg-ui-surface-subtle rounded-ui-md p-4 hover:bg-ui-surface-subtle transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-ui-foreground">
                               {pipeline.name}
                             </span>
                             {pipeline.isActive ? (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">
-                                {t("Active")}
-                              </span>
+                              <Badge variant="success">
+{t("Active")}
+</Badge>
                             ) : (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                                {t("Inactive")}
-                              </span>
+                              <Badge variant="neutral">
+{t("Inactive")}
+</Badge>
                             )}
                             {pipeline.isRedisCached && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                                {t("Cached")} ({pipeline.cacheTime}s)
-                              </span>
+                              <Badge variant="info">
+{t("Cached")} ({pipeline.cacheTime}s)
+</Badge>
                             )}
                             {pipeline.isAuthenticated && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
-                                {t("Auth Required")}
-                              </span>
+                              <Badge variant="warning">
+{t("Auth Required")}
+</Badge>
                             )}
                             {pipeline.isAuthorized && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">
-                                {t("Role Check")}
-                              </span>
+                              <Badge variant="warning">
+{t("Role Check")}
+</Badge>
                             )}
                           </div>
 
                           {/* Pipeline JSON Preview */}
                           <div className="mt-2">
                             <details className="text-xs">
-                              <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium">
+                              <summary className="cursor-pointer text-ui-muted hover:text-ui-foreground font-medium">
                                 {t("View Pipeline JSON")}
                               </summary>
                               <pre className="mt-2 p-3 bg-gray-900 text-green-400 rounded overflow-x-auto text-xs">
@@ -753,10 +767,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             pipeline.authorizeRole &&
                             pipeline.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}:{" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {pipeline.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -790,10 +804,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                   {(!container.pipelines ||
                     container.pipelines.length === 0) && (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-ui-muted">
                       <FiGitBranch
                         size={48}
-                        className="mx-auto mb-4 text-gray-300"
+                        className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
                         {t("No pipelines defined for this container")}
@@ -813,12 +827,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               </div>
             ) : viewMode === "workflows" ? (
               <div className="space-y-4 h-full overflow-y-auto">
-                <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b">
+                <div className="flex items-center justify-between sticky top-0 bg-ui-surface pb-4 border-b">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Workflows")} ({(container.workflows || []).length})
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ui-muted mt-1">
                       {t("Manage workflow definitions and access controls for this container")}
                     </p>
                   </div>
@@ -837,46 +851,44 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.workflows || []).map((workflow, index) => (
                     <div
                       key={workflow.name || index}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                      className="bg-ui-surface-subtle rounded-ui-md p-4 hover:bg-ui-surface-subtle transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-gray-900">{workflow.name}</span>
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                              workflow.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                            }`}>
+                            <span className="font-medium text-ui-foreground">{workflow.name}</span>
+                            <Badge variant={workflow.isActive ? "success" : "neutral"}>
                               {workflow.isActive ? t("Active") : t("Inactive")}
-                            </span>
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                              {workflow.trigger || "manual"}
-                            </span>
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                              {workflow.mode || "transactional"}
-                            </span>
+                            </Badge>
+                            <Badge variant="info">
+{workflow.trigger || "manual"}
+</Badge>
+                            <Badge variant="neutral">
+{workflow.mode || "transactional"}
+</Badge>
                             {workflow.isAuthenticated && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
-                                {t("Auth Required")}
-                              </span>
+                              <Badge variant="warning">
+{t("Auth Required")}
+</Badge>
                             )}
                             {workflow.isAuthorized && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">
-                                {t("Role Check")}
-                              </span>
+                              <Badge variant="warning">
+{t("Role Check")}
+</Badge>
                             )}
                             {!!workflow.outputFields?.length && (
-                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-indigo-100 text-indigo-800">
-                                {workflow.outputFields.length} {t("Output Fields")}
-                              </span>
+                              <Badge variant="info">
+{workflow.outputFields.length} {t("Output Fields")}
+</Badge>
                             )}
                           </div>
 
                           {workflow.description && (
-                            <p className="mb-2 text-xs text-gray-600">{workflow.description}</p>
+                            <p className="mb-2 text-xs text-ui-muted">{workflow.description}</p>
                           )}
 
                           <details className="text-xs">
-                            <summary className="cursor-pointer font-medium text-gray-600 hover:text-gray-900">
+                            <summary className="cursor-pointer font-medium text-ui-muted hover:text-ui-foreground">
                               {t("View Workflow JSON")}
                             </summary>
                             <pre className="mt-2 overflow-x-auto rounded bg-gray-900 p-3 text-xs text-green-400">
@@ -896,10 +908,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             workflow.authorizeRole &&
                             workflow.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}: {" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {workflow.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -931,8 +943,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   ))}
 
                   {(!container.workflows || container.workflows.length === 0) && (
-                    <div className="py-12 text-center text-gray-500">
-                      <FiPlayCircle size={48} className="mx-auto mb-4 text-gray-300" />
+                    <div className="py-12 text-center text-ui-muted">
+                      <FiPlayCircle size={48} className="mx-auto mb-4 text-ui-placeholder" />
                       <p className="mb-2">{t("No workflows defined for this container")}</p>
                       <GenericButton
                         variant="outline"
@@ -949,12 +961,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
               </div>
             ) : viewMode === "apis" ? (
               <div className="h-full space-y-4 overflow-y-auto">
-                <div className="sticky top-0 flex items-center justify-between border-b bg-white pb-4">
+                <div className="sticky top-0 flex items-center justify-between border-b bg-ui-surface pb-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h4 className="text-sm font-medium text-ui-foreground">
                       {t("Dynamic APIs")} ({(container.dynamicApis || []).length})
                     </h4>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-ui-muted">
                       {t("Manage outbound or proxy APIs for this container")}
                     </p>
                   </div>
@@ -973,53 +985,53 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(container.dynamicApis || []).map((dynamicApi, index) => (
                     <div
                       key={dynamicApi.name || index}
-                      className="rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                      className="rounded-ui-md bg-ui-surface-subtle p-4 transition-colors hover:bg-ui-surface-subtle"
                     >
                       <div className="flex items-start justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-ui-foreground">
                               {dynamicApi.name}
                             </span>
-                            <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-800">
+                            <span className="inline-flex rounded bg-ui-surface-subtle px-2 py-0.5 font-mono text-xs font-medium text-ui-foreground">
                               {dynamicApi.method || "GET"}
                             </span>
                             {dynamicApi.isActive ? (
-                              <span className="inline-flex rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                              <Badge variant="success">
                                 {t("Active")}
-                              </span>
+                              </Badge>
                             ) : (
-                              <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                              <Badge variant="neutral">
                                 {t("Inactive")}
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isRedisCached && (
-                              <span className="inline-flex rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                              <Badge variant="info">
                                 {t("Cached")} ({dynamicApi.cacheTime}s)
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isAuthenticated && (
-                              <span className="inline-flex rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
+                              <Badge variant="warning">
                                 {t("Auth Required")}
-                              </span>
+                              </Badge>
                             )}
                             {dynamicApi.isAuthorized && (
-                              <span className="inline-flex rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                              <Badge variant="warning">
                                 {t("Role Check")}
-                              </span>
+                              </Badge>
                             )}
                           </div>
 
-                          <p className="break-all font-mono text-xs text-gray-600">
+                          <p className="break-all font-mono text-xs text-ui-muted">
                             {dynamicApi.url}
                           </p>
 
                           {!!dynamicApi.dependencies?.length && (
                             <div className="mt-2">
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-ui-muted">
                                 {t("Dependencies")}:{" "}
                               </span>
-                              <span className="text-xs text-gray-700">
+                              <span className="text-xs text-ui-foreground">
                                 {dynamicApi.dependencies.join(", ")}
                               </span>
                             </div>
@@ -1029,10 +1041,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             dynamicApi.authorizeRole &&
                             dynamicApi.authorizeRole.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ui-muted">
                                   {t("Allowed Roles")}:{" "}
                                 </span>
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-ui-foreground">
                                   {dynamicApi.authorizeRole.join(", ")}
                                 </span>
                               </div>
@@ -1067,10 +1079,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                   {(!container.dynamicApis ||
                     container.dynamicApis.length === 0) && (
-                    <div className="py-12 text-center text-gray-500">
+                    <div className="py-12 text-center text-ui-muted">
                       <FiGlobe
                         size={48}
-                        className="mx-auto mb-4 text-gray-300"
+                        className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
                         {t("No Dynamic APIs defined for this container")}
@@ -1089,167 +1101,182 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                 </div>
               </div>
             ) : viewMode === "structured" ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Basic Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">
-                    {t("Container Information")}
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">{t("Schema Name")}:</span>
-                      <span className="ml-2 font-medium">
-                        {container.schemaName}
-                      </span>
+                <section aria-label={t("Container overview")} className="border-b border-ui-border pb-4">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 text-sm">
+                    <div className="space-y-1 pr-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Schema Name")}</div>
+                      <div className="font-semibold text-ui-foreground truncate">{container.schemaName}</div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">
-                        {t("Container ID")}:
-                      </span>
-                      <span className="ml-2 font-mono text-xs">
-                        {container.id}
-                      </span>
+                    <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Collection Name")}</div>
+                      <div className="font-mono text-xs text-ui-foreground truncate">{container.collectionName || "N/A"}</div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">
-                        {t("Collection Name")}:
-                      </span>
-                      <span className="ml-2 font-mono text-xs">
-                        {container.collectionName || "N/A"}
-                      </span>
+                    <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Container")}</div>
+                      <div>
+                        <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
+                          {container.isAuthContainer ? t("Yes") : t("No")}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">
-                        {t("Auth Container")}:
-                      </span>
-                      <span className="ml-2">
-                        {container.isAuthContainer ? t("Yes") : t("No")}
-                      </span>
+                    <div className="space-y-1 lg:border-l lg:border-ui-border/70 lg:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Total Fields")}</div>
+                      <div className="font-semibold text-ui-foreground">{(container.fields || []).length}</div>
                     </div>
-                    {container.isAuthContainer && (
-                      <div className="space-y-4 rounded-lg border border-green-200 bg-green-50 p-4 md:col-span-2">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
-                            <span className="text-gray-600">
-                              {t("Registration Active")}
-                            </span>
-                            <CheckSwitch
-                              checked={container.isRegisterActive || false}
-                              onChange={handleToggleRegisterActive}
-                            />
-                          </label>
-                          <label className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
-                            <span className="text-gray-600">
-                              {t("Google Login Active")}
-                            </span>
-                            <CheckSwitch
-                              checked={container.isGoogleLoginActive || false}
-                              onChange={handleToggleGoogleLoginActive}
-                            />
-                          </label>
+                    <div className="space-y-1 lg:border-l lg:border-ui-border/70 lg:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Redis Cached")}</div>
+                      <div>
+                        <Badge variant={container.redis?.isRedisCached ? "info" : "neutral"} className="text-[11px]">
+                          {container.redis?.isRedisCached ? t("Yes") : t("No")}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {container.isAuthContainer && (
+                    <section
+                      aria-label={t("Authentication")}
+                      className="mt-4 space-y-3 border-t border-ui-border pt-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                          <span className="font-medium text-ui-foreground">
+                            {t("Registration Active")}
+                          </span>
+                          <CheckSwitch
+                            checked={container.isRegisterActive || false}
+                            onChange={handleToggleRegisterActive}
+                          />
+                        </label>
+                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                          <span className="font-medium text-ui-foreground">
+                            {t("Google Login Active")}
+                          </span>
+                          <CheckSwitch
+                            checked={container.isGoogleLoginActive || false}
+                            onChange={handleToggleGoogleLoginActive}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="rounded-ui-md border border-ui-border bg-ui-surface-subtle p-3.5">
+                        <div className="mb-3">
+                          <h4 className="text-sm font-semibold text-ui-foreground">
+                            {t("Create auth user")}
+                          </h4>
+                          <p className="text-xs text-ui-muted">
+                            {t("Creates a user in this project's auth container.")}
+                          </p>
                         </div>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+                          {authUserFormFields.map((field) => {
+                            const fieldName = field.name;
+                            const lowerFieldName = fieldName.toLowerCase();
+                            const inputType =
+                              field.isHashed || lowerFieldName.includes("password")
+                                ? "password"
+                                : field.type === "number" || field.type === "int"
+                                  ? "number"
+                                  : "text";
 
-                        <div className="rounded-md bg-white p-3">
-                          <div className="mb-3">
-                            <h4 className="text-sm font-semibold text-gray-900">
-                              {t("Create auth user")}
-                            </h4>
-                            <p className="text-xs text-gray-500">
-                              {t("Creates a user in this project's auth container.")}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                            {authUserFormFields.map((field) => {
-                              const fieldName = field.name;
-                              const lowerFieldName = fieldName.toLowerCase();
-                              const inputType =
-                                field.isHashed || lowerFieldName.includes("password")
-                                  ? "password"
-                                  : field.type === "number" || field.type === "int"
-                                    ? "number"
-                                    : "text";
-
-                              return (
-                                <input
-                                  key={fieldName}
-                                  value={authUserValues[fieldName] || ""}
-                                  onChange={(event) =>
-                                    setAuthUserValues((current) => ({
-                                      ...current,
-                                      [fieldName]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder={t(fieldName)}
-                                  type={inputType}
-                                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                />
-                              );
-                            })}
-                            {authUserRoleField && (
-                              <select
-                                value={authUserRole || getRoleOptionId(roleOptions[0])}
-                                onChange={(event) => setAuthUserRole(event.target.value)}
-                                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                              >
-                                {roleOptions.length > 0 ? (
-                                  roleOptions.map((role) => (
+                            return (
+                              <input
+                                key={fieldName}
+                                value={authUserValues[fieldName] || ""}
+                                onChange={(event) =>
+                                  setAuthUserValues((current) => ({
+                                    ...current,
+                                    [fieldName]: event.target.value,
+                                  }))
+                                }
+                                placeholder={t(fieldName)}
+                                type={inputType}
+                                className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                              />
+                            );
+                          })}
+                          {authUserRoleField && (
+                            <select
+                              value={authUserRole || getRoleOptionId(roleOptions[0])}
+                              onChange={(event) => setAuthUserRole(event.target.value)}
+                              className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                            >
+                              {roleOptions.length > 0 ? (
+                                roleOptions.map((role) => (
                                   <option key={getRoleOptionId(role)} value={getRoleOptionId(role)}>
                                     {role.name || "admin"}
                                   </option>
-                                  ))
-                                ) : (
-                                  <option value="">
-                                    {t("No roles found")}
-                                  </option>
-                                )}
-                              </select>
-                            )}
-                            <GenericButton
-                              size="sm"
-                              onClick={handleCreateAuthUser}
-                              disabled={
-                                isCreatingAuthUser ||
-                                authUserFormFields.length === 0 ||
-                                (!!authUserRoleField && !roleOptions.length) ||
-                                authUserFormFields.some(
-                                  (field) =>
-                                    (field.tag === "required" || field.isLoginCredential) &&
-                                    !authUserValues[field.name]?.trim(),
-                                )
-                              }
-                            >
-                              {t("Create User")}
-                            </GenericButton>
-                          </div>
+                                ))
+                              ) : (
+                                <option value="">
+                                  {t("No roles found")}
+                                </option>
+                              )}
+                            </select>
+                          )}
+                          <GenericButton
+                            size="sm"
+                            onClick={handleCreateAuthUser}
+                            disabled={
+                              isCreatingAuthUser ||
+                              authUserFormFields.length === 0 ||
+                              (!!authUserRoleField && !roleOptions.length) ||
+                              authUserFormFields.some(
+                                (field) =>
+                                  (field.tag === "required" || field.isLoginCredential) &&
+                                  !authUserValues[field.name]?.trim(),
+                              )
+                            }
+                          >
+                            {t("Create User")}
+                          </GenericButton>
                         </div>
                       </div>
-                    )}
-                    <div>
-                      <span className="text-gray-500">
-                        {t("Total Fields")}:
-                      </span>
-                      <span className="ml-2 font-medium">
-                        {(container.fields || []).length}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">
-                        {t("Redis Cached")}:
-                      </span>
-                      <span className="ml-2">
-                        {container.redis?.isRedisCached ? t("Yes") : t("No")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                    </section>
+                  )}
+                </section>
 
                 {/* Fields */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium text-gray-900">
-                      {t("Fields")} ({(container.fields || []).length})
-                    </h4>
-                    <div className="flex items-center gap-2">
+                <section ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
+                  <div
+                    role="group"
+                    aria-label={t("Field toolbar")}
+                    className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex flex-1 flex-wrap items-center gap-3">
+                      <h4 className="text-base font-semibold text-ui-foreground shrink-0">
+                        {t("Fields")}
+                        {fieldQuery ? ` (${visibleFields.length}/${(container.fields || []).length})` : ""}
+                      </h4>
+                      <div className="relative w-full sm:w-64 md:w-80">
+                        <FiSearch
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted"
+                          size={14}
+                        />
+                        <input
+                          type="search"
+                          aria-label={t("Search fields")}
+                          placeholder={t("Search fields by name, type, tag, or relation")}
+                          value={fieldQuery}
+                          onChange={(event) => setFieldQuery(event.target.value)}
+                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
+                        />
+                        {fieldQuery && (
+                          <button
+                            type="button"
+                            aria-label={t("Clear field search")}
+                            title={t("Clear field search")}
+                            onClick={() => setFieldQuery("")}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ui-muted hover:text-ui-foreground transition"
+                          >
+                            <FiX size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       <GenericButton
                         variant="outline"
                         size="sm"
@@ -1262,7 +1289,6 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           : t("Add Timestamps")}
                       </GenericButton>
                       <GenericButton
-                        variant="outline"
                         size="sm"
                         onClick={() => setIsAddFieldModalOpen(true)}
                         iconLeft={<FiPlus size={12} />}
@@ -1272,73 +1298,101 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </GenericButton>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    {(container.fields || []).map((field, index) => (
+                  <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
+                    <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
+                      <span role="columnheader">{t("Name")}</span>
+                      <span role="columnheader">{t("Type")}</span>
+                      <span role="columnheader">{t("Attributes")}</span>
+                      <span role="columnheader" className="text-right">{t("Actions")}</span>
+                    </div>
+                    {visibleFields.map((field, index) => {
+                      const sourceIndex = (container.fields || []).findIndex(
+                        (candidate) => candidate === field || candidate.name === field.name,
+                      );
+                      const reorderTitle = fieldReorderingEnabled
+                        ? undefined
+                        : t("Clear field search to reorder fields");
+
+                      return (
                       <div
                         key={field.name || index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        role="row"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 last:border-b-0 hover:bg-ui-surface-subtle/50 transition-colors md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900">
+                        <div role="cell" className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-semibold text-ui-foreground">
                               {field.name}
                             </span>
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-medium rounded ${getFieldTypeColor(
-                                field.type
-                              )}`}
-                            >
-                              {field.type}
-                            </span>
-                            {field.unique && (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-indigo-100 text-indigo-800">
-                                {t("Unique")}
-                              </span>
-                            )}
-                            {field.isSearchable && (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800">
-                                {t("Searchable")}
-                              </span>
-                            )}
                           </div>
                           {field.tag && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="mt-0.5 truncate text-xs text-ui-muted md:hidden">
                               {t("Tag")}: {field.tag}
-                            </p>
-                          )}
-                          {field.objectSchemaName && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {t("Object Schema")}: {field.objectSchemaName}
                             </p>
                           )}
                           {renderChildFields(field.children || [])}
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={() => handleMoveFieldUp(index)}
-                            disabled={index === 0 || isUpdating}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={t("Move Up")}
-                          >
-                            <FiChevronUp size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleMoveFieldDown(index)}
-                            disabled={
-                              index === (container.fields || []).length - 1 ||
-                              isUpdating
-                            }
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={t("Move Down")}
-                          >
-                            <FiChevronDown size={16} />
-                          </button>
+                        <div role="cell" className="hidden md:block">
+                          <Badge variant={getFieldTypeColor(field.type)}>{field.type}</Badge>
+                        </div>
+                        <div role="cell" className="hidden min-w-0 flex-wrap items-center gap-1.5 md:flex">
+                          {field.unique && <Badge variant="info">{t("Unique")}</Badge>}
+                          {field.isSearchable && <Badge variant="success">{t("Searchable")}</Badge>}
+                          {field.tag &&
+                            field.tag
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean)
+                              .map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-[10px] text-ui-muted"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                          {field.objectSchemaName && (
+                            <span className="inline-flex items-center gap-1 rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 text-[10px] text-ui-muted">
+                              <span className="text-ui-subtle">→</span>
+                              <span className="font-medium text-ui-foreground">{field.objectSchemaName}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div role="cell" className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center rounded-ui-sm border border-ui-border bg-ui-surface-subtle overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveFieldUp(sourceIndex)}
+                              disabled={!fieldReorderingEnabled || sourceIndex === 0 || isUpdating}
+                              className="inline-flex h-7 w-6 items-center justify-center text-ui-muted hover:text-ui-foreground hover:bg-ui-surface disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title={reorderTitle || t("Move Up")}
+                              aria-label={t("Move {{fieldName}} up", { fieldName: field.name })}
+                            >
+                              <FiChevronUp size={13} />
+                            </button>
+                            <div className="h-3.5 w-px bg-ui-border" />
+                            <button
+                              type="button"
+                              onClick={() => handleMoveFieldDown(sourceIndex)}
+                              disabled={
+                                !fieldReorderingEnabled ||
+                                sourceIndex === (container.fields || []).length - 1 ||
+                                isUpdating
+                              }
+                              className="inline-flex h-7 w-6 items-center justify-center text-ui-muted hover:text-ui-foreground hover:bg-ui-surface disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title={reorderTitle || t("Move Down")}
+                              aria-label={t("Move {{fieldName}} down", { fieldName: field.name })}
+                            >
+                              <FiChevronDown size={13} />
+                            </button>
+                          </div>
                           <GenericButton
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditField(field)}
-                            iconLeft={<FiEdit size={10} />}
+                            iconLeft={<FiEdit size={12} />}
                             disabled={isUpdating}
+                            className="h-7 px-2.5 text-xs font-medium hover:bg-ui-surface-subtle"
                           >
                             {t("Edit")}
                           </GenericButton>
@@ -1346,17 +1400,33 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteField(field.name)}
-                            iconLeft={<FiTrash2 size={10} />}
+                            iconLeft={<FiTrash2 size={12} />}
                             disabled={isUpdating}
+                            className="h-7 px-2.5 text-xs font-medium text-ui-danger border-ui-border hover:border-ui-danger/40 hover:bg-ui-danger-subtle hover:text-ui-danger"
                           >
                             {t("Delete")}
                           </GenericButton>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
+
+                    {(container.fields || []).length > 0 && visibleFields.length === 0 && (
+                      <div className="rounded-ui-md border border-dashed border-ui-border py-10 text-center text-ui-muted">
+                        <p>{t("No fields match your search")}</p>
+                        <GenericButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFieldQuery("")}
+                          className="mt-3"
+                        >
+                          {t("Clear field search")}
+                        </GenericButton>
+                      </div>
+                    )}
 
                     {(!container.fields || container.fields.length === 0) && (
-                      <div className="text-center py-8 text-gray-500">
+                      <div className="text-center py-8 text-ui-muted">
                         <p>{t("No fields defined for this container")}</p>
                         <GenericButton
                           variant="outline"
@@ -1370,69 +1440,86 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </div>
                     )}
                   </div>
-                </div>
+                </section>
 
                 {/* Routes Information */}
-                {container.routes && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      {t("Available Routes")}
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {Object.entries(container.routes).map(
-                        ([routeName, routeSpec]) => (
-                          <div
-                            key={routeName}
-                            className={`p-2 rounded ${
-                              routeSpec.isActive
-                                ? "bg-green-50 text-green-800"
-                                : "bg-red-50 text-red-800"
-                            }`}
-                          >
-                            <span className="font-medium">
-                              {routeName.replace(/([A-Z])/g, " $1").trim()}
-                            </span>
-                            {routeSpec.isAuthenticated && (
-                              <span className="ml-1 text-xs">🔒</span>
-                            )}
-                          </div>
-                        )
-                      )}
+                {container.routes && Object.keys(container.routes).length > 0 && (
+                  <details className="group rounded-ui-lg border border-ui-border bg-ui-surface transition-colors">
+                    <summary className="flex cursor-pointer items-center justify-between p-3.5 select-none hover:bg-ui-surface-subtle/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <FiChevronDown className="h-4 w-4 text-ui-muted transition-transform duration-200 group-open:rotate-180" />
+                        <h4 className="text-sm font-semibold text-ui-foreground">
+                          {t("Available Routes")}
+                        </h4>
+                        <span className="rounded-ui-xs bg-ui-surface-subtle px-1.5 py-0.5 text-[11px] font-mono text-ui-muted border border-ui-border">
+                          {Object.keys(container.routes).length}
+                        </span>
+                      </div>
+                      <span className="text-xs text-ui-muted">
+                        <span className="group-open:hidden">{t("Click to expand")}</span>
+                        <span className="hidden group-open:inline">{t("Click to collapse")}</span>
+                      </span>
+                    </summary>
+                    <div className="border-t border-ui-border p-3.5">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs">
+                        {Object.entries(container.routes).map(
+                          ([routeName, routeSpec]) => (
+                            <div
+                              key={routeName}
+                              className={`flex items-center justify-between rounded-ui-md border px-3 py-2 transition-colors ${
+                                routeSpec.isActive
+                                  ? "border-ui-border bg-ui-surface text-ui-foreground hover:bg-ui-surface-subtle"
+                                  : "border-ui-border/50 bg-ui-surface-subtle/50 text-ui-muted"
+                              }`}
+                            >
+                              <span className="font-medium">
+                                {routeName.replace(/([A-Z])/g, " $1").trim()}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {routeSpec.isAuthenticated && (
+                                  <span className="inline-flex items-center text-xs text-ui-muted" title={t("Authenticated")}>
+                                    🔒
+                                  </span>
+                                )}
+                                <Badge variant={routeSpec.isActive ? "success" : "neutral"} className="text-[10px]">
+                                  {routeSpec.isActive ? t("Active") : t("Disabled")}
+                                </Badge>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </details>
                 )}
 
                 {/* Redis Configuration */}
                 {container.redis && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      {t("Redis Configuration")}
-                    </h4>
-                    <div className="text-sm space-y-1">
-                      <div>
-                        <span className="text-gray-600">{t("Cached")}:</span>
-                        <span className="ml-2">
-                          {container.redis.isRedisCached ? t("Yes") : t("No")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">
-                          {t("Cache Time")}:
-                        </span>
-                        <span className="ml-2">
-                          {container.redis.cacheTime}s
-                        </span>
-                      </div>
-                      {container.redis.triggeredRedisCaches && (
-                        <div>
-                          <span className="text-gray-600">
-                            {t("Triggered Caches")}:
-                          </span>
-                          <span className="ml-2">
-                            {container.redis.triggeredRedisCaches.join(", ")}
-                          </span>
+                  <div className="rounded-ui-md border border-ui-border bg-ui-surface px-4 py-2.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
+                      <span className="font-semibold uppercase tracking-wider text-ui-muted text-[11px]">
+                        {t("Redis Configuration")}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-ui-muted">{t("Cached")}:</span>
+                          <Badge variant={container.redis.isRedisCached ? "info" : "neutral"} className="text-[10px] py-0 px-1.5">
+                            {container.redis.isRedisCached ? t("Yes") : t("No")}
+                          </Badge>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-ui-muted">{t("Cache Time")}:</span>
+                          <span className="font-semibold text-ui-foreground">{container.redis.cacheTime}s</span>
+                        </div>
+                        {container.redis.triggeredRedisCaches && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-ui-muted">{t("Triggered Caches")}:</span>
+                            <span className="font-mono text-ui-foreground truncate max-w-[240px]">
+                              {container.redis.triggeredRedisCaches.join(", ") || t("None")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1450,27 +1537,14 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     {t("Copy")}
                   </GenericButton>
                 </div>
-                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">
+                <pre className="bg-gray-900 text-green-400 p-4 rounded-ui-md text-xs overflow-x-auto whitespace-pre-wrap">
                   {containerJson}
                 </pre>
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={onClose}>
-              {t("Close")}
-            </GenericButton>
-            <GenericButton
-              onClick={() => copyToClipboard(containerJson)}
-              iconLeft={<FiCopy size={16} />}
-            >
-              {t("Copy JSON")}
-            </GenericButton>
-          </div>
         </div>
-      </div>
+      </WorkspaceDialog>
 
       {/* Add Field Modal */}
       <AddFieldModal
@@ -1481,6 +1555,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         }}
         onAddField={handleAddField}
         containerFields={container?.fields || []}
+        containerName={container.schemaName}
         editField={editingField}
       />
 
@@ -1558,6 +1633,6 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           "Are you sure you want to delete this Dynamic API? This action cannot be undone."
         )}
       />
-    </div>
+    </>
   );
 };

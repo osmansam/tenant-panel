@@ -1,0 +1,416 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - complementary [ref=f1e5]:
+      - generic [ref=f1e7]:
+        - generic [ref=f1e12]:
+          - heading "Tenant Panel" [level=1] [ref=f1e13]
+          - paragraph [ref=f1e14]: developer
+        - button "Collapse Sidebar" [ref=f1e15] [cursor=pointer]
+      - generic [ref=f1e18]:
+        - generic [ref=f1e20]:
+          - generic [ref=f1e21]: Current Project
+          - generic [ref=f1e27]: Demo Project
+          - button "Back to Tenant" [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e32]:
+          - button "Dashboard" [ref=f1e33] [cursor=pointer]
+          - button "Project Management" [ref=f1e39] [cursor=pointer]
+          - button "Localization" [ref=f1e45] [cursor=pointer]
+          - button "Integrations" [ref=f1e51] [cursor=pointer]
+          - button "Settings" [ref=f1e57] [cursor=pointer]
+        - button "Logout" [ref=f1e64] [cursor=pointer]
+    - main [ref=f1e70]:
+      - generic [ref=f1e71]:
+        - generic [ref=f1e74]:
+          - generic [ref=f1e75]:
+            - heading "Demo Project" [level=1] [ref=f1e76]
+            - paragraph [ref=f1e77]: Project Management & Configuration
+            - generic [ref=f1e78]:
+              - generic [ref=f1e79]: demo
+              - generic [ref=f1e80]: Active
+          - generic [ref=f1e81]:
+            - generic [ref=f1e82]: "Your Role:"
+            - generic [ref=f1e83]: project_developer
+        - generic [ref=f1e84]:
+          - generic [ref=f1e85]:
+            - generic [ref=f1e86]:
+              - generic [ref=f1e87]:
+                - generic [ref=f1e88]: 🗄️
+                - heading "Containers" [level=2] [ref=f1e89]
+              - generic [ref=f1e90]:
+                - button "Create with JSON" [ref=f1e91] [cursor=pointer]
+                - button "Upload Excel" [ref=f1e97] [cursor=pointer]
+                - button "Create Container" [ref=f1e103] [cursor=pointer]
+            - search [ref=f1e108]:
+              - generic [ref=f1e109]: Search containers
+              - searchbox "Search containers" [ref=f1e110]
+              - button "Search" [ref=f1e111] [cursor=pointer]
+            - generic [ref=f1e113]:
+              - article "schema-1 container" [ref=f1e976]:
+                - generic [ref=f1e977]:
+                  - heading "schema-1" [level=3] [ref=f1e978]
+                  - paragraph [ref=f1e979]: 3 fields • Auth Container
+                  - paragraph [ref=f1e980]: collection-1
+                - generic [ref=f1e981]:
+                  - button "Details" [ref=f1e982] [cursor=pointer]
+                  - button "Edit" [ref=f1e987] [cursor=pointer]
+                  - button "View Data" [ref=f1e989] [cursor=pointer]
+              - article "schema-2 container" [ref=f1e991]:
+                - generic [ref=f1e992]:
+                  - heading "schema-2" [level=3] [ref=f1e993]
+                  - paragraph [ref=f1e994]: 3 fields • Regular Container
+                  - paragraph [ref=f1e995]: collection-2
+                - generic [ref=f1e996]:
+                  - button "Details" [ref=f1e997] [cursor=pointer]
+                  - button "Edit" [ref=f1e1002] [cursor=pointer]
+                  - button "View Data" [ref=f1e1004] [cursor=pointer]
+              - article "schema-3 container" [ref=f1e1006]:
+                - generic [ref=f1e1007]:
+                  - heading "schema-3" [level=3] [ref=f1e1008]
+                  - paragraph [ref=f1e1009]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1010]: collection-3
+                - generic [ref=f1e1011]:
+                  - button "Details" [ref=f1e1012] [cursor=pointer]
+                  - button "Edit" [ref=f1e1017] [cursor=pointer]
+                  - button "View Data" [ref=f1e1019] [cursor=pointer]
+              - article "schema-4 container" [ref=f1e1021]:
+                - generic [ref=f1e1022]:
+                  - heading "schema-4" [level=3] [ref=f1e1023]
+                  - paragraph [ref=f1e1024]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1025]: collection-4
+                - generic [ref=f1e1026]:
+                  - button "Details" [ref=f1e1027] [cursor=pointer]
+                  - button "Edit" [ref=f1e1032] [cursor=pointer]
+                  - button "View Data" [ref=f1e1034] [cursor=pointer]
+              - article "schema-5 container" [ref=f1e1036]:
+                - generic [ref=f1e1037]:
+                  - heading "schema-5" [level=3] [ref=f1e1038]
+                  - paragraph [ref=f1e1039]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1040]: collection-5
+                - generic [ref=f1e1041]:
+                  - button "Details" [ref=f1e1042] [cursor=pointer]
+                  - button "Edit" [ref=f1e1047] [cursor=pointer]
+                  - button "View Data" [ref=f1e1049] [cursor=pointer]
+              - article "schema-6 container" [ref=f1e1051]:
+                - generic [ref=f1e1052]:
+                  - heading "schema-6" [level=3] [ref=f1e1053]
+                  - paragraph [ref=f1e1054]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1055]: collection-6
+                - generic [ref=f1e1056]:
+                  - button "Details" [ref=f1e1057] [cursor=pointer]
+                  - button "Edit" [ref=f1e1062] [cursor=pointer]
+                  - button "View Data" [ref=f1e1064] [cursor=pointer]
+              - article "schema-7 container" [ref=f1e1066]:
+                - generic [ref=f1e1067]:
+                  - heading "schema-7" [level=3] [ref=f1e1068]
+                  - paragraph [ref=f1e1069]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1070]: collection-7
+                - generic [ref=f1e1071]:
+                  - button "Details" [ref=f1e1072] [cursor=pointer]
+                  - button "Edit" [ref=f1e1077] [cursor=pointer]
+                  - button "View Data" [ref=f1e1079] [cursor=pointer]
+              - article "schema-8 container" [ref=f1e1081]:
+                - generic [ref=f1e1082]:
+                  - heading "schema-8" [level=3] [ref=f1e1083]
+                  - paragraph [ref=f1e1084]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1085]: collection-8
+                - generic [ref=f1e1086]:
+                  - button "Details" [ref=f1e1087] [cursor=pointer]
+                  - button "Edit" [ref=f1e1092] [cursor=pointer]
+                  - button "View Data" [ref=f1e1094] [cursor=pointer]
+              - article "schema-9 container" [ref=f1e1096]:
+                - generic [ref=f1e1097]:
+                  - heading "schema-9" [level=3] [ref=f1e1098]
+                  - paragraph [ref=f1e1099]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1100]: collection-9
+                - generic [ref=f1e1101]:
+                  - button "Details" [ref=f1e1102] [cursor=pointer]
+                  - button "Edit" [ref=f1e1107] [cursor=pointer]
+                  - button "View Data" [ref=f1e1109] [cursor=pointer]
+              - article "schema-10 container" [ref=f1e1111]:
+                - generic [ref=f1e1112]:
+                  - heading "schema-10" [level=3] [ref=f1e1113]
+                  - paragraph [ref=f1e1114]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1115]: collection-10
+                - generic [ref=f1e1116]:
+                  - button "Details" [ref=f1e1117] [cursor=pointer]
+                  - button "Edit" [ref=f1e1122] [cursor=pointer]
+                  - button "View Data" [ref=f1e1124] [cursor=pointer]
+              - article "schema-11 container" [ref=f1e1126]:
+                - generic [ref=f1e1127]:
+                  - heading "schema-11" [level=3] [ref=f1e1128]
+                  - paragraph [ref=f1e1129]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1130]: collection-11
+                - generic [ref=f1e1131]:
+                  - button "Details" [ref=f1e1132] [cursor=pointer]
+                  - button "Edit" [ref=f1e1137] [cursor=pointer]
+                  - button "View Data" [ref=f1e1139] [cursor=pointer]
+              - article "schema-12 container" [ref=f1e1141]:
+                - generic [ref=f1e1142]:
+                  - heading "schema-12" [level=3] [ref=f1e1143]
+                  - paragraph [ref=f1e1144]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1145]: collection-12
+                - generic [ref=f1e1146]:
+                  - button "Details" [ref=f1e1147] [cursor=pointer]
+                  - button "Edit" [ref=f1e1152] [cursor=pointer]
+                  - button "View Data" [ref=f1e1154] [cursor=pointer]
+              - article "schema-13 container" [ref=f1e1156]:
+                - generic [ref=f1e1157]:
+                  - heading "schema-13" [level=3] [ref=f1e1158]
+                  - paragraph [ref=f1e1159]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1160]: collection-13
+                - generic [ref=f1e1161]:
+                  - button "Details" [ref=f1e1162] [cursor=pointer]
+                  - button "Edit" [ref=f1e1167] [cursor=pointer]
+                  - button "View Data" [ref=f1e1169] [cursor=pointer]
+              - article "schema-14 container" [ref=f1e1171]:
+                - generic [ref=f1e1172]:
+                  - heading "schema-14" [level=3] [ref=f1e1173]
+                  - paragraph [ref=f1e1174]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1175]: collection-14
+                - generic [ref=f1e1176]:
+                  - button "Details" [ref=f1e1177] [cursor=pointer]
+                  - button "Edit" [ref=f1e1182] [cursor=pointer]
+                  - button "View Data" [ref=f1e1184] [cursor=pointer]
+              - article "schema-15 container" [ref=f1e1186]:
+                - generic [ref=f1e1187]:
+                  - heading "schema-15" [level=3] [ref=f1e1188]
+                  - paragraph [ref=f1e1189]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1190]: collection-15
+                - generic [ref=f1e1191]:
+                  - button "Details" [ref=f1e1192] [cursor=pointer]
+                  - button "Edit" [ref=f1e1197] [cursor=pointer]
+                  - button "View Data" [ref=f1e1199] [cursor=pointer]
+              - article "schema-16 container" [ref=f1e1201]:
+                - generic [ref=f1e1202]:
+                  - heading "schema-16" [level=3] [ref=f1e1203]
+                  - paragraph [ref=f1e1204]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1205]: collection-16
+                - generic [ref=f1e1206]:
+                  - button "Details" [ref=f1e1207] [cursor=pointer]
+                  - button "Edit" [ref=f1e1212] [cursor=pointer]
+                  - button "View Data" [ref=f1e1214] [cursor=pointer]
+              - article "schema-17 container" [ref=f1e1216]:
+                - generic [ref=f1e1217]:
+                  - heading "schema-17" [level=3] [ref=f1e1218]
+                  - paragraph [ref=f1e1219]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1220]: collection-17
+                - generic [ref=f1e1221]:
+                  - button "Details" [ref=f1e1222] [cursor=pointer]
+                  - button "Edit" [ref=f1e1227] [cursor=pointer]
+                  - button "View Data" [ref=f1e1229] [cursor=pointer]
+              - article "schema-18 container" [ref=f1e1231]:
+                - generic [ref=f1e1232]:
+                  - heading "schema-18" [level=3] [ref=f1e1233]
+                  - paragraph [ref=f1e1234]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1235]: collection-18
+                - generic [ref=f1e1236]:
+                  - button "Details" [ref=f1e1237] [cursor=pointer]
+                  - button "Edit" [ref=f1e1242] [cursor=pointer]
+                  - button "View Data" [ref=f1e1244] [cursor=pointer]
+              - article "schema-19 container" [ref=f1e1246]:
+                - generic [ref=f1e1247]:
+                  - heading "schema-19" [level=3] [ref=f1e1248]
+                  - paragraph [ref=f1e1249]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1250]: collection-19
+                - generic [ref=f1e1251]:
+                  - button "Details" [ref=f1e1252] [cursor=pointer]
+                  - button "Edit" [ref=f1e1257] [cursor=pointer]
+                  - button "View Data" [ref=f1e1259] [cursor=pointer]
+              - article "schema-20 container" [ref=f1e1261]:
+                - generic [ref=f1e1262]:
+                  - heading "schema-20" [level=3] [ref=f1e1263]
+                  - paragraph [ref=f1e1264]: 3 fields • Regular Container
+                  - paragraph [ref=f1e1265]: collection-20
+                - generic [ref=f1e1266]:
+                  - button "Details" [ref=f1e1267] [cursor=pointer]
+                  - button "Edit" [ref=f1e1272] [cursor=pointer]
+                  - button "View Data" [ref=f1e1274] [cursor=pointer]
+            - navigation "Container pagination" [ref=f1e513]:
+              - paragraph [ref=f1e514]: Showing 1–20 of 40 containers
+              - generic [ref=f1e515]:
+                - generic [ref=f1e516]: Containers per page
+                - combobox "Containers per page" [ref=f1e517]:
+                  - option "10"
+                  - option "20" [selected]
+                  - option "50"
+                - button "Previous" [disabled]
+                - button "Page 1" [ref=f1e518] [cursor=pointer]: "1"
+                - button "Page 2" [ref=f1e519] [cursor=pointer]: "2"
+                - button "Next" [ref=f1e522] [cursor=pointer]
+            - generic [ref=f1e276]:
+              - generic [ref=f1e277]:
+                - generic [ref=f1e278]: "40"
+                - generic [ref=f1e279]: Total Containers
+              - generic [ref=f1e280]:
+                - generic [ref=f1e281]: "1"
+                - generic [ref=f1e282]: Auth Containers
+              - generic [ref=f1e283]:
+                - generic [ref=f1e284]: "120"
+                - generic [ref=f1e285]: Total Fields
+          - generic [ref=f1e286]:
+            - generic [ref=f1e287]:
+              - generic [ref=f1e288]:
+                - generic [ref=f1e289]: 📄
+                - heading "Pages" [level=2] [ref=f1e290]
+              - generic [ref=f1e291]:
+                - button "Create with JSON" [ref=f1e292] [cursor=pointer]
+                - button "Create Page" [ref=f1e298] [cursor=pointer]
+            - generic [ref=f1e303]:
+              - generic [ref=f1e304]: 📄
+              - paragraph [ref=f1e305]: No pages found in this project
+              - button "Create Your First Page" [ref=f1e306] [cursor=pointer]
+          - generic [ref=f1e310]:
+            - generic [ref=f1e316]:
+              - heading "Audit Logs Authorization" [level=2] [ref=f1e317]
+              - paragraph [ref=f1e318]: Audit logs are shown in react-template. Authentication is always required; authorization limits access to selected project roles.
+            - generic [ref=f1e319]:
+              - generic [ref=f1e321]:
+                - generic [ref=f1e322]:
+                  - generic [ref=f1e323]: Require Authorization
+                  - generic [ref=f1e324]: Only selected project roles can open audit logs.
+                - switch [ref=f1e325] [cursor=pointer]
+              - generic [ref=f1e326]:
+                - generic [ref=f1e327]: Current Access
+                - generic [ref=f1e328]:
+                  - generic [ref=f1e329]:
+                    - generic [ref=f1e330]: Authentication
+                    - generic [ref=f1e331]: Required
+                  - generic [ref=f1e332]:
+                    - generic [ref=f1e333]: Authorization
+                    - generic [ref=f1e334]: Disabled
+                  - generic [ref=f1e335]:
+                    - text: Project roles
+                    - generic [ref=f1e336]: No project roles selected
+                - button "Save" [ref=f1e337] [cursor=pointer]
+  - dialog [ref=f1e1626]:
+    - banner [ref=f1e1627]:
+      - generic [ref=f1e1628]:
+        - heading "schema-1 data" [level=2] [ref=f1e1629]
+        - generic [ref=f1e1630]: Read-only records from schema-1
+      - button "Close data viewer" [active] [ref=f1e1631] [cursor=pointer]
+    - generic [ref=f1e1639]:
+      - generic [ref=f1e1640]:
+        - textbox [ref=f1e1644]:
+          - /placeholder: Search
+        - generic [ref=f1e1646]:
+          - generic [ref=f1e1647]: Show Filters
+          - switch [ref=f1e1648] [cursor=pointer]
+      - generic [ref=f1e1650]:
+        - generic [ref=f1e1651]:
+          - heading "schema-1 data" [level=4] [ref=f1e1653]
+          - button [ref=f1e1655] [cursor=pointer]
+        - generic [ref=f1e1659]:
+          - table [ref=f1e1662]:
+            - rowgroup [ref=f1e1663]:
+              - row [ref=f1e1664]:
+                - columnheader "Product ↓" [ref=f1e1665]:
+                  - generic [ref=f1e1666]:
+                    - generic [ref=f1e1667]: Product
+                    - columnheader [ref=f1e1670] [cursor=pointer]:
+                      - paragraph [ref=f1e1672]: ↓
+                - columnheader "Quantity ↓" [ref=f1e1673]:
+                  - generic [ref=f1e1674]:
+                    - generic [ref=f1e1675]: Quantity
+                    - columnheader [ref=f1e1678] [cursor=pointer]:
+                      - paragraph [ref=f1e1680]: ↓
+                - columnheader "Notes ↓" [ref=f1e1681]:
+                  - generic [ref=f1e1682]:
+                    - generic [ref=f1e1683]: Notes
+                    - columnheader [ref=f1e1686] [cursor=pointer]:
+                      - paragraph [ref=f1e1688]: ↓
+            - rowgroup [ref=f1e1689]:
+              - row [ref=f1e1690]:
+                - cell [ref=f1e1691]:
+                  - paragraph [ref=f1e1692]: obj_product_1
+                - cell [ref=f1e1693]:
+                  - paragraph [ref=f1e1694]: "783"
+                - cell [ref=f1e1695]:
+                  - paragraph [ref=f1e1696]: notes 1
+                - cell [ref=f1e1697]
+              - row [ref=f1e1698]:
+                - cell [ref=f1e1699]:
+                  - paragraph [ref=f1e1700]: obj_product_2
+                - cell [ref=f1e1701]:
+                  - paragraph [ref=f1e1702]: "979"
+                - cell [ref=f1e1703]:
+                  - paragraph [ref=f1e1704]: notes 2
+                - cell [ref=f1e1705]
+              - row [ref=f1e1706]:
+                - cell [ref=f1e1707]:
+                  - paragraph [ref=f1e1708]: obj_product_3
+                - cell [ref=f1e1709]:
+                  - paragraph [ref=f1e1710]: "826"
+                - cell [ref=f1e1711]:
+                  - paragraph [ref=f1e1712]: notes 3
+                - cell [ref=f1e1713]
+              - row [ref=f1e1714]:
+                - cell [ref=f1e1715]:
+                  - paragraph [ref=f1e1716]: obj_product_4
+                - cell [ref=f1e1717]:
+                  - paragraph [ref=f1e1718]: "247"
+                - cell [ref=f1e1719]:
+                  - paragraph [ref=f1e1720]: notes 4
+                - cell [ref=f1e1721]
+              - row [ref=f1e1722]:
+                - cell [ref=f1e1723]:
+                  - paragraph [ref=f1e1724]: obj_product_5
+                - cell [ref=f1e1725]:
+                  - paragraph [ref=f1e1726]: "654"
+                - cell [ref=f1e1727]:
+                  - paragraph [ref=f1e1728]: notes 5
+                - cell [ref=f1e1729]
+              - row [ref=f1e1730]:
+                - cell [ref=f1e1731]:
+                  - paragraph [ref=f1e1732]: obj_product_6
+                - cell [ref=f1e1733]:
+                  - paragraph [ref=f1e1734]: "767"
+                - cell [ref=f1e1735]:
+                  - paragraph [ref=f1e1736]: notes 6
+                - cell [ref=f1e1737]
+              - row [ref=f1e1738]:
+                - cell [ref=f1e1739]:
+                  - paragraph [ref=f1e1740]: obj_product_7
+                - cell [ref=f1e1741]:
+                  - paragraph [ref=f1e1742]: "809"
+                - cell [ref=f1e1743]:
+                  - paragraph [ref=f1e1744]: notes 7
+                - cell [ref=f1e1745]
+              - row [ref=f1e1746]:
+                - cell [ref=f1e1747]:
+                  - paragraph [ref=f1e1748]: obj_product_8
+                - cell [ref=f1e1749]:
+                  - paragraph [ref=f1e1750]: "98"
+                - cell [ref=f1e1751]:
+                  - paragraph [ref=f1e1752]: notes 8
+                - cell [ref=f1e1753]
+              - row [ref=f1e1754]:
+                - cell [ref=f1e1755]:
+                  - paragraph [ref=f1e1756]: obj_product_9
+                - cell [ref=f1e1757]:
+                  - paragraph [ref=f1e1758]: "590"
+                - cell [ref=f1e1759]:
+                  - paragraph [ref=f1e1760]: notes 9
+                - cell [ref=f1e1761]
+              - row [ref=f1e1762]:
+                - cell [ref=f1e1763]:
+                  - paragraph [ref=f1e1764]: obj_product_10
+                - cell [ref=f1e1765]:
+                  - paragraph [ref=f1e1766]: "301"
+                - cell [ref=f1e1767]:
+                  - paragraph [ref=f1e1768]: notes 10
+                - cell [ref=f1e1769]
+          - generic [ref=f1e1770]:
+            - generic [ref=f1e1771]:
+              - paragraph [ref=f1e1772]: "Rows per page:"
+              - combobox [ref=f1e1773] [cursor=pointer]:
+                - option "10" [selected]
+                - option "20"
+                - option "50"
+                - option "ALL"
+            - generic [ref=f1e1774]:
+              - paragraph [ref=f1e1775]: 1–10 of 10
+              - generic [ref=f1e1776]:
+                - button "<" [disabled]
+                - button ">" [disabled]
+    - contentinfo [ref=f1e1777]:
+      - button "Close" [ref=f1e1779] [cursor=pointer]

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
+import { FiCheck, FiCode, FiCopy, FiDownload, FiUpload } from "react-icons/fi";
 import { PageDesigner } from "../components/PageDesigner/PageDesigner";
+import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import { GridSection } from "../types/page";
 import type { PageFilterDefinition } from "../utils/api/page";
 
@@ -55,180 +57,65 @@ export const PageDesignerPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-50">
-      {/* Modern Header - Fixed with blur */}
-      <div className="sticky top-0 z-20 border-b border-neutral-200 bg-white/95 backdrop-blur-xl shadow-sm">
-        <div className="px-8 lg:px-12">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 via-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-base font-semibold text-neutral-900 tracking-tight">
-                  Page Designer
-                </h1>
-                <p className="text-xs text-neutral-500">
-                  Build your page structure
-                </p>
-              </div>
-            </div>
-
+    <div className="flex h-screen min-h-0 flex-col bg-ui-canvas font-ui">
+      <header className="z-20 border-b border-ui-border bg-ui-surface">
+        <div className="flex min-h-16 flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowJson(!showJson)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                  />
-                </svg>
-                <span>{showJson ? "Hide" : "Show"} JSON</span>
-              </button>
-
-              <label className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95 cursor-pointer">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
-                <span>Import</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImport}
-                  className="hidden"
-                />
-              </label>
-
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all active:scale-95"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                  />
-                </svg>
-                <span>Export</span>
-              </button>
-
-              <div className="w-px h-6 bg-neutral-200 mx-1" />
-
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-500 hover:bg-violet-600 rounded-lg transition-all active:scale-95 shadow-sm"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span>Save Page</span>
-              </button>
+              <h1 className="text-lg font-semibold tracking-tight text-ui-foreground">Page Designer</h1>
+              <span className="rounded-full bg-ui-subtle px-2 py-0.5 text-xs font-medium text-ui-muted">
+                {sections.length} section{sections.length !== 1 ? "s" : ""}
+              </span>
             </div>
+            <p className="mt-0.5 text-sm text-ui-muted">Compose the page grid, data components, and filters.</p>
+          </div>
+
+          <div role="toolbar" aria-label="Page designer actions" className="flex flex-wrap items-center gap-1.5">
+            <GenericButton variant="ghost" size="sm" onClick={() => setShowJson(!showJson)} iconLeft={<FiCode size={15} />}>
+              {showJson ? "Hide JSON" : "View JSON"}
+            </GenericButton>
+            <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 focus-within:ring-2 focus-within:ring-ui-focus">
+              <FiUpload size={15} aria-hidden="true" />
+              Import
+              <input type="file" accept=".json" onChange={handleImport} className="sr-only" />
+            </label>
+            <GenericButton variant="ghost" size="sm" onClick={handleExport} iconLeft={<FiDownload size={15} />}>
+              Export
+            </GenericButton>
+            <span className="mx-1 hidden h-5 w-px bg-ui-border sm:block" aria-hidden="true" />
+            <GenericButton size="sm" onClick={handleSave} iconLeft={<FiCheck size={15} />} data-primary-action="true">
+              Save page
+            </GenericButton>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* JSON Preview */}
       {showJson && (
-        <div className="border-b border-neutral-200 bg-neutral-900 shadow-lg animate-slide-in">
-          <div className="px-8 lg:px-12 py-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-emerald-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                  />
-                </svg>
-                <h3 className="text-sm font-semibold text-neutral-100">
-                  Page Structure JSON
-                </h3>
-              </div>
-              <button
+        <section aria-labelledby="page-json-title" className="border-b border-neutral-800 bg-neutral-950">
+          <div className="px-4 py-4 sm:px-6 lg:px-8">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="page-json-title" className="text-sm font-semibold text-neutral-100">Page structure JSON</h2>
+              <GenericButton
                 onClick={() => {
                   navigator.clipboard.writeText(
                     JSON.stringify({ sections, filters }, null, 2)
                   );
                   toast.success("Copied to clipboard!");
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-all active:scale-95"
+                variant="ghost"
+                size="sm"
+                className="text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                iconLeft={<FiCopy size={14} />}
               >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                <span>Copy to clipboard</span>
-              </button>
+                Copy
+              </GenericButton>
             </div>
-            <pre className="text-xs text-emerald-300 overflow-auto max-h-64 bg-neutral-950 rounded-xl p-4 border border-neutral-800 font-mono shadow-inner">
+            <pre className="max-h-56 overflow-auto rounded-ui-md border border-neutral-800 bg-neutral-900 p-3 font-mono text-xs text-emerald-300">
               {JSON.stringify({ sections, filters }, null, 2)}
             </pre>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Page Designer */}

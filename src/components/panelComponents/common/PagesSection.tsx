@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiPlus } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiChevronDown, FiCode, FiInfo, FiLayout, FiMoreHorizontal, FiNavigation, FiPlus, FiSettings } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserContext } from "../../../context/User.context";
 import {
@@ -26,7 +27,19 @@ import { GenericButton } from "../FormElements/GenericButton";
 import { CreatePageModal } from "../Modals/CreatePageModal";
 import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
 import { PageDetailsModal } from "../Modals/PageDetailsModal";
-import { H2 } from "../Typography";
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  EmptyState,
+  PageActions,
+  Section,
+  SectionHeader,
+} from "../../../components/ui";
+import { cn } from "../../../utils/cn";
 
 export const PagesSection: React.FC = () => {
   const { t } = useTranslation();
@@ -39,8 +52,18 @@ export const PagesSection: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<PageModel | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
+  const [editorTab, setEditorTab] = useState<"content" | "navigation" | "settings">("content");
   const { updatePage, updatePageAsync, isUpdating } = useUpdatePage();
   const { createPage, isCreating } = useCreatePage();
+
+  useEffect(() => {
+    if (!showDesigner) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showDesigner]);
 
   // Get pages for the current project with error handling
   let pages: PageModel[] = [];
@@ -125,6 +148,7 @@ export const PagesSection: React.FC = () => {
 
   const handleEditPage = (page: PageModel) => {
     setEditingPage(page);
+    setEditorTab("content");
     setShowDesigner(true);
   };
 
@@ -277,13 +301,14 @@ export const PagesSection: React.FC = () => {
   const handleCancelDesigner = () => {
     setShowDesigner(false);
     setEditingPage(null);
+    setEditorTab("content");
   };
 
-  const getPageTypeColor = (page: PageModel) => {
-    if (page.isGroupOnly) return "bg-gray-100 text-gray-800";
-    if (page.isAuthorized) return "bg-red-100 text-red-800";
-    if (page.isAuthenticated) return "bg-yellow-100 text-yellow-800";
-    return "bg-green-100 text-green-800";
+  const getPageTypeBadgeVariant = (page: PageModel): "neutral" | "danger" | "warning" | "success" => {
+    if (page.isGroupOnly) return "neutral";
+    if (page.isAuthorized) return "danger";
+    if (page.isAuthenticated) return "warning";
+    return "success";
   };
 
   const getPageTypeLabel = (page: PageModel) => {
@@ -294,41 +319,90 @@ export const PagesSection: React.FC = () => {
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <div className="text-2xl mr-3">📄</div>
-          <H2 className="text-lg font-semibold text-gray-900">{t("Pages")}</H2>
-        </div>
-        {canCreatePages && (
-          <div className="flex gap-2">
+    <Section aria-labelledby="pages-heading">
+      <SectionHeader
+        title={<span id="pages-heading">{t("Pages")}</span>}
+        description={t("Manage project page views, navigation, and layouts")}
+        actions={canCreatePages ? (
+          <PageActions aria-label={t("Page actions")}>
             <GenericButton
               size="sm"
               variant="outline"
+              className="h-8 rounded-ui-md border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-foreground shadow-ui-sm hover:border-ui-border-strong hover:bg-ui-surface-subtle"
               onClick={() => setIsCreateJsonModalOpen(true)}
-              iconLeft={<FiCode size={16} />}
+              iconLeft={<FiCode size={14} className="text-ui-muted" />}
             >
               {t("Create with JSON")}
             </GenericButton>
             <GenericButton
               size="sm"
+              className="h-8 rounded-ui-md bg-ui-primary px-3.5 text-xs font-medium text-white shadow-ui-sm hover:bg-ui-primary-hover"
               onClick={() => setIsCreateModalOpen(true)}
-              iconLeft={<FiPlus size={16} />}
+              iconLeft={<FiPlus size={14} />}
+              data-primary-action="true"
             >
               {t("Create Page")}
             </GenericButton>
+          </PageActions>
+        ) : undefined}
+      />
+
+      {/* Page Statistics Strip */}
+      {orderedPages && orderedPages.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-ui-md border border-ui-border bg-ui-surface-subtle px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-ui-primary">
+              {orderedPages.length}
+            </span>
+            <span className="text-xs font-medium text-ui-muted">
+              {t("Total Pages")}
+            </span>
           </div>
-        )}
-      </div>
+          <div className="h-4 w-px bg-ui-border" />
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-ui-success">
+              {
+                orderedPages.filter(
+                  (p) => !p.isAuthenticated && !p.isAuthorized,
+                ).length
+              }
+            </span>
+            <span className="text-xs font-medium text-ui-muted">
+              {t("Public Pages")}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-ui-border" />
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-ui-warning">
+              {orderedPages.filter((p) => p.isAuthenticated).length}
+            </span>
+            <span className="text-xs font-medium text-ui-muted">
+              {t("Auth Pages")}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-ui-border" />
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-[hsl(var(--ui-info))]">
+              {orderedPages.reduce(
+                (total, p) => total + (p.sections?.length || 0),
+                0,
+              )}
+            </span>
+            <span className="text-xs font-medium text-ui-muted">
+              {t("Total Sections")}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Page List */}
       <div className="space-y-3">
         {error ? (
           <div className="text-center py-8">
-            <div className="text-gray-400 text-6xl mb-4">⚠️</div>
-            <p className="text-gray-500 mb-4">
+            <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
+            <p className="text-ui-muted mb-4">
               {t(
-                "Unable to load pages. Make sure you're in a project context."
+                "Unable to load pages. Make sure you're in a project context.",
               )}
             </p>
           </div>
@@ -342,212 +416,211 @@ export const PagesSection: React.FC = () => {
             return (
               <div
                 key={pageId}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                className="group flex flex-col gap-3 rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 shadow-ui-sm transition-all hover:border-ui-border-strong hover:shadow-md sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
                 onClick={() => handleViewPage(page)}
               >
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     {IconComponent && (
-                      <div className="text-lg text-gray-700">
-                        <IconComponent />
-                      </div>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-ui-surface-subtle text-ui-foreground">
+                        <IconComponent className="h-3.5 w-3.5" />
+                      </span>
                     )}
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {page.name}
-                      </h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {page.slug && (
-                          <p className="text-xs text-gray-400 font-mono">
-                            /{page.slug}
-                          </p>
-                        )}
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPageTypeColor(
-                            page
-                          )}`}
-                        >
-                          {getPageTypeLabel(page)}
+                    <h3 className="text-sm font-semibold text-ui-foreground group-hover:text-ui-primary transition-colors">
+                      {page.name}
+                    </h3>
+                    {page.slug && (
+                      <span className="rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-xs text-ui-muted">
+                        /{page.slug}
+                      </span>
+                    )}
+                    <Badge
+                      variant={getPageTypeBadgeVariant(page)}
+                      className="text-[11px]"
+                    >
+                      {getPageTypeLabel(page)}
+                    </Badge>
+                    {page.isOnSidebar === false && (
+                      <Badge variant="neutral" className="text-[11px]">
+                        {t("Hidden from sidebar")}
+                      </Badge>
+                    )}
+                    {page.isMainPage && (
+                      <Badge variant="info" className="text-[11px]">
+                        {t("Main page")}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ui-muted">
+                    <span>
+                      {(page.sections || []).length} {t("sections")}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {page.authorizeRole && page.authorizeRole.length > 0
+                        ? page.authorizeRole.join(", ")
+                        : t("No role restrictions")}
+                    </span>
+                    {parentPage && (
+                      <>
+                        <span>•</span>
+                        <span>
+                          {t("Parent")}:{" "}
+                          <strong className="font-medium text-ui-foreground">
+                            {parentPage.name}
+                          </strong>
                         </span>
-                        {page.isOnSidebar === false && (
-                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                            {t("Hidden from sidebar")}
-                          </span>
-                        )}
-                        {page.isMainPage && (
-                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                            {t("Main page")}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {(page.sections || []).length} {t("sections")} •
-                        {page.authorizeRole && page.authorizeRole.length > 0
-                          ? ` ${page.authorizeRole.join(", ")}`
-                          : ` ${t("No role restrictions")}`}
-                      </p>
-                      {parentPage && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {t("Parent")}: {parentPage.name}
-                        </p>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
+
                 <div
-                  className="flex items-center space-x-2"
+                  className="flex flex-wrap items-center gap-2.5 sm:gap-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <select
-                    value={page.parentPageId || ""}
-                    onChange={(e) =>
-                      handleParentPageChange(page, e.target.value)
-                    }
-                    className="w-44 px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">{t("No parent")}</option>
-                    {parentPageOptions.map((parentOption) => {
-                      const parentOptionId = getPageId(parentOption);
-                      return (
-                        <option key={parentOptionId} value={parentOptionId}>
-                          {parentOption.name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={page.isOnSidebar !== false}
-                      onChange={(e) =>
-                        handleSidebarVisibilityChange(page, e.target.checked)
-                      }
-                      className="h-3.5 w-3.5 rounded border-gray-300"
-                    />
-                    {t("Sidebar")}
-                  </label>
-                  <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={page.isMainPage === true}
-                      disabled={page.isGroupOnly === true}
-                      onChange={(e) =>
-                        handleMainPageChange(page, e.target.checked)
-                      }
-                      className="h-3.5 w-3.5 rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                    {t("Main")}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleMovePage(pageIndex, "up")}
-                    disabled={pageIndex === 0}
-                    title={t("Move up")}
-                    className="rounded-md border border-gray-300 p-1.5 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <FiArrowUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMovePage(pageIndex, "down")}
-                    disabled={pageIndex === orderedPages.length - 1}
-                    title={t("Move down")}
-                    className="rounded-md border border-gray-300 p-1.5 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <FiArrowDown size={14} />
-                  </button>
-                  <GenericButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewPage(page)}
-                    iconLeft={<FiInfo size={12} />}
-                  >
-                    {t("Details")}
-                  </GenericButton>
-                  <GenericButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditPage(page)}
-                  >
-                    {t("Edit")}
-                  </GenericButton>
-                  <GenericButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingJsonPage(page)}
-                    iconLeft={<FiCode size={12} />}
-                  >
-                    {t("Edit with JSON")}
-                  </GenericButton>
-                  <GenericButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Navigate to page preview in the same tab
-                      navigate(`/page-preview/${page.id}`);
-                    }}
-                  >
-                    {t("Preview")}
-                  </GenericButton>
+                  {/* Utility Controls Group: Parent selector + Navigation placement */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Parent page selector */}
+                    <div className="relative inline-flex items-center">
+                      <select
+                        aria-label={t("Parent page")}
+                        value={page.parentPageId || ""}
+                        onChange={(e) =>
+                          handleParentPageChange(page, e.target.value)
+                        }
+                        className="h-8 max-w-[140px] appearance-none rounded-ui-md border border-ui-border bg-ui-surface-subtle pl-2.5 pr-7 text-xs font-normal text-ui-muted hover:border-ui-border-strong hover:text-ui-foreground focus:border-ui-primary focus:outline-none focus:ring-1 focus:ring-ui-primary cursor-pointer transition-colors truncate"
+                      >
+                        <option value="">{t("No parent")}</option>
+                        {parentPageOptions.map((parentOption) => {
+                          const parentOptionId = getPageId(parentOption);
+                          return (
+                            <option key={parentOptionId} value={parentOptionId}>
+                              {parentOption.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <FiChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-ui-muted" />
+                    </div>
+
+                    {/* Navigation placement controls (compact segmented pill) */}
+                    <div className="inline-flex h-8 items-center gap-2 rounded-ui-md border border-ui-border/70 bg-ui-surface-subtle/60 px-2 text-xs">
+                      <label className="flex items-center gap-1.5 cursor-pointer font-normal text-ui-muted hover:text-ui-foreground select-none transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={page.isOnSidebar !== false}
+                          onChange={(e) =>
+                            handleSidebarVisibilityChange(page, e.target.checked)
+                          }
+                          className="h-3.5 w-3.5 rounded border-ui-border text-ui-primary focus:ring-ui-primary"
+                        />
+                        <span>{t("Sidebar")}</span>
+                      </label>
+                      <div className="h-3 w-px bg-ui-border" />
+                      <label
+                        className={cn(
+                          "flex items-center gap-1.5 select-none transition-colors",
+                          page.isGroupOnly
+                            ? "cursor-not-allowed text-ui-muted/50"
+                            : "cursor-pointer font-normal text-ui-muted hover:text-ui-foreground",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={page.isMainPage === true}
+                          disabled={page.isGroupOnly === true}
+                          onChange={(e) =>
+                            handleMainPageChange(page, e.target.checked)
+                          }
+                          className="h-3.5 w-3.5 rounded border-ui-border text-ui-primary focus:ring-ui-primary disabled:cursor-not-allowed"
+                        />
+                        <span>{t("Main")}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Subtle divider between utility controls and primary row actions */}
+                  <div className="hidden h-4 w-px bg-ui-border/70 lg:block" />
+
+                  {/* Actions Group: Edit (subtle outline), Preview (ghost), ⋯ (icon-only borderless) */}
+                  <div className="flex items-center gap-1">
+                    <GenericButton
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-xs font-medium text-ui-foreground shadow-none hover:border-ui-border-strong hover:bg-ui-surface-subtle"
+                      onClick={() => handleEditPage(page)}
+                    >
+                      {t("Edit")}
+                    </GenericButton>
+
+                    <GenericButton
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2.5 text-xs font-normal text-ui-muted shadow-none hover:bg-ui-surface-subtle hover:text-ui-foreground"
+                      onClick={() => navigate(`/page-preview/${page.id}`)}
+                    >
+                      {t("Preview")}
+                    </GenericButton>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="h-8 w-8 border-transparent bg-transparent p-0 shadow-none text-ui-muted hover:border-transparent hover:text-ui-foreground hover:bg-ui-surface-subtle inline-flex items-center justify-center rounded-ui-md"
+                        aria-label={t("More options")}
+                      >
+                        <FiMoreHorizontal size={16} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => handleViewPage(page)}>
+                          <FiInfo className="h-3.5 w-3.5 text-ui-muted" />
+                          <span>{t("Details")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingJsonPage(page)}>
+                          <FiCode className="h-3.5 w-3.5 text-ui-muted" />
+                          <span>{t("Edit with JSON")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          disabled={pageIndex === 0}
+                          onClick={() => handleMovePage(pageIndex, "up")}
+                        >
+                          <FiArrowUp className="h-3.5 w-3.5 text-ui-muted" />
+                          <span>{t("Move up")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={pageIndex === orderedPages.length - 1}
+                          onClick={() => handleMovePage(pageIndex, "down")}
+                        >
+                          <FiArrowDown className="h-3.5 w-3.5 text-ui-muted" />
+                          <span>{t("Move down")}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-6xl mb-4">📄</div>
-            <p className="text-gray-500 mb-4">
-              {t("No pages found in this project")}
-            </p>
-            {canCreatePages && (
-              <GenericButton
-                onClick={() => setIsCreateModalOpen(true)}
-                iconLeft={<FiPlus size={16} />}
-              >
-                {t("Create Your First Page")}
-              </GenericButton>
+          <EmptyState
+            title={t("No pages found in this project")}
+            description={t(
+              "Create a page to build navigation and layouts for your users.",
             )}
-          </div>
+            action={
+              canCreatePages ? (
+                <GenericButton
+                  onClick={() => setIsCreateModalOpen(true)}
+                  iconLeft={<FiPlus size={16} />}
+                  data-primary-action="true"
+                >
+                  {t("Create Your First Page")}
+                </GenericButton>
+              ) : undefined
+            }
+          />
         )}
       </div>
-
-      {/* Page Statistics */}
-      {orderedPages && orderedPages.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {orderedPages.length}
-              </div>
-              <div className="text-xs text-gray-500">{t("Total Pages")}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">
-                {
-                  orderedPages.filter((p) => !p.isAuthenticated && !p.isAuthorized)
-                    .length
-                }
-              </div>
-              <div className="text-xs text-gray-500">{t("Public Pages")}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {orderedPages.filter((p) => p.isAuthenticated).length}
-              </div>
-              <div className="text-xs text-gray-500">{t("Auth Pages")}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-600">
-                {orderedPages.reduce(
-                  (total, p) => total + (p.sections?.length || 0),
-                  0
-                )}
-              </div>
-              <div className="text-xs text-gray-500">{t("Total Sections")}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create Page Modal */}
       <CreatePageModal
@@ -601,101 +674,41 @@ export const PagesSection: React.FC = () => {
       )}
 
       {/* Page Designer Modal */}
-      {showDesigner && editingPage && (
-        <div className="fixed inset-0 bg-white z-50 overflow-hidden">
-          <div className="h-full flex flex-col">
-            {/* Designer Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-end justify-between gap-6">
-              <div className="flex min-w-0 flex-1 items-end gap-4">
-                <div className="min-w-0 flex-1 max-w-sm">
-                  <label
-                    htmlFor="page-designer-name"
-                    className="mb-1 block text-xs font-medium text-gray-600"
-                  >
-                    {t("Page Name")}
-                  </label>
-                  <input
-                    id="page-designer-name"
-                    type="text"
-                    value={editingPage.name}
-                    onChange={(event) =>
-                      setEditingPage((currentPage) =>
-                        currentPage
-                          ? updatePageEditorMetadata(
-                              currentPage,
-                              "name",
-                              event.target.value,
-                            )
-                          : currentPage,
-                      )
-                    }
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1 max-w-sm">
-                  <label
-                    htmlFor="page-designer-icon"
-                    className="mb-1 block text-xs font-medium text-gray-600"
-                  >
-                    {t("Page Icon")}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const PageIcon = getIconByName(
-                        editingPage.icon || "MdSpaceDashboard",
-                      );
-                      return <PageIcon className="h-5 w-5 shrink-0 text-gray-700" />;
-                    })()}
-                    <select
-                      id="page-designer-icon"
-                      value={editingPage.icon || "MdSpaceDashboard"}
-                      onChange={(event) =>
-                        setEditingPage((currentPage) =>
-                          currentPage
-                            ? updatePageEditorMetadata(
-                                currentPage,
-                                "icon",
-                                event.target.value,
-                              )
-                            : currentPage,
-                        )
-                      }
-                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    >
-                      {PAGE_ICON_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label} ({option.value})
-                        </option>
-                      ))}
-                    </select>
+      {showDesigner && editingPage && createPortal(
+        <div data-testid="page-editor-workspace" className="fixed inset-0 z-[100] overflow-hidden bg-ui-page font-ui">
+          <div className="flex h-full min-h-0 flex-col">
+            <header className="shrink-0 border-b border-ui-border bg-ui-surface">
+              <div className="overflow-x-auto">
+                <div data-testid="page-editor-toolbar" className="flex h-14 min-w-[760px] items-center gap-5 px-4 sm:px-5">
+                  <div className="flex min-w-0 w-48 shrink-0 items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ui-md bg-ui-subtle text-ui-muted"><FiLayout className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                    <h1 className="truncate text-sm font-semibold text-ui-foreground">{editingPage.name}</h1>
+                  </div>
+                  <div role="tablist" aria-label="Page editor sections" className="flex h-full min-w-max flex-1 items-center gap-1">
+                  {([[
+                    "content", "Content", FiLayout,
+                  ], ["navigation", "Navigation", FiNavigation], ["settings", "Page settings", FiSettings]] as const).map(([value, label, Icon]) => (
+                    <button key={value} type="button" role="tab" id={`page-editor-tab-${value}`} aria-controls={`page-editor-panel-${value}`} aria-selected={editorTab === value} tabIndex={editorTab === value ? 0 : -1} onClick={() => setEditorTab(value)} className={`inline-flex h-8 items-center gap-1.5 rounded-ui-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${editorTab === value ? "bg-ui-subtle text-ui-foreground" : "text-ui-muted hover:bg-ui-subtle/70 hover:text-ui-foreground"}`}>
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />{label}
+                    </button>
+                  ))}
+                  </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-ui-border pl-4">
+                    <GenericButton variant="ghost" size="sm" onClick={handleCancelDesigner}>{t("Cancel")}</GenericButton>
+                    <GenericButton size="sm" disabled={!editingPage.name.trim()} data-primary-action="true" onClick={() => handleSavePageStructure(editingPage.sections || [])}>{t("Save Page")}</GenericButton>
                   </div>
                 </div>
-
-                <div className="pb-2 text-sm text-gray-500">
-                  {editingPage.slug && `/${editingPage.slug}`}
-                </div>
               </div>
+            </header>
 
-              <div className="flex items-center gap-3">
-                <GenericButton variant="outline" onClick={handleCancelDesigner}>
-                  {t("Cancel")}
-                </GenericButton>
-
-                <GenericButton
-                  disabled={!editingPage.name.trim()}
-                  onClick={() =>
-                    handleSavePageStructure(editingPage.sections || [])
-                  }
-                >
-                  {t("Save Page")}
-                </GenericButton>
-              </div>
-            </div>
-
-            {/* Page Designer */}
-            <div className="flex-1 overflow-hidden">
-              <div className="max-h-[46vh] overflow-y-auto border-b border-neutral-200 bg-white p-5">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {editorTab === "navigation" && (
+              <div role="tabpanel" id="page-editor-panel-navigation" aria-labelledby="page-editor-tab-navigation" className="h-full overflow-y-auto p-4 sm:p-6">
+                <div className="mx-auto max-w-5xl">
+                  <div className="mb-5">
+                    <h2 className="text-lg font-semibold text-ui-foreground">Navigation</h2>
+                    <p className="mt-1 text-sm text-ui-muted">Control how this page appears in its hierarchy and header.</p>
+                  </div>
                 <PageNavigatorEditor
                   value={editingPage.pageNavigator}
                   currentPageId={getPageId(editingPage)}
@@ -714,7 +727,42 @@ export const PagesSection: React.FC = () => {
                     )
                   }
                 />
+                </div>
               </div>
+              )}
+              {editorTab === "settings" && (
+                <div role="tabpanel" id="page-editor-panel-settings" aria-labelledby="page-editor-tab-settings" className="h-full overflow-y-auto p-4 sm:p-6">
+                  <div className="mx-auto max-w-3xl">
+                    <div className="mb-5">
+                      <h2 className="text-lg font-semibold text-ui-foreground">Page settings</h2>
+                      <p className="mt-1 text-sm text-ui-muted">Edit the identity shown in project navigation.</p>
+                    </div>
+                    <section className="rounded-ui-lg border border-ui-border bg-ui-surface p-5 sm:p-6">
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="space-y-1.5 text-sm font-medium text-ui-foreground">
+                          {t("Page Name")}
+                          <input id="page-designer-name" type="text" value={editingPage.name} onChange={(event) => setEditingPage((currentPage) => currentPage ? updatePageEditorMetadata(currentPage, "name", event.target.value) : currentPage)} className="w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-ui-focus" />
+                        </label>
+                        <label className="space-y-1.5 text-sm font-medium text-ui-foreground">
+                          {t("Page Icon")}
+                          <div className="flex items-center gap-2">
+                            {(() => { const PageIcon = getIconByName(editingPage.icon || "MdSpaceDashboard"); return <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ui-md border border-ui-border bg-ui-subtle"><PageIcon className="h-5 w-5 text-ui-foreground" /></span>; })()}
+                            <select id="page-designer-icon" value={editingPage.icon || "MdSpaceDashboard"} onChange={(event) => setEditingPage((currentPage) => currentPage ? updatePageEditorMetadata(currentPage, "icon", event.target.value) : currentPage)} className="w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-ui-focus">
+                              {PAGE_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} ({option.value})</option>)}
+                            </select>
+                          </div>
+                        </label>
+                      </div>
+                      <div className="mt-5 border-t border-ui-border pt-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-ui-muted">Page URL</div>
+                        <div className="mt-1 font-mono text-sm text-ui-foreground">/{editingPage.slug || "—"}</div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              )}
+              {editorTab === "content" && (
+              <div role="tabpanel" id="page-editor-panel-content" aria-labelledby="page-editor-tab-content" className="h-full">
               <PageDesigner
                 sections={
                   (editingPage.sections
@@ -754,9 +802,12 @@ export const PagesSection: React.FC = () => {
                   });
                 }}
               />
+              </div>
+              )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Page Details Modal */}
@@ -766,6 +817,6 @@ export const PagesSection: React.FC = () => {
         page={selectedPage}
         onEdit={handleEditPage}
       />
-    </div>
+    </Section>
   );
 };

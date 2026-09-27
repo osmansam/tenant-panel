@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiPlus, FiTrash2, FiX } from "react-icons/fi";
+import { FiPlus, FiTrash2 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { Field, useGetContainers } from "../../../utils/api/container";
 import { buildPopulationSettings } from "../../../utils/populationSettingsValidation";
+import { WorkspaceDialog } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -14,6 +15,7 @@ interface AddFieldModalProps {
   onClose: () => void;
   onAddField: (field: Field) => boolean | Promise<boolean>;
   containerFields?: Field[];
+  containerName?: string;
   editField?: Field | null;
 }
 
@@ -121,6 +123,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   onClose,
   onAddField,
   containerFields = [],
+  containerName,
   editField = null,
 }) => {
   const { t } = useTranslation();
@@ -544,34 +547,48 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   if (!isOpen) return null;
 
+  const dialogTitle = editField
+    ? t("Edit field: {{fieldName}}", { fieldName: editField.name })
+    : t("Add field to {{containerName}}", {
+        containerName: containerName || t("container"),
+      });
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={handleClose}
-        />
-
-        {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {editField ? t("Edit Field") : t("Add New Field")}
-            </h3>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <FiX size={20} />
-            </button>
-          </div>
-
-          {/* Form */}
-          <div className="space-y-6 max-h-96 overflow-y-auto">
-            {/* Basic Field Information */}
-            <div className="grid grid-cols-2 gap-4">
+    <WorkspaceDialog
+      open={isOpen}
+      onClose={handleClose}
+      title={dialogTitle}
+      description={
+        containerName
+          ? t("Container: {{containerName}}", { containerName })
+          : undefined
+      }
+      size="large"
+      layer="nested"
+      footer={
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <GenericButton variant="outline" onClick={handleClose}>
+            {t("Cancel")}
+          </GenericButton>
+          <GenericButton onClick={handleSubmit} data-primary-action="true">
+            {editField ? t("Update Field") : t("Add Field")}
+          </GenericButton>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        <section
+          aria-labelledby="field-basic-heading"
+          className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+        >
+          <h3
+            id="field-basic-heading"
+            className="mb-4 text-base font-semibold text-ui-foreground"
+          >
+            {t("Basic information")}
+          </h3>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <TextInput
                 label={t("Field Name")}
                 type="text"
@@ -676,15 +693,23 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 </p>
               </div>
             )}
+          </div>
+        </section>
 
             {/* Child Fields (for object/array types) */}
             {canHaveChildFields && (
-              <div className="border-t pt-4">
+              <section
+                aria-labelledby="field-nested-heading"
+                className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">
+                    <h3
+                      id="field-nested-heading"
+                      className="text-base font-semibold text-ui-foreground"
+                    >
                       {t("Child Fields")}
-                    </h4>
+                    </h3>
                     <p className="text-xs text-gray-500 mt-1">
                       {fieldData.type === "array"
                         ? t(
@@ -871,15 +896,21 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     </p>
                   )}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* Field Properties */}
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">
-                {t("Field Properties")}
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
+            <section
+              aria-labelledby="field-advanced-heading"
+              className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+            >
+              <h3
+                id="field-advanced-heading"
+                className="mb-3 text-base font-semibold text-ui-foreground"
+              >
+                {t("Advanced properties")}
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t("Unique")}
@@ -942,16 +973,22 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   />
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* Population Settings (for objectId/objectIdArray types) */}
             {(fieldData.type === "objectId" ||
               fieldData.type === "objectIdArray") &&
               fieldData.objectSchemaName && (
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">
-                    {t("Population Settings")}
-                  </h4>
+                <section
+                  aria-labelledby="field-relationship-heading"
+                  className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+                >
+                  <h3
+                    id="field-relationship-heading"
+                    className="mb-3 text-base font-semibold text-ui-foreground"
+                  >
+                    {t("Relationship and population")}
+                  </h3>
                   <div className="space-y-4">
                     <TextInput
                       label={t(
@@ -1026,15 +1063,21 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       placeholder="e.g., Category Quantity"
                     />
                   </div>
-                </div>
+                </section>
               )}
 
             {/* Validation Rules */}
-            <div className="border-t pt-4">
+            <section
+              aria-labelledby="field-validation-heading"
+              className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+            >
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-gray-900">
-                  {t("Validation Rules")}
-                </h4>
+                <h3
+                  id="field-validation-heading"
+                  className="text-base font-semibold text-ui-foreground"
+                >
+                  {t("Validation")}
+                </h3>
                 <GenericButton
                   variant="outline"
                   size="sm"
@@ -1140,7 +1183,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   </p>
                 )}
               </div>
-            </div>
+            </section>
 
             {/* Generated Tag Preview */}
             {validationRules.length > 0 && (
@@ -1155,19 +1198,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={handleClose}>
-              {t("Cancel")}
-            </GenericButton>
-            <GenericButton onClick={handleSubmit}>
-              {editField ? t("Update Field") : t("Add Field")}
-            </GenericButton>
-          </div>
-        </div>
       </div>
-    </div>
+    </WorkspaceDialog>
   );
 };

@@ -6,7 +6,7 @@ type Props = { summaries: FormSummaryConfig[]; values: FormElementsState; area: 
 const DynamicFormSummary = ({ summaries, values, area }: Props) => {
   const visible = summaries.filter((summary) => (summary.area || "right") === area).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   if (!visible.length) return null;
-  return <dl className="mt-5 space-y-2 border-t border-neutral-100 pt-4">
+  return <dl className="mt-5 space-y-2 border-t border-ui-border pt-4">
     {visible.map((summary) => {
       const precision = summary.format?.precision ?? 2;
       const raw = Number(values[summary.targetField] || 0);
@@ -17,8 +17,8 @@ const DynamicFormSummary = ({ summaries, values, area }: Props) => {
         maximumFractionDigits: precision,
       }).format(Number.isFinite(raw) ? raw : 0);
       return <div key={summary.key} className="flex items-center justify-between gap-4">
-        <dt className="text-sm text-neutral-500">{summary.label || summary.key}</dt>
-        <dd className="text-base font-semibold tabular-nums text-neutral-950">{formatted}</dd>
+        <dt className="text-sm text-ui-muted">{summary.label || summary.key}</dt>
+        <dd className="text-base font-semibold tabular-nums text-ui-foreground">{formatted}</dd>
       </div>;
     })}
   </dl>;

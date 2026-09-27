@@ -11,6 +11,7 @@ import {
 import { useRoleItems } from "../../../utils/api/roleInfo";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
+import { Section, SectionHeader } from "../../ui";
 
 function formatRoles(roles: string[]) {
   if (roles.length === 0) return "No project roles selected";
@@ -53,30 +54,21 @@ export const AuditLogsAuthorizationSection: React.FC = () => {
   if (!canManageConfig) return null;
 
   return (
-    <section className="bg-white shadow rounded-lg">
-      <div className="border-b border-gray-200 p-6">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-700">
-            <FiShield className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Audit Logs Authorization</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Audit logs are shown in react-template. Authentication is always required; authorization limits access to selected project roles.
-            </p>
-          </div>
-        </div>
-      </div>
+    <Section aria-labelledby="audit-logs-heading">
+      <SectionHeader
+        title={<span id="audit-logs-heading">Audit Logs Authorization</span>}
+        description="Audit logs are shown in react-template. Authentication is always required; authorization limits access to selected project roles."
+      />
 
-      <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
+      <div className="grid gap-6 rounded-ui-lg border border-ui-border bg-ui-surface p-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         {isLoading ? (
-          <div className="text-sm text-gray-500">Loading authorization settings...</div>
+          <div className="text-sm text-ui-muted">Loading authorization settings...</div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-md border border-gray-200 p-4">
+            <div className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle p-4">
               <div>
-                <div className="text-sm font-medium text-gray-900">Require Authorization</div>
-                <div className="text-xs text-gray-500">Only selected project roles can open audit logs.</div>
+                <div className="text-sm font-medium text-ui-foreground">Require Authorization</div>
+                <div className="text-xs text-ui-muted">Only selected project roles can open audit logs.</div>
               </div>
               <CheckSwitch
                 checked={form.isAuthorized}
@@ -107,20 +99,20 @@ export const AuditLogsAuthorizationSection: React.FC = () => {
           </div>
         )}
 
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
-          <div className="text-xs font-semibold uppercase text-gray-500">Current Access</div>
-          <div className="mt-3 space-y-2 text-sm text-gray-700">
+        <div className="rounded-ui-md border border-ui-border bg-ui-surface-subtle p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-ui-muted">Current Access</div>
+          <div className="mt-3 space-y-2 text-sm text-ui-foreground">
             <div className="flex justify-between gap-3">
-              <span>Authentication</span>
-              <span className="font-medium text-gray-900">Required</span>
+              <span className="text-ui-muted">Authentication</span>
+              <span className="font-medium text-ui-foreground">Required</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span>Authorization</span>
-              <span className="font-medium text-gray-900">{form.isAuthorized ? "Enabled" : "Disabled"}</span>
+              <span className="text-ui-muted">Authorization</span>
+              <span className="font-medium text-ui-foreground">{form.isAuthorized ? "Enabled" : "Disabled"}</span>
             </div>
             <div>
-              <span>Project roles</span>
-              <div className="mt-1 text-xs text-gray-500">{formatRoles(form.authorizeRole)}</div>
+              <span className="text-ui-muted">Project roles</span>
+              <div className="mt-1 text-xs text-ui-muted">{formatRoles(form.authorizeRole)}</div>
             </div>
           </div>
           <GenericButton
@@ -140,6 +132,6 @@ export const AuditLogsAuthorizationSection: React.FC = () => {
           </GenericButton>
         </div>
       </div>
-    </section>
+    </Section>
   );
 };

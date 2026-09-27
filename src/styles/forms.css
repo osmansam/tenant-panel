@@ -1,0 +1,19 @@
+@layer components {
+  .ui-control {
+    @apply h-ui-md w-full rounded-ui-md border border-ui-border bg-ui-surface
+      px-3 text-sm text-ui-foreground outline-none transition-colors
+      placeholder:text-ui-placeholder hover:border-ui-border-hover
+      focus-visible:border-ui-focus focus-visible:ring-[3px]
+      focus-visible:ring-ui-focus/20 disabled:cursor-not-allowed
+      disabled:bg-ui-disabled disabled:text-ui-muted;
+  }
+
+  .ui-control-invalid {
+    @apply border-ui-danger focus-visible:border-ui-danger
+      focus-visible:ring-ui-danger/20;
+  }
+
+  .ui-focus-ring {
+    @apply outline-none focus-visible:ring-[3px] focus-visible:ring-ui-focus/20;
+  }
+}

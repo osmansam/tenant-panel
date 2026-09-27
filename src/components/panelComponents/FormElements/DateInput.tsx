@@ -28,6 +28,12 @@ type DateInputProps = {
   isDateInitiallyOpen?: boolean;
   isDebounce?: boolean;
   isArrowsEnabled?: boolean;
+  id?: string;
+  name?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: React.AriaAttributes["aria-invalid"];
+  className?: string;
+  hideLabel?: boolean;
 };
 
 export default function DateInput({
@@ -44,6 +50,12 @@ export default function DateInput({
   isDateInitiallyOpen = false,
   isDebounce = false,
   isArrowsEnabled = false,
+  id,
+  name,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
+  className,
+  hideLabel = false,
 }: DateInputProps) {
   const [inputText, setInputText] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
@@ -182,9 +194,9 @@ export default function DateInput({
       ref={containerRef}
       className={`flex ${
         isTopFlexRow ? "flex-row sm:flex-col" : "flex-col"
-      } gap-2 w-full`}
+      } gap-2 w-full ${className || ""}`}
     >
-      {label && (
+      {!hideLabel && label && (
         <H6 className="min-w-10">
           {label}
           {requiredField && <span className="text-red-400">*</span>}
@@ -218,11 +230,17 @@ export default function DateInput({
               children: (inputProps: any) => (
                 <TextField
                   {...inputProps}
-                  placeholder="dd/mm/yyyy"
+                  id={id}
+                  name={name}
+                  placeholder={placeholder}
                   variant="outlined"
                   size="small"
                   fullWidth
-                  error={hasError}
+                  error={hasError || Boolean(ariaInvalid)}
+                  inputProps={{
+                    "aria-describedby": ariaDescribedBy,
+                    "aria-invalid": ariaInvalid,
+                  }}
                   InputProps={{
                     readOnly: isReadOnly,
                     style: {
@@ -277,6 +295,8 @@ export default function DateInput({
 
         {isOnClearActive && inputText && (
           <GenericButton
+            type="button"
+            aria-label={`Clear ${label || "date"}`}
             onClick={handleClear}
             variant="icon"
             className="w-8 h-8 text-gray-500 hover:text-red-700"

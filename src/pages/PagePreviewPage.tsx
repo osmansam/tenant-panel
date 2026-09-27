@@ -8,7 +8,7 @@ import InfoBlocks from "../components/panelComponents/FormElements/InfoBlocks";
 import GenericPaginatedPage from "../components/panelComponents/FormElements/GenericPaginatedPage";
 import GenericUnpaginatedPage from "../components/panelComponents/FormElements/GenericUnpaginatedPage";
 import GenericTabPage from "../components/panelComponents/FormElements/GenericTabPage";
-import DynamicForm from "../components/forms/DynamicForm";
+import { DynamicForm } from "../components";
 import {
   ComponentBlock,
   DistributionBlocksConfig,

@@ -104,12 +104,13 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
     };
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6">
-        {t("Create Tenant Account")}
-      </h2>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="w-full">
+      <form
+        data-testid="tenant-register-form"
+        aria-busy={isLoading}
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         <TextInput
           label={t("Email")}
           value={credentials.email}
@@ -174,18 +175,24 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           isOnClearActive={false}
         />
 
-        <GenericButton type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? t("Creating Account...") : t("Create Account")}
+        <GenericButton
+          type="submit"
+          disabled={isLoading}
+          isLoading={isLoading}
+          fullWidth
+          data-primary-action="true"
+        >
+          {t("Create Account")}
         </GenericButton>
       </form>
 
       <div className="mt-6">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
+            <div className="w-full border-t border-ui-border" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">
+            <span className="bg-ui-surface px-2 text-ui-muted">
               {t("Or continue with")}
             </span>
           </div>
@@ -194,7 +201,9 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
         <GenericButton
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
+          variant="outline"
+          fullWidth
+          className="mt-4"
         >
           <div className="flex items-center justify-center">
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Location, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useUserContext } from "../../context/User.context";
+import { emitCurrentProjectChange } from "../../hooks/useCurrentProject";
 // import { Routes } from "../../navigation/constants";
 import { get, post } from "./index";
 
@@ -433,12 +434,13 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.setItem("currentProject", JSON.stringify(project));
         setUser(updatedUser);
+        emitCurrentProjectChange();
       }
 
       toast.success(t("Switched to project successfully"));
 
-      // Navigate to project management page after switching
-      navigate("/project-management");
+      // Navigate to collections page after switching
+      navigate("/collections");
     },
     onError,
   });
@@ -487,6 +489,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.removeItem("currentProject");
         setUser(updatedUser);
+        emitCurrentProjectChange();
 
         toast.success(t("Switched back to tenant context"));
         navigate("/projects");
