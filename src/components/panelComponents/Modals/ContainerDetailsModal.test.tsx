@@ -154,8 +154,7 @@ describe("ContainerDetailsModal", () => {
     );
   });
 
-  it("keeps destructive field actions inside each field action menu", async () => {
-    const user = userEvent.setup();
+  it("renders accessible Edit and Delete buttons for each field", () => {
     render(
       <ContainerDetailsModal
         isOpen
@@ -166,11 +165,8 @@ describe("ContainerDetailsModal", () => {
     );
 
     const productRow = screen.getByRole("row", { name: /product/i });
-    expect(within(productRow).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
-
-    await user.click(within(productRow).getByRole("button", { name: "Actions for product" }));
-    expect(within(productRow).getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
-    expect(within(productRow).getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
+    expect(within(productRow).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(within(productRow).getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
   it("filters fields safely and keeps the parent open after editing", async () => {
@@ -198,10 +194,8 @@ describe("ContainerDetailsModal", () => {
       .forEach((button) => expect(button).toBeDisabled());
     expect(within(currentDialog).getByRole("button", { name: "Add Field" })).toBeInTheDocument();
 
-    await user.click(
-      within(currentDialog).getByRole("button", { name: "Actions for quantity" }),
-    );
-    await user.click(within(currentDialog).getByRole("menuitem", { name: "Edit" }));
+    const quantityRow = within(currentDialog).getByRole("row", { name: /quantity/i });
+    await user.click(within(quantityRow).getByRole("button", { name: "Edit" }));
     expect(
       await screen.findByRole("dialog", { name: "Edit field: quantity" }),
     ).toBeInTheDocument();

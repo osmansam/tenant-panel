@@ -10,11 +10,12 @@ import {
   FiGitBranch,
   FiGlobe,
   FiList,
-  FiMoreHorizontal,
   FiPlayCircle,
   FiPlus,
+  FiSearch,
   FiShield,
   FiTrash2,
+  FiX,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
@@ -41,6 +42,7 @@ import {
 import FieldPermissions from "../../FieldPermissions";
 import RoutePermissions from "../../RoutePermissions";
 import { getContainerDetailsContentClass } from "../../../utils/containerDetailsModalLayout";
+import { cn } from "../../../utils/cn";
 import {
   canReorderFilteredFields,
   filterContainerFields,
@@ -52,11 +54,6 @@ import {
 import { GenericButton } from "../FormElements/GenericButton";
 import {
   Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -606,17 +603,26 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       <WorkspaceDialog
         open={isOpen}
         onClose={onClose}
-        size="large"
+        size="workspace"
         title={
           intent === "manage"
             ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
             : container.schemaName
         }
         description={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="info" className="font-mono">
-              {container.id}
-            </Badge>
+          <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-ui-muted">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ui-muted">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ui-muted/70 select-none">ID</span>
+              <span className="text-ui-muted">{container.id}</span>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(container.id)}
+                className="inline-flex h-4 w-4 items-center justify-center text-ui-muted hover:text-ui-foreground transition-colors"
+                title={t("Copy ID")}
+              >
+                <FiCopy size={11} />
+              </button>
+            </span>
             {container.isAuthContainer && (
               <Badge variant="success">
                 {t("Auth Container")}
@@ -643,7 +649,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
       >
         <div className="sticky top-0 z-10 border-b border-ui-border bg-ui-surface px-4 sm:px-6">
           <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ContainerDialogSection)}>
-            <TabsList className="border-b-0">
+            <TabsList className="border-b-0 -mb-px gap-1">
               {([
                 ["structured", t("Structured"), FiList],
                 ["pipelines", t("Pipelines"), FiGitBranch],
@@ -652,12 +658,24 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                 ["permissions", t("Permissions"), FiShield],
                 ["routes", t("Routes"), FiCode],
                 ["json", t("JSON"), FiCode],
-              ] as const).map(([value, label, Icon]) => (
-                <TabsTrigger key={value} value={value} className="flex h-11 items-center gap-1.5 px-3 text-xs">
-                  <Icon size={13} aria-hidden="true" />
-                  {label}
-                </TabsTrigger>
-              ))}
+              ] as const).map(([value, label, Icon]) => {
+                const isActive = viewMode === value;
+                return (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className={cn(
+                      "flex h-10 items-center gap-1.5 px-3 text-xs font-medium border-b-2 -mb-px transition-colors",
+                      isActive
+                        ? "border-ui-primary text-ui-primary font-semibold"
+                        : "border-transparent text-ui-muted hover:text-ui-foreground hover:border-ui-border/70"
+                    )}
+                  >
+                    <Icon size={13} aria-hidden="true" />
+                    {label}
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
           </Tabs>
         </div>
@@ -1085,180 +1103,180 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "structured" ? (
               <div className="space-y-4">
                 {/* Basic Information */}
-                <section aria-label={t("Container overview")} className="rounded-ui-lg border border-ui-border bg-ui-surface px-4 py-3">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3 xl:grid-cols-5">
-                    <div>
-                      <span className="text-ui-muted">{t("Schema Name")}:</span>
-                      <span className="ml-2 font-medium">
-                        {container.schemaName}
-                      </span>
+                <section aria-label={t("Container overview")} className="border-b border-ui-border pb-4">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 text-sm">
+                    <div className="space-y-1 pr-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Schema Name")}</div>
+                      <div className="font-semibold text-ui-foreground truncate">{container.schemaName}</div>
                     </div>
-                    <div>
-                      <span className="text-ui-muted">
-                        {t("Collection Name")}:
-                      </span>
-                      <span className="ml-2 font-mono text-xs">
-                        {container.collectionName || "N/A"}
-                      </span>
+                    <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Collection Name")}</div>
+                      <div className="font-mono text-xs text-ui-foreground truncate">{container.collectionName || "N/A"}</div>
                     </div>
-                    <div>
-                      <span className="text-ui-muted">
-                        {t("Auth Container")}:
-                      </span>
-                      <span className="ml-2">
-                        {container.isAuthContainer ? t("Yes") : t("No")}
-                      </span>
+                    <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Container")}</div>
+                      <div>
+                        <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
+                          {container.isAuthContainer ? t("Yes") : t("No")}
+                        </Badge>
+                      </div>
                     </div>
-                    {container.isAuthContainer && (
-                      <section
-                        aria-label={t("Authentication")}
-                        className="space-y-4 border-t border-ui-border pt-4 md:col-span-2"
-                      >
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <label className="flex items-center justify-between rounded-ui-sm bg-ui-surface px-3 py-2 text-sm">
-                            <span className="text-ui-muted">
-                              {t("Registration Active")}
-                            </span>
-                            <CheckSwitch
-                              checked={container.isRegisterActive || false}
-                              onChange={handleToggleRegisterActive}
-                            />
-                          </label>
-                          <label className="flex items-center justify-between rounded-ui-sm bg-ui-surface px-3 py-2 text-sm">
-                            <span className="text-ui-muted">
-                              {t("Google Login Active")}
-                            </span>
-                            <CheckSwitch
-                              checked={container.isGoogleLoginActive || false}
-                              onChange={handleToggleGoogleLoginActive}
-                            />
-                          </label>
+                    <div className="space-y-1 lg:border-l lg:border-ui-border/70 lg:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Total Fields")}</div>
+                      <div className="font-semibold text-ui-foreground">{(container.fields || []).length}</div>
+                    </div>
+                    <div className="space-y-1 lg:border-l lg:border-ui-border/70 lg:pl-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Redis Cached")}</div>
+                      <div>
+                        <Badge variant={container.redis?.isRedisCached ? "info" : "neutral"} className="text-[11px]">
+                          {container.redis?.isRedisCached ? t("Yes") : t("No")}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {container.isAuthContainer && (
+                    <section
+                      aria-label={t("Authentication")}
+                      className="mt-4 space-y-3 border-t border-ui-border pt-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                          <span className="font-medium text-ui-foreground">
+                            {t("Registration Active")}
+                          </span>
+                          <CheckSwitch
+                            checked={container.isRegisterActive || false}
+                            onChange={handleToggleRegisterActive}
+                          />
+                        </label>
+                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                          <span className="font-medium text-ui-foreground">
+                            {t("Google Login Active")}
+                          </span>
+                          <CheckSwitch
+                            checked={container.isGoogleLoginActive || false}
+                            onChange={handleToggleGoogleLoginActive}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="rounded-ui-md border border-ui-border bg-ui-surface-subtle p-3.5">
+                        <div className="mb-3">
+                          <h4 className="text-sm font-semibold text-ui-foreground">
+                            {t("Create auth user")}
+                          </h4>
+                          <p className="text-xs text-ui-muted">
+                            {t("Creates a user in this project's auth container.")}
+                          </p>
                         </div>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+                          {authUserFormFields.map((field) => {
+                            const fieldName = field.name;
+                            const lowerFieldName = fieldName.toLowerCase();
+                            const inputType =
+                              field.isHashed || lowerFieldName.includes("password")
+                                ? "password"
+                                : field.type === "number" || field.type === "int"
+                                  ? "number"
+                                  : "text";
 
-                        <div className="rounded-ui-sm bg-ui-surface p-3">
-                          <div className="mb-3">
-                            <h4 className="text-sm font-semibold text-ui-foreground">
-                              {t("Create auth user")}
-                            </h4>
-                            <p className="text-xs text-ui-muted">
-                              {t("Creates a user in this project's auth container.")}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                            {authUserFormFields.map((field) => {
-                              const fieldName = field.name;
-                              const lowerFieldName = fieldName.toLowerCase();
-                              const inputType =
-                                field.isHashed || lowerFieldName.includes("password")
-                                  ? "password"
-                                  : field.type === "number" || field.type === "int"
-                                    ? "number"
-                                    : "text";
-
-                              return (
-                                <input
-                                  key={fieldName}
-                                  value={authUserValues[fieldName] || ""}
-                                  onChange={(event) =>
-                                    setAuthUserValues((current) => ({
-                                      ...current,
-                                      [fieldName]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder={t(fieldName)}
-                                  type={inputType}
-                                  className="rounded-ui-sm border border-ui-border px-3 py-2 text-sm"
-                                />
-                              );
-                            })}
-                            {authUserRoleField && (
-                              <select
-                                value={authUserRole || getRoleOptionId(roleOptions[0])}
-                                onChange={(event) => setAuthUserRole(event.target.value)}
-                                className="rounded-ui-sm border border-ui-border px-3 py-2 text-sm"
-                              >
-                                {roleOptions.length > 0 ? (
-                                  roleOptions.map((role) => (
+                            return (
+                              <input
+                                key={fieldName}
+                                value={authUserValues[fieldName] || ""}
+                                onChange={(event) =>
+                                  setAuthUserValues((current) => ({
+                                    ...current,
+                                    [fieldName]: event.target.value,
+                                  }))
+                                }
+                                placeholder={t(fieldName)}
+                                type={inputType}
+                                className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                              />
+                            );
+                          })}
+                          {authUserRoleField && (
+                            <select
+                              value={authUserRole || getRoleOptionId(roleOptions[0])}
+                              onChange={(event) => setAuthUserRole(event.target.value)}
+                              className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                            >
+                              {roleOptions.length > 0 ? (
+                                roleOptions.map((role) => (
                                   <option key={getRoleOptionId(role)} value={getRoleOptionId(role)}>
                                     {role.name || "admin"}
                                   </option>
-                                  ))
-                                ) : (
-                                  <option value="">
-                                    {t("No roles found")}
-                                  </option>
-                                )}
-                              </select>
-                            )}
-                            <GenericButton
-                              size="sm"
-                              onClick={handleCreateAuthUser}
-                              disabled={
-                                isCreatingAuthUser ||
-                                authUserFormFields.length === 0 ||
-                                (!!authUserRoleField && !roleOptions.length) ||
-                                authUserFormFields.some(
-                                  (field) =>
-                                    (field.tag === "required" || field.isLoginCredential) &&
-                                    !authUserValues[field.name]?.trim(),
-                                )
-                              }
-                            >
-                              {t("Create User")}
-                            </GenericButton>
-                          </div>
+                                ))
+                              ) : (
+                                <option value="">
+                                  {t("No roles found")}
+                                </option>
+                              )}
+                            </select>
+                          )}
+                          <GenericButton
+                            size="sm"
+                            onClick={handleCreateAuthUser}
+                            disabled={
+                              isCreatingAuthUser ||
+                              authUserFormFields.length === 0 ||
+                              (!!authUserRoleField && !roleOptions.length) ||
+                              authUserFormFields.some(
+                                (field) =>
+                                  (field.tag === "required" || field.isLoginCredential) &&
+                                  !authUserValues[field.name]?.trim(),
+                              )
+                            }
+                          >
+                            {t("Create User")}
+                          </GenericButton>
                         </div>
-                      </section>
-                    )}
-                    <div>
-                      <span className="text-ui-muted">
-                        {t("Total Fields")}:
-                      </span>
-                      <span className="ml-2 font-medium">
-                        {(container.fields || []).length}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-ui-muted">
-                        {t("Redis Cached")}:
-                      </span>
-                      <span className="ml-2">
-                        {container.redis?.isRedisCached ? t("Yes") : t("No")}
-                      </span>
-                    </div>
-                  </div>
+                      </div>
+                    </section>
+                  )}
                 </section>
 
                 {/* Fields */}
                 <section ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
-                  <div className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 lg:flex-row lg:items-center lg:justify-between">
-                    <h4 className="text-base font-semibold text-ui-foreground">
-                      {t("Fields")} ({visibleFields.length}/{(container.fields || []).length})
-                    </h4>
-                    <div
-                      role="group"
-                      aria-label={t("Field toolbar")}
-                      className="flex flex-wrap items-center gap-2"
-                    >
-                      <div className="flex min-w-[240px] flex-1 items-center gap-2 lg:min-w-[320px]">
+                  <div
+                    role="group"
+                    aria-label={t("Field toolbar")}
+                    className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex flex-1 flex-wrap items-center gap-3">
+                      <h4 className="text-base font-semibold text-ui-foreground shrink-0">
+                        {t("Fields")}
+                        {fieldQuery ? ` (${visibleFields.length}/${(container.fields || []).length})` : ""}
+                      </h4>
+                      <div className="relative w-full sm:w-64 md:w-80">
+                        <FiSearch
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted"
+                          size={14}
+                        />
                         <input
                           type="search"
                           aria-label={t("Search fields")}
                           placeholder={t("Search fields by name, type, tag, or relation")}
                           value={fieldQuery}
                           onChange={(event) => setFieldQuery(event.target.value)}
-                          className="h-9 min-w-0 flex-1 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground outline-none transition focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20"
+                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
                         />
                         {fieldQuery && (
-                          <GenericButton
-                            variant="outline"
-                            size="sm"
+                          <button
+                            type="button"
+                            aria-label={t("Clear field search")}
+                            title={t("Clear field search")}
                             onClick={() => setFieldQuery("")}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ui-muted hover:text-ui-foreground transition"
                           >
-                            {t("Clear field search")}
-                          </GenericButton>
+                            <FiX size={14} />
+                          </button>
                         )}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       <GenericButton
                         variant="outline"
                         size="sm"
@@ -1281,11 +1299,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     </div>
                   </div>
                   <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
-                    <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_120px_minmax(180px,1fr)_auto] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
+                    <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
                       <span role="columnheader">{t("Name")}</span>
                       <span role="columnheader">{t("Type")}</span>
                       <span role="columnheader">{t("Attributes")}</span>
-                      <span role="columnheader" className="sr-only">{t("Actions")}</span>
+                      <span role="columnheader" className="text-right">{t("Actions")}</span>
                     </div>
                     {visibleFields.map((field, index) => {
                       const sourceIndex = (container.fields || []).findIndex(
@@ -1299,11 +1317,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       <div
                         key={field.name || index}
                         role="row"
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-3 last:border-b-0 md:grid-cols-[minmax(180px,1.2fr)_120px_minmax(180px,1fr)_auto] md:gap-4"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 last:border-b-0 hover:bg-ui-surface-subtle/50 transition-colors md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
                       >
                         <div role="cell" className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate font-medium text-ui-foreground">
+                            <span className="truncate font-semibold text-ui-foreground">
                               {field.name}
                             </span>
                           </div>
@@ -1317,47 +1335,77 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         <div role="cell" className="hidden md:block">
                           <Badge variant={getFieldTypeColor(field.type)}>{field.type}</Badge>
                         </div>
-                        <div role="cell" className="hidden min-w-0 items-center gap-1.5 md:flex">
+                        <div role="cell" className="hidden min-w-0 flex-wrap items-center gap-1.5 md:flex">
                           {field.unique && <Badge variant="info">{t("Unique")}</Badge>}
                           {field.isSearchable && <Badge variant="success">{t("Searchable")}</Badge>}
-                          {field.tag && <span className="truncate text-xs text-ui-muted">{field.tag}</span>}
-                          {field.objectSchemaName && <span className="truncate text-xs text-ui-muted">→ {field.objectSchemaName}</span>}
+                          {field.tag &&
+                            field.tag
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean)
+                              .map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-[10px] text-ui-muted"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                          {field.objectSchemaName && (
+                            <span className="inline-flex items-center gap-1 rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 text-[10px] text-ui-muted">
+                              <span className="text-ui-subtle">→</span>
+                              <span className="font-medium text-ui-foreground">{field.objectSchemaName}</span>
+                            </span>
+                          )}
                         </div>
-                        <div role="cell" className="flex items-center justify-end gap-0.5">
-                          <button
-                            onClick={() => handleMoveFieldUp(sourceIndex)}
-                            disabled={!fieldReorderingEnabled || sourceIndex === 0 || isUpdating}
-                            className="p-1.5 text-ui-muted hover:text-ui-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={reorderTitle || t("Move Up")}
+                        <div role="cell" className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center rounded-ui-sm border border-ui-border bg-ui-surface-subtle overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveFieldUp(sourceIndex)}
+                              disabled={!fieldReorderingEnabled || sourceIndex === 0 || isUpdating}
+                              className="inline-flex h-7 w-6 items-center justify-center text-ui-muted hover:text-ui-foreground hover:bg-ui-surface disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title={reorderTitle || t("Move Up")}
+                              aria-label={t("Move {{fieldName}} up", { fieldName: field.name })}
+                            >
+                              <FiChevronUp size={13} />
+                            </button>
+                            <div className="h-3.5 w-px bg-ui-border" />
+                            <button
+                              type="button"
+                              onClick={() => handleMoveFieldDown(sourceIndex)}
+                              disabled={
+                                !fieldReorderingEnabled ||
+                                sourceIndex === (container.fields || []).length - 1 ||
+                                isUpdating
+                              }
+                              className="inline-flex h-7 w-6 items-center justify-center text-ui-muted hover:text-ui-foreground hover:bg-ui-surface disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title={reorderTitle || t("Move Down")}
+                              aria-label={t("Move {{fieldName}} down", { fieldName: field.name })}
+                            >
+                              <FiChevronDown size={13} />
+                            </button>
+                          </div>
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditField(field)}
+                            iconLeft={<FiEdit size={12} />}
+                            disabled={isUpdating}
+                            className="h-7 px-2.5 text-xs font-medium hover:bg-ui-surface-subtle"
                           >
-                            <FiChevronUp size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleMoveFieldDown(sourceIndex)}
-                            disabled={
-                              !fieldReorderingEnabled ||
-                              sourceIndex === (container.fields || []).length - 1 ||
-                              isUpdating
-                            }
-                            className="p-1.5 text-ui-muted hover:text-ui-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title={reorderTitle || t("Move Down")}
+                            {t("Edit")}
+                          </GenericButton>
+                          <GenericButton
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteField(field.name)}
+                            iconLeft={<FiTrash2 size={12} />}
+                            disabled={isUpdating}
+                            className="h-7 px-2.5 text-xs font-medium text-ui-danger border-ui-border hover:border-ui-danger/40 hover:bg-ui-danger-subtle hover:text-ui-danger"
                           >
-                            <FiChevronDown size={16} />
-                          </button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger aria-label={t("Actions for {{fieldName}}", { fieldName: field.name })} className="h-8 w-8 px-0 shadow-none">
-                              <FiMoreHorizontal size={16} aria-hidden="true" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-36">
-                              <DropdownMenuItem onClick={() => handleEditField(field)} disabled={isUpdating}>
-                                <FiEdit size={14} aria-hidden="true" /> {t("Edit")}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem destructive onClick={() => handleDeleteField(field.name)} disabled={isUpdating}>
-                                <FiTrash2 size={14} aria-hidden="true" /> {t("Delete")}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            {t("Delete")}
+                          </GenericButton>
                         </div>
                       </div>
                       );
@@ -1395,66 +1443,83 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                 </section>
 
                 {/* Routes Information */}
-                {container.routes && (
-                  <div>
-                    <h4 className="text-sm font-medium text-ui-foreground mb-3">
-                      {t("Available Routes")}
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {Object.entries(container.routes).map(
-                        ([routeName, routeSpec]) => (
-                          <div
-                            key={routeName}
-                            className={`p-2 rounded ${
-                              routeSpec.isActive
-                                ? "bg-[hsl(var(--ui-success-subtle))] text-ui-success"
-                                : "bg-ui-danger-subtle text-ui-danger"
-                            }`}
-                          >
-                            <span className="font-medium">
-                              {routeName.replace(/([A-Z])/g, " $1").trim()}
-                            </span>
-                            {routeSpec.isAuthenticated && (
-                              <span className="ml-1 text-xs">🔒</span>
-                            )}
-                          </div>
-                        )
-                      )}
+                {container.routes && Object.keys(container.routes).length > 0 && (
+                  <details className="group rounded-ui-lg border border-ui-border bg-ui-surface transition-colors">
+                    <summary className="flex cursor-pointer items-center justify-between p-3.5 select-none hover:bg-ui-surface-subtle/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <FiChevronDown className="h-4 w-4 text-ui-muted transition-transform duration-200 group-open:rotate-180" />
+                        <h4 className="text-sm font-semibold text-ui-foreground">
+                          {t("Available Routes")}
+                        </h4>
+                        <span className="rounded-ui-xs bg-ui-surface-subtle px-1.5 py-0.5 text-[11px] font-mono text-ui-muted border border-ui-border">
+                          {Object.keys(container.routes).length}
+                        </span>
+                      </div>
+                      <span className="text-xs text-ui-muted">
+                        <span className="group-open:hidden">{t("Click to expand")}</span>
+                        <span className="hidden group-open:inline">{t("Click to collapse")}</span>
+                      </span>
+                    </summary>
+                    <div className="border-t border-ui-border p-3.5">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs">
+                        {Object.entries(container.routes).map(
+                          ([routeName, routeSpec]) => (
+                            <div
+                              key={routeName}
+                              className={`flex items-center justify-between rounded-ui-md border px-3 py-2 transition-colors ${
+                                routeSpec.isActive
+                                  ? "border-ui-border bg-ui-surface text-ui-foreground hover:bg-ui-surface-subtle"
+                                  : "border-ui-border/50 bg-ui-surface-subtle/50 text-ui-muted"
+                              }`}
+                            >
+                              <span className="font-medium">
+                                {routeName.replace(/([A-Z])/g, " $1").trim()}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {routeSpec.isAuthenticated && (
+                                  <span className="inline-flex items-center text-xs text-ui-muted" title={t("Authenticated")}>
+                                    🔒
+                                  </span>
+                                )}
+                                <Badge variant={routeSpec.isActive ? "success" : "neutral"} className="text-[10px]">
+                                  {routeSpec.isActive ? t("Active") : t("Disabled")}
+                                </Badge>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </details>
                 )}
 
                 {/* Redis Configuration */}
                 {container.redis && (
-                  <div className="bg-[hsl(var(--ui-info-subtle))] rounded-ui-md p-4">
-                    <h4 className="text-sm font-medium text-ui-foreground mb-3">
-                      {t("Redis Configuration")}
-                    </h4>
-                    <div className="text-sm space-y-1">
-                      <div>
-                        <span className="text-ui-muted">{t("Cached")}:</span>
-                        <span className="ml-2">
-                          {container.redis.isRedisCached ? t("Yes") : t("No")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-ui-muted">
-                          {t("Cache Time")}:
-                        </span>
-                        <span className="ml-2">
-                          {container.redis.cacheTime}s
-                        </span>
-                      </div>
-                      {container.redis.triggeredRedisCaches && (
-                        <div>
-                          <span className="text-ui-muted">
-                            {t("Triggered Caches")}:
-                          </span>
-                          <span className="ml-2">
-                            {container.redis.triggeredRedisCaches.join(", ")}
-                          </span>
+                  <div className="rounded-ui-md border border-ui-border bg-ui-surface px-4 py-2.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
+                      <span className="font-semibold uppercase tracking-wider text-ui-muted text-[11px]">
+                        {t("Redis Configuration")}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-ui-muted">{t("Cached")}:</span>
+                          <Badge variant={container.redis.isRedisCached ? "info" : "neutral"} className="text-[10px] py-0 px-1.5">
+                            {container.redis.isRedisCached ? t("Yes") : t("No")}
+                          </Badge>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-ui-muted">{t("Cache Time")}:</span>
+                          <span className="font-semibold text-ui-foreground">{container.redis.cacheTime}s</span>
+                        </div>
+                        {container.redis.triggeredRedisCaches && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-ui-muted">{t("Triggered Caches")}:</span>
+                            <span className="font-mono text-ui-foreground truncate max-w-[240px]">
+                              {container.redis.triggeredRedisCaches.join(", ") || t("None")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

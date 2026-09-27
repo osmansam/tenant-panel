@@ -43,8 +43,10 @@ export const Sidebar = () => {
 
       // In project context
       if (isInProject) {
-        // Show project management and hide projects list
-        if (route.path === "/project-management") return true;
+        // Show project routes and hide projects list
+        if (route.path === "/collections") return true;
+        if (route.path === "/pages") return true;
+        if (route.path === "/project-management") return false;
         if (route.path === "/localization") return true;
         if (route.path === "/projects") return false;
 
@@ -55,7 +57,9 @@ export const Sidebar = () => {
         }
         return true;
       } else {
-        // In tenant context - hide project management
+        // In tenant context - hide project routes
+        if (route.path === "/collections") return false;
+        if (route.path === "/pages") return false;
         if (route.path === "/project-management") return false;
         if (route.path === "/localization") return false;
 
@@ -247,10 +251,10 @@ export const Sidebar = () => {
                             toggleGroup(route.name);
                           }
                         }}
-                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-all active:scale-[0.98]"
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-foreground hover:bg-ui-surface-subtle transition-all active:scale-[0.98]"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center text-neutral-600 flex-shrink-0">
+                          <div className="flex items-center justify-center text-ui-muted flex-shrink-0">
                             <IconComponent className="text-[18px]" />
                           </div>
                           {isSidebarOpen && (
@@ -260,12 +264,12 @@ export const Sidebar = () => {
                         {isSidebarOpen &&
                           (openGroups[route.name] ? (
                             <FiChevronDown
-                              className="text-sm text-neutral-400"
+                              className="text-sm text-ui-muted"
                               strokeWidth={2.5}
                             />
                           ) : (
                             <FiChevronRight
-                              className="text-sm text-neutral-400"
+                              className="text-sm text-ui-muted"
                               strokeWidth={2.5}
                             />
                           ))}
@@ -281,12 +285,12 @@ export const Sidebar = () => {
                             key={child.name}
                             aria-current={child.path === currentRoute ? "page" : undefined}
                             className={`
-                            w-full flex items-center pl-10 pr-3 py-2 rounded-lg mt-0.5
+                            w-full flex items-center pl-10 pr-3 py-2 rounded-ui-sm mt-0.5
                             text-sm transition-all active:scale-[0.98]
                             ${
                               child.path === currentRoute
-                                ? "bg-violet-50 text-violet-700 font-medium"
-                                : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                                ? "bg-ui-active-subtle text-ui-primary font-medium"
+                                : "text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground"
                             }
                           `}
                             onClick={() => {
@@ -321,12 +325,12 @@ export const Sidebar = () => {
                     <button
                       aria-current={routeChildren[0].path === currentRoute ? "page" : undefined}
                       className={`
-                      w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
+                      w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
                       text-sm transition-all active:scale-[0.98]
                       ${
                         routeChildren[0].path === currentRoute
-                          ? "bg-violet-50 text-violet-700 font-medium"
-                          : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                          ? "bg-ui-active-subtle text-ui-primary font-medium"
+                          : "text-ui-foreground hover:bg-ui-surface-subtle"
                       }
                     `}
                       onClick={() => {
@@ -340,8 +344,8 @@ export const Sidebar = () => {
                       <div
                         className={`flex items-center justify-center flex-shrink-0 ${
                           routeChildren[0].path === currentRoute
-                            ? "text-violet-600"
-                            : "text-neutral-600"
+                            ? "text-ui-primary"
+                            : "text-ui-muted"
                         }`}
                       >
                         <IconComponent className="text-[18px]" />
@@ -363,12 +367,12 @@ export const Sidebar = () => {
                   <button
                     aria-current={route.path === currentRoute ? "page" : undefined}
                     className={`
-                    w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
+                    w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
                     text-sm transition-all active:scale-[0.98]
                     ${
                       route.path === currentRoute
-                        ? "bg-violet-50 text-violet-700 font-medium"
-                        : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                        ? "bg-ui-active-subtle text-ui-primary font-medium"
+                        : "text-ui-foreground hover:bg-ui-surface-subtle"
                     }
                   `}
                     onClick={() => {
@@ -382,8 +386,8 @@ export const Sidebar = () => {
                     <div
                       className={`flex items-center justify-center flex-shrink-0 ${
                         route.path === currentRoute
-                          ? "text-violet-600"
-                          : "text-neutral-600"
+                          ? "text-ui-primary"
+                          : "text-ui-muted"
                       }`}
                     >
                       <IconComponent className="text-[18px]" />
@@ -395,13 +399,13 @@ export const Sidebar = () => {
             })}
           </div>
 
-          <div className="border-t border-neutral-200 pt-3 mt-3">
+          <div className="border-t border-ui-border pt-3 mt-3">
             <SidebarTooltip content={t("Logout")}>
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all active:scale-[0.98]"
+                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-danger hover:bg-ui-danger-subtle transition-all active:scale-[0.98]"
               >
-                <div className="flex items-center justify-center text-red-600 flex-shrink-0">
+                <div className="flex items-center justify-center text-ui-danger flex-shrink-0">
                   <IoIosLogOut className="text-[18px]" />
                 </div>
                 {isSidebarOpen && <span>{t("Logout")}</span>}

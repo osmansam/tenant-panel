@@ -98,7 +98,8 @@ describe("Sidebar", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Project Management" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pages" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Localization" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Integrations" })).not.toBeInTheDocument();
   });
@@ -115,7 +116,8 @@ describe("Sidebar", () => {
 
     render(<Sidebar />);
 
-    expect(screen.getByRole("button", { name: "Project Management" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pages" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Localization" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Integrations" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Projects" })).not.toBeInTheDocument();

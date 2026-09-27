@@ -21,6 +21,7 @@ export interface WorkspaceDialogProps {
   closeLabel?: string;
   layer?: "base" | "nested";
   bodyClassName?: string;
+  className?: string;
 }
 
 export function WorkspaceDialog({
@@ -34,6 +35,7 @@ export function WorkspaceDialog({
   closeLabel = "Close dialog",
   layer = "base",
   bodyClassName,
+  className,
 }: WorkspaceDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -50,7 +52,14 @@ export function WorkspaceDialog({
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCloseRef.current();
+      if (event.key !== "Escape") return;
+
+      const dialogs = document.querySelectorAll<HTMLElement>(
+        '[role="dialog"][aria-modal="true"]',
+      );
+      if (dialogs[dialogs.length - 1] === dialogRef.current) {
+        onCloseRef.current();
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -95,8 +104,9 @@ export function WorkspaceDialog({
         className={cn(
           "grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden border border-ui-border bg-ui-surface text-ui-foreground shadow-ui-dialog",
           size === "workspace"
-            ? "h-dvh w-screen rounded-none sm:h-[92vh] sm:w-[96vw] sm:max-w-[1600px] sm:rounded-ui-lg"
+            ? "h-dvh w-screen rounded-none sm:h-[94vh] sm:w-[97vw] sm:max-w-[1720px] sm:rounded-ui-xl"
             : "max-h-[90vh] w-[calc(100vw-2rem)] max-w-[1120px] rounded-ui-lg",
+          className,
         )}
         onMouseDown={(event) => event.stopPropagation()}
       >

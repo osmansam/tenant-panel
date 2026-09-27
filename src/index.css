@@ -15,11 +15,11 @@
   }
 
   * {
-    @apply border-neutral-200;
+    @apply border-ui-border;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-900 antialiased;
+    @apply bg-ui-page text-ui-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     overflow-x: hidden;
     overscroll-behavior-y: none;
@@ -68,21 +68,22 @@
     @apply transition-all duration-200 ease-in-out;
   }
 
-  /* Glass morphism effect */
+  /* legacy — prefer ui/ components (Section, PageShell) */
   .glass {
     @apply bg-white/80 backdrop-blur-xl border border-neutral-200/50;
   }
 
-  /* Modern card styling */
+  /* legacy — prefer Section surface="outlined" */
   .card {
     @apply bg-white border border-neutral-200 rounded-xl transition-all duration-200;
   }
 
+  /* legacy — prefer Section surface="outlined" */
   .card-hover {
     @apply hover:border-neutral-300 hover:shadow-md;
   }
 
-  /* Focus states */
+  /* legacy — prefer .ui-focus-ring from forms.css */
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
   }

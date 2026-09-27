@@ -25,6 +25,8 @@ export default {
         "ui-danger-subtle": "hsl(var(--ui-danger-subtle) / <alpha-value>)",
         "ui-success": "hsl(var(--ui-success) / <alpha-value>)",
         "ui-disabled": "hsl(var(--ui-disabled) / <alpha-value>)",
+        "ui-active-subtle": "hsl(var(--ui-active-subtle) / <alpha-value>)",
+        "ui-border-strong": "hsl(var(--ui-border-strong) / <alpha-value>)",
         primary: {
           50: "#f0f9ff",
           100: "#e0f2fe",

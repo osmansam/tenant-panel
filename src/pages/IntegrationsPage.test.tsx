@@ -105,4 +105,26 @@ describe("IntegrationsPage", () => {
     render(<IntegrationsPage />);
     expect(screen.getByText("Redirect to /projects")).toBeInTheDocument();
   });
+
+  it("opens confirmation dialog before revoking a credential", async () => {
+    const user = userEvent.setup();
+    state.externalCredentials = [{
+      id: "cred_123",
+      name: "Staging service",
+      authType: "bearer",
+      allowedDomains: ["api.example.com"],
+      expiresAt: null,
+      lastUsedAt: null,
+      revokedAt: null,
+    }];
+    render(<IntegrationsPage />);
+    const revokeButton = screen.getByRole("button", { name: "Revoke Staging service" });
+    await user.click(revokeButton);
+    expect(screen.getByRole("dialog", { name: "Revoke external API credential" })).toBeInTheDocument();
+    expect(screen.getByText(/Are you sure you want to revoke "Staging service"?/)).toBeInTheDocument();
+
+    const confirmButton = screen.getByRole("button", { name: "Revoke credential" });
+    await user.click(confirmButton);
+    expect(state.revokeExternal).toHaveBeenCalledWith("cred_123");
+  });
 });

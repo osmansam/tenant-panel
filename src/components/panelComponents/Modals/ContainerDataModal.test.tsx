@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { ContainerModel } from "../../../utils/api/container";
 import { ContainerDataModal } from "./ContainerDataModal";
 
-const mockGenericPaginatedPage = vi.fn(() => <div>Read-only records</div>);
+const mockGenericPaginatedPage = vi.fn((_props: unknown) => (
+  <div>Read-only records</div>
+));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -25,8 +27,13 @@ const stock = {
   schemaName: "stock",
   collectionName: "tenant_stock",
   fields: [],
+  routes: {},
+  redis: { isRedisCached: false, cacheTime: 0, triggeredRedisCaches: [] },
+  pipelines: [],
+  dynamicFunctions: [],
+  dynamicApis: [],
   populatedRoutes: [],
-} as ContainerModel;
+} satisfies ContainerModel;
 
 describe("ContainerDataModal", () => {
   it("opens a read-only data workspace for the selected container", () => {

@@ -101,6 +101,7 @@ const ProjectsPage: React.FC = () => {
     </GenericButton>
   );
 
+  // Distinct avatar accent colors per project — intentionally decorative palette values.
   const projectAccents = [
     "bg-violet-600",
     "bg-sky-600",

@@ -1,11 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { GoogleCallbackHandler } from "../components/auth";
 import {
+  CollectionsPage,
   Dashboard,
   IntegrationsPage,
   LocalizationPage,
   LoginPage,
   PagePreviewPage,
+  PagesPage,
   ProjectManagementPage,
   RegisterPage,
   TenantBrandingPage,
@@ -49,8 +51,16 @@ const RouterContainer = () => {
 
         <Route path={ProtectedRoutes.Projects} element={<ProjectsPage />} />
         <Route
+          path={ProtectedRoutes.Collections}
+          element={<CollectionsPage />}
+        />
+        <Route
+          path={ProtectedRoutes.Pages}
+          element={<PagesPage />}
+        />
+        <Route
           path={ProtectedRoutes.ProjectManagement}
-          element={<ProjectManagementPage />}
+          element={<Navigate to={ProtectedRoutes.Collections} replace />}
         />
         <Route path={ProtectedRoutes.Localization} element={<LocalizationPage />} />
         <Route

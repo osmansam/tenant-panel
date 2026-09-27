@@ -17,21 +17,48 @@ const state = vi.hoisted(() => ({
     name: "A very long tenant name that still belongs in one page heading",
     slug: "long-tenant",
   } as { id: string; name: string; slug: string } | null,
+  currentProject: null as { id: string; name: string; slug: string } | null,
+  projects: [] as Array<{ id: string; name: string; slug: string; isActive: boolean }>,
+  containers: [] as Array<{ id: string; schemaName: string }>,
+  pages: [] as Array<{ id: string; name: string }>,
+  integrations: [] as Array<{ id: string; name: string }>,
   allTenants: [] as Array<{ id: string; name: string; slug: string }>,
+  navigate: vi.fn(),
   setIsSidebarOpen: vi.fn(),
   switchTenant: vi.fn(),
   tenantLogout: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (value: string) => value }),
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (options && typeof options === "object") {
+        return Object.entries(options).reduce(
+          (acc, [k, v]) => acc.replace(`{{${k}}}`, String(v)),
+          key,
+        );
+      }
+      return key;
+    },
+  }),
 }));
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: () => state.navigate,
+  };
+});
+
 vi.mock("../context/User.context", () => ({
   useUserContext: () => ({ user: state.user }),
 }));
+
 vi.mock("../context/General.context", () => ({
   useGeneralContext: () => ({ setIsSidebarOpen: state.setIsSidebarOpen }),
 }));
+
 vi.mock("../hooks/useTenant", () => ({
   default: () => ({
     currentTenant: state.currentTenant,
@@ -40,8 +67,32 @@ vi.mock("../hooks/useTenant", () => ({
     switchTenant: state.switchTenant,
   }),
 }));
+
+vi.mock("../hooks/useCurrentProject", () => ({
+  useCurrentProject: () => ({
+    currentProject: state.currentProject,
+    isInProject: Boolean(state.currentProject),
+  }),
+}));
+
 vi.mock("../utils/api/auth", () => ({
   useTenantLogout: () => ({ tenantLogout: state.tenantLogout }),
+}));
+
+vi.mock("../utils/api/project", () => ({
+  useProjects: () => ({ data: state.projects, isLoading: false }),
+}));
+
+vi.mock("../utils/api/container", () => ({
+  useContainers: () => ({ data: state.containers, isLoading: false }),
+}));
+
+vi.mock("../utils/api/page", () => ({
+  useGetTenantPages: () => ({ data: state.pages, isLoading: false }),
+}));
+
+vi.mock("../utils/api/integration", () => ({
+  useIntegrationCredentials: () => ({ data: state.integrations, isLoading: false }),
 }));
 
 describe("Dashboard", () => {
@@ -51,6 +102,13 @@ describe("Dashboard", () => {
       name: "A very long tenant name that still belongs in one page heading",
       slug: "long-tenant",
     };
+    state.currentProject = null;
+    state.projects = [
+      { id: "proj-1", name: "Alpha Project", slug: "alpha", isActive: true },
+    ];
+    state.containers = [];
+    state.pages = [];
+    state.integrations = [];
     state.allTenants = [];
     vi.clearAllMocks();
   });
@@ -68,13 +126,19 @@ describe("Dashboard", () => {
     expect(screen.getByText("project_developer")).toBeInTheDocument();
   });
 
-  it("presents unavailable quick actions without enabled controls", () => {
+  it("renders actionable quick action destinations and navigates on click", async () => {
+    const user = userEvent.setup();
     render(<Dashboard />);
 
-    for (const label of ["View Analytics", "Manage Users", "Settings", "View Logs"]) {
-      expect(screen.queryByRole("button", { name: new RegExp(label) })).not.toBeInTheDocument();
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
+    const projectsButtons = screen.getAllByRole("button", { name: /Projects/i });
+    expect(projectsButtons.length).toBeGreaterThanOrEqual(1);
+    await user.click(projectsButtons[0]);
+    expect(state.navigate).toHaveBeenCalledWith("/projects");
+
+    expect(screen.getAllByRole("button", { name: /Collections/i })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Pages/i })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Integrations/i })[0]).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Settings & Branding/i })).toBeInTheDocument();
   });
 
   it("switches tenants with keyboard-operable tenant choices", async () => {

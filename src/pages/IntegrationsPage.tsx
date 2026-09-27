@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
+  FiArrowDownLeft,
+  FiArrowUpRight,
   FiCopy,
   FiEye,
   FiEyeOff,
@@ -24,6 +26,7 @@ import {
   WorkspaceDialog,
 } from "../components/ui";
 import { useCurrentProject } from "../hooks/useCurrentProject";
+import { cn } from "../utils/cn";
 import {
   ContainerModel,
   useContainers,
@@ -124,6 +127,22 @@ function getPermissionName(permission: IntegrationPermission) {
     : permission.name || "";
 }
 
+function getMethodBadgeClass(method: string) {
+  switch (method.toUpperCase()) {
+    case "GET":
+      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25";
+    case "POST":
+      return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25";
+    case "PUT":
+    case "PATCH":
+      return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25";
+    case "DELETE":
+      return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25";
+    default:
+      return "bg-ui-surface-subtle text-ui-foreground border-ui-border";
+  }
+}
+
 function optionsForKind(
   kind: IntegrationPermissionKind,
   schemaName: string,
@@ -176,6 +195,11 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
   const [externalAllowedDomains, setExternalAllowedDomains] = useState("");
   const [externalExpiresAt, setExternalExpiresAt] = useState("");
   const [showExternalSecret, setShowExternalSecret] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<{
+    type: "integration" | "external";
+    id: string;
+    name: string;
+  } | null>(null);
 
   const schemaNames = useMemo(
     () => containers.map((container) => container.schemaName).filter(Boolean),
@@ -325,14 +349,30 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
   const revoke = (credential: IntegrationCredential) => {
     if (credential.revokedAt) return;
-    if (!window.confirm(`Revoke ${credential.name}?`)) return;
-    revokeCredential.mutate(credential.id);
+    setRevokeTarget({
+      type: "integration",
+      id: credential.id,
+      name: credential.name,
+    });
   };
 
   const revokeExternal = (credential: ExternalAPICredential) => {
     if (credential.revokedAt) return;
-    if (!window.confirm(`Revoke ${credential.name}?`)) return;
-    revokeExternalCredential.mutate(credential.id);
+    setRevokeTarget({
+      type: "external",
+      id: credential.id,
+      name: credential.name,
+    });
+  };
+
+  const handleConfirmRevoke = () => {
+    if (!revokeTarget) return;
+    if (revokeTarget.type === "external") {
+      revokeExternalCredential.mutate(revokeTarget.id);
+    } else {
+      revokeCredential.mutate(revokeTarget.id);
+    }
+    setRevokeTarget(null);
   };
 
   const copyCredentialId = async (credentialId: string) => {
@@ -348,53 +388,54 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
         context={<Badge variant="info"><FiShield className="mr-1 h-3 w-3" aria-hidden="true" />Project credentials</Badge>}
         actions={
           <PageActions aria-label="Integration actions">
-              <button
-                type="button"
-                onClick={() => {
-                  refetch();
-                  refetchExternalCredentials();
-                }}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-ui-md border border-ui-border bg-ui-surface text-ui-muted hover:bg-ui-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
-                aria-label="Refresh credentials"
-              >
-                <FiRefreshCw className="h-4 w-4" />
-              </button>
-              <GenericButton
-                onClick={() => setIsExternalCreateOpen(true)}
-                variant="secondary"
-                size="md"
-                iconLeft={<FiPlus className="h-4 w-4" />}
-              >
-                New external API credential
-              </GenericButton>
-              <GenericButton
-                onClick={() => setIsCreateOpen(true)}
-                variant="primary"
-                size="md"
-                iconLeft={<FiPlus className="h-4 w-4" />}
-              >
-                New credential
-              </GenericButton>
+            <button
+              type="button"
+              onClick={() => {
+                refetch();
+                refetchExternalCredentials();
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-ui-sm border border-ui-border bg-ui-surface text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+              aria-label="Refresh credentials"
+              title="Refresh credentials"
+            >
+              <FiRefreshCw className="h-3.5 w-3.5" />
+            </button>
+            <GenericButton
+              onClick={() => setIsExternalCreateOpen(true)}
+              variant="secondary"
+              size="sm"
+              iconLeft={<FiPlus className="h-3.5 w-3.5" />}
+            >
+              New external API credential
+            </GenericButton>
+            <GenericButton
+              onClick={() => setIsCreateOpen(true)}
+              variant="primary"
+              size="sm"
+              iconLeft={<FiPlus className="h-3.5 w-3.5" />}
+            >
+              New credential
+            </GenericButton>
           </PageActions>
         }
       />
 
-      <div className="space-y-2">
+      <div className="space-y-6">
         {createdToken && (
-          <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <section className="rounded-ui-md border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-amber-900">
                   New token
                 </div>
-                <div className="mt-2 flex items-center gap-2 rounded-md border border-amber-200 bg-white px-3 py-2">
-                  <code className="min-w-0 flex-1 truncate text-xs text-neutral-800">
+                <div className="mt-2 flex items-center gap-2 rounded-ui-sm border border-amber-200 bg-ui-surface px-3 py-2">
+                  <code className="min-w-0 flex-1 truncate text-xs text-ui-foreground">
                     {createdToken}
                   </code>
                   <button
                     type="button"
                     onClick={copyToken}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-ui-sm text-ui-muted hover:bg-ui-surface-subtle"
                     title="Copy token"
                   >
                     <FiCopy className="h-4 w-4" />
@@ -404,7 +445,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
               <button
                 type="button"
                 onClick={() => setCreatedToken(null)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-amber-800 hover:bg-amber-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-ui-sm text-amber-800 hover:bg-amber-100"
                 title="Dismiss"
               >
                 <FiX className="h-4 w-4" />
@@ -422,38 +463,38 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
             <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Name
                   </span>
                   <input
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full"
                     placeholder="Retailer backend"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Expires at
                   </span>
                   <input
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(event) => setExpiresAt(event.target.value)}
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full"
                   />
                 </label>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ui-muted">
                     Permissions
                   </h3>
                   <button
                     type="button"
                     onClick={addPermission}
-                    className="inline-flex items-center gap-2 rounded-md border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                    className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border px-3 py-2 text-xs font-medium text-ui-foreground hover:bg-ui-surface-subtle"
                   >
                     <FiPlus className="h-3.5 w-3.5" />
                     Add permission
@@ -469,7 +510,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   return (
                     <div
                       key={index}
-                      className="grid gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 md:grid-cols-[1.1fr_1fr_1.4fr_.7fr_auto]"
+                      className="grid gap-3 rounded-ui-md border border-ui-border bg-ui-surface-subtle p-3 md:grid-cols-[1.1fr_1fr_1.4fr_.7fr_auto]"
                     >
                       <select
                         value={permission.kind}
@@ -478,7 +519,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             kind: event.target.value as IntegrationPermissionKind,
                           })
                         }
-                        className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                        className="ui-control bg-ui-surface"
                       >
                         {permissionKinds.map((kind) => (
                           <option key={kind.value} value={kind.value}>
@@ -494,7 +535,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             schemaName: event.target.value,
                           })
                         }
-                        className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                        className="ui-control bg-ui-surface"
                       >
                         <option value="">Schema</option>
                         {schemaNames.map((schemaName) => (
@@ -512,7 +553,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                               route: event.target.value,
                             })
                           }
-                          className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                          className="ui-control bg-ui-surface"
                         >
                           <option value="">Route</option>
                           {availableNames.map((routeName) => (
@@ -530,7 +571,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             })
                           }
                           list={`permission-options-${index}`}
-                          className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                          className="ui-control bg-ui-surface"
                           placeholder={`${permission.kind} name`}
                         />
                       )}
@@ -549,7 +590,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             method: event.target.value,
                           })
                         }
-                        className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                        className="ui-control bg-ui-surface"
                       >
                         {methods.map((method) => (
                           <option key={method} value={method}>
@@ -561,7 +602,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                       <button
                         type="button"
                         onClick={() => removePermission(index)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-md text-neutral-500 hover:bg-white hover:text-red-600"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-ui-sm text-ui-muted hover:bg-ui-surface hover:text-ui-danger"
                         title="Remove permission"
                       >
                         <FiTrash2 className="h-4 w-4" />
@@ -571,7 +612,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                 })}
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
+              <div className="flex justify-end gap-2 border-t border-ui-border pt-4">
                 <GenericButton
                   onClick={() => setIsCreateOpen(false)}
                   variant="secondary"
@@ -601,19 +642,19 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
             <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Name
                   </span>
                   <input
                     value={externalName}
                     onChange={(event) => setExternalName(event.target.value)}
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full"
                     placeholder="Davinci Staging"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Auth type
                   </span>
                   <select
@@ -621,7 +662,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                     onChange={(event) =>
                       setExternalAuthType(event.target.value as ExternalAPIAuthType)
                     }
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full bg-ui-surface"
                   >
                     <option value="bearer">Bearer token</option>
                     <option value="header">Custom header</option>
@@ -630,7 +671,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
                 {externalAuthType === "header" && (
                   <label className="block">
-                    <span className="text-xs font-medium text-neutral-700">
+                    <span className="text-xs font-medium text-ui-foreground">
                       Header name
                     </span>
                     <input
@@ -638,14 +679,14 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                       onChange={(event) =>
                         setExternalHeaderName(event.target.value)
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                      className="mt-1 ui-control w-full"
                       placeholder="X-API-Key"
                     />
                   </label>
                 )}
 
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Allowed domain
                   </span>
                   <input
@@ -653,13 +694,13 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                     onChange={(event) =>
                       setExternalAllowedDomains(event.target.value)
                     }
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full"
                     placeholder="api-staging.davinciboardgame.com"
                   />
                 </label>
 
                 <div className="block md:col-span-2">
-                  <label htmlFor="external-api-token" className="text-xs font-medium text-neutral-700">
+                  <label htmlFor="external-api-token" className="text-xs font-medium text-ui-foreground">
                     External API token
                   </label>
                   <div className="relative mt-1">
@@ -668,7 +709,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                       type={showExternalSecret ? "text" : "password"}
                       value={externalSecret}
                       onChange={(event) => setExternalSecret(event.target.value)}
-                      className="h-10 w-full rounded-md border border-neutral-300 px-3 pr-10 text-sm outline-none focus:border-neutral-900"
+                      className="ui-control w-full pr-10"
                       placeholder="Token from Davinci or another backend"
                       autoComplete="off"
                     />
@@ -684,7 +725,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                 </div>
 
                 <label className="block">
-                  <span className="text-xs font-medium text-neutral-700">
+                  <span className="text-xs font-medium text-ui-foreground">
                     Expires at
                   </span>
                   <input
@@ -693,12 +734,12 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                     onChange={(event) =>
                       setExternalExpiresAt(event.target.value)
                     }
-                    className="mt-1 h-10 w-full rounded-md border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-900"
+                    className="mt-1 ui-control w-full"
                   />
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
+              <div className="flex justify-end gap-2 border-t border-ui-border pt-4">
                 <GenericButton
                   onClick={() => setIsExternalCreateOpen(false)}
                   variant="secondary"
@@ -719,69 +760,88 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
             </div>
         </WorkspaceDialog>
 
-        <Section surface="outlined">
+        <Section surface="outlined" className="p-4 sm:p-5">
           <SectionHeader
-            title="External API credentials"
-            description="Tokens from other backends used by workflow call_api steps."
+            title={
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <FiArrowUpRight className="h-3.5 w-3.5" />
+                </span>
+                <span className="font-semibold text-ui-foreground">External API credentials</span>
+                <span className="inline-flex items-center rounded-ui-sm border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                  Outbound
+                </span>
+              </div>
+            }
+            description="Tokens from other backends used by workflow call_api steps to make outbound requests."
           />
 
           {externalCredentialsLoading ? (
-            <div className="p-8 text-sm text-neutral-500">Loading...</div>
+            <div className="p-8 text-sm text-ui-muted">Loading...</div>
           ) : externalCredentials.length === 0 ? (
             <EmptyState title="No external API credentials yet" description="Add a credential when a workflow needs to call another backend." />
           ) : (
-            <div className="divide-y divide-neutral-200">
+            <div className="divide-y divide-ui-border">
               {externalCredentials.map((credential) => {
                 const status = getExternalCredentialStatus(credential);
                 return (
-                  <div key={credential.id} className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold text-neutral-900">
-                            {credential.name}
-                          </h3>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
-                            {credential.authType === "header"
-                              ? credential.headerName
-                              : "Authorization: Bearer"}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-                          <span>
-                            Domains {credential.allowedDomains.join(", ")}
-                          </span>
-                          <span>
-                            Expires {formatDate(credential.expiresAt)}
-                          </span>
-                          <span>
-                            Last used {formatDate(credential.lastUsedAt)}
-                          </span>
-                        </div>
-                        <div className="mt-3 flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-                          <code className="min-w-0 flex-1 break-all text-xs text-neutral-700">
-                            {credential.id}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => copyCredentialId(credential.id)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-white"
-                            title="Copy credential id"
-                          >
-                            <FiCopy className="h-4 w-4" />
-                          </button>
-                        </div>
+                  <div key={credential.id} className="px-4 py-3 sm:px-5 sm:py-3.5 transition-colors hover:bg-ui-surface-subtle/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-ui-foreground">
+                          {credential.name}
+                        </h3>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                        <Badge variant="neutral">
+                          {credential.authType === "header"
+                            ? credential.headerName
+                            : "Authorization: Bearer"}
+                        </Badge>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => revokeExternal(credential)}
-                        disabled={!!credential.revokedAt}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-neutral-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-                        title="Revoke external API credential"
-                      >
-                        <FiTrash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => revokeExternal(credential)}
+                          disabled={!!credential.revokedAt}
+                          className="inline-flex h-7 items-center gap-1.5 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 text-xs font-medium text-ui-muted transition-colors hover:border-ui-danger/40 hover:bg-ui-danger-subtle/60 hover:text-ui-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-danger disabled:cursor-not-allowed disabled:opacity-40"
+                          title="Revoke external API credential"
+                          aria-label={`Revoke ${credential.name}`}
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          <span>Revoke</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ui-muted">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-ui-muted select-none">
+                          Credential ID
+                        </span>
+                        <code className="break-all rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-2 py-0.5 font-mono text-[11px] text-ui-foreground">
+                          {credential.id}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyCredentialId(credential.id)}
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-ui-sm text-ui-muted hover:bg-ui-surface hover:text-ui-foreground transition-colors"
+                          title="Copy credential id"
+                        >
+                          <FiCopy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <span>
+                        Domains <span className="font-medium text-ui-foreground">{credential.allowedDomains.join(", ")}</span>
+                      </span>
+                      <span>
+                        Expires <span className="font-medium text-ui-foreground">{formatDate(credential.expiresAt)}</span>
+                      </span>
+                      {credential.lastUsedAt && (
+                        <span>
+                          Last used <span className="font-medium text-ui-foreground">{formatDate(credential.lastUsedAt)}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -790,63 +850,125 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
           )}
         </Section>
 
-        <Section surface="outlined">
+        <Section surface="outlined" className="p-4 sm:p-5">
           <SectionHeader
-            title="Integration credentials"
+            title={
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <FiArrowDownLeft className="h-3.5 w-3.5" />
+                </span>
+                <span className="font-semibold text-ui-foreground">Integration credentials</span>
+                <span className="inline-flex items-center rounded-ui-sm border border-purple-200 bg-purple-50/80 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                  Inbound
+                </span>
+              </div>
+            }
             description="Tokens generated by this app for external systems calling your project."
           />
 
           {isLoading ? (
-            <div className="p-8 text-sm text-neutral-500">Loading...</div>
+            <div className="p-8 text-sm text-ui-muted">Loading...</div>
           ) : credentials.length === 0 ? (
             <EmptyState title="No integration credentials yet" description="Create a scoped credential for systems that call this project." />
           ) : (
-            <div className="divide-y divide-neutral-200">
+            <div className="divide-y divide-ui-border">
               {credentials.map((credential) => {
                 const status = getCredentialStatus(credential);
                 return (
-                  <div key={credential.id} className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-neutral-900">
-                            {credential.name}
-                          </h3>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-                          <span>Expires {formatDate(credential.expiresAt)}</span>
-                          <span>Last used {formatDate(credential.lastUsedAt)}</span>
-                        </div>
+                  <div key={credential.id} className="px-4 py-3 sm:px-5 sm:py-3.5 transition-colors hover:bg-ui-surface-subtle/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-ui-foreground">
+                          {credential.name}
+                        </h3>
+                        <Badge variant={status.variant}>{status.label}</Badge>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => revoke(credential)}
-                        disabled={!!credential.revokedAt}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-neutral-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-                        title="Revoke credential"
-                      >
-                        <FiTrash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => revoke(credential)}
+                          disabled={!!credential.revokedAt}
+                          className="inline-flex h-7 items-center gap-1.5 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 text-xs font-medium text-ui-muted transition-colors hover:border-ui-danger/40 hover:bg-ui-danger-subtle/60 hover:text-ui-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-danger disabled:cursor-not-allowed disabled:opacity-40"
+                          title="Revoke credential"
+                          aria-label={`Revoke ${credential.name}`}
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          <span>Revoke</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {credential.permissions.map((permission, index) => (
-                        <span
-                          key={`${credential.id}-${index}`}
-                          className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700"
-                        >
-                          {permission.method} {permission.schemaName} /{" "}
-                          {permission.kind} / {getPermissionName(permission)}
-                        </span>
-                      ))}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ui-muted">
+                      <span>Expires <span className="font-medium text-ui-foreground">{formatDate(credential.expiresAt)}</span></span>
+                      {credential.lastUsedAt && (
+                        <span>Last used <span className="font-medium text-ui-foreground">{formatDate(credential.lastUsedAt)}</span></span>
+                      )}
                     </div>
+
+                    {credential.permissions && credential.permissions.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        {credential.permissions.map((permission, index) => (
+                          <div
+                            key={`${credential.id}-${index}`}
+                            className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 py-1 text-xs"
+                          >
+                            <span
+                              className={cn(
+                                "font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-ui-xs border uppercase tracking-wider",
+                                getMethodBadgeClass(permission.method)
+                              )}
+                            >
+                              {permission.method}
+                            </span>
+                            <span className="font-mono text-[11px] text-ui-muted">
+                              <span className="text-ui-foreground font-medium">{permission.schemaName}</span>
+                              <span className="mx-1.5 text-ui-muted/40">/</span>
+                              <span className="text-ui-muted">{permission.kind}</span>
+                              <span className="mx-1.5 text-ui-muted/40">/</span>
+                              <span className="text-ui-foreground font-semibold">{getPermissionName(permission)}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
         </Section>
+
+        <WorkspaceDialog
+          open={Boolean(revokeTarget)}
+          onClose={() => setRevokeTarget(null)}
+          title={`Revoke ${revokeTarget?.type === "external" ? "external API credential" : "credential"}`}
+          description={
+            revokeTarget
+              ? `Are you sure you want to revoke "${revokeTarget.name}"? Applications and workflows using this token will immediately lose access. This action cannot be undone.`
+              : undefined
+          }
+        >
+          <div className="flex justify-end gap-2 border-t border-ui-border pt-4">
+            <GenericButton
+              onClick={() => setRevokeTarget(null)}
+              variant="secondary"
+              size="md"
+            >
+              Cancel
+            </GenericButton>
+            <GenericButton
+              onClick={handleConfirmRevoke}
+              variant="danger"
+              size="md"
+              disabled={
+                revokeCredential.isPending || revokeExternalCredential.isPending
+              }
+              iconLeft={<FiTrash2 className="h-4 w-4" />}
+            >
+              Revoke credential
+            </GenericButton>
+          </div>
+        </WorkspaceDialog>
       </div>
     </PageShell>
   );

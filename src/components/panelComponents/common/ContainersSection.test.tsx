@@ -130,7 +130,6 @@ describe("ContainersSection", () => {
 
     const search = screen.getByRole("searchbox", { name: "Search containers" });
     await user.type(search, "collection-35");
-    await user.click(screen.getByRole("button", { name: "Search" }));
 
     expect(screen.getAllByRole("article")).toHaveLength(1);
     expect(screen.getByRole("article", { name: "schema-35 container" })).toBeInTheDocument();
@@ -138,7 +137,6 @@ describe("ContainersSection", () => {
 
     await user.clear(search);
     await user.type(search, "not-a-container");
-    await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText("No containers match your search")).toBeInTheDocument();
     expect(screen.queryByText("No containers found in this project")).not.toBeInTheDocument();
 

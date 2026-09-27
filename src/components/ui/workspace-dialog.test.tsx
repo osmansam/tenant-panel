@@ -76,4 +76,31 @@ describe("WorkspaceDialog", () => {
 
     expect(trigger).toHaveFocus();
   });
+
+  it("closes only the top dialog with Escape", async () => {
+    const user = userEvent.setup();
+    const closeParent = vi.fn();
+    const closeNested = vi.fn();
+
+    render(
+      <>
+        <WorkspaceDialog open onClose={closeParent} title="Manage stock">
+          Parent
+        </WorkspaceDialog>
+        <WorkspaceDialog
+          open
+          onClose={closeNested}
+          title="Edit field: quantity"
+          layer="nested"
+        >
+          Nested
+        </WorkspaceDialog>
+      </>,
+    );
+
+    await user.keyboard("{Escape}");
+
+    expect(closeNested).toHaveBeenCalledTimes(1);
+    expect(closeParent).not.toHaveBeenCalled();
+  });
 });
