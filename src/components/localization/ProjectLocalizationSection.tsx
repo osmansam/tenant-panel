@@ -101,7 +101,7 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                     <div role="cell">
                       <input
                         aria-label={`Translation for ${row.sourceText}`}
-                        className="min-h-9 w-full min-w-0 rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+                        className="h-9 w-full min-w-0 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm shadow-ui-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus transition-colors"
                         defaultValue={row.translatedText}
                         onBlur={(event) => {
                           if (event.target.value !== row.translatedText) editTranslation.mutate({ key: row.translationKey, translatedText: event.target.value });
@@ -147,7 +147,7 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                   <label key={code} className={`flex cursor-pointer items-center gap-3 rounded-ui-md border px-3 py-2.5 text-sm transition-colors ${enabled ? "border-ui-primary bg-ui-active-subtle text-ui-foreground" : "border-ui-border text-ui-muted hover:bg-ui-surface-subtle"}`}>
                     <input type="checkbox" checked={enabled} onChange={() => toggleLocale(code)} className="h-4 w-4 accent-[hsl(var(--ui-primary))]" />
                     <span className="font-medium">{name}</span>
-                    <span className="ml-auto font-mono text-[11px] uppercase text-ui-muted">{code}</span>
+                    <Badge variant="mono" className="ml-auto text-[10px] uppercase">{code}</Badge>
                   </label>
                 );
               })}

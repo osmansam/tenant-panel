@@ -21,12 +21,12 @@ const CollectionsPage: React.FC = () => {
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ui-border pb-3 mb-4">
-        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-ui-foreground truncate">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-ui-border/70 pb-2.5 mb-3">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <h1 className="text-sm font-semibold tracking-tight text-ui-foreground truncate">
             {currentProject.name}
           </h1>
-          <Badge variant="info" className="text-[11px] py-0 px-1.5">
+          <Badge variant="mono" className="text-[11px] py-0 px-1.5">
             {currentProject.slug}
           </Badge>
           <Badge
@@ -35,13 +35,9 @@ const CollectionsPage: React.FC = () => {
           >
             {currentProject.isActive ? t("Active") : t("Inactive")}
           </Badge>
-          <span className="hidden text-xs text-ui-muted sm:inline">•</span>
-          <span className="text-xs text-ui-muted truncate">
-            {t("Collections & Data Schemas")}
-          </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-ui-muted shrink-0">
+        <div className="flex items-center gap-1.5 text-xs text-ui-muted shrink-0">
           <span className="text-ui-muted">{t("Role")}:</span>
           <span className="font-medium text-ui-foreground">
             {projectRoles.map((role) => t(role)).join(", ")}

@@ -159,118 +159,126 @@ export const ContainersSection: React.FC = () => {
         ) : undefined}
       />
 
-      {/* Container Statistics Strip */}
-      {containers && containers.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-ui-md border border-ui-border bg-ui-surface-subtle px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-primary">
-              {containers.length}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">
-              {t("Total Containers")}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-success">
-              {containers.filter((c) => c.isAuthContainer).length}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">
-              {t("Auth Containers")}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-[hsl(var(--ui-info))]">
-              {containers.reduce(
-                (total, c) => total + (c.fields?.length || 0),
-                0
-              )}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">{t("Total Fields")}</span>
-          </div>
-        </div>
-      )}
-
-      {containers.length > 0 && !error && (
-        <div className="mb-4">
+      {/* Container Toolbar: Search + Quick Stats */}
+      {containers && containers.length > 0 && !error && (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <form
             role="search"
             aria-label={t("Container toolbar")}
             onSubmit={(event) => event.preventDefault()}
-            className="relative flex items-center"
+            className="relative w-full max-w-sm sm:max-w-md"
           >
             <label htmlFor="container-search" className="sr-only">
               {t("Search containers")}
             </label>
-            <FiSearch className="pointer-events-none absolute left-3.5 h-4 w-4 text-ui-muted" />
+            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ui-muted" />
             <input
               id="container-search"
               type="search"
               value={searchQuery}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder={t("Search by schema, collection, or container ID")}
-              className="h-10 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-10 pr-9 text-sm text-ui-foreground placeholder:text-ui-muted focus:border-ui-primary focus:outline-none focus:ring-1 focus:ring-ui-primary transition-colors"
+              className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-9 text-xs text-ui-foreground placeholder:text-ui-muted focus:border-ui-primary focus:outline-none focus:ring-1 focus:ring-ui-primary transition-colors shadow-ui-sm"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
                 aria-label={t("Clear search")}
-                className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-full text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground transition-colors"
               >
                 <FiX className="h-3.5 w-3.5" />
               </button>
             )}
           </form>
+
+          {/* Quick Stats Pill Strip */}
+          <div className="flex flex-wrap items-center gap-4 rounded-ui-md border border-ui-border bg-ui-surface px-3 py-1.5 shadow-ui-sm self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-ui-primary">
+                {containers.length}
+              </span>
+              <span className="text-ui-muted">
+                {t("Total Containers")}
+              </span>
+            </div>
+            <div className="h-3.5 w-px bg-ui-border" />
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-ui-success">
+                {containers.filter((c) => c.isAuthContainer).length}
+              </span>
+              <span className="text-ui-muted">
+                {t("Auth Containers")}
+              </span>
+            </div>
+            <div className="h-3.5 w-px bg-ui-border" />
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-[hsl(var(--ui-info))]">
+                {containers.reduce(
+                  (total, c) => total + (c.fields?.length || 0),
+                  0
+                )}
+              </span>
+              <span className="text-ui-muted">{t("Total Fields")}</span>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Container List */}
-      <div className="space-y-3">
-        {error ? (
-          <div className="text-center py-8">
-            <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
-            <p className="text-ui-muted mb-4">
-              {t(
-                "Unable to load containers. Make sure you're in a project context."
-              )}
-            </p>
+      {error ? (
+        <div className="text-center py-8">
+          <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
+          <p className="text-ui-muted mb-4">
+            {t(
+              "Unable to load containers. Make sure you're in a project context."
+            )}
+          </p>
+        </div>
+      ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
+        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface overflow-hidden shadow-ui-sm">
+          <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-ui-muted">
+            <div>{t("Container / Schema")}</div>
+            <div className="text-right">{t("Actions")}</div>
           </div>
-        ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
-          collectionPage.items.map((container) => (
+          {collectionPage.items.map((container) => (
             <article
               key={container.id}
               aria-label={`${container.schemaName} ${t("container")}`}
-              className="group flex flex-col gap-3 rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 shadow-ui-sm transition-all hover:border-ui-border-strong hover:shadow-md sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
+              className="group flex flex-col gap-3 p-3.5 transition-colors hover:bg-ui-surface-subtle/60 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
               onClick={() => handleViewContainer(container)}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-semibold text-ui-foreground group-hover:text-ui-primary transition-colors">
-                    {container.schemaName}
-                  </h3>
-                  <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
-                    {container.isAuthContainer ? t("Auth Container") : t("Regular Container")}
-                  </Badge>
-                  {container.collectionName && (
-                    <span className="rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-2 py-0.5 font-mono text-xs text-ui-muted">
-                      {container.collectionName}
-                    </span>
-                  )}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-ui-sm bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-primary group-hover:border-ui-primary/30 transition-colors">
+                  <FiDatabase size={15} />
                 </div>
-                <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ui-muted">
-                  <span>{(container.fields || []).length} {t("fields")}</span>
-                  {container.redis?.isRedisCached && (
-                    <>
-                      <span>•</span>
-                      <span className="font-medium text-ui-primary">{t("Redis Cached")}</span>
-                    </>
-                  )}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold text-ui-foreground group-hover:text-ui-primary transition-colors">
+                      {container.schemaName}
+                    </h3>
+                    <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
+                      {container.isAuthContainer ? t("Auth Container") : t("Regular Container")}
+                    </Badge>
+                    {container.collectionName && (
+                      <Badge variant="mono" className="text-[11px]">
+                        {container.collectionName}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ui-muted">
+                    <span>{(container.fields || []).length} {t("fields")}</span>
+                    {container.redis?.isRedisCached && (
+                      <>
+                        <span>•</span>
+                        <span className="font-medium text-ui-primary">{t("Redis Cached")}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
               <div
-                className="inline-flex h-8 items-center rounded-ui-md border border-ui-border bg-ui-surface p-0.5 text-xs shadow-ui-xs shrink-0"
+                className="inline-flex h-8 items-center rounded-ui-md border border-ui-border bg-ui-surface p-0.5 text-xs shadow-ui-xs shrink-0 self-end lg:self-center"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -301,25 +309,25 @@ export const ContainersSection: React.FC = () => {
                 </button>
               </div>
             </article>
-          ))
-        ) : searchQuery ? (
-          <EmptyState title={t("No containers match your search")} />
-        ) : (
-          <EmptyState
-            title={t("No containers found in this project")}
-            description={t("Create a container to define this project's data model.")}
-            action={canCreateContainers ? (
-              <GenericButton
-                onClick={() => setIsCreateModalOpen(true)}
-                iconLeft={<FiPlus size={16} />}
-                data-primary-action="true"
-              >
-                {t("Create Your First Container")}
-              </GenericButton>
-            ) : undefined}
-          />
-        )}
-      </div>
+          ))}
+        </div>
+      ) : searchQuery ? (
+        <EmptyState title={t("No containers match your search")} />
+      ) : (
+        <EmptyState
+          title={t("No containers found in this project")}
+          description={t("Create a container to define this project's data model.")}
+          action={canCreateContainers ? (
+            <GenericButton
+              onClick={() => setIsCreateModalOpen(true)}
+              iconLeft={<FiPlus size={16} />}
+              data-primary-action="true"
+            >
+              {t("Create Your First Container")}
+            </GenericButton>
+          ) : undefined}
+        />
+      )}
 
       {containers.length > 0 && collectionPage.totalItems > 0 && (
         <nav

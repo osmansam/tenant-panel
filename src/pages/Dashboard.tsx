@@ -199,26 +199,30 @@ const Dashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left transition hover:border-ui-border-strong hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
         >
           <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span>{t("Projects")}</span>
-            <FiFolder className="h-4 w-4 text-ui-muted group-hover:text-ui-foreground transition-colors" />
+            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Projects")}</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
+              <FiFolder className="h-3.5 w-3.5" />
+            </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-ui-foreground">{projects.length}</div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">{projects.length}</div>
           <div className="mt-1 text-[11px] text-ui-muted">{t("Total active projects")}</div>
         </button>
 
         <button
           type="button"
           onClick={() => navigate(isInProject ? "/collections" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left transition hover:border-ui-border-strong hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
         >
           <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span>{t("Containers")}</span>
-            <FiDatabase className="h-4 w-4 text-ui-muted group-hover:text-ui-foreground transition-colors" />
+            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Containers")}</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
+              <FiDatabase className="h-3.5 w-3.5" />
+            </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-ui-foreground">
+          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
             {isInProject ? containers.length : "—"}
           </div>
           <div className="mt-1 text-[11px] text-ui-muted">
@@ -229,13 +233,15 @@ const Dashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(isInProject ? "/pages" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left transition hover:border-ui-border-strong hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
         >
           <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span>{t("Pages")}</span>
-            <FiFileText className="h-4 w-4 text-ui-muted group-hover:text-ui-foreground transition-colors" />
+            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Pages")}</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
+              <FiFileText className="h-3.5 w-3.5" />
+            </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-ui-foreground">
+          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
             {isInProject ? pages.length : "—"}
           </div>
           <div className="mt-1 text-[11px] text-ui-muted">
@@ -246,13 +252,15 @@ const Dashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(isInProject ? "/integrations" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left transition hover:border-ui-border-strong hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
         >
           <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span>{t("Integrations")}</span>
-            <FiKey className="h-4 w-4 text-ui-muted group-hover:text-ui-foreground transition-colors" />
+            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Integrations")}</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
+              <FiKey className="h-3.5 w-3.5" />
+            </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-ui-foreground">
+          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
             {isInProject ? integrations.length : "—"}
           </div>
           <div className="mt-1 text-[11px] text-ui-muted">
@@ -267,13 +275,13 @@ const Dashboard: React.FC = () => {
           title={<span id="recent-activity-heading">{t("Recent Activity")}</span>}
           description={t("Status, updates, and active workspaces in your tenant.")}
         />
-        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface">
+        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface shadow-ui-sm overflow-hidden">
           {recentActivities.map((activity) => {
             const Icon = activity.icon;
             return (
               <div
                 key={activity.id}
-                className="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between transition-colors hover:bg-ui-surface-subtle/50"
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-ui-sm bg-ui-surface-subtle text-ui-muted border border-ui-border">
@@ -310,7 +318,7 @@ const Dashboard: React.FC = () => {
                 key={action.label}
                 type="button"
                 onClick={() => navigate(action.path)}
-                className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left transition hover:border-ui-border-strong hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+                className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -323,9 +331,9 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5">
                     {action.badge && (
-                      <span className="rounded-ui-xs bg-ui-surface-subtle px-1.5 py-0.5 text-[10px] font-mono text-ui-muted border border-ui-border">
+                      <Badge variant="mono" className="text-[10px]">
                         {action.badge}
-                      </span>
+                      </Badge>
                     )}
                     <FiArrowRight className="h-3.5 w-3.5 text-ui-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-ui-foreground" />
                   </div>
@@ -379,7 +387,7 @@ const Dashboard: React.FC = () => {
           description={t("Your current tenant membership and access details.")}
         />
         {currentTenant ? (
-          <div className="rounded-ui-lg border border-ui-border bg-ui-surface p-4">
+          <div className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 shadow-ui-sm">
             <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-3">
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">

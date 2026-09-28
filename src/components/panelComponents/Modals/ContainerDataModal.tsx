@@ -35,7 +35,7 @@ export function ContainerDataModal({
       closeLabel={t("Close data viewer")}
       footer={
         <div className="flex justify-end">
-          <GenericButton variant="outline" onClick={onClose}>
+          <GenericButton variant="outline" size="sm" onClick={onClose}>
             {t("Close")}
           </GenericButton>
         </div>

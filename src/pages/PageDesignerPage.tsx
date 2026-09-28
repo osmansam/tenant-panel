@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { FiCheck, FiCode, FiCopy, FiDownload, FiUpload } from "react-icons/fi";
 import { PageDesigner } from "../components/PageDesigner/PageDesigner";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
+import { Badge } from "../components/ui";
 import { GridSection } from "../types/page";
 import type { PageFilterDefinition } from "../utils/api/page";
 
@@ -63,9 +64,9 @@ export const PageDesignerPage: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold tracking-tight text-ui-foreground">Page Designer</h1>
-              <span className="rounded-full bg-ui-subtle px-2 py-0.5 text-xs font-medium text-ui-muted">
+              <Badge variant="mono" className="text-xs">
                 {sections.length} section{sections.length !== 1 ? "s" : ""}
-              </span>
+              </Badge>
             </div>
             <p className="mt-0.5 text-sm text-ui-muted">Compose the page grid, data components, and filters.</p>
           </div>
@@ -74,7 +75,7 @@ export const PageDesignerPage: React.FC = () => {
             <GenericButton variant="ghost" size="sm" onClick={() => setShowJson(!showJson)} iconLeft={<FiCode size={15} />}>
               {showJson ? "Hide JSON" : "View JSON"}
             </GenericButton>
-            <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 focus-within:ring-2 focus-within:ring-ui-focus">
+            <label className="ui-focus-ring inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-ui-md px-3 text-xs font-medium text-ui-foreground transition hover:bg-ui-surface-subtle">
               <FiUpload size={15} aria-hidden="true" />
               Import
               <input type="file" accept=".json" onChange={handleImport} className="sr-only" />

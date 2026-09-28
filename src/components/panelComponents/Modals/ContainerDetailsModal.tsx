@@ -1261,7 +1261,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           placeholder={t("Search fields by name, type, tag, or relation")}
                           value={fieldQuery}
                           onChange={(event) => setFieldQuery(event.target.value)}
-                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
+                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted shadow-ui-sm focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
                         />
                         {fieldQuery && (
                           <button
@@ -1344,16 +1344,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               .map((t) => t.trim())
                               .filter(Boolean)
                               .map((tag) => (
-                                <span
+                                <Badge
                                   key={tag}
-                                  className="inline-flex items-center rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-[10px] text-ui-muted"
+                                  variant="mono"
+                                  className="text-[10px]"
                                 >
                                   {tag}
-                                </span>
+                                </Badge>
                               ))}
                           {field.objectSchemaName && (
                             <span className="inline-flex items-center gap-1 rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 text-[10px] text-ui-muted">
-                              <span className="text-ui-subtle">→</span>
+                              <span className="text-ui-muted">→</span>
                               <span className="font-medium text-ui-foreground">{field.objectSchemaName}</span>
                             </span>
                           )}

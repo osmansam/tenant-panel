@@ -75,36 +75,36 @@ const GenericButton = forwardRef<HTMLButtonElement, GenericButtonProps>(
   ) => {
     // Base styles - refined for modern look
     const baseStyles =
-      "inline-flex items-center justify-center font-medium transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none active:scale-[0.98]";
+      "inline-flex items-center justify-center font-medium transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus/20 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none active:scale-[0.99]";
 
     // Variant styles - inspired by Linear, Vercel, Apple
     const variantStyles: Record<GenericButtonVariant, string> = {
       primary:
-        "bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-700 focus-visible:ring-neutral-900 shadow-sm border border-transparent",
+        "bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-700 focus-visible:ring-neutral-900 shadow-ui-sm border border-transparent",
       secondary:
-        "bg-neutral-100 text-neutral-900 hover:bg-neutral-200 active:bg-neutral-300 focus-visible:ring-neutral-400 border border-transparent",
+        "bg-ui-surface-subtle text-ui-foreground hover:bg-ui-disabled active:bg-ui-neutral-subtle focus-visible:ring-ui-focus/20 border border-transparent",
       danger:
-        "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 focus-visible:ring-red-500 shadow-sm border border-transparent",
+        "bg-ui-danger text-white hover:bg-ui-danger/90 active:bg-ui-danger/95 focus-visible:ring-ui-danger/20 shadow-ui-sm border border-transparent",
       success:
-        "bg-green-500 text-white hover:bg-green-600 active:bg-green-700 focus-visible:ring-green-500 shadow-sm border border-transparent",
+        "bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 focus-visible:ring-emerald-500/20 shadow-ui-sm border border-transparent",
       warning:
-        "bg-amber-500 text-white hover:bg-amber-600 active:bg-amber-700 focus-visible:ring-amber-500 shadow-sm border border-transparent",
+        "bg-amber-600 text-white hover:bg-amber-700 active:bg-amber-800 focus-visible:ring-amber-500/20 shadow-ui-sm border border-transparent",
       ghost:
-        "bg-transparent text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 focus-visible:ring-neutral-400 border border-transparent",
+        "bg-transparent text-ui-foreground hover:bg-ui-surface-subtle active:bg-ui-disabled focus-visible:ring-ui-focus/20 border border-transparent",
       outline:
-        "bg-white text-neutral-900 hover:bg-neutral-50 active:bg-neutral-100 focus-visible:ring-neutral-400 border border-neutral-300 shadow-sm",
+        "bg-ui-surface text-ui-foreground hover:bg-ui-surface-subtle active:bg-ui-disabled focus-visible:ring-ui-focus/20 border border-ui-border shadow-ui-sm",
       black:
-        "bg-black text-white hover:bg-neutral-900 active:bg-neutral-800 focus-visible:ring-neutral-900 shadow-sm border border-transparent",
-      icon: "bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 active:bg-neutral-200 focus-visible:ring-neutral-400 p-0 border border-transparent",
+        "bg-black text-white hover:bg-neutral-900 active:bg-neutral-800 focus-visible:ring-neutral-900 shadow-ui-sm border border-transparent",
+      icon: "bg-transparent text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground active:bg-ui-disabled focus-visible:ring-ui-focus/20 p-0 border border-transparent",
       clear:
-        "absolute right-2 top-1/2 -translate-y-1/2 bg-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 text-lg focus-visible:ring-0 focus-visible:ring-offset-0 rounded-md p-1 border border-transparent",
+        "absolute right-2 top-1/2 -translate-y-1/2 bg-transparent text-ui-muted hover:text-ui-foreground hover:bg-ui-surface-subtle text-lg focus-visible:ring-0 focus-visible:ring-offset-0 rounded-ui-sm p-1 border border-transparent",
     };
 
     // Size styles - pixel-perfect spacing
     const sizeStyles: Record<GenericButtonSize, string> = {
-      sm: "px-3 py-1.5 text-sm gap-1.5 rounded-lg h-8",
-      md: "px-4 py-2 text-sm gap-2 rounded-lg h-9",
-      lg: "px-5 py-2.5 text-base gap-2.5 rounded-xl h-11",
+      sm: "px-3 py-1 text-sm gap-1.5 rounded-ui-sm h-8",
+      md: "px-4 py-1.5 text-sm gap-2 rounded-ui-md h-9",
+      lg: "px-5 py-2 text-base gap-2.5 rounded-ui-md h-10",
     };
 
     // Width style

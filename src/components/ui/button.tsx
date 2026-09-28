@@ -19,23 +19,23 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "border-transparent bg-ui-primary text-white hover:bg-ui-primary-hover",
+    "border-transparent bg-ui-primary text-white hover:bg-ui-primary-hover active:bg-ui-primary-hover/90 shadow-sm",
   secondary:
-    "border-transparent bg-ui-surface-subtle text-ui-foreground hover:bg-ui-disabled",
+    "border-transparent bg-ui-surface-subtle text-ui-foreground hover:bg-ui-disabled active:bg-ui-neutral-subtle",
   outline:
-    "border-ui-border bg-ui-surface text-ui-foreground hover:border-ui-border-hover",
+    "border-ui-border bg-ui-surface text-ui-foreground hover:bg-ui-surface-subtle hover:border-ui-border-hover shadow-sm",
   ghost:
     "border-transparent bg-transparent text-ui-foreground hover:bg-ui-surface-subtle",
   destructive:
-    "border-transparent bg-ui-danger text-white hover:bg-ui-danger/90",
+    "border-transparent bg-ui-danger text-white hover:bg-ui-danger/90 active:bg-ui-danger/95 shadow-sm",
   icon:
     "border-transparent bg-transparent text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-ui-sm rounded-ui-sm px-3 text-sm",
-  md: "h-ui-md rounded-ui-md px-4 text-sm",
-  lg: "h-ui-lg rounded-ui-md px-5 text-sm",
+  sm: "h-ui-sm rounded-ui-sm px-3 text-sm gap-1.5",
+  md: "h-ui-md rounded-ui-md px-4 text-sm gap-2",
+  lg: "h-ui-lg rounded-ui-md px-5 text-sm gap-2",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       aria-busy={loading || undefined}
       disabled={disabled || loading}
       className={cn(
-        "ui-focus-ring relative inline-flex items-center justify-center gap-2 border font-medium shadow-ui-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+        "ui-focus-ring relative inline-flex items-center justify-center border font-medium select-none transition-colors active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
         variants[variant],
         sizes[size],
         className,
