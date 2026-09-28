@@ -557,14 +557,21 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     <WorkspaceDialog
       open={isOpen}
       onClose={handleClose}
-      title={dialogTitle}
+      title={
+        <span className="block break-all sm:break-normal">
+          {dialogTitle}
+        </span>
+      }
       description={
-        containerName
-          ? t("Container: {{containerName}}", { containerName })
-          : undefined
+        containerName ? (
+          <span className="block break-all sm:break-normal">
+            {t("Container: {{containerName}}", { containerName })}
+          </span>
+        ) : undefined
       }
       size="large"
       layer="nested"
+      bodyClassName="min-w-0"
       footer={
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <GenericButton variant="outline" onClick={handleClose}>
@@ -579,7 +586,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       <div className="space-y-6">
         <section
           aria-labelledby="field-basic-heading"
-          className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+          data-surface="plain"
+          className="border-b border-ui-border pb-6"
         >
           <h3
             id="field-basic-heading"
@@ -700,7 +708,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             {canHaveChildFields && (
               <section
                 aria-labelledby="field-nested-heading"
-                className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+                data-surface="plain"
+                className="border-b border-ui-border pb-6"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -902,7 +911,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             {/* Field Properties */}
             <section
               aria-labelledby="field-advanced-heading"
-              className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+              data-surface="plain"
+              className="border-b border-ui-border pb-6"
             >
               <h3
                 id="field-advanced-heading"
@@ -981,7 +991,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
               fieldData.objectSchemaName && (
                 <section
                   aria-labelledby="field-relationship-heading"
-                  className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+                  data-surface="plain"
+                  className="border-b border-ui-border pb-6"
                 >
                   <h3
                     id="field-relationship-heading"
@@ -1069,7 +1080,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             {/* Validation Rules */}
             <section
               aria-labelledby="field-validation-heading"
-              className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 sm:p-5"
+              data-surface="plain"
+              className="border-b border-ui-border pb-6 last:border-b-0 last:pb-0"
             >
               <div className="flex items-center justify-between mb-3">
                 <h3

@@ -37,7 +37,9 @@ describe("ProjectManagementPage", () => {
     );
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: "Demo Project" })).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "Demo Project" });
+    expect(heading).toBeInTheDocument();
+    expect(heading.closest("header")).toBeInTheDocument();
     expect(screen.getByText("Active")).toHaveAttribute("data-variant", "success");
     expect(screen.getByText("project_developer")).toBeInTheDocument();
     expect(screen.getByRole("main")).toContainElement(

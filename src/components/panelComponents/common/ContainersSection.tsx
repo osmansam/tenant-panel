@@ -23,6 +23,7 @@ import {
   PageActions,
   Section,
   SectionHeader,
+  Toolbar,
 } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import { ContainerDataModal } from "../Modals/ContainerDataModal";
@@ -131,7 +132,6 @@ export const ContainersSection: React.FC = () => {
             <GenericButton
               size="sm"
               variant="outline"
-              className="h-8 rounded-ui-md border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-foreground shadow-ui-sm hover:border-ui-border-strong hover:bg-ui-surface-subtle"
               onClick={() => setIsCreateJsonModalOpen(true)}
               iconLeft={<FiCode size={14} className="text-ui-muted" />}
             >
@@ -140,7 +140,6 @@ export const ContainersSection: React.FC = () => {
             <GenericButton
               size="sm"
               variant="outline"
-              className="h-8 rounded-ui-md border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-foreground shadow-ui-sm hover:border-ui-border-strong hover:bg-ui-surface-subtle"
               onClick={() => setIsExcelUploadOpen(true)}
               iconLeft={<FiUpload size={14} className="text-ui-muted" />}
             >
@@ -148,7 +147,6 @@ export const ContainersSection: React.FC = () => {
             </GenericButton>
             <GenericButton
               size="sm"
-              className="h-8 rounded-ui-md bg-ui-primary px-3.5 text-xs font-medium text-white shadow-ui-sm hover:bg-ui-primary-hover"
               onClick={() => setIsCreateModalOpen(true)}
               iconLeft={<FiPlus size={14} />}
               data-primary-action="true"
@@ -161,10 +159,13 @@ export const ContainersSection: React.FC = () => {
 
       {/* Container Toolbar: Search + Quick Stats */}
       {containers && containers.length > 0 && !error && (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Toolbar
+          aria-label={t("Container toolbar")}
+          className="mb-4 flex-col items-stretch gap-3 py-0 sm:flex-row sm:items-center sm:justify-between"
+        >
           <form
             role="search"
-            aria-label={t("Container toolbar")}
+            aria-label={t("Search containers")}
             onSubmit={(event) => event.preventDefault()}
             className="relative w-full max-w-sm sm:max-w-md"
           >
@@ -178,7 +179,7 @@ export const ContainersSection: React.FC = () => {
               value={searchQuery}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder={t("Search by schema, collection, or container ID")}
-              className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-9 text-xs text-ui-foreground placeholder:text-ui-muted focus:border-ui-primary focus:outline-none focus:ring-1 focus:ring-ui-primary transition-colors shadow-ui-sm"
+              className="ui-control h-ui-sm pl-9 pr-9 text-xs"
             />
             {searchQuery && (
               <button
@@ -222,7 +223,7 @@ export const ContainersSection: React.FC = () => {
               <span className="text-ui-muted">{t("Total Fields")}</span>
             </div>
           </div>
-        </div>
+        </Toolbar>
       )}
 
       {/* Container List */}
@@ -245,7 +246,8 @@ export const ContainersSection: React.FC = () => {
             <article
               key={container.id}
               aria-label={`${container.schemaName} ${t("container")}`}
-              className="group flex flex-col gap-3 p-3.5 transition-colors hover:bg-ui-surface-subtle/60 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
+              data-density="dense"
+              className="group flex min-h-[var(--ui-row-dense)] cursor-pointer flex-col gap-3 p-3.5 transition-colors hover:bg-ui-surface-subtle/60 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between"
               onClick={() => handleViewContainer(container)}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -254,7 +256,7 @@ export const ContainersSection: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-ui-foreground group-hover:text-ui-primary transition-colors">
+                    <h3 className="truncate text-sm font-semibold text-ui-foreground transition-colors group-hover:text-ui-primary">
                       {container.schemaName}
                     </h3>
                     <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
@@ -278,35 +280,33 @@ export const ContainersSection: React.FC = () => {
                 </div>
               </div>
               <div
-                className="inline-flex h-8 items-center rounded-ui-md border border-ui-border bg-ui-surface p-0.5 text-xs shadow-ui-xs shrink-0 self-end lg:self-center"
+                className="flex shrink-0 flex-wrap items-center justify-end gap-1 self-end lg:self-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  type="button"
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => handleViewContainer(container, "manage")}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiEdit size={12} className="text-ui-muted" />}
                 >
-                  <FiEdit size={12} className="text-ui-muted" />
-                  <span>{t("Edit")}</span>
-                </button>
-                <div className="h-3.5 w-px bg-ui-border" />
-                <button
-                  type="button"
+                  {t("Edit")}
+                </GenericButton>
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => setDataContainer(container)}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiDatabase size={12} className="text-ui-muted" />}
                 >
-                  <FiDatabase size={12} className="text-ui-muted" />
-                  <span>{t("View Data")}</span>
-                </button>
-                <div className="h-3.5 w-px bg-ui-border" />
-                <button
-                  type="button"
+                  {t("View Data")}
+                </GenericButton>
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => handleViewContainer(container)}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2 text-xs font-normal text-ui-muted transition-colors hover:bg-ui-surface-subtle hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiInfo size={12} />}
                 >
-                  <FiInfo size={12} />
-                  <span>{t("Details")}</span>
-                </button>
+                  {t("Details")}
+                </GenericButton>
               </div>
             </article>
           ))}

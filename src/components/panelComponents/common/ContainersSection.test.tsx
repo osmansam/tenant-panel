@@ -121,7 +121,18 @@ describe("ContainersSection", () => {
       "data-primary-action",
       "true",
     );
-    expect(screen.getByRole("search", { name: "Container toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Container toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("search", { name: "Search containers" })).toBeInTheDocument();
+  });
+
+  it("uses token-backed dense rows with bounded identifiers and shared focus treatment", () => {
+    render(<ContainersSection />);
+
+    const row = screen.getByRole("article", { name: "schema-1 container" });
+    expect(row).toHaveAttribute("data-density", "dense");
+    expect(row).toHaveClass("min-h-[var(--ui-row-dense)]");
+    expect(within(row).getByRole("heading", { name: "schema-1" })).toHaveClass("truncate");
+    expect(within(row).getByRole("button", { name: "Edit" })).toHaveClass("ui-focus-ring");
   });
 
   it("searches schema, collection, and ID and distinguishes no results", async () => {

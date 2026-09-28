@@ -53,8 +53,16 @@ describe("ContainerDataModal", () => {
         customTitle: "stock data",
       }),
     );
-    expect(
-      screen.getByRole("dialog", { name: "stock data" }),
-    ).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "stock data" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.children.item(1)).toHaveClass("min-w-0");
+    expect(screen.getByRole("heading", { name: "stock data" }).firstElementChild).toHaveClass(
+      "break-all",
+      "sm:break-normal",
+    );
+    expect(screen.getByText("Read-only records from stock")).toHaveClass(
+      "break-all",
+      "sm:break-normal",
+    );
   });
 });

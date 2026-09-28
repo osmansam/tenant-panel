@@ -48,9 +48,17 @@ describe("AddFieldModal", () => {
       />,
     );
 
-    expect(
-      await screen.findByRole("dialog", { name: "Edit field: product" }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Edit field: product" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.children.item(1)).toHaveClass("min-w-0");
+    expect(screen.getByRole("heading", { name: "Edit field: product" }).firstElementChild).toHaveClass(
+      "break-all",
+      "sm:break-normal",
+    );
+    expect(screen.getByText(/container: stock/i)).toHaveClass(
+      "break-all",
+      "sm:break-normal",
+    );
     expect(
       screen.getByRole("textbox", { name: /^field name\s*\*/i }),
     ).toHaveValue("product");
@@ -138,5 +146,23 @@ describe("AddFieldModal", () => {
     const submit = await screen.findByRole("button", { name: "Add Field" });
     expect(submit.parentElement).toHaveClass("flex-col-reverse");
     expect(submit).toHaveAttribute("data-primary-action", "true");
+  });
+
+  it("uses plain separated editor sections instead of nested cards", async () => {
+    render(
+      <AddFieldModal
+        isOpen
+        onClose={vi.fn()}
+        onAddField={vi.fn().mockResolvedValue(true)}
+        containerName="stock"
+      />,
+    );
+
+    const basicSection = (await screen.findByRole("heading", {
+      name: "Basic information",
+    })).closest("section");
+    expect(basicSection).toHaveAttribute("data-surface", "plain");
+    expect(basicSection).toHaveClass("border-b", "border-ui-border");
+    expect(basicSection).not.toHaveClass("rounded-ui-lg");
   });
 });

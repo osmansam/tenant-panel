@@ -108,7 +108,7 @@ describe("ContainerDetailsModal", () => {
     expect(
       screen.getByRole("searchbox", { name: "Search fields" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Field toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Field toolbar" })).toBeInTheDocument();
     await waitFor(() =>
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled(),
     );
@@ -143,6 +143,13 @@ describe("ContainerDetailsModal", () => {
     );
 
     const structuredTab = screen.getByRole("tab", { name: "Structured" });
+    expect(screen.getByRole("tablist")).toHaveClass("overflow-x-auto");
+    const dialog = screen.getByRole("dialog", { name: "stock" });
+    expect(dialog.children.item(1)).toHaveClass("min-w-0");
+    expect(within(dialog).getByRole("heading", { name: "stock" }).firstElementChild).toHaveClass(
+      "break-all",
+      "sm:break-normal",
+    );
     expect(structuredTab).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("region", { name: "Container overview" })).toBeInTheDocument();
 
@@ -165,8 +172,30 @@ describe("ContainerDetailsModal", () => {
     );
 
     const productRow = screen.getByRole("row", { name: /product/i });
+    expect(productRow).toHaveAttribute("data-density", "dense");
+    expect(productRow).toHaveClass("min-h-[var(--ui-row-dense)]");
+    expect(within(productRow).getByText("product")).toHaveClass("truncate");
     expect(within(productRow).getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(within(productRow).getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("keeps authentication settings labeled at standard row density", () => {
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{ ...stock, isAuthContainer: true }}
+        intent="details"
+      />,
+    );
+
+    const authentication = screen.getByRole("region", { name: "Authentication" });
+    const registration = within(authentication).getByRole("switch", {
+      name: "Registration Active",
+    });
+    const registrationRow = registration.closest("label");
+    expect(registrationRow).toHaveAttribute("data-density", "standard");
+    expect(registrationRow).toHaveClass("min-h-[var(--ui-row-standard)]");
   });
 
   it("filters fields safely and keeps the parent open after editing", async () => {

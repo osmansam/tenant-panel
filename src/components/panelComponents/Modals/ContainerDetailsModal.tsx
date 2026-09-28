@@ -57,6 +57,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  Toolbar,
   WorkspaceDialog,
 } from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
@@ -605,9 +606,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         onClose={onClose}
         size="workspace"
         title={
-          intent === "manage"
-            ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
-            : container.schemaName
+          <span className="block break-all sm:break-normal">
+            {intent === "manage"
+              ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
+              : container.schemaName}
+          </span>
         }
         description={
           <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-ui-muted">
@@ -631,7 +634,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
           </div>
         }
         closeLabel={t("Close container")}
-        bodyClassName="p-0 sm:p-0"
+        bodyClassName="min-w-0 p-0 sm:p-0"
         footer={
           <div className="flex justify-end gap-3">
             <GenericButton variant="outline" size="sm" onClick={onClose}>
@@ -1141,7 +1144,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       className="mt-4 space-y-3 border-t border-ui-border pt-4"
                     >
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                        <label
+                          data-density="standard"
+                          className="flex min-h-[var(--ui-row-standard)] items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm"
+                        >
                           <span className="font-medium text-ui-foreground">
                             {t("Registration Active")}
                           </span>
@@ -1150,7 +1156,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             onChange={handleToggleRegisterActive}
                           />
                         </label>
-                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                        <label
+                          data-density="standard"
+                          className="flex min-h-[var(--ui-row-standard)] items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm"
+                        >
                           <span className="font-medium text-ui-foreground">
                             {t("Google Login Active")}
                           </span>
@@ -1192,16 +1201,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                                   }))
                                 }
                                 placeholder={t(fieldName)}
+                                aria-label={t(fieldName)}
                                 type={inputType}
-                                className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                                className="ui-control text-xs"
                               />
                             );
                           })}
                           {authUserRoleField && (
                             <select
+                              aria-label={t("Role")}
                               value={authUserRole || getRoleOptionId(roleOptions[0])}
                               onChange={(event) => setAuthUserRole(event.target.value)}
-                              className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                              className="ui-control text-xs"
                             >
                               {roleOptions.length > 0 ? (
                                 roleOptions.map((role) => (
@@ -1240,10 +1251,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                 {/* Fields */}
                 <section ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
-                  <div
-                    role="group"
+                  <Toolbar
                     aria-label={t("Field toolbar")}
-                    className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="sticky top-0 z-[5] mb-3 flex-col items-stretch gap-3 border-b border-ui-border bg-ui-surface py-0 pb-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex flex-1 flex-wrap items-center gap-3">
                       <h4 className="text-base font-semibold text-ui-foreground shrink-0">
@@ -1297,7 +1307,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         {t("Add Field")}
                       </GenericButton>
                     </div>
-                  </div>
+                  </Toolbar>
                   <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
                     <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
                       <span role="columnheader">{t("Name")}</span>
@@ -1317,7 +1327,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       <div
                         key={field.name || index}
                         role="row"
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 last:border-b-0 hover:bg-ui-surface-subtle/50 transition-colors md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
+                        data-density="dense"
+                        className="grid min-h-[var(--ui-row-dense)] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 transition-colors last:border-b-0 hover:bg-ui-surface-subtle/50 md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
                       >
                         <div role="cell" className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2">

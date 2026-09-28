@@ -28,11 +28,20 @@ export function ContainerDataModal({
       open={isOpen}
       onClose={onClose}
       size="workspace"
-      title={title}
-      description={t("Read-only records from {{schemaName}}", {
-        schemaName: container.schemaName,
-      })}
+      title={
+        <span className="block break-all sm:break-normal">
+          {title}
+        </span>
+      }
+      description={
+        <span className="block break-all sm:break-normal">
+          {t("Read-only records from {{schemaName}}", {
+            schemaName: container.schemaName,
+          })}
+        </span>
+      }
       closeLabel={t("Close data viewer")}
+      bodyClassName="min-w-0"
       footer={
         <div className="flex justify-end">
           <GenericButton variant="outline" size="sm" onClick={onClose}>
