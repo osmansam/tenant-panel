@@ -82,7 +82,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className="absolute size-4 animate-spin rounded-full border-2 border-current border-r-transparent"
         />
       )}
-      <span className={cn("inline-flex items-center gap-2", loading && "opacity-0")}>
+      <span
+        className={cn(
+          "inline-flex min-w-0 max-w-full items-center gap-2",
+          loading && "opacity-0",
+        )}
+      >
         {children}
       </span>
     </button>

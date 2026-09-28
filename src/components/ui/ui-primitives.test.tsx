@@ -51,6 +51,13 @@ describe("shared UI primitives", () => {
     );
   });
 
+  it("keeps shared button content shrinkable inside constrained widths", () => {
+    render(<Button className="w-24">A very long translated action label</Button>);
+
+    const content = screen.getByRole("button").firstElementChild;
+    expect(content).toHaveClass("min-w-0", "max-w-full");
+  });
+
   it("keeps Badge variants semantic", () => {
     render(<Badge variant="info">Connected</Badge>);
     expect(screen.getByText("Connected")).toHaveAttribute("data-variant", "info");

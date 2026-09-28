@@ -108,7 +108,7 @@ const GenericButton = forwardRef<HTMLButtonElement, GenericButtonProps>(
         variant={sharedVariant[variant]}
         size={sharedSize}
         disabled={disabled || isLoading}
-        aria-busy={isLoading || undefined}
+        aria-busy={isLoading ? true : props["aria-busy"]}
         className={cn(
           fullWidth
             ? "w-full"

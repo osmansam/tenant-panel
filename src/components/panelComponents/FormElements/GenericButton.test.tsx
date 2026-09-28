@@ -85,4 +85,12 @@ describe("GenericButton compatibility wrapper", () => {
     expect(screen.queryByTestId("left-icon")).not.toBeInTheDocument();
     expect(screen.queryByTestId("right-icon")).not.toBeInTheDocument();
   });
+
+  it("preserves a caller-managed native busy state when it is not loading", () => {
+    render(<GenericButton aria-busy="true">Background task</GenericButton>);
+
+    expect(
+      screen.getByRole("button", { name: "Background task" }),
+    ).toHaveAttribute("aria-busy", "true");
+  });
 });
