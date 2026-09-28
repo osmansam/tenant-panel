@@ -8,12 +8,7 @@ export type BadgeVariant =
   | "warning"
   | "danger"
   | "outline"
-  | "mono"
-  | "method-get"
-  | "method-post"
-  | "method-put"
-  | "method-patch"
-  | "method-delete";
+  | "mono";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -28,11 +23,6 @@ const variantClasses: Record<BadgeVariant, string> = {
   danger: "bg-ui-danger-subtle text-ui-danger border-transparent",
   outline: "bg-ui-surface text-ui-foreground border-ui-border",
   mono: "font-mono bg-ui-surface-subtle text-ui-foreground border-ui-border",
-  "method-get": "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-mono font-semibold",
-  "method-post": "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25 font-mono font-semibold",
-  "method-put": "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25 font-mono font-semibold",
-  "method-patch": "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25 font-mono font-semibold",
-  "method-delete": "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25 font-mono font-semibold",
 };
 
 export function Badge({

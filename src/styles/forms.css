@@ -14,6 +14,10 @@
   }
 
   .ui-focus-ring {
-    @apply outline-none focus-visible:ring-[3px] focus-visible:ring-ui-focus/20;
+    @apply outline-none;
+  }
+
+  .ui-focus-ring:focus-visible {
+    box-shadow: 0 0 0 var(--ui-focus-ring-width) hsl(var(--ui-focus) / 0.2);
   }
 }

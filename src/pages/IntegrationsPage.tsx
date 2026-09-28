@@ -17,7 +17,6 @@ import {
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import {
   Badge,
-  type BadgeVariant,
   EmptyState,
   PageActions,
   PageHeader,
@@ -26,6 +25,7 @@ import {
   SectionHeader,
   WorkspaceDialog,
 } from "../components/ui";
+import { getHttpMethodBadgeTreatment } from "../components/integrations/http-method-badge";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import { cn } from "../utils/cn";
 import {
@@ -126,23 +126,6 @@ function getPermissionName(permission: IntegrationPermission) {
   return permission.kind === "dynamicRoute"
     ? permission.route || ""
     : permission.name || "";
-}
-
-function getMethodBadgeVariant(method: string): BadgeVariant {
-  switch (method.toUpperCase()) {
-    case "GET":
-      return "method-get";
-    case "POST":
-      return "method-post";
-    case "PUT":
-      return "method-put";
-    case "PATCH":
-      return "method-patch";
-    case "DELETE":
-      return "method-delete";
-    default:
-      return "mono";
-  }
 }
 
 function optionsForKind(
@@ -909,26 +892,34 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
                     {credential.permissions && credential.permissions.length > 0 && (
                       <div className="mt-2.5 flex flex-wrap gap-2">
-                        {credential.permissions.map((permission, index) => (
-                          <div
-                            key={`${credential.id}-${index}`}
-                            className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 py-1 text-xs"
-                          >
-                            <Badge
-                              variant={getMethodBadgeVariant(permission.method)}
-                              className="px-1.5 py-0.5 text-[10px] uppercase tracking-wider"
+                        {credential.permissions.map((permission, index) => {
+                          const methodBadge = getHttpMethodBadgeTreatment(
+                            permission.method,
+                          );
+                          return (
+                            <div
+                              key={`${credential.id}-${index}`}
+                              className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 py-1 text-xs"
                             >
-                              {permission.method}
-                            </Badge>
-                            <span className="font-mono text-[11px] text-ui-muted">
-                              <span className="text-ui-foreground font-medium">{permission.schemaName}</span>
-                              <span className="mx-1.5 text-ui-muted/40">/</span>
-                              <span className="text-ui-muted">{permission.kind}</span>
-                              <span className="mx-1.5 text-ui-muted/40">/</span>
-                              <span className="text-ui-foreground font-semibold">{getPermissionName(permission)}</span>
-                            </span>
-                          </div>
-                        ))}
+                              <Badge
+                                variant={methodBadge.variant}
+                                className={cn(
+                                  methodBadge.className,
+                                  "px-1.5 py-0.5 text-[10px]",
+                                )}
+                              >
+                                {permission.method}
+                              </Badge>
+                              <span className="font-mono text-[11px] text-ui-muted">
+                                <span className="text-ui-foreground font-medium">{permission.schemaName}</span>
+                                <span className="mx-1.5 text-ui-muted/40">/</span>
+                                <span className="text-ui-muted">{permission.kind}</span>
+                                <span className="mx-1.5 text-ui-muted/40">/</span>
+                                <span className="text-ui-foreground font-semibold">{getPermissionName(permission)}</span>
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
