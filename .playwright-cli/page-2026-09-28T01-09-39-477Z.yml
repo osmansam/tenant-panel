@@ -1,0 +1,228 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e4]:
+    - complementary [ref=f3e5]:
+      - button "Expand Sidebar" [ref=f3e8] [cursor=pointer]
+      - generic [ref=f3e11]:
+        - button [ref=f3e14] [cursor=pointer]
+        - generic [ref=f3e17]:
+          - button [ref=f3e19] [cursor=pointer]
+          - button [ref=f3e25] [cursor=pointer]
+          - button [ref=f3e31] [cursor=pointer]
+          - button [ref=f3e37] [cursor=pointer]
+          - button [ref=f3e43] [cursor=pointer]
+          - button [ref=f3e49] [cursor=pointer]
+        - button [ref=f3e56] [cursor=pointer]
+    - main [ref=f3e61]:
+      - generic [ref=f3e62]:
+        - generic [ref=f3e63]:
+          - generic [ref=f3e64]:
+            - heading "Demo Project With A Long Workspace Name" [level=1] [ref=f3e65]
+            - generic [ref=f3e67]:
+              - generic [ref=f3e68]: demo
+              - generic [ref=f3e69]: Active
+          - generic [ref=f3e70]:
+            - generic [ref=f3e71]: "Role:"
+            - generic [ref=f3e72]: project_admin, project_developer
+        - generic [ref=f3e73]:
+          - region "Containers" [ref=f3e74]:
+            - generic [ref=f3e75]:
+              - generic [ref=f3e76]:
+                - heading "Containers" [level=2] [ref=f3e77]
+                - generic [ref=f3e78]: Manage project schemas and their records
+              - group "Container actions" [ref=f3e79]:
+                - button "Create with JSON" [ref=f3e80] [cursor=pointer]
+                - button "Upload Excel" [ref=f3e88] [cursor=pointer]
+                - button "Create Container" [ref=f3e96] [cursor=pointer]
+            - toolbar "Container toolbar" [ref=f3e102]:
+              - search "Search containers" [ref=f3e103]:
+                - searchbox "Search containers" [ref=f3e105]
+              - generic [ref=f3e106]:
+                - generic [ref=f3e107]:
+                  - generic [ref=f3e108]: "3"
+                  - generic [ref=f3e109]: Total Containers
+                - generic [ref=f3e111]:
+                  - generic [ref=f3e112]: "1"
+                  - generic [ref=f3e113]: Auth Containers
+                - generic [ref=f3e115]:
+                  - generic [ref=f3e116]: "5"
+                  - generic [ref=f3e117]: Total Fields
+            - generic [ref=f3e118]:
+              - article "stock_inventory_with_a_deliberately_long_technical_identifier container" [ref=f3e119] [cursor=pointer]:
+                - generic [ref=f3e121]:
+                  - generic [ref=f3e122]:
+                    - heading "stock_inventory_with_a_deliberately_long_technical_identifier" [level=3] [ref=f3e123]
+                    - generic [ref=f3e124]: Auth Container
+                    - generic [ref=f3e125]: tenant_stock_inventory_records
+                  - paragraph [ref=f3e126]:
+                    - generic [ref=f3e127]: 3 fields
+                    - generic [ref=f3e128]: •
+                    - generic [ref=f3e129]: Redis Cached
+                - generic [ref=f3e130]:
+                  - button "Edit" [ref=f3e131]
+                  - button "View Data" [ref=f3e139]
+                  - button "Details" [ref=f3e148]
+              - article "catalog container" [ref=f3e155] [cursor=pointer]:
+                - generic [ref=f3e157]:
+                  - generic [ref=f3e158]:
+                    - heading "catalog" [level=3] [ref=f3e159]
+                    - generic [ref=f3e160]: Regular Container
+                    - generic [ref=f3e161]: catalog_items
+                  - paragraph [ref=f3e162]:
+                    - generic [ref=f3e163]: 1 fields
+                - generic [ref=f3e164]:
+                  - button "Edit" [ref=f3e165]
+                  - button "View Data" [ref=f3e173]
+                  - button "Details" [ref=f3e182]
+              - article "orders container" [ref=f3e189] [cursor=pointer]:
+                - generic [ref=f3e191]:
+                  - generic [ref=f3e192]:
+                    - heading "orders" [level=3] [ref=f3e193]
+                    - generic [ref=f3e194]: Regular Container
+                    - generic [ref=f3e195]: tenant_orders
+                  - paragraph [ref=f3e196]:
+                    - generic [ref=f3e197]: 1 fields
+                - generic [ref=f3e198]:
+                  - button "Edit" [ref=f3e199]
+                  - button "View Data" [ref=f3e207]
+                  - button "Details" [ref=f3e216]
+            - navigation "Container pagination" [ref=f3e223]:
+              - paragraph [ref=f3e224]: Showing 1–3 of 3 containers
+              - generic [ref=f3e226]:
+                - generic [ref=f3e227]: Containers per page
+                - combobox "Containers per page" [ref=f3e229] [cursor=pointer]:
+                  - option "10" [selected]
+                  - option "20"
+                  - option "50"
+          - region "Audit Logs Authorization" [ref=f3e230]:
+            - generic [ref=f3e232]:
+              - heading "Audit Logs Authorization" [level=2] [ref=f3e233]
+              - generic [ref=f3e234]: Audit logs are shown in react-template. Authentication is always required; authorization limits access to selected project roles.
+            - generic [ref=f3e235]:
+              - generic [ref=f3e237]:
+                - generic [ref=f3e238]:
+                  - generic [ref=f3e239]: Require Authorization
+                  - generic [ref=f3e240]: Only selected project roles can open audit logs.
+                - switch [ref=f3e241] [cursor=pointer]
+              - generic [ref=f3e242]:
+                - generic [ref=f3e243]: Current Access
+                - generic [ref=f3e244]:
+                  - generic [ref=f3e245]:
+                    - generic [ref=f3e246]: Authentication
+                    - generic [ref=f3e247]: Required
+                  - generic [ref=f3e248]:
+                    - generic [ref=f3e249]: Authorization
+                    - generic [ref=f3e250]: Disabled
+                  - generic [ref=f3e251]:
+                    - text: Project roles
+                    - generic [ref=f3e252]: No project roles selected
+                - button "Save" [ref=f3e253] [cursor=pointer]
+  - dialog [ref=f3e263]:
+    - banner [ref=f3e264]:
+      - generic [ref=f3e265]:
+        - heading "stock_inventory_with_a_deliberately_long_technical_identifier" [level=2] [ref=f3e266]
+        - generic [ref=f3e269]:
+          - generic [ref=f3e270]:
+            - generic [ref=f3e271]: ID
+            - generic [ref=f3e272]: stock-id
+            - button "Copy ID" [ref=f3e273] [cursor=pointer]
+          - generic [ref=f3e277]: Auth Container
+      - button "Close container" [active] [ref=f3e278] [cursor=pointer]
+    - generic [ref=f3e283]:
+      - tablist [ref=f3e286]:
+        - tab "Structured" [selected] [ref=f3e287] [cursor=pointer]
+        - tab "Pipelines" [ref=f3e289] [cursor=pointer]
+        - tab "Workflows" [ref=f3e294] [cursor=pointer]
+        - tab "Dynamic APIs" [ref=f3e298] [cursor=pointer]
+        - tab "Permissions" [ref=f3e302] [cursor=pointer]
+        - tab "Routes" [ref=f3e305] [cursor=pointer]
+        - tab "JSON" [ref=f3e309] [cursor=pointer]
+      - generic [ref=f3e315]:
+        - region "Container overview" [ref=f3e316]:
+          - generic [ref=f3e317]:
+            - generic [ref=f3e318]:
+              - generic [ref=f3e319]: Schema Name
+              - generic [ref=f3e320]: stock_inventory_with_a_deliberately_long_technical_identifier
+            - generic [ref=f3e321]:
+              - generic [ref=f3e322]: Collection Name
+              - generic [ref=f3e323]: tenant_stock_inventory_records
+            - generic [ref=f3e324]:
+              - generic [ref=f3e325]: Auth Container
+              - generic [ref=f3e326]: "Yes"
+            - generic [ref=f3e328]:
+              - generic [ref=f3e329]: Total Fields
+              - generic [ref=f3e330]: "3"
+            - generic [ref=f3e331]:
+              - generic [ref=f3e332]: Redis Cached
+              - generic [ref=f3e333]: "Yes"
+          - region "Authentication" [ref=f3e335]:
+            - generic [ref=f3e336]:
+              - generic [ref=f3e337]:
+                - generic [ref=f3e338]: Registration Active
+                - switch "Registration Active" [checked] [ref=f3e339] [cursor=pointer]
+              - generic [ref=f3e340]:
+                - generic [ref=f3e341]: Google Login Active
+                - switch "Google Login Active" [ref=f3e342] [cursor=pointer]
+            - generic [ref=f3e343]:
+              - generic [ref=f3e344]:
+                - heading "Create auth user" [level=4] [ref=f3e345]
+                - paragraph [ref=f3e346]: Creates a user in this project's auth container.
+              - generic [ref=f3e347]:
+                - textbox "product_reference_with_a_long_identifier" [ref=f3e348]
+                - spinbutton "quantity" [ref=f3e349]
+                - textbox "createdAt" [ref=f3e350]
+                - button "Create User" [disabled] [ref=f3e351]
+        - generic [ref=f3e355]:
+          - toolbar "Field toolbar" [ref=f3e356]:
+            - generic [ref=f3e357]:
+              - heading "Fields" [level=4] [ref=f3e358]
+              - searchbox "Search fields" [ref=f3e360]
+            - generic [ref=f3e361]:
+              - button "Add Timestamps" [ref=f3e362] [cursor=pointer]
+              - button "Add Field" [ref=f3e370] [cursor=pointer]
+          - table "Container fields" [ref=f3e376]:
+            - row [ref=f3e377]:
+              - 'cell "product_reference_with_a_long_identifier Tag: required" [ref=f3e378]':
+                - generic [ref=f3e379]: product_reference_with_a_long_identifier
+                - paragraph [ref=f3e381]: "Tag: required"
+              - cell [ref=f3e382]:
+                - generic [ref=f3e383]:
+                  - button "Move product_reference_with_a_long_identifier up" [disabled] [ref=f3e384]
+                  - button "Move product_reference_with_a_long_identifier down" [ref=f3e388] [cursor=pointer]
+                - button "Edit" [ref=f3e391] [cursor=pointer]
+                - button "Delete" [ref=f3e399] [cursor=pointer]
+            - row [ref=f3e406]:
+              - 'cell "quantity Tag: required,min=1" [ref=f3e407]':
+                - generic [ref=f3e408]: quantity
+                - paragraph [ref=f3e410]: "Tag: required,min=1"
+              - cell [ref=f3e411]:
+                - generic [ref=f3e412]:
+                  - button "Move quantity up" [ref=f3e413] [cursor=pointer]
+                  - button "Move quantity down" [ref=f3e417] [cursor=pointer]
+                - button "Edit" [ref=f3e420] [cursor=pointer]
+                - button "Delete" [ref=f3e428] [cursor=pointer]
+            - row [ref=f3e435]:
+              - 'cell "createdAt Tag: required" [ref=f3e436]':
+                - generic [ref=f3e437]: createdAt
+                - paragraph [ref=f3e439]: "Tag: required"
+              - cell [ref=f3e440]:
+                - generic [ref=f3e441]:
+                  - button "Move createdAt up" [ref=f3e442] [cursor=pointer]
+                  - button "Move createdAt down" [disabled] [ref=f3e446]
+                - button "Edit" [ref=f3e449] [cursor=pointer]
+                - button "Delete" [ref=f3e457] [cursor=pointer]
+        - generic [ref=f3e465]:
+          - generic [ref=f3e466]: Redis Configuration
+          - generic [ref=f3e467]:
+            - generic [ref=f3e468]:
+              - generic [ref=f3e469]: "Cached:"
+              - generic [ref=f3e470]: "Yes"
+            - generic [ref=f3e471]:
+              - generic [ref=f3e472]: "Cache Time:"
+              - generic [ref=f3e473]: 60s
+            - generic [ref=f3e474]:
+              - generic [ref=f3e475]: "Triggered Caches:"
+              - generic [ref=f3e476]: None
+    - contentinfo [ref=f3e477]:
+      - generic [ref=f3e478]:
+        - button "Close" [ref=f3e479] [cursor=pointer]
+        - button "Copy JSON" [ref=f3e483] [cursor=pointer]

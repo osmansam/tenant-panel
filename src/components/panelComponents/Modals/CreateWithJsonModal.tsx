@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IoClose } from "react-icons/io5";
 import { parseJsonObject } from "../../../utils/jsonCreate";
+import { WorkspaceDialog } from "../../ui/workspace-dialog";
+import { GenericButton } from "../FormElements/GenericButton";
 
 interface CreateWithJsonModalProps {
   isOpen: boolean;
@@ -72,75 +73,67 @@ export const CreateWithJsonModal: React.FC<CreateWithJsonModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-scale-in flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <div>
-            <h2 className="text-base font-semibold text-neutral-900">
-              {t(title)}
-            </h2>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              {t(description)}
-            </p>
-          </div>
-          <button
+    <WorkspaceDialog
+      open={isOpen}
+      onClose={onClose}
+      title={t(title)}
+      description={t(description)}
+      className="max-w-2xl"
+      footer={
+        <div className="flex items-center justify-end gap-2.5">
+          <GenericButton
+            type="button"
+            variant="outline"
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 active:scale-95"
+            disabled={isSubmitting}
           >
-            <IoClose size={20} />
-          </button>
+            {t("Cancel")}
+          </GenericButton>
+          <GenericButton
+            type="button"
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
+            {isSubmitting ? t("Creating...") : t(submitLabel)}
+          </GenericButton>
+        </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-ui-muted">
+            {t("JSON payload")}
+          </label>
+          <GenericButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleFormat}
+            className="h-7 text-xs"
+          >
+            {t("Format JSON")}
+          </GenericButton>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-          <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-neutral-700">
-              {t("JSON payload")}
-            </label>
-            <button
-              type="button"
-              onClick={handleFormat}
-              className="px-3 py-1.5 text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-colors"
-            >
-              {t("Format JSON")}
-            </button>
-          </div>
+        <textarea
+          value={jsonValue}
+          onChange={(event) => {
+            setJsonValue(event.target.value);
+            if (error) setError("");
+          }}
+          spellCheck={false}
+          className={`h-[45vh] w-full resize-y rounded-ui-md border p-3 font-mono text-xs leading-5 focus:outline-none focus:ring-1 focus:ring-ui-primary ${
+            error
+              ? "border-ui-danger bg-ui-danger-subtle text-ui-foreground"
+              : "border-ui-border bg-ui-surface-subtle text-ui-foreground"
+          }`}
+        />
 
-          <textarea
-            value={jsonValue}
-            onChange={(event) => {
-              setJsonValue(event.target.value);
-              if (error) setError("");
-            }}
-            spellCheck={false}
-            className={`h-[50vh] w-full resize-y rounded-lg border px-3 py-2 font-mono text-xs leading-5 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${
-              error ? "border-red-400 bg-red-50" : "border-neutral-300 bg-neutral-50"
-            }`}
-          />
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
-
-          <div className="flex items-center justify-end gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 active:scale-[0.98] transition-all disabled:opacity-50"
-            >
-              {t("Cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2.5 text-sm font-medium text-white bg-neutral-900 rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-900"
-            >
-              {isSubmitting ? t("Creating...") : t(submitLabel)}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {error && <p className="text-xs text-ui-danger">{error}</p>}
+      </form>
+    </WorkspaceDialog>
   );
 };

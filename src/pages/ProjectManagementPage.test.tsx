@@ -19,7 +19,7 @@ vi.mock("../context/User.context", () => ({
   useUserContext: () => ({ user: { roles: ["project_developer"] } }),
 }));
 vi.mock("../components/panelComponents/common/ContainersSection", () => ({
-  ContainersSection: () => <section aria-label="Containers" />,
+  ContainersSection: () => <section aria-label="Collections" />,
 }));
 vi.mock("../components/panelComponents/common/PagesSection", () => ({
   PagesSection: () => <section aria-label="Pages" />,
@@ -37,11 +37,30 @@ describe("ProjectManagementPage", () => {
     );
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: "Demo Project" })).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "Demo Project" });
+    expect(heading).toBeInTheDocument();
+    expect(heading.closest("header")).toBeInTheDocument();
     expect(screen.getByText("Active")).toHaveAttribute("data-variant", "success");
     expect(screen.getByText("project_developer")).toBeInTheDocument();
     expect(screen.getByRole("main")).toContainElement(
-      screen.getByRole("region", { name: "Containers" }),
+      screen.getByRole("region", { name: "Collections" }),
     );
+  });
+
+  it("keeps the project name, slug, and status in the same header row", () => {
+    render(
+      <main>
+        <ProjectManagementPage />
+      </main>,
+    );
+
+    const heading = screen.getByRole("heading", { name: "Demo Project" });
+    const header = heading.closest("header");
+    const slug = screen.getByText("demo");
+    const status = screen.getByText("Active");
+
+    expect(header?.parentElement).toHaveClass("py-3", "sm:py-3");
+    expect(slug.parentElement).toBe(heading.parentElement);
+    expect(status.parentElement).toBe(heading.parentElement);
   });
 });

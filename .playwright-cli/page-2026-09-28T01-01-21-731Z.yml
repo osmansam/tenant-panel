@@ -1,0 +1,34 @@
+- main [ref=e5]:
+  - main [ref=e6]:
+    - generic [ref=e8]:
+      - generic [aria-hidden] [ref=e9]: TP
+      - heading "Welcome Back" [level=1] [ref=e10]
+      - paragraph [ref=e11]: Sign in to your tenant account
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - generic [ref=e17]: Email*
+            - textbox "Email*" [ref=e19]:
+              - /placeholder: Enter your email
+          - generic [ref=e20]:
+            - generic [ref=e21]: Password*
+            - generic [ref=e22]:
+              - textbox "Password*" [ref=e23]:
+                - /placeholder: Enter your password
+              - button [ref=e24] [cursor=pointer]
+          - button "Login" [disabled] [ref=e27]
+        - generic [ref=e31]:
+          - generic [ref=e32]: Or continue with
+          - button "Continue with Google" [ref=e37] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e48]: New to our platform?
+        - link "Create a new tenant account" [ref=e54] [cursor=pointer]:
+          - /url: /register
+    - paragraph [ref=e56]:
+      - text: By signing in, you agree to our
+      - link "Terms of Service" [ref=e57] [cursor=pointer]:
+        - /url: "#"
+      - text: and
+      - link "Privacy Policy" [ref=e58] [cursor=pointer]:
+        - /url: "#"

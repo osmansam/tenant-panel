@@ -145,7 +145,7 @@ const ProjectsPage: React.FC = () => {
               return (
                 <article
                   key={projectId}
-                  className="group relative min-w-0 overflow-hidden rounded-ui-lg border border-ui-border bg-ui-surface p-5 transition-colors hover:border-ui-border-strong"
+                  className="group relative min-w-0 overflow-hidden rounded-ui-lg border border-ui-border bg-ui-surface p-5 shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:shadow-md"
                 >
                   <button
                     type="button"
@@ -184,21 +184,25 @@ const ProjectsPage: React.FC = () => {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={isActive ? "success" : "neutral"}>{status.label}</Badge>
-                        {isActive && (
-                          <button type="button" onClick={() => handleRedirectToProject(project.slug)} className="rounded-ui-sm bg-[hsl(var(--ui-info-subtle))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--ui-info))] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus">
-                            {t("Open")}
-                          </button>
-                        )}
-                        {canManageTenantTemplates && project.templateScope !== "global" && (
-                          <button
-                            type="button"
-                            disabled={isUpdatingTemplate}
-                            onClick={() => handleToggleProjectTemplate(projectId, !project.isTemplate)}
-                            className="rounded-ui-sm bg-ui-subtle px-2 py-0.5 text-[11px] font-medium text-ui-muted hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus disabled:opacity-50"
-                          >
-                            {project.isTemplate ? t("Template") : t("Make Template")}
-                          </button>
-                        )}
+                      {isActive && (
+                        <button
+                          type="button"
+                          onClick={() => handleRedirectToProject(project.slug)}
+                          className="ui-focus-ring inline-flex items-center rounded-ui-sm border border-transparent bg-[hsl(var(--ui-info-subtle))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--ui-info))] hover:brightness-95 transition-colors"
+                        >
+                          {t("Open")}
+                        </button>
+                      )}
+                      {canManageTenantTemplates && project.templateScope !== "global" && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingTemplate}
+                          onClick={() => handleToggleProjectTemplate(projectId, !project.isTemplate)}
+                          className="ui-focus-ring inline-flex items-center rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ui-muted hover:text-ui-foreground hover:bg-ui-disabled transition-colors disabled:opacity-50"
+                        >
+                          {project.isTemplate ? t("Template") : t("Make Template")}
+                        </button>
+                      )}
                     </div>
                     <time className="text-[11px] font-medium text-ui-muted" dateTime={project.createdAt}>
                       {new Date(project.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}

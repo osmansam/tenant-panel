@@ -187,25 +187,25 @@ export const Sidebar = () => {
         <div className="flex h-[calc(100%-3.5rem)] flex-col overflow-y-auto bg-ui-surface px-3 py-3">
           {/* Project Context Section */}
           {isInProject && currentProject && (
-            <div className="mb-3 rounded-ui-md bg-ui-surface-subtle p-3">
+            <div className="mb-3 rounded-ui-md border border-ui-border/70 bg-ui-surface-subtle p-3 shadow-2xs">
               {isSidebarOpen ? (
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-[hsl(var(--ui-info-subtle))]">
-                      <MdBusinessCenter className="text-sm text-[hsl(var(--ui-info))]" />
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-ui-sm bg-[hsl(var(--ui-info-subtle))]">
+                      <MdBusinessCenter className="text-xs text-[hsl(var(--ui-info))]" />
                     </div>
-                    <span className="text-xs font-semibold text-ui-foreground">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">
                       {t("Current Project")}
                     </span>
                   </div>
-                  <div className="mb-2.5 truncate text-sm font-medium text-ui-foreground">
+                  <div className="mb-2 truncate text-sm font-semibold text-ui-foreground">
                     {currentProject.name}
                   </div>
                   <button
                     onClick={handleSwitchBackToTenant}
-                    className="ui-focus-ring flex w-full items-center justify-center gap-1.5 rounded-ui-md border border-ui-border bg-ui-surface px-2 py-1.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle"
+                    className="ui-focus-ring flex w-full items-center justify-center gap-1.5 rounded-ui-md border border-ui-border bg-ui-surface px-2 py-1.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle shadow-2xs active:scale-[0.98]"
                   >
-                    <MdArrowBack className="text-sm" />
+                    <MdArrowBack className="text-sm text-ui-muted" />
                     {t("Back to Tenant")}
                   </button>
                 </div>
@@ -251,10 +251,10 @@ export const Sidebar = () => {
                             toggleGroup(route.name);
                           }
                         }}
-                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-foreground hover:bg-ui-surface-subtle transition-all active:scale-[0.98]"
+                        className="group ui-focus-ring w-full flex items-center justify-between px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-foreground hover:bg-ui-surface-subtle transition-all active:scale-[0.98]"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center text-ui-muted flex-shrink-0">
+                          <div className="flex items-center justify-center text-ui-muted group-hover:text-ui-foreground flex-shrink-0 transition-colors">
                             <IconComponent className="text-[18px]" />
                           </div>
                           {isSidebarOpen && (
@@ -285,11 +285,11 @@ export const Sidebar = () => {
                             key={child.name}
                             aria-current={child.path === currentRoute ? "page" : undefined}
                             className={`
-                            w-full flex items-center pl-10 pr-3 py-2 rounded-ui-sm mt-0.5
+                            ui-focus-ring w-full flex items-center pl-10 pr-3 py-2 rounded-ui-sm mt-0.5
                             text-sm transition-all active:scale-[0.98]
                             ${
                               child.path === currentRoute
-                                ? "bg-ui-active-subtle text-ui-primary font-medium"
+                                ? "bg-ui-active-subtle text-ui-primary font-semibold shadow-2xs"
                                 : "text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground"
                             }
                           `}
@@ -317,20 +317,21 @@ export const Sidebar = () => {
                   child.icon && /^[A-Z][a-z]+[A-Z]/.test(child.icon)
                     ? getIconByName(child.icon)
                     : getMenuIcon(child.icon || child.name);
+                const isActive = routeChildren[0].path === currentRoute;
                 return (
                   <SidebarTooltip
                     key={routeChildren[0].name}
                     content={t(routeChildren[0].name)}
                   >
                     <button
-                      aria-current={routeChildren[0].path === currentRoute ? "page" : undefined}
+                      aria-current={isActive ? "page" : undefined}
                       className={`
-                      w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
+                      group ui-focus-ring w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
                       text-sm transition-all active:scale-[0.98]
                       ${
-                        routeChildren[0].path === currentRoute
-                          ? "bg-ui-active-subtle text-ui-primary font-medium"
-                          : "text-ui-foreground hover:bg-ui-surface-subtle"
+                        isActive
+                          ? "bg-ui-active-subtle text-ui-primary font-semibold shadow-2xs"
+                          : "text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground"
                       }
                     `}
                       onClick={() => {
@@ -342,10 +343,10 @@ export const Sidebar = () => {
                       }}
                     >
                       <div
-                        className={`flex items-center justify-center flex-shrink-0 ${
-                          routeChildren[0].path === currentRoute
+                        className={`flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isActive
                             ? "text-ui-primary"
-                            : "text-ui-muted"
+                            : "text-ui-muted group-hover:text-ui-foreground"
                         }`}
                       >
                         <IconComponent className="text-[18px]" />
@@ -362,17 +363,18 @@ export const Sidebar = () => {
                 route.icon && /^[A-Z][a-z]+[A-Z]/.test(route.icon)
                   ? getIconByName(route.icon)
                   : getMenuIcon(route.icon || route.name);
+              const isActive = route.path === currentRoute;
               return (
                 <SidebarTooltip key={route.name} content={t(route.name)}>
                   <button
-                    aria-current={route.path === currentRoute ? "page" : undefined}
+                    aria-current={isActive ? "page" : undefined}
                     className={`
-                    w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
+                    group ui-focus-ring w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm
                     text-sm transition-all active:scale-[0.98]
                     ${
-                      route.path === currentRoute
-                        ? "bg-ui-active-subtle text-ui-primary font-medium"
-                        : "text-ui-foreground hover:bg-ui-surface-subtle"
+                      isActive
+                        ? "bg-ui-active-subtle text-ui-primary font-semibold shadow-2xs"
+                        : "text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground"
                     }
                   `}
                     onClick={() => {
@@ -384,10 +386,10 @@ export const Sidebar = () => {
                     }}
                   >
                     <div
-                      className={`flex items-center justify-center flex-shrink-0 ${
-                        route.path === currentRoute
+                      className={`flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isActive
                           ? "text-ui-primary"
-                          : "text-ui-muted"
+                          : "text-ui-muted group-hover:text-ui-foreground"
                       }`}
                     >
                       <IconComponent className="text-[18px]" />
@@ -403,7 +405,7 @@ export const Sidebar = () => {
             <SidebarTooltip content={t("Logout")}>
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-danger hover:bg-ui-danger-subtle transition-all active:scale-[0.98]"
+                className="group ui-focus-ring w-full flex items-center gap-3 px-2.5 py-2 rounded-ui-sm text-sm font-medium text-ui-danger hover:bg-ui-danger-subtle transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center justify-center text-ui-danger flex-shrink-0">
                   <IoIosLogOut className="text-[18px]" />

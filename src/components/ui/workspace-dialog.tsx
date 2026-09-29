@@ -90,7 +90,7 @@ export function WorkspaceDialog({
     <div
       data-testid="workspace-dialog-backdrop"
       className={cn(
-        "fixed inset-0 flex items-center justify-center bg-[hsl(var(--ui-overlay)/0.48)] sm:p-4",
+        "fixed inset-0 flex items-center justify-center bg-[hsl(var(--ui-overlay)/0.48)] backdrop-blur-xs sm:p-4",
         layer === "nested" ? "z-[60]" : "z-50",
       )}
       onMouseDown={handleBackdropMouseDown}

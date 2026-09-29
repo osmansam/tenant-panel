@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { ContainersSection } from "../components/panelComponents/common/ContainersSection";
 import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
-import { Badge, PageHeader, PageShell } from "../components/ui";
+import { Badge, PageShell } from "../components/ui";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 
@@ -20,34 +20,30 @@ const CollectionsPage: React.FC = () => {
   const projectRoles = user?.roles || [];
 
   return (
-    <PageShell>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ui-border pb-3 mb-4">
-        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-ui-foreground truncate">
+    <PageShell className="py-3 sm:py-3">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-2.5 border-b border-ui-border/70 pb-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h1 className="truncate text-sm font-semibold tracking-tight text-ui-foreground">
             {currentProject.name}
           </h1>
-          <Badge variant="info" className="text-[11px] py-0 px-1.5">
+          <Badge variant="mono" className="px-1.5 py-0 text-[11px]">
             {currentProject.slug}
           </Badge>
           <Badge
             variant={currentProject.isActive ? "success" : "danger"}
-            className="text-[11px] py-0 px-1.5"
+            className="px-1.5 py-0 text-[11px]"
           >
             {currentProject.isActive ? t("Active") : t("Inactive")}
           </Badge>
-          <span className="hidden text-xs text-ui-muted sm:inline">•</span>
-          <span className="text-xs text-ui-muted truncate">
-            {t("Collections & Data Schemas")}
-          </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-ui-muted shrink-0">
-          <span className="text-ui-muted">{t("Role")}:</span>
+        <div className="flex shrink-0 items-center gap-1.5 text-xs text-ui-muted">
+          <span>{t("Role")}:</span>
           <span className="font-medium text-ui-foreground">
             {projectRoles.map((role) => t(role)).join(", ")}
           </span>
         </div>
-      </div>
+      </header>
 
       {/* Content Sections */}
       <div className="divide-y divide-ui-border">

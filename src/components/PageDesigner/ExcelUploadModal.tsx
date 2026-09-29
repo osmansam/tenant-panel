@@ -228,7 +228,7 @@ export function ExcelUploadModal({
             />
             <p className="text-xs text-gray-500 mt-1">
               {t(
-                "This will be the name of the container/schema created from your data"
+                "This will be the name of the collection/schema created from your data"
               )}
             </p>
           </div>

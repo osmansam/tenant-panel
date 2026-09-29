@@ -57,6 +57,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  Toolbar,
   WorkspaceDialog,
 } from "../../ui";
 import { AddDynamicApiModal } from "./AddDynamicApiModal";
@@ -605,9 +606,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
         onClose={onClose}
         size="workspace"
         title={
-          intent === "manage"
-            ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
-            : container.schemaName
+          <span className="block break-all sm:break-normal">
+            {intent === "manage"
+              ? t("Manage {{schemaName}}", { schemaName: container.schemaName })
+              : container.schemaName}
+          </span>
         }
         description={
           <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-ui-muted">
@@ -625,13 +628,13 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             </span>
             {container.isAuthContainer && (
               <Badge variant="success">
-                {t("Auth Container")}
+                {t("Auth Collection")}
               </Badge>
             )}
           </div>
         }
-        closeLabel={t("Close container")}
-        bodyClassName="p-0 sm:p-0"
+        closeLabel={t("Close collection")}
+        bodyClassName="min-w-0 p-0 sm:p-0"
         footer={
           <div className="flex justify-end gap-3">
             <GenericButton variant="outline" size="sm" onClick={onClose}>
@@ -696,7 +699,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     </h4>
                     <p className="text-xs text-ui-muted mt-1">
                       {t(
-                        "Manage MongoDB aggregation pipelines for this container"
+                        "Manage MongoDB aggregation pipelines for this collection"
                       )}
                     </p>
                   </div>
@@ -810,7 +813,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
-                        {t("No pipelines defined for this container")}
+                        {t("No pipelines defined for this collection")}
                       </p>
                       <GenericButton
                         variant="outline"
@@ -833,7 +836,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       {t("Workflows")} ({(container.workflows || []).length})
                     </h4>
                     <p className="text-xs text-ui-muted mt-1">
-                      {t("Manage workflow definitions and access controls for this container")}
+                      {t("Manage workflow definitions and access controls for this collection")}
                     </p>
                   </div>
                   <GenericButton
@@ -945,7 +948,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(!container.workflows || container.workflows.length === 0) && (
                     <div className="py-12 text-center text-ui-muted">
                       <FiPlayCircle size={48} className="mx-auto mb-4 text-ui-placeholder" />
-                      <p className="mb-2">{t("No workflows defined for this container")}</p>
+                      <p className="mb-2">{t("No workflows defined for this collection")}</p>
                       <GenericButton
                         variant="outline"
                         size="sm"
@@ -967,7 +970,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       {t("Dynamic APIs")} ({(container.dynamicApis || []).length})
                     </h4>
                     <p className="mt-1 text-xs text-ui-muted">
-                      {t("Manage outbound or proxy APIs for this container")}
+                      {t("Manage outbound or proxy APIs for this collection")}
                     </p>
                   </div>
                   <GenericButton
@@ -1085,7 +1088,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
-                        {t("No Dynamic APIs defined for this container")}
+                        {t("No Dynamic APIs defined for this collection")}
                       </p>
                       <GenericButton
                         variant="outline"
@@ -1103,7 +1106,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "structured" ? (
               <div className="space-y-4">
                 {/* Basic Information */}
-                <section aria-label={t("Container overview")} className="border-b border-ui-border pb-4">
+                <section aria-label={t("Collection overview")} className="border-b border-ui-border pb-4">
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 text-sm">
                     <div className="space-y-1 pr-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Schema Name")}</div>
@@ -1114,7 +1117,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       <div className="font-mono text-xs text-ui-foreground truncate">{container.collectionName || "N/A"}</div>
                     </div>
                     <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Container")}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Collection")}</div>
                       <div>
                         <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
                           {container.isAuthContainer ? t("Yes") : t("No")}
@@ -1141,7 +1144,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       className="mt-4 space-y-3 border-t border-ui-border pt-4"
                     >
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                        <label
+                          data-density="standard"
+                          className="flex min-h-[var(--ui-row-standard)] items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm"
+                        >
                           <span className="font-medium text-ui-foreground">
                             {t("Registration Active")}
                           </span>
@@ -1150,7 +1156,10 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             onChange={handleToggleRegisterActive}
                           />
                         </label>
-                        <label className="flex items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm">
+                        <label
+                          data-density="standard"
+                          className="flex min-h-[var(--ui-row-standard)] items-center justify-between rounded-ui-md border border-ui-border bg-ui-surface-subtle px-3.5 py-2.5 text-sm"
+                        >
                           <span className="font-medium text-ui-foreground">
                             {t("Google Login Active")}
                           </span>
@@ -1167,7 +1176,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             {t("Create auth user")}
                           </h4>
                           <p className="text-xs text-ui-muted">
-                            {t("Creates a user in this project's auth container.")}
+                            {t("Creates a user in this project's auth collection.")}
                           </p>
                         </div>
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
@@ -1192,16 +1201,18 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                                   }))
                                 }
                                 placeholder={t(fieldName)}
+                                aria-label={t(fieldName)}
                                 type={inputType}
-                                className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                                className="ui-control text-xs"
                               />
                             );
                           })}
                           {authUserRoleField && (
                             <select
+                              aria-label={t("Role")}
                               value={authUserRole || getRoleOptionId(roleOptions[0])}
                               onChange={(event) => setAuthUserRole(event.target.value)}
-                              className="h-9 rounded-ui-sm border border-ui-border bg-ui-surface px-3 text-xs text-ui-foreground"
+                              className="ui-control text-xs"
                             >
                               {roleOptions.length > 0 ? (
                                 roleOptions.map((role) => (
@@ -1240,10 +1251,9 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                 {/* Fields */}
                 <section ref={fieldsSectionRef} tabIndex={focusArea === "fields" ? -1 : undefined}>
-                  <div
-                    role="group"
+                  <Toolbar
                     aria-label={t("Field toolbar")}
-                    className="sticky top-0 z-[5] mb-3 flex flex-col gap-3 border-b border-ui-border bg-ui-surface pb-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="sticky top-0 z-[5] mb-3 flex-col items-stretch gap-3 border-b border-ui-border bg-ui-surface py-0 pb-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex flex-1 flex-wrap items-center gap-3">
                       <h4 className="text-base font-semibold text-ui-foreground shrink-0">
@@ -1261,7 +1271,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                           placeholder={t("Search fields by name, type, tag, or relation")}
                           value={fieldQuery}
                           onChange={(event) => setFieldQuery(event.target.value)}
-                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
+                          className="h-8 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-9 pr-8 text-xs text-ui-foreground outline-none transition placeholder:text-ui-muted shadow-ui-sm focus:border-ui-focus focus:ring-2 focus:ring-ui-focus/20 [&::-webkit-search-cancel-button]:hidden"
                         />
                         {fieldQuery && (
                           <button
@@ -1297,8 +1307,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         {t("Add Field")}
                       </GenericButton>
                     </div>
-                  </div>
-                  <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
+                  </Toolbar>
+                  <div role="table" aria-label={t("Collection fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
                     <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
                       <span role="columnheader">{t("Name")}</span>
                       <span role="columnheader">{t("Type")}</span>
@@ -1317,7 +1327,8 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       <div
                         key={field.name || index}
                         role="row"
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 last:border-b-0 hover:bg-ui-surface-subtle/50 transition-colors md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
+                        data-density="dense"
+                        className="grid min-h-[var(--ui-row-dense)] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ui-border px-4 py-2.5 transition-colors last:border-b-0 hover:bg-ui-surface-subtle/50 md:grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] md:gap-4"
                       >
                         <div role="cell" className="min-w-0">
                           <div className="flex min-w-0 items-center gap-2">
@@ -1344,16 +1355,17 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                               .map((t) => t.trim())
                               .filter(Boolean)
                               .map((tag) => (
-                                <span
+                                <Badge
                                   key={tag}
-                                  className="inline-flex items-center rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-[10px] text-ui-muted"
+                                  variant="mono"
+                                  className="text-[10px]"
                                 >
                                   {tag}
-                                </span>
+                                </Badge>
                               ))}
                           {field.objectSchemaName && (
                             <span className="inline-flex items-center gap-1 rounded-ui-xs border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 text-[10px] text-ui-muted">
-                              <span className="text-ui-subtle">→</span>
+                              <span className="text-ui-muted">→</span>
                               <span className="font-medium text-ui-foreground">{field.objectSchemaName}</span>
                             </span>
                           )}
@@ -1427,7 +1439,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                     {(!container.fields || container.fields.length === 0) && (
                       <div className="text-center py-8 text-ui-muted">
-                        <p>{t("No fields defined for this container")}</p>
+                        <p>{t("No fields defined for this collection")}</p>
                         <GenericButton
                           variant="outline"
                           size="sm"

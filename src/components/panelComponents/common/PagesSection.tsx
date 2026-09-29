@@ -349,46 +349,46 @@ export const PagesSection: React.FC = () => {
 
       {/* Page Statistics Strip */}
       {orderedPages && orderedPages.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-ui-md border border-ui-border bg-ui-surface-subtle px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-primary">
+        <div className="mb-4 flex flex-wrap items-center gap-4 rounded-ui-md border border-ui-border bg-ui-surface px-3 py-1.5 shadow-ui-sm self-start sm:self-auto w-fit">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-semibold text-ui-primary">
               {orderedPages.length}
             </span>
-            <span className="text-xs font-medium text-ui-muted">
+            <span className="text-ui-muted">
               {t("Total Pages")}
             </span>
           </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-success">
+          <div className="h-3.5 w-px bg-ui-border" />
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-semibold text-ui-success">
               {
                 orderedPages.filter(
                   (p) => !p.isAuthenticated && !p.isAuthorized,
                 ).length
               }
             </span>
-            <span className="text-xs font-medium text-ui-muted">
+            <span className="text-ui-muted">
               {t("Public Pages")}
             </span>
           </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-warning">
+          <div className="h-3.5 w-px bg-ui-border" />
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-semibold text-ui-warning">
               {orderedPages.filter((p) => p.isAuthenticated).length}
             </span>
-            <span className="text-xs font-medium text-ui-muted">
+            <span className="text-ui-muted">
               {t("Auth Pages")}
             </span>
           </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-[hsl(var(--ui-info))]">
+          <div className="h-3.5 w-px bg-ui-border" />
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-semibold text-[hsl(var(--ui-info))]">
               {orderedPages.reduce(
                 (total, p) => total + (p.sections?.length || 0),
                 0,
               )}
             </span>
-            <span className="text-xs font-medium text-ui-muted">
+            <span className="text-ui-muted">
               {t("Total Sections")}
             </span>
           </div>
@@ -396,18 +396,22 @@ export const PagesSection: React.FC = () => {
       )}
 
       {/* Page List */}
-      <div className="space-y-3">
-        {error ? (
-          <div className="text-center py-8">
-            <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
-            <p className="text-ui-muted mb-4">
-              {t(
-                "Unable to load pages. Make sure you're in a project context.",
-              )}
-            </p>
+      {error ? (
+        <div className="text-center py-8">
+          <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
+          <p className="text-ui-muted mb-4">
+            {t(
+              "Unable to load pages. Make sure you're in a project context."
+            )}
+          </p>
+        </div>
+      ) : orderedPages && orderedPages.length > 0 ? (
+        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface overflow-hidden shadow-ui-sm">
+          <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-ui-muted">
+            <div>{t("Page / Slug")}</div>
+            <div className="text-right">{t("Hierarchy & Actions")}</div>
           </div>
-        ) : orderedPages && orderedPages.length > 0 ? (
-          orderedPages.map((page, pageIndex) => {
+          {orderedPages.map((page, pageIndex) => {
             const IconComponent = page.icon ? getIconByName(page.icon) : null;
             const pageId = getPageId(page);
             const parentPage = getPageById(page.parentPageId);
@@ -416,7 +420,7 @@ export const PagesSection: React.FC = () => {
             return (
               <div
                 key={pageId}
-                className="group flex flex-col gap-3 rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 shadow-ui-sm transition-all hover:border-ui-border-strong hover:shadow-md sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
+                className="group flex flex-col gap-3 p-3.5 transition-colors hover:bg-ui-surface-subtle/60 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
                 onClick={() => handleViewPage(page)}
               >
                 <div className="flex-1 min-w-0">
@@ -430,9 +434,9 @@ export const PagesSection: React.FC = () => {
                       {page.name}
                     </h3>
                     {page.slug && (
-                      <span className="rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-1.5 py-0.5 font-mono text-xs text-ui-muted">
+                      <Badge variant="mono" className="text-[11px]">
                         /{page.slug}
-                      </span>
+                      </Badge>
                     )}
                     <Badge
                       variant={getPageTypeBadgeVariant(page)}
@@ -600,27 +604,27 @@ export const PagesSection: React.FC = () => {
                 </div>
               </div>
             );
-          })
-        ) : (
-          <EmptyState
-            title={t("No pages found in this project")}
-            description={t(
-              "Create a page to build navigation and layouts for your users.",
-            )}
-            action={
-              canCreatePages ? (
-                <GenericButton
-                  onClick={() => setIsCreateModalOpen(true)}
-                  iconLeft={<FiPlus size={16} />}
-                  data-primary-action="true"
-                >
-                  {t("Create Your First Page")}
-                </GenericButton>
-              ) : undefined
-            }
-          />
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title={t("No pages found in this project")}
+          description={t(
+            "Create a page to build navigation and layouts for your users.",
+          )}
+          action={
+            canCreatePages ? (
+              <GenericButton
+                onClick={() => setIsCreateModalOpen(true)}
+                iconLeft={<FiPlus size={16} />}
+                data-primary-action="true"
+              >
+                {t("Create Your First Page")}
+              </GenericButton>
+            ) : undefined
+          }
+        />
+      )}
 
       {/* Create Page Modal */}
       <CreatePageModal

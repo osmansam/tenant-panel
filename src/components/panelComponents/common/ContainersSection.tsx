@@ -23,6 +23,7 @@ import {
   PageActions,
   Section,
   SectionHeader,
+  Toolbar,
 } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import { ContainerDataModal } from "../Modals/ContainerDataModal";
@@ -124,14 +125,13 @@ export const ContainersSection: React.FC = () => {
   return (
     <Section aria-labelledby="containers-heading">
       <SectionHeader
-        title={<span id="containers-heading">{t("Containers")}</span>}
+        title={<span id="containers-heading">{t("Collections")}</span>}
         description={t("Manage project schemas and their records")}
         actions={canCreateContainers ? (
-          <PageActions aria-label={t("Container actions")}>
+          <PageActions aria-label={t("Collection actions")}>
             <GenericButton
               size="sm"
               variant="outline"
-              className="h-8 rounded-ui-md border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-foreground shadow-ui-sm hover:border-ui-border-strong hover:bg-ui-surface-subtle"
               onClick={() => setIsCreateJsonModalOpen(true)}
               iconLeft={<FiCode size={14} className="text-ui-muted" />}
             >
@@ -140,7 +140,6 @@ export const ContainersSection: React.FC = () => {
             <GenericButton
               size="sm"
               variant="outline"
-              className="h-8 rounded-ui-md border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-foreground shadow-ui-sm hover:border-ui-border-strong hover:bg-ui-surface-subtle"
               onClick={() => setIsExcelUploadOpen(true)}
               iconLeft={<FiUpload size={14} className="text-ui-muted" />}
             >
@@ -148,186 +147,195 @@ export const ContainersSection: React.FC = () => {
             </GenericButton>
             <GenericButton
               size="sm"
-              className="h-8 rounded-ui-md bg-ui-primary px-3.5 text-xs font-medium text-white shadow-ui-sm hover:bg-ui-primary-hover"
               onClick={() => setIsCreateModalOpen(true)}
               iconLeft={<FiPlus size={14} />}
               data-primary-action="true"
             >
-              {t("Create Container")}
+              {t("Create Collection")}
             </GenericButton>
           </PageActions>
         ) : undefined}
       />
 
-      {/* Container Statistics Strip */}
-      {containers && containers.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-ui-md border border-ui-border bg-ui-surface-subtle px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-primary">
-              {containers.length}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">
-              {t("Total Containers")}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-ui-success">
-              {containers.filter((c) => c.isAuthContainer).length}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">
-              {t("Auth Containers")}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-ui-border" />
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-[hsl(var(--ui-info))]">
-              {containers.reduce(
-                (total, c) => total + (c.fields?.length || 0),
-                0
-              )}
-            </span>
-            <span className="text-xs font-medium text-ui-muted">{t("Total Fields")}</span>
-          </div>
-        </div>
-      )}
-
-      {containers.length > 0 && !error && (
-        <div className="mb-4">
+      {/* Container Toolbar: Search + Quick Stats */}
+      {containers && containers.length > 0 && !error && (
+        <Toolbar
+          aria-label={t("Collection toolbar")}
+          className="mb-4 flex-col items-stretch gap-3 py-0 sm:flex-row sm:items-center sm:justify-between"
+        >
           <form
             role="search"
-            aria-label={t("Container toolbar")}
+            aria-label={t("Search collections")}
             onSubmit={(event) => event.preventDefault()}
-            className="relative flex items-center"
+            className="relative w-full max-w-sm sm:max-w-md"
           >
             <label htmlFor="container-search" className="sr-only">
-              {t("Search containers")}
+              {t("Search collections")}
             </label>
-            <FiSearch className="pointer-events-none absolute left-3.5 h-4 w-4 text-ui-muted" />
+            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ui-muted" />
             <input
               id="container-search"
               type="search"
               value={searchQuery}
               onChange={(event) => handleSearchChange(event.target.value)}
-              placeholder={t("Search by schema, collection, or container ID")}
-              className="h-10 w-full rounded-ui-md border border-ui-border bg-ui-surface pl-10 pr-9 text-sm text-ui-foreground placeholder:text-ui-muted focus:border-ui-primary focus:outline-none focus:ring-1 focus:ring-ui-primary transition-colors"
+              placeholder={t("Search by schema, collection name, or collection ID")}
+              className="ui-control h-ui-sm pl-9 pr-9 text-xs"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
                 aria-label={t("Clear search")}
-                className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-full text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground transition-colors"
               >
                 <FiX className="h-3.5 w-3.5" />
               </button>
             )}
           </form>
-        </div>
+
+          {/* Quick Stats Pill Strip */}
+          <div className="flex flex-wrap items-center gap-4 rounded-ui-md border border-ui-border bg-ui-surface px-3 py-1.5 shadow-ui-sm self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-ui-primary">
+                {containers.length}
+              </span>
+              <span className="text-ui-muted">
+                {t("Total Collections")}
+              </span>
+            </div>
+            <div className="h-3.5 w-px bg-ui-border" />
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-ui-success">
+                {containers.filter((c) => c.isAuthContainer).length}
+              </span>
+              <span className="text-ui-muted">
+                {t("Auth Collections")}
+              </span>
+            </div>
+            <div className="h-3.5 w-px bg-ui-border" />
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold text-[hsl(var(--ui-info))]">
+                {containers.reduce(
+                  (total, c) => total + (c.fields?.length || 0),
+                  0
+                )}
+              </span>
+              <span className="text-ui-muted">{t("Total Fields")}</span>
+            </div>
+          </div>
+        </Toolbar>
       )}
 
       {/* Container List */}
-      <div className="space-y-3">
-        {error ? (
-          <div className="text-center py-8">
-            <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
-            <p className="text-ui-muted mb-4">
-              {t(
-                "Unable to load containers. Make sure you're in a project context."
-              )}
-            </p>
+      {error ? (
+        <div className="text-center py-8">
+          <div className="text-ui-placeholder text-6xl mb-4">⚠️</div>
+          <p className="text-ui-muted mb-4">
+            {t(
+              "Unable to load collections. Make sure you're in a project context."
+            )}
+          </p>
+        </div>
+      ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
+        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface overflow-hidden shadow-ui-sm">
+          <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-ui-muted">
+            <div>{t("Collection / Schema")}</div>
+            <div className="text-right">{t("Actions")}</div>
           </div>
-        ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
-          collectionPage.items.map((container) => (
+          {collectionPage.items.map((container) => (
             <article
               key={container.id}
-              aria-label={`${container.schemaName} ${t("container")}`}
-              className="group flex flex-col gap-3 rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 shadow-ui-sm transition-all hover:border-ui-border-strong hover:shadow-md sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between cursor-pointer"
+              aria-label={`${container.schemaName} ${t("collection")}`}
+              data-density="dense"
+              className="group flex min-h-[var(--ui-row-dense)] cursor-pointer flex-col gap-3 p-3.5 transition-colors hover:bg-ui-surface-subtle/60 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between"
               onClick={() => handleViewContainer(container)}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-semibold text-ui-foreground group-hover:text-ui-primary transition-colors">
-                    {container.schemaName}
-                  </h3>
-                  <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
-                    {container.isAuthContainer ? t("Auth Container") : t("Regular Container")}
-                  </Badge>
-                  {container.collectionName && (
-                    <span className="rounded-ui-sm border border-ui-border bg-ui-surface-subtle px-2 py-0.5 font-mono text-xs text-ui-muted">
-                      {container.collectionName}
-                    </span>
-                  )}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-ui-sm bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-primary group-hover:border-ui-primary/30 transition-colors">
+                  <FiDatabase size={15} />
                 </div>
-                <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ui-muted">
-                  <span>{(container.fields || []).length} {t("fields")}</span>
-                  {container.redis?.isRedisCached && (
-                    <>
-                      <span>•</span>
-                      <span className="font-medium text-ui-primary">{t("Redis Cached")}</span>
-                    </>
-                  )}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-sm font-semibold text-ui-foreground transition-colors group-hover:text-ui-primary">
+                      {container.schemaName}
+                    </h3>
+                    <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
+                      {container.isAuthContainer ? t("Auth Collection") : t("Regular Collection")}
+                    </Badge>
+                    {container.collectionName && (
+                      <Badge variant="mono" className="text-[11px]">
+                        {container.collectionName}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ui-muted">
+                    <span>{(container.fields || []).length} {t("fields")}</span>
+                    {container.redis?.isRedisCached && (
+                      <>
+                        <span>•</span>
+                        <span className="font-medium text-ui-primary">{t("Redis Cached")}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
               <div
-                className="inline-flex h-8 items-center rounded-ui-md border border-ui-border bg-ui-surface p-0.5 text-xs shadow-ui-xs shrink-0"
+                className="flex shrink-0 flex-wrap items-center justify-end gap-1 self-end lg:self-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  type="button"
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => handleViewContainer(container, "manage")}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiEdit size={12} className="text-ui-muted" />}
                 >
-                  <FiEdit size={12} className="text-ui-muted" />
-                  <span>{t("Edit")}</span>
-                </button>
-                <div className="h-3.5 w-px bg-ui-border" />
-                <button
-                  type="button"
+                  {t("Edit")}
+                </GenericButton>
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => setDataContainer(container)}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-ui-foreground transition-colors hover:bg-ui-surface-subtle focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiDatabase size={12} className="text-ui-muted" />}
                 >
-                  <FiDatabase size={12} className="text-ui-muted" />
-                  <span>{t("View Data")}</span>
-                </button>
-                <div className="h-3.5 w-px bg-ui-border" />
-                <button
-                  type="button"
+                  {t("View Data")}
+                </GenericButton>
+                <GenericButton
+                  size="sm"
+                  variant="ghost"
                   onClick={() => handleViewContainer(container)}
-                  className="inline-flex h-full items-center gap-1.5 rounded-[5px] px-2 text-xs font-normal text-ui-muted transition-colors hover:bg-ui-surface-subtle hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-focus"
+                  iconLeft={<FiInfo size={12} />}
                 >
-                  <FiInfo size={12} />
-                  <span>{t("Details")}</span>
-                </button>
+                  {t("Details")}
+                </GenericButton>
               </div>
             </article>
-          ))
-        ) : searchQuery ? (
-          <EmptyState title={t("No containers match your search")} />
-        ) : (
-          <EmptyState
-            title={t("No containers found in this project")}
-            description={t("Create a container to define this project's data model.")}
-            action={canCreateContainers ? (
-              <GenericButton
-                onClick={() => setIsCreateModalOpen(true)}
-                iconLeft={<FiPlus size={16} />}
-                data-primary-action="true"
-              >
-                {t("Create Your First Container")}
-              </GenericButton>
-            ) : undefined}
-          />
-        )}
-      </div>
+          ))}
+        </div>
+      ) : searchQuery ? (
+        <EmptyState title={t("No collections match your search")} />
+      ) : (
+        <EmptyState
+          title={t("No collections found in this project")}
+          description={t("Create a collection to define this project's data model.")}
+          action={canCreateContainers ? (
+            <GenericButton
+              onClick={() => setIsCreateModalOpen(true)}
+              iconLeft={<FiPlus size={16} />}
+              data-primary-action="true"
+            >
+              {t("Create Your First Collection")}
+            </GenericButton>
+          ) : undefined}
+        />
+      )}
 
       {containers.length > 0 && collectionPage.totalItems > 0 && (
         <nav
-          aria-label={t("Container pagination")}
+          aria-label={t("Collection pagination")}
           className="mt-4 flex flex-col gap-3 border-t border-ui-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between text-xs text-ui-muted"
         >
           <p>
-            {t("Showing {{start}}–{{end}} of {{total}} containers", {
+            {t("Showing {{start}}–{{end}} of {{total}} collections", {
               start: collectionPage.startNumber,
               end: collectionPage.endNumber,
               total: collectionPage.totalItems,
@@ -336,7 +344,7 @@ export const ContainersSection: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label htmlFor="container-page-size" className="text-xs text-ui-muted font-normal">
-                {t("Containers per page")}
+                {t("Collections per page")}
               </label>
               <div className="relative inline-flex items-center">
                 <select
@@ -422,9 +430,9 @@ export const ContainersSection: React.FC = () => {
 
       <CreateWithJsonModal
         isOpen={isCreateJsonModalOpen}
-        title="Create Container with JSON"
-        description="Temporary raw JSON container creation"
-        submitLabel="Create Container"
+        title="Create Collection with JSON"
+        description="Temporary raw JSON collection creation"
+        submitLabel="Create Collection"
         initialJson={{
           schemaName: "newSchema",
           fields: [],
@@ -435,9 +443,9 @@ export const ContainersSection: React.FC = () => {
         isSubmitting={isCreating}
         validate={(payload) => {
           const schemaName = String(payload.schemaName || payload.SchemaName || "").trim();
-          if (!schemaName) return "Container JSON requires schemaName";
+          if (!schemaName) return "Collection JSON requires schemaName";
           const fields = payload.fields || payload.Fields;
-          return Array.isArray(fields) ? null : "Container JSON requires fields array";
+          return Array.isArray(fields) ? null : "Collection JSON requires fields array";
         }}
         normalize={(payload) => normalizeContainerJsonPayload(payload)}
         onSubmit={handleCreateContainerWithJson}

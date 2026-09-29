@@ -37,6 +37,7 @@ export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "titl
   title: ReactNode;
   description?: ReactNode;
   context?: ReactNode;
+  contextClassName?: string;
   actions?: ReactNode;
 }
 
@@ -44,6 +45,7 @@ export function PageHeader({
   title,
   description,
   context,
+  contextClassName,
   actions,
   className,
   ...props
@@ -61,7 +63,11 @@ export function PageHeader({
           {title}
         </h1>
         {description && <div className="mt-1 text-sm text-ui-muted">{description}</div>}
-        {context && <div className="mt-2 flex flex-wrap items-center gap-2">{context}</div>}
+        {context && (
+          <div className={cn("mt-2 flex flex-wrap items-center gap-2", contextClassName)}>
+            {context}
+          </div>
+        )}
       </div>
       {actions}
     </header>

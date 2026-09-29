@@ -1,9 +1,9 @@
 :root {
   --ui-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  --ui-page: 0 0% 98%;
+  --ui-page: 210 20% 97%;
   --ui-surface: 0 0% 100%;
-  --ui-surface-subtle: 210 20% 98%;
+  --ui-surface-subtle: 210 20% 95%;
   --ui-foreground: 222 47% 11%;
   --ui-muted-foreground: 215 16% 40%;
   --ui-placeholder: 215 14% 58%;
@@ -11,14 +11,23 @@
   --ui-border-hover: 215 20% 72%;
   --ui-primary: 201 90% 40%;
   --ui-primary-hover: 201 90% 34%;
+  --ui-primary-active: 201 90% 30%;
+  --ui-primary-foreground: 0 0% 100%;
   --ui-focus: 201 96% 45%;
+  --ui-focus-ring-width: 3px;
   --ui-danger: 0 72% 51%;
+  --ui-danger-hover: 0 72% 45%;
+  --ui-danger-active: 0 72% 39%;
   --ui-danger-subtle: 0 86% 97%;
   --ui-success: 158 64% 36%;
+  --ui-success-hover: 158 64% 31%;
+  --ui-success-active: 158 64% 27%;
   --ui-success-subtle: 152 76% 96%;
   --ui-info: 201 90% 36%;
   --ui-info-subtle: 204 100% 97%;
   --ui-warning: 32 95% 32%;
+  --ui-warning-hover: 32 95% 28%;
+  --ui-warning-active: 32 95% 24%;
   --ui-warning-subtle: 48 100% 96%;
   --ui-neutral-subtle: 210 20% 96%;
   --ui-disabled: 210 20% 97%;
@@ -31,6 +40,8 @@
   --ui-control-sm: 2rem;
   --ui-control-md: 2.5rem;
   --ui-control-lg: 2.75rem;
+  --ui-row-dense: 2.5rem;
+  --ui-row-standard: 3rem;
   --ui-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --ui-shadow-dialog: 0 24px 64px rgb(15 23 42 / 0.18);
 }

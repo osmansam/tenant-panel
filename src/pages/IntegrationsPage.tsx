@@ -25,6 +25,7 @@ import {
   SectionHeader,
   WorkspaceDialog,
 } from "../components/ui";
+import { getHttpMethodBadgeTreatment } from "../components/integrations/http-method-badge";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import { cn } from "../utils/cn";
 import {
@@ -125,22 +126,6 @@ function getPermissionName(permission: IntegrationPermission) {
   return permission.kind === "dynamicRoute"
     ? permission.route || ""
     : permission.name || "";
-}
-
-function getMethodBadgeClass(method: string) {
-  switch (method.toUpperCase()) {
-    case "GET":
-      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25";
-    case "POST":
-      return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25";
-    case "PUT":
-    case "PATCH":
-      return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25";
-    case "DELETE":
-      return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25";
-    default:
-      return "bg-ui-surface-subtle text-ui-foreground border-ui-border";
-  }
 }
 
 function optionsForKind(
@@ -907,28 +892,34 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
                     {credential.permissions && credential.permissions.length > 0 && (
                       <div className="mt-2.5 flex flex-wrap gap-2">
-                        {credential.permissions.map((permission, index) => (
-                          <div
-                            key={`${credential.id}-${index}`}
-                            className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 py-1 text-xs"
-                          >
-                            <span
-                              className={cn(
-                                "font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-ui-xs border uppercase tracking-wider",
-                                getMethodBadgeClass(permission.method)
-                              )}
+                        {credential.permissions.map((permission, index) => {
+                          const methodBadge = getHttpMethodBadgeTreatment(
+                            permission.method,
+                          );
+                          return (
+                            <div
+                              key={`${credential.id}-${index}`}
+                              className="inline-flex items-center gap-2 rounded-ui-sm border border-ui-border bg-ui-surface px-2.5 py-1 text-xs"
                             >
-                              {permission.method}
-                            </span>
-                            <span className="font-mono text-[11px] text-ui-muted">
-                              <span className="text-ui-foreground font-medium">{permission.schemaName}</span>
-                              <span className="mx-1.5 text-ui-muted/40">/</span>
-                              <span className="text-ui-muted">{permission.kind}</span>
-                              <span className="mx-1.5 text-ui-muted/40">/</span>
-                              <span className="text-ui-foreground font-semibold">{getPermissionName(permission)}</span>
-                            </span>
-                          </div>
-                        ))}
+                              <Badge
+                                variant={methodBadge.variant}
+                                className={cn(
+                                  methodBadge.className,
+                                  "px-1.5 py-0.5 text-[10px]",
+                                )}
+                              >
+                                {permission.method}
+                              </Badge>
+                              <span className="font-mono text-[11px] text-ui-muted">
+                                <span className="text-ui-foreground font-medium">{permission.schemaName}</span>
+                                <span className="mx-1.5 text-ui-muted/40">/</span>
+                                <span className="text-ui-muted">{permission.kind}</span>
+                                <span className="mx-1.5 text-ui-muted/40">/</span>
+                                <span className="text-ui-foreground font-semibold">{getPermissionName(permission)}</span>
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

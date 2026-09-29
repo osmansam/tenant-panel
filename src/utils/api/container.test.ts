@@ -2,16 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   axiosPatch: vi.fn(),
+  axiosPost: vi.fn(),
   currentProject: { slug: "retail" } as { slug: string } | null,
   useGet: vi.fn(),
   mutate: vi.fn(),
   mutateAsync: vi.fn(),
   mutationFn: undefined as undefined | ((variables: any) => Promise<unknown>),
+  mutationOptions: undefined as any,
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
   useMutation: vi.fn((options) => {
     mocks.mutationFn = options.mutationFn;
+    mocks.mutationOptions = options;
     return {
       isPending: false,
       mutate: mocks.mutate,
@@ -26,7 +31,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("react-toastify", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: mocks.toastError, success: mocks.toastSuccess },
 }));
 
 vi.mock("../../hooks/useTenant", () => ({
@@ -38,7 +43,7 @@ vi.mock("../../hooks/useCurrentProject", () => ({
 }));
 
 vi.mock("./axiosClient", () => ({
-  axiosClient: { patch: mocks.axiosPatch },
+  axiosClient: { patch: mocks.axiosPatch, post: mocks.axiosPost },
 }));
 
 vi.mock("./factory", () => ({
@@ -48,6 +53,7 @@ vi.mock("./factory", () => ({
 import {
   normalizeDynamicApiModel,
   normalizeDynamicWorkflow,
+  useCreateContainer,
   useContainers,
   useUpdateContainer,
   useUpdateWorkflows,
@@ -200,5 +206,32 @@ describe("useUpdateContainer", () => {
 
     await expect(updateContainerAsync(params)).resolves.toEqual({ ok: true });
     expect(mocks.mutateAsync).toHaveBeenCalledWith(params);
+  });
+});
+
+describe("collection-facing mutation messages", () => {
+  beforeEach(() => {
+    mocks.currentProject = { slug: "retail" };
+    mocks.toastSuccess.mockReset();
+    mocks.toastError.mockReset();
+    mocks.mutationOptions = undefined;
+  });
+
+  it("translates backend container terminology before showing a toast", () => {
+    useCreateContainer();
+
+    mocks.mutationOptions.onSuccess({ message: "Container created successfully" });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Collection created successfully",
+    );
+  });
+
+  it("uses collection terminology when project context is missing", () => {
+    mocks.currentProject = null;
+
+    expect(() => useUpdateContainer()).toThrow(
+      "Collection operations require both tenant and project context",
+    );
   });
 });
