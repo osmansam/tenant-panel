@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { ContainersSection } from "../components/panelComponents/common/ContainersSection";
-import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
 import { Badge, PageShell } from "../components/ui";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
@@ -49,9 +48,6 @@ const CollectionsPage: React.FC = () => {
       <div className="divide-y divide-ui-border">
         {/* Containers/Collections Management */}
         <ContainersSection />
-
-        {/* Audit Logs Authorization */}
-        <AuditLogsAuthorizationSection />
       </div>
     </PageShell>
   );

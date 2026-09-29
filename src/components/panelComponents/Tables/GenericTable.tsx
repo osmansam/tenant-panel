@@ -1,4 +1,7 @@
-import { syncTranslatedTableColumns } from "../../../utils/tableColumns";
+import {
+  mergeLiveTableColumns,
+  syncTranslatedTableColumns,
+} from "../../../utils/tableColumns";
 import { Tooltip } from "@material-tailwind/react";
 import "pdfmake/build/pdfmake";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -424,7 +427,9 @@ const GenericTable = <T,>({
   };
 
   const usedColumns = title
-    ? tableColumns[title]?.filter((column) => column.isActive)
+    ? mergeLiveTableColumns(tableColumns[title] ?? [], columns).filter(
+        (column) => column.isActive,
+      )
     : columns;
 
   const usedRowKeys = title
@@ -1305,6 +1310,7 @@ const GenericTable = <T,>({
                                 <span className="select-none">
                                   {column.label ?? column.key}
                                 </span>
+                                {column.headerNode}
                               </span>
                               <div className="inline-flex items-center">
                                 {outsideSortProps &&

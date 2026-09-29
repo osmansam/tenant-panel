@@ -63,6 +63,7 @@ export interface ColumnType {
   label?: string;
   key: string;
   isSortable: boolean;
+  headerNode?: React.ReactNode;
   isAddable?: boolean;
   className?: string;
   generalColumnClassName?: string;
