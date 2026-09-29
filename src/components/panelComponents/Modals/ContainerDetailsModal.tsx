@@ -628,12 +628,12 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             </span>
             {container.isAuthContainer && (
               <Badge variant="success">
-                {t("Auth Container")}
+                {t("Auth Collection")}
               </Badge>
             )}
           </div>
         }
-        closeLabel={t("Close container")}
+        closeLabel={t("Close collection")}
         bodyClassName="min-w-0 p-0 sm:p-0"
         footer={
           <div className="flex justify-end gap-3">
@@ -699,7 +699,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                     </h4>
                     <p className="text-xs text-ui-muted mt-1">
                       {t(
-                        "Manage MongoDB aggregation pipelines for this container"
+                        "Manage MongoDB aggregation pipelines for this collection"
                       )}
                     </p>
                   </div>
@@ -813,7 +813,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
-                        {t("No pipelines defined for this container")}
+                        {t("No pipelines defined for this collection")}
                       </p>
                       <GenericButton
                         variant="outline"
@@ -836,7 +836,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       {t("Workflows")} ({(container.workflows || []).length})
                     </h4>
                     <p className="text-xs text-ui-muted mt-1">
-                      {t("Manage workflow definitions and access controls for this container")}
+                      {t("Manage workflow definitions and access controls for this collection")}
                     </p>
                   </div>
                   <GenericButton
@@ -948,7 +948,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                   {(!container.workflows || container.workflows.length === 0) && (
                     <div className="py-12 text-center text-ui-muted">
                       <FiPlayCircle size={48} className="mx-auto mb-4 text-ui-placeholder" />
-                      <p className="mb-2">{t("No workflows defined for this container")}</p>
+                      <p className="mb-2">{t("No workflows defined for this collection")}</p>
                       <GenericButton
                         variant="outline"
                         size="sm"
@@ -970,7 +970,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       {t("Dynamic APIs")} ({(container.dynamicApis || []).length})
                     </h4>
                     <p className="mt-1 text-xs text-ui-muted">
-                      {t("Manage outbound or proxy APIs for this container")}
+                      {t("Manage outbound or proxy APIs for this collection")}
                     </p>
                   </div>
                   <GenericButton
@@ -1088,7 +1088,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                         className="mx-auto mb-4 text-ui-placeholder"
                       />
                       <p className="mb-2">
-                        {t("No Dynamic APIs defined for this container")}
+                        {t("No Dynamic APIs defined for this collection")}
                       </p>
                       <GenericButton
                         variant="outline"
@@ -1106,7 +1106,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
             ) : viewMode === "structured" ? (
               <div className="space-y-4">
                 {/* Basic Information */}
-                <section aria-label={t("Container overview")} className="border-b border-ui-border pb-4">
+                <section aria-label={t("Collection overview")} className="border-b border-ui-border pb-4">
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 text-sm">
                     <div className="space-y-1 pr-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Schema Name")}</div>
@@ -1117,7 +1117,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       <div className="font-mono text-xs text-ui-foreground truncate">{container.collectionName || "N/A"}</div>
                     </div>
                     <div className="space-y-1 sm:border-l sm:border-ui-border/70 sm:pl-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Container")}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">{t("Auth Collection")}</div>
                       <div>
                         <Badge variant={container.isAuthContainer ? "success" : "neutral"} className="text-[11px]">
                           {container.isAuthContainer ? t("Yes") : t("No")}
@@ -1176,7 +1176,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                             {t("Create auth user")}
                           </h4>
                           <p className="text-xs text-ui-muted">
-                            {t("Creates a user in this project's auth container.")}
+                            {t("Creates a user in this project's auth collection.")}
                           </p>
                         </div>
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
@@ -1308,7 +1308,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
                       </GenericButton>
                     </div>
                   </Toolbar>
-                  <div role="table" aria-label={t("Container fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
+                  <div role="table" aria-label={t("Collection fields")} className="overflow-visible rounded-ui-lg border border-ui-border bg-ui-surface">
                     <div role="row" className="hidden grid-cols-[minmax(180px,1.2fr)_110px_minmax(180px,1fr)_240px] items-center gap-4 border-b border-ui-border bg-ui-surface-subtle px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ui-muted md:grid">
                       <span role="columnheader">{t("Name")}</span>
                       <span role="columnheader">{t("Type")}</span>
@@ -1439,7 +1439,7 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 
                     {(!container.fields || container.fields.length === 0) && (
                       <div className="text-center py-8 text-ui-muted">
-                        <p>{t("No fields defined for this container")}</p>
+                        <p>{t("No fields defined for this collection")}</p>
                         <GenericButton
                           variant="outline"
                           size="sm"

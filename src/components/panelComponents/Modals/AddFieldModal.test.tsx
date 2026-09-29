@@ -32,7 +32,7 @@ vi.mock("../../../utils/api/container", async (importOriginal) => {
 });
 
 describe("AddFieldModal", () => {
-  it("shows the edited field and container context", async () => {
+  it("shows the edited field and collection context", async () => {
     const { rerender } = render(
       <AddFieldModal
         isOpen
@@ -55,14 +55,15 @@ describe("AddFieldModal", () => {
       "break-all",
       "sm:break-normal",
     );
-    expect(screen.getByText(/container: stock/i)).toHaveClass(
+    expect(screen.getByText(/collection: stock/i)).toHaveClass(
       "break-all",
       "sm:break-normal",
     );
     expect(
       screen.getByRole("textbox", { name: /^field name\s*\*/i }),
     ).toHaveValue("product");
-    expect(screen.getByText(/container: stock/i)).toBeInTheDocument();
+    expect(screen.getByText(/collection: stock/i)).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/\bcontainers?\b/i);
 
     rerender(
       <AddFieldModal

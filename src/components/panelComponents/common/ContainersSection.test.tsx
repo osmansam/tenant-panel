@@ -94,41 +94,44 @@ describe("ContainersSection", () => {
     mockContainers = allContainers;
   });
 
-  it("paginates the container collection and changes page size", async () => {
+  it("paginates collections and changes page size", async () => {
     const user = userEvent.setup();
     render(<ContainersSection />);
 
     expect(screen.getAllByRole("article")).toHaveLength(10);
-    expect(screen.getByRole("article", { name: "schema-1 container" })).toBeInTheDocument();
-    expect(screen.queryByRole("article", { name: "schema-11 container" })).not.toBeInTheDocument();
-    expect(screen.getByText("Showing 1–10 of 40 containers")).toBeInTheDocument();
-    expect(screen.getByText("Total Containers").previousElementSibling).toHaveTextContent("40");
+    expect(screen.getByRole("article", { name: "schema-1 collection" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "schema-11 collection" })).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 1–10 of 40 collections")).toBeInTheDocument();
+    expect(screen.getByText("Total Collections").previousElementSibling).toHaveTextContent("40");
 
     await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByRole("article", { name: "schema-11 container" })).toBeInTheDocument();
-    expect(screen.queryByRole("article", { name: "schema-1 container" })).not.toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "schema-11 collection" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "schema-1 collection" })).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Containers per page"), "20");
+    await user.selectOptions(screen.getByLabelText("Collections per page"), "20");
     expect(screen.getAllByRole("article")).toHaveLength(20);
-    expect(screen.getByRole("article", { name: "schema-20 container" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "schema-20 collection" })).toBeInTheDocument();
   });
 
-  it("exposes one primary create action and a named container toolbar", () => {
+  it("uses collection terminology for actions and the toolbar", () => {
     render(<ContainersSection />);
 
-    const actions = screen.getByRole("group", { name: "Container actions" });
-    expect(within(actions).getByRole("button", { name: "Create Container" })).toHaveAttribute(
+    const actions = screen.getByRole("group", { name: "Collection actions" });
+    expect(within(actions).getByRole("button", { name: "Create Collection" })).toHaveAttribute(
       "data-primary-action",
       "true",
     );
-    expect(screen.getByRole("toolbar", { name: "Container toolbar" })).toBeInTheDocument();
-    expect(screen.getByRole("search", { name: "Search containers" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Collection toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("search", { name: "Search collections" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Collections" })).not.toHaveTextContent(
+      /\bcontainers?\b/i,
+    );
   });
 
   it("uses token-backed dense rows with bounded identifiers and shared focus treatment", () => {
     render(<ContainersSection />);
 
-    const row = screen.getByRole("article", { name: "schema-1 container" });
+    const row = screen.getByRole("article", { name: "schema-1 collection" });
     expect(row).toHaveAttribute("data-density", "dense");
     expect(row).toHaveClass("min-h-[var(--ui-row-dense)]");
     expect(within(row).getByRole("heading", { name: "schema-1" })).toHaveClass("truncate");
@@ -139,17 +142,17 @@ describe("ContainersSection", () => {
     const user = userEvent.setup();
     render(<ContainersSection />);
 
-    const search = screen.getByRole("searchbox", { name: "Search containers" });
+    const search = screen.getByRole("searchbox", { name: "Search collections" });
     await user.type(search, "collection-35");
 
     expect(screen.getAllByRole("article")).toHaveLength(1);
-    expect(screen.getByRole("article", { name: "schema-35 container" })).toBeInTheDocument();
-    expect(screen.getByText("Showing 1–1 of 1 containers")).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "schema-35 collection" })).toBeInTheDocument();
+    expect(screen.getByText("Showing 1–1 of 1 collections")).toBeInTheDocument();
 
     await user.clear(search);
     await user.type(search, "not-a-container");
-    expect(screen.getByText("No containers match your search")).toBeInTheDocument();
-    expect(screen.queryByText("No containers found in this project")).not.toBeInTheDocument();
+    expect(screen.getByText("No collections match your search")).toBeInTheDocument();
+    expect(screen.queryByText("No collections found in this project")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear search" }));
     expect(screen.getAllByRole("article")).toHaveLength(10);
@@ -159,7 +162,7 @@ describe("ContainersSection", () => {
     const user = userEvent.setup();
     render(<ContainersSection />);
 
-    const row = screen.getByRole("article", { name: "schema-3 container" });
+    const row = screen.getByRole("article", { name: "schema-3 collection" });
     await user.click(within(row).getByRole("button", { name: "Details" }));
     expect(screen.getByRole("dialog", { name: "container-details" })).toHaveAttribute(
       "data-container",
@@ -187,10 +190,10 @@ describe("ContainersSection", () => {
     );
   });
 
-  it("shows the project empty state when there are no containers", () => {
+  it("shows the project empty state when there are no collections", () => {
     mockContainers = [];
     render(<ContainersSection />);
-    expect(screen.getByText("No containers found in this project")).toBeInTheDocument();
-    expect(screen.queryByText("No containers match your search")).not.toBeInTheDocument();
+    expect(screen.getByText("No collections found in this project")).toBeInTheDocument();
+    expect(screen.queryByText("No collections match your search")).not.toBeInTheDocument();
   });
 });

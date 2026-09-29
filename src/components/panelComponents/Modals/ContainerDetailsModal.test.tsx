@@ -125,10 +125,11 @@ describe("ContainerDetailsModal", () => {
     );
 
     expect(screen.getByRole("region", { name: "Authentication" })).toBeInTheDocument();
-    expect(screen.getAllByText("Auth Container")[0]).toHaveAttribute(
+    expect(screen.getAllByText("Auth Collection")[0]).toHaveAttribute(
       "data-variant",
       "success",
     );
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(/\bcontainers?\b/i);
   });
 
   it("uses keyboard-accessible workspace tabs and a compact overview", async () => {
@@ -151,7 +152,7 @@ describe("ContainerDetailsModal", () => {
       "sm:break-normal",
     );
     expect(structuredTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("region", { name: "Container overview" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Collection overview" })).toBeInTheDocument();
 
     structuredTab.focus();
     await user.keyboard("{ArrowRight}");

@@ -148,6 +148,17 @@ describe("Dashboard", () => {
     expect(screen.getByRole("button", { name: /Settings & Branding/i })).toBeInTheDocument();
   });
 
+  it("uses collection terminology for project data", () => {
+    state.currentProject = { id: "proj-1", name: "Alpha Project", slug: "alpha" };
+    state.containers = [{ id: "collection-1", schemaName: "orders" }];
+
+    render(<Dashboard />);
+
+    expect(screen.getAllByText("Collections").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Containers")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/\bcontainers?\b/i);
+  });
+
   it("switches tenants with keyboard-operable tenant choices", async () => {
     const user = userEvent.setup();
     state.allTenants = [

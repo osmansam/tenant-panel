@@ -179,7 +179,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
     <WorkspaceDialog
       open={isOpen}
       onClose={handleClose}
-      title={t("Create New Container")}
+      title={t("Create New Collection")}
       description={t("Set up a new collection schema for this project.")}
       className="max-w-md"
       footer={
@@ -201,7 +201,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
           >
             {isCreating || isSubmitting
               ? t("Creating...")
-              : t("Create Container")}
+              : t("Create Collection")}
           </GenericButton>
         </div>
       }
@@ -213,13 +213,13 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
             label={t("Schema Name")}
             value={schemaName}
             onChange={(value: string) => setSchemaName(value)}
-            placeholder={t("Enter container schema name")}
+            placeholder={t("Enter collection schema name")}
             requiredField={true}
             disabled={isCreating || isSubmitting}
           />
           <p className="mt-1.5 text-xs text-ui-muted">
             {t(
-              "This will be the name of your container. It should be unique within the project."
+              "This will be the name of your collection. It should be unique within the project."
             )}
           </p>
         </div>

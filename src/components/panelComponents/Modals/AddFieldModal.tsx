@@ -549,8 +549,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
   const dialogTitle = editField
     ? t("Edit field: {{fieldName}}", { fieldName: editField.name })
-    : t("Add field to {{containerName}}", {
-        containerName: containerName || t("container"),
+    : t("Add field to {{containerName}} collection", {
+        containerName: containerName || t("new"),
       });
 
   return (
@@ -565,7 +565,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
       description={
         containerName ? (
           <span className="block break-all sm:break-normal">
-            {t("Container: {{containerName}}", { containerName })}
+            {t("Collection: {{containerName}}", { containerName })}
           </span>
         ) : undefined
       }
@@ -659,7 +659,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   setInputSelectionField("");
                 }}
                 options={containerOptions}
-                placeholder={t("Select container schema")}
+                placeholder={t("Select collection schema")}
                 customControlBackgroundColor="white"
               />
             )}
@@ -794,7 +794,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                         );
                       }}
                       options={containerOptions}
-                      placeholder={t("Select container schema")}
+                      placeholder={t("Select collection schema")}
                       customControlBackgroundColor="white"
                     />
                   )}

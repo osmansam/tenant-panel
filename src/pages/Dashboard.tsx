@@ -217,7 +217,7 @@ const Dashboard: React.FC = () => {
           className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
         >
           <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Containers")}</span>
+            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Collections")}</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
               <FiDatabase className="h-3.5 w-3.5" />
             </div>

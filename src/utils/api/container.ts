@@ -14,6 +14,13 @@ import { useGet } from "./factory";
 // type Id = ObjectId;
 type Id = string;
 
+const toCollectionTerminology = (message: string) =>
+  message
+    .replace(/\bContainers\b/g, "Collections")
+    .replace(/\bContainer\b/g, "Collection")
+    .replace(/\bcontainers\b/g, "collections")
+    .replace(/\bcontainer\b/g, "collection");
+
 /** Field definition for dynamic container schemas */
 export interface PopulationSettings {
   fieldName: string;
@@ -448,7 +455,7 @@ function useContainerContext(required = true) {
 
   if (required && (!tenantSlug || !projectSlug)) {
     throw new Error(
-      "Container operations require both tenant and project context"
+      "Collection operations require both tenant and project context"
     );
   }
 
@@ -641,7 +648,7 @@ export function useCreateContainer() {
 
       if (!tenantSlug || !projectSlug) {
         throw new Error(
-          "Container operations require both tenant and project context"
+          "Collection operations require both tenant and project context"
         );
       }
 
@@ -665,8 +672,8 @@ export function useCreateContainer() {
         });
       }
 
-      const message = response?.message || "Container created successfully";
-      toast.success(t(message));
+      const message = response?.message || "Collection created successfully";
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Container creation failed:", error);
@@ -674,7 +681,7 @@ export function useCreateContainer() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to create container";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -716,8 +723,8 @@ export function useUpdateContainer() {
         queryKey: ["containerTypes", tenantSlug, projectSlug],
       });
 
-      const message = response?.message || "Container updated successfully";
-      toast.success(t(message));
+      const message = response?.message || "Collection updated successfully";
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Container update failed:", error);
@@ -725,7 +732,7 @@ export function useUpdateContainer() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to update container";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -776,7 +783,7 @@ export function useCreateProjectAuthUser() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to create auth user";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -805,8 +812,8 @@ export function useDeleteContainer() {
         queryKey: ["containerTypes", tenantSlug, projectSlug],
       });
 
-      const message = response?.message || "Container deleted successfully";
-      toast.success(t(message));
+      const message = response?.message || "Collection deleted successfully";
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Container deletion failed:", error);
@@ -814,7 +821,7 @@ export function useDeleteContainer() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to delete container";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -858,7 +865,7 @@ export function useUpdateDynamicFunctions() {
 
       const message =
         response?.message || "Dynamic functions updated successfully";
-      toast.success(t(message));
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Dynamic functions update failed:", error);
@@ -866,7 +873,7 @@ export function useUpdateDynamicFunctions() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to update dynamic functions";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -912,7 +919,7 @@ export function useUpdateDynamicApis() {
       });
 
       const message = response?.message || "Dynamic APIs updated successfully";
-      toast.success(t(message));
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Dynamic APIs update failed:", error);
@@ -920,7 +927,7 @@ export function useUpdateDynamicApis() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to update dynamic APIs";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -966,7 +973,7 @@ export function useUpdatePipelines() {
       });
 
       const message = response?.message || "Pipelines updated successfully";
-      toast.success(t(message));
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Pipelines update failed:", error);
@@ -974,7 +981,7 @@ export function useUpdatePipelines() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to update pipelines";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -1020,7 +1027,7 @@ export function useUpdateWorkflows() {
       });
 
       const message = response?.message || "Workflows updated successfully";
-      toast.success(t(message));
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Workflows update failed:", error);
@@ -1028,7 +1035,7 @@ export function useUpdateWorkflows() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to update workflows";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -1064,7 +1071,7 @@ export function useResetRedis() {
     onSuccess: (response) => {
       // Don't need to invalidate queries since this is just clearing Redis cache
       const message = response?.message || "Redis cache reset successfully";
-      toast.success(t(message));
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       console.error("Redis reset failed:", error);
@@ -1072,7 +1079,7 @@ export function useResetRedis() {
         error?.response?.data?.message ||
         error?.message ||
         "Failed to reset Redis cache";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
@@ -1220,15 +1227,15 @@ export function useUploadExcel() {
 
       const message =
         response.message ||
-        "Excel file uploaded and container created successfully";
-      toast.success(t(message));
+        "Excel file uploaded and collection created successfully";
+      toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
         "Failed to upload Excel file";
-      toast.error(t(errorMessage));
+      toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
 
