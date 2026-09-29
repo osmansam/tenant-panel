@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import PagesPage from "./PagesPage";
 
@@ -21,6 +22,9 @@ vi.mock("../context/User.context", () => ({
 vi.mock("../components/panelComponents/common/PagesSection", () => ({
   PagesSection: () => <section aria-label="Pages" />,
 }));
+vi.mock("../components/panelComponents/common/AuditLogsAuthorizationSection", () => ({
+  AuditLogsAuthorizationSection: () => <section aria-label="Audit logs authorization" />,
+}));
 
 describe("PagesPage", () => {
   it("renders the project heading and isolated Pages section", () => {
@@ -38,5 +42,32 @@ describe("PagesPage", () => {
       screen.getByRole("region", { name: "Pages" }),
     );
     expect(screen.queryByRole("region", { name: "Containers" })).not.toBeInTheDocument();
+  });
+
+  it("separates page management and audit authorization into tabs", async () => {
+    const user = userEvent.setup();
+    render(
+      <main>
+        <PagesPage />
+      </main>,
+    );
+
+    const pagesTab = screen.getByRole("tab", { name: "Pages" });
+    expect(pagesTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Pages" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Audit logs authorization" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Audit Logs" }));
+
+    expect(screen.getByRole("tab", { name: "Audit Logs" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(
+      screen.getByRole("region", { name: "Audit logs authorization" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Pages" })).not.toBeInTheDocument();
   });
 });

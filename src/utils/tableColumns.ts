@@ -1,5 +1,15 @@
 import type { ColumnType } from "../components/panelComponents/shared/types";
 
+export function mergeLiveTableColumns(
+  persisted: ColumnType[],
+  incoming: ColumnType[],
+): ColumnType[] {
+  return persisted.map((column, index) => ({
+    ...column,
+    headerNode: incoming[index]?.headerNode,
+  }));
+}
+
 export function syncTranslatedTableColumns(
   existing: ColumnType[] | undefined,
   incoming: ColumnType[],
@@ -7,7 +17,13 @@ export function syncTranslatedTableColumns(
   if (!existing || existing.length !== incoming.length) {
     return incoming.map((column) => ({ ...column, isActive: true }));
   }
-  if (incoming.every((column, index) => column.key === existing[index]?.key && column.label === existing[index]?.label)) {
+  if (
+    incoming.every(
+      (column, index) =>
+        column.key === existing[index]?.key &&
+        column.label === existing[index]?.label,
+    )
+  ) {
     return existing;
   }
   return incoming.map((column, index) => {

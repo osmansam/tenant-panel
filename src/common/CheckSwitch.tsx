@@ -5,6 +5,7 @@ interface Props {
   onChange: () => void;
   checkedBg?: string;
   uncheckedBg?: string;
+  ariaLabel?: string;
 }
 
 export function CheckSwitch({
@@ -12,11 +13,13 @@ export function CheckSwitch({
   onChange,
   checkedBg,
   uncheckedBg,
+  ariaLabel,
 }: Props) {
   return (
     <Switch
       checked={checked}
       onChange={onChange}
+      aria-label={ariaLabel}
       className={`${
         checked ? checkedBg || "bg-blue-500" : uncheckedBg || "bg-gray-500"
       }

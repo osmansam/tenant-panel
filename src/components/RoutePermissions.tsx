@@ -1,15 +1,17 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoCheckmark, IoCloseOutline } from "react-icons/io5";
 import { CheckSwitch } from "../common/CheckSwitch";
 import { useContainer, useUpdateContainer } from "../utils/api/container";
 import { useRoleItems } from "../utils/api/roleInfo";
 import {
+  normalizeContainerRoutes,
   toggleContainerRouteFlag,
   updateContainerRouteSpec,
 } from "../utils/containerRoutes";
 import GenericTable from "./panelComponents/Tables/GenericTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
+import type { ColumnType } from "./panelComponents/shared/types";
 
 interface RoutePermissionsProps {
   containerId: string;
@@ -25,6 +27,8 @@ interface RouteRow {
   method?: string;
 }
 
+type RouteBooleanFlag = "isActive" | "isAuthenticated" | "isAuthorized";
+
 const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
   const { t } = useTranslation();
   const [isEnableEdit, setIsEnableEdit] = useState(false);
@@ -32,14 +36,79 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
   // Fetch roles and container data
   const { data: roleItems = [] } = useRoleItems();
   const container = useContainer(containerId);
-  const { updateContainer } = useUpdateContainer();
+  const { updateContainerAsync } = useUpdateContainer();
+
+  const serverRoutesSignature = JSON.stringify(container?.routes ?? {});
+  const serverRoutes = useMemo(
+    () => normalizeContainerRoutes(JSON.parse(serverRoutesSignature)),
+    [serverRoutesSignature],
+  );
+  const [editableRoutes, setEditableRoutes] = useState(serverRoutes);
+  const editableRoutesRef = useRef(editableRoutes);
+  const latestServerRoutesRef = useRef(serverRoutes);
+  const pendingRoutesSignatureRef = useRef<string | null>(null);
+  const updateSequenceRef = useRef(0);
+  const updateQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    latestServerRoutesRef.current = serverRoutes;
+
+    if (
+      pendingRoutesSignatureRef.current &&
+      pendingRoutesSignatureRef.current !== serverRoutesSignature
+    ) {
+      return;
+    }
+
+    pendingRoutesSignatureRef.current = null;
+    editableRoutesRef.current = serverRoutes;
+    setEditableRoutes(serverRoutes);
+  }, [serverRoutes, serverRoutesSignature]);
+
+  const commitRoutes = useCallback(
+    (updatedRoutes: ReturnType<typeof normalizeContainerRoutes>) => {
+      if (!container) return;
+
+      editableRoutesRef.current = updatedRoutes;
+      setEditableRoutes(updatedRoutes);
+      pendingRoutesSignatureRef.current = JSON.stringify(updatedRoutes);
+
+      const sequence = ++updateSequenceRef.current;
+      const request = {
+        id: containerId,
+        payload: {
+          ...container,
+          routes: updatedRoutes,
+        },
+      };
+      const sendUpdate = () => updateContainerAsync(request);
+
+      updateQueueRef.current = updateQueueRef.current
+        .then(sendUpdate, sendUpdate)
+        .then(
+          () => {
+            if (sequence === updateSequenceRef.current) {
+              pendingRoutesSignatureRef.current = null;
+            }
+          },
+          () => {
+            if (sequence !== updateSequenceRef.current) return;
+
+            pendingRoutesSignatureRef.current = null;
+            editableRoutesRef.current = latestServerRoutesRef.current;
+            setEditableRoutes(latestServerRoutesRef.current);
+          },
+        );
+    },
+    [container, containerId, updateContainerAsync],
+  );
 
   // Convert routes object to array for table display
   const routeRows = useMemo(() => {
     if (!container?.routes) return [];
 
     const rows: RouteRow[] = [];
-    Object.entries(container.routes).forEach(
+    Object.entries(editableRoutes).forEach(
       ([routeName, routeSpec]: [string, any]) => {
         // Convert camelCase to readable format
         const displayName = routeName.replace(/([A-Z])/g, " $1").trim();
@@ -57,30 +126,49 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     );
 
     return rows;
-  }, [container?.routes]);
+  }, [container?.routes, editableRoutes]);
+
+  const handleAllRoutesToggle = useCallback(
+    (flag: RouteBooleanFlag, value: boolean) => {
+      if (!container?.routes) return;
+
+      const updatedRoutes = Object.fromEntries(
+        Object.entries(editableRoutesRef.current).map(
+          ([routeName, routeSpec]) => [
+            routeName,
+            {
+              ...routeSpec,
+              [flag]: value,
+              ...(flag === "isAuthorized" && !value
+                ? { authorizeRole: [] }
+                : {}),
+            },
+          ],
+        ),
+      );
+
+      commitRoutes(updatedRoutes);
+    },
+    [commitRoutes, container?.routes],
+  );
 
   // Handle isActive toggle
   const handleIsActiveToggle = useCallback(
     (route: RouteRow) => {
       if (!container?.routes) return;
 
+      const currentRoute = editableRoutesRef.current[route.routeName];
       const updatedRoutes = toggleContainerRouteFlag(
-        container.routes,
+        editableRoutesRef.current,
         route.routeName,
         "isActive",
-        !route.isActive,
+        !currentRoute?.isActive,
       );
 
-      updateContainer({
-        id: containerId,
-        payload: {
-          ...container,
-          routes: updatedRoutes,
-        },
-      });
+      commitRoutes(updatedRoutes);
 
     },
-    [container, containerId, updateContainer, t]
+    [commitRoutes, container?.routes]
   );
 
   // Handle isAuthenticated toggle
@@ -88,23 +176,18 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     (route: RouteRow) => {
       if (!container?.routes) return;
 
+      const currentRoute = editableRoutesRef.current[route.routeName];
       const updatedRoutes = toggleContainerRouteFlag(
-        container.routes,
+        editableRoutesRef.current,
         route.routeName,
         "isAuthenticated",
-        !route.isAuthenticated,
+        !currentRoute?.isAuthenticated,
       );
 
-      updateContainer({
-        id: containerId,
-        payload: {
-          ...container,
-          routes: updatedRoutes,
-        },
-      });
+      commitRoutes(updatedRoutes);
 
     },
-    [container, containerId, updateContainer, t]
+    [commitRoutes, container?.routes]
   );
 
   // Handle isAuthorized toggle
@@ -112,26 +195,23 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     (route: RouteRow) => {
       if (!container?.routes) return;
 
-      const newIsAuthorized = !route.isAuthorized;
+      const currentRoute = editableRoutesRef.current[route.routeName];
+      const newIsAuthorized = !currentRoute?.isAuthorized;
       const updatedRoutes = updateContainerRouteSpec(
-        container.routes,
+        editableRoutesRef.current,
         route.routeName,
         {
           isAuthorized: newIsAuthorized,
-          authorizeRole: newIsAuthorized ? route.authorizeRole || [] : [],
+          authorizeRole: newIsAuthorized
+            ? currentRoute?.authorizeRole || []
+            : [],
         },
       );
 
-      updateContainer({
-        id: containerId,
-        payload: {
-          ...container,
-          routes: updatedRoutes,
-        },
-      });
+      commitRoutes(updatedRoutes);
 
     },
-    [container, containerId, updateContainer, t]
+    [commitRoutes, container?.routes]
   );
 
   // Handle role permission toggle for a route
@@ -139,7 +219,8 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     (route: RouteRow, roleId: string) => {
       if (!container?.routes) return;
 
-      const currentAuthorizeRoles = route.authorizeRole || [];
+      const currentRoute = editableRoutesRef.current[route.routeName];
+      const currentAuthorizeRoles = currentRoute?.authorizeRole || [];
       let newAuthorizeRoles: string[];
 
       if (currentAuthorizeRoles.includes(roleId)) {
@@ -153,30 +234,51 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
       }
 
       const updatedRoutes = updateContainerRouteSpec(
-        container.routes,
+        editableRoutesRef.current,
         route.routeName,
         { authorizeRole: newAuthorizeRoles },
       );
 
-      updateContainer({
-        id: containerId,
-        payload: {
-          ...container,
-          routes: updatedRoutes,
-        },
-      });
+      commitRoutes(updatedRoutes);
 
     },
-    [container, containerId, updateContainer, t]
+    [commitRoutes, container?.routes]
   );
 
   const { columns, rowKeys } = useMemo(() => {
-    const cols = [
+    const bulkSwitch = (label: string, flag: RouteBooleanFlag) => {
+      if (!isEnableEdit) return undefined;
+
+      const areAllEnabled =
+        routeRows.length > 0 && routeRows.every((route) => !!route[flag]);
+
+      return (
+        <CheckSwitch
+          checked={areAllEnabled}
+          onChange={() => handleAllRoutesToggle(flag, !areAllEnabled)}
+          ariaLabel={`${t("Set all")} ${label}`}
+        />
+      );
+    };
+
+    const cols: ColumnType[] = [
       { key: t("Route"), isSortable: true },
       { key: t("Method"), isSortable: true },
-      { key: t("Is Active"), isSortable: true },
-      { key: t("Is Authenticated"), isSortable: true },
-      { key: t("Is Authorized"), isSortable: true },
+      {
+        key: t("Is Active"),
+        isSortable: true,
+        headerNode: bulkSwitch(t("Is Active"), "isActive"),
+      },
+      {
+        key: t("Is Authenticated"),
+        isSortable: true,
+        headerNode: bulkSwitch(t("Is Authenticated"), "isAuthenticated"),
+      },
+      {
+        key: t("Is Authorized"),
+        isSortable: true,
+        headerNode: bulkSwitch(t("Is Authorized"), "isAuthorized"),
+      },
     ];
 
     const keys = [
@@ -283,6 +385,8 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     handleIsAuthenticatedToggle,
     handleIsAuthorizedToggle,
     handleRouteRolePermission,
+    handleAllRoutesToggle,
+    routeRows,
   ]);
 
   const filters = useMemo(

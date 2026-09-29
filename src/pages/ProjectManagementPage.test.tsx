@@ -45,6 +45,7 @@ describe("ProjectManagementPage", () => {
     expect(screen.getByRole("main")).toContainElement(
       screen.getByRole("region", { name: "Collections" }),
     );
+    expect(screen.queryByRole("region", { name: "Audit logs" })).not.toBeInTheDocument();
   });
 
   it("keeps the project name, slug, and status in the same header row", () => {

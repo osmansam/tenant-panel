@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
+import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
 import { PagesSection } from "../components/panelComponents/common/PagesSection";
-import { Badge, PageHeader, PageShell } from "../components/ui";
+import { Badge, PageShell, Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 
@@ -10,6 +11,7 @@ const PagesPage: React.FC = () => {
   const { t } = useTranslation();
   const { currentProject, isInProject } = useCurrentProject();
   const { user } = useUserContext();
+  const [activeTab, setActiveTab] = useState("pages");
 
   // If not in project context, redirect to projects page
   if (!isInProject || !currentProject) {
@@ -44,7 +46,18 @@ const PagesPage: React.FC = () => {
         </div>
       </div>
 
-      <PagesSection />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList aria-label="Pages sections">
+          <TabsTrigger value="pages">Pages</TabsTrigger>
+          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pages" className="py-3">
+          <PagesSection />
+        </TabsContent>
+        <TabsContent value="audit-logs" className="py-3">
+          <AuditLogsAuthorizationSection />
+        </TabsContent>
+      </Tabs>
     </PageShell>
   );
 };
