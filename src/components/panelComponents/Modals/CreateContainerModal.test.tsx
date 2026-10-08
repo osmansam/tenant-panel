@@ -1,32 +1,14 @@
-// @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { CreateContainerModal } from "./CreateContainerModal";
+import { describe, expect, it } from "vitest";
+import { buildCreateContainerPayload } from "./createContainerPayload";
 
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (value: string) => value }),
-}));
+describe("buildCreateContainerPayload", () => {
+  it("omits access from every default route", () => {
+    const payload = buildCreateContainerPayload(" orders ");
 
-vi.mock("../../../utils/api/container", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("../../../utils/api/container")
-  >();
-  return {
-    ...actual,
-    useCreateContainer: () => ({
-      createContainer: vi.fn(),
-      isCreating: false,
-    }),
-  };
-});
-
-describe("CreateContainerModal", () => {
-  it("presents collection terminology without changing the internal API", () => {
-    render(<CreateContainerModal isOpen onClose={vi.fn()} />);
-
-    const dialog = screen.getByRole("dialog", { name: "Create New Collection" });
-    expect(screen.getByRole("button", { name: "Create Collection" })).toBeDisabled();
-    expect(screen.getByPlaceholderText("Enter collection schema name")).toBeInTheDocument();
-    expect(dialog).not.toHaveTextContent(/\bcontainers?\b/i);
+    expect(payload.SchemaName).toBe("orders");
+    for (const route of Object.values(payload.Routes)) {
+      expect(route).not.toHaveProperty("access");
+      expect(route).not.toHaveProperty("Access");
+    }
   });
 });

@@ -71,12 +71,33 @@ export interface Field {
 }
 
 /** Per-route auth/availability spec */
+export type AccessValue =
+  | string
+  | number
+  | boolean
+  | null
+  | AccessValue[]
+  | { [key: string]: AccessValue };
+
+export interface RecordAccessRule {
+  field?: string;
+  context?: string;
+  operator: string;
+  value?: AccessValue;
+}
+
+export interface RecordAccessPolicy {
+  assign?: Record<string, AccessValue>;
+  any?: RecordAccessRule[];
+}
+
 export interface RouteSpec {
   isAuthenticated: boolean;
   isAuthorized: boolean;
   authorizeRole: string[];
   isActive: boolean; // Updated to match Go model (isActive instead of isActivated)
   method: string; // e.g., "GET" | "POST" | "PUT" | "DELETE"
+  access?: RecordAccessPolicy;
 }
 
 /** All routes toggles */
@@ -309,117 +330,28 @@ export interface UpdateWorkflowsPayload {
   Workflows: DynamicWorkflow[];
 }
 
+export interface CreateContainerRawRouteSpec {
+  IsAuthenticated: boolean;
+  IsAuthorized: boolean;
+  AuthorizeRole: string[];
+  IsActive: boolean;
+  Method: string;
+  Access?: {
+    Assign?: Record<string, AccessValue>;
+    Any?: Array<{
+      Field?: string;
+      Context?: string;
+      Operator: string;
+      Value?: AccessValue;
+    }>;
+  };
+}
+
 // Raw payload types matching Go backend struct tags (PascalCase)
 export interface CreateContainerRawPayload {
   SchemaName: string;
   Fields: any[]; // Empty array initially
-  Routes: {
-    CreateDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    GetAllDynamicModelItems: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    CreateMultipleDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    GetAllDynamicModelItemsWithPagination: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    GetPipeline: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    TestPipeline: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    HandleSearchDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    HandleFilterDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    DeleteDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    UpdateDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    UpdateMultipleDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    GetDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    DeleteMultipleDynamicModelItem: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    ExportDynamicModelItems: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-    GetItemsForSelection: {
-      IsAuthenticated: boolean;
-      IsAuthorized: boolean;
-      AuthorizeRole: string[];
-      IsActive: boolean;
-      Method: string;
-    };
-  };
+  Routes: Record<string, CreateContainerRawRouteSpec>;
   Redis: {
     IsRedisCached: boolean;
     CacheTime: number;
