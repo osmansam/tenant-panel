@@ -1,12 +1,10 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  CreateContainerRawPayload,
-  useCreateContainer,
-} from "../../../utils/api/container";
+import { useCreateContainer } from "../../../utils/api/container";
 import { WorkspaceDialog } from "../../ui/workspace-dialog";
 import { GenericButton } from "../FormElements/GenericButton";
 import TextInput from "../FormElements/TextInput";
+import { buildCreateContainerPayload } from "./createContainerPayload";
 
 interface CreateContainerModalProps {
   isOpen: boolean;
@@ -28,131 +26,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
 
     setIsSubmitting(true);
 
-    // Create the container payload with default values matching Go backend format
-    const containerPayload: CreateContainerRawPayload = {
-      SchemaName: schemaName.trim(),
-      Fields: [], // Empty fields array as requested
-      Routes: {
-        CreateDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "POST",
-        },
-        GetAllDynamicModelItems: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        CreateMultipleDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "POST",
-        },
-        GetAllDynamicModelItemsWithPagination: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        GetPipeline: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        TestPipeline: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "POST",
-        },
-        HandleSearchDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        HandleFilterDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        DeleteDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "DELETE",
-        },
-        UpdateDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "PATCH",
-        },
-        UpdateMultipleDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "PATCH",
-        },
-        GetDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        DeleteMultipleDynamicModelItem: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "DELETE",
-        },
-        ExportDynamicModelItems: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-        GetItemsForSelection: {
-          IsAuthenticated: false,
-          IsAuthorized: false,
-          AuthorizeRole: [],
-          IsActive: true,
-          Method: "GET",
-        },
-      },
-      Redis: {
-        IsRedisCached: false,
-        CacheTime: 10,
-        TriggeredRedisCaches: [],
-      },
-      Pipelines: [],
-      DynamicFunctions: [],
-      DynamicApis: [],
-      IsAuthContainer: false,
-      IsRegisterActive: false,
-      PopulatedRoutes: [],
-      Indexes: null,
-      RowAccess: null,
-    };
+    const containerPayload = buildCreateContainerPayload(schemaName);
 
     try {
       createContainer(containerPayload);

@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoCheckmark, IoCloseOutline } from "react-icons/io5";
 import { CheckSwitch } from "../common/CheckSwitch";
-import { useContainer, useUpdateContainer } from "../utils/api/container";
+import type { RecordAccessPolicy } from "../utils/api/container";
+import {
+  useContainer,
+  useContainers,
+  useUpdateContainer,
+} from "../utils/api/container";
 import { useRoleItems } from "../utils/api/roleInfo";
 import {
   normalizeContainerRoutes,
@@ -12,6 +17,11 @@ import {
 import GenericTable from "./panelComponents/Tables/GenericTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
 import type { ColumnType } from "./panelComponents/shared/types";
+import { RouteAccessPolicyEditor } from "./route-access/RouteAccessPolicyEditor";
+import {
+  isRecordAccessRoute,
+  summarizeRecordAccessPolicy,
+} from "./route-access/recordAccessPolicy";
 
 interface RoutePermissionsProps {
   containerId: string;
@@ -25,6 +35,8 @@ interface RouteRow {
   isAuthorized?: boolean;
   authorizeRole?: string[];
   method?: string;
+  access?: RecordAccessPolicy;
+  supportsAccessPolicy: boolean;
 }
 
 type RouteBooleanFlag = "isActive" | "isAuthenticated" | "isAuthorized";
@@ -32,11 +44,15 @@ type RouteBooleanFlag = "isActive" | "isAuthenticated" | "isAuthorized";
 const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
   const { t } = useTranslation();
   const [isEnableEdit, setIsEnableEdit] = useState(false);
+  const [policyRouteName, setPolicyRouteName] = useState<string | null>(null);
 
   // Fetch roles and container data
   const { data: roleItems = [] } = useRoleItems();
   const container = useContainer(containerId);
+  const containers = useContainers();
   const { updateContainerAsync } = useUpdateContainer();
+  const authFields =
+    containers.find((candidate) => candidate.isAuthContainer)?.fields ?? [];
 
   const serverRoutesSignature = JSON.stringify(container?.routes ?? {});
   const serverRoutes = useMemo(
@@ -121,6 +137,8 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
           isAuthorized: routeSpec.isAuthorized,
           authorizeRole: routeSpec.authorizeRole,
           method: routeSpec.method,
+          access: routeSpec.access,
+          supportsAccessPolicy: isRecordAccessRoute(routeName),
         });
       }
     );
@@ -138,7 +156,12 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
             routeName,
             {
               ...routeSpec,
-              [flag]: value,
+              [flag]:
+                flag === "isAuthenticated" &&
+                !value &&
+                routeSpec.access
+                  ? true
+                  : value,
               ...(flag === "isAuthorized" && !value
                 ? { authorizeRole: [] }
                 : {}),
@@ -177,6 +200,9 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
       if (!container?.routes) return;
 
       const currentRoute = editableRoutesRef.current[route.routeName];
+      if (currentRoute?.access && currentRoute.isAuthenticated) {
+        return;
+      }
       const updatedRoutes = toggleContainerRouteFlag(
         editableRoutesRef.current,
         route.routeName,
@@ -188,6 +214,24 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
 
     },
     [commitRoutes, container?.routes]
+  );
+
+  const handleAccessPolicySave = useCallback(
+    (policy: RecordAccessPolicy | undefined) => {
+      if (!policyRouteName) return;
+      commitRoutes(
+        updateContainerRouteSpec(
+          editableRoutesRef.current,
+          policyRouteName,
+          {
+            access: policy,
+            ...(policy ? { isAuthenticated: true } : {}),
+          },
+        ),
+      );
+      setPolicyRouteName(null);
+    },
+    [commitRoutes, policyRouteName],
   );
 
   // Handle isAuthorized toggle
@@ -279,6 +323,7 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         isSortable: true,
         headerNode: bulkSwitch(t("Is Authorized"), "isAuthorized"),
       },
+      { key: t("Access Policy"), isSortable: true },
     ];
 
     const keys = [
@@ -320,6 +365,8 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
             <CheckSwitch
               checked={!!row.isAuthenticated}
               onChange={() => handleIsAuthenticatedToggle(row)}
+              disabled={!!row.access}
+              ariaLabel={`${t("Is Authenticated")} ${row.displayName}`}
             />
           ) : row.isAuthenticated ? (
             <IoCheckmark className="text-blue-500 text-2xl" />
@@ -340,6 +387,28 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
             <IoCheckmark className="text-blue-500 text-2xl" />
           ) : (
             <IoCloseOutline className="text-red-800 text-2xl" />
+          );
+        },
+      },
+      {
+        key: "accessPolicy",
+        node: (row: RouteRow) => {
+          if (!row.supportsAccessPolicy) {
+            return <span className="text-gray-300">-</span>;
+          }
+          return (
+            <div className="flex min-w-40 items-center justify-between gap-2">
+              <span className="text-sm">{summarizeRecordAccessPolicy(row.access)}</span>
+              {isEnableEdit && (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-ui-primary hover:underline"
+                  onClick={() => setPolicyRouteName(row.routeName)}
+                >
+                  Edit Policy
+                </button>
+              )}
+            </div>
           );
         },
       },
@@ -417,6 +486,17 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         isActionsActive={false}
         isSearch={true}
       />
+      {policyRouteName && (
+        <RouteAccessPolicyEditor
+          open
+          routeName={policyRouteName}
+          fields={container.fields ?? []}
+          authFields={authFields}
+          policy={editableRoutes[policyRouteName]?.access}
+          onClose={() => setPolicyRouteName(null)}
+          onSave={handleAccessPolicySave}
+        />
+      )}
     </div>
   );
 };
