@@ -11,13 +11,18 @@ const state = vi.hoisted(() => ({
   savePending: false,
   save: vi.fn(),
   edit: vi.fn(),
+	generate: vi.fn(),
+	refetch: vi.fn(),
+	job: undefined as undefined | Record<string, any>,
 }));
 
 vi.mock("react-toastify", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("../../utils/api/localization", () => ({
   useSaveLocaleSettings: () => ({ mutateAsync: state.save, isPending: state.savePending }),
-  useTranslations: () => ({ data: state.translations, isLoading: state.loading }),
+  useTranslations: () => ({ data: state.translations, isLoading: state.loading, refetch: state.refetch }),
   useEditTranslation: () => ({ mutate: state.edit }),
+	useGenerateTranslations: () => ({ mutateAsync: state.generate, isPending: false }),
+	useTranslationJob: () => ({ data: state.job }),
 }));
 
 const project = {
@@ -33,6 +38,9 @@ describe("ProjectLocalizationSection", () => {
     state.translations = [];
     state.loading = false;
     state.savePending = false;
+	state.job = undefined;
+	state.save.mockResolvedValue({ translationJobId: "" });
+	state.generate.mockResolvedValue({ translationJobId: "job-generate" });
     vi.clearAllMocks();
     localStorage.clear();
   });
@@ -107,4 +115,40 @@ describe("ProjectLocalizationSection", () => {
     await user.click(screen.getByRole("tab", { name: "Languages" }));
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
+
+	it("shows progress after saving a language with AI generation", async () => {
+		const user = userEvent.setup();
+		state.save.mockResolvedValue({ translationJobId: "job-save" });
+		state.job = { status: "running", total: 10, completed: 4, skippedManual: 1, failed: 0, errorSummary: [] };
+		render(<ProjectLocalizationSection project={project} />);
+		await user.click(screen.getByRole("tab", { name: "Languages" }));
+		await user.click(screen.getByRole("button", { name: "Save language settings" }));
+		expect(await screen.findByRole("status", { name: "Translation generation progress" })).toHaveTextContent("4 of 10");
+	});
+
+	it("refreshes translations when generation completes", () => {
+		state.job = { status: "completed", total: 2, completed: 2, skippedManual: 0, failed: 0, errorSummary: [] };
+		render(<ProjectLocalizationSection project={project} />);
+		expect(state.refetch).toHaveBeenCalled();
+	});
+
+	it("starts project-wide regeneration and supports retry after failure", async () => {
+		const user = userEvent.setup();
+		state.job = { status: "failed", total: 2, completed: 1, skippedManual: 0, failed: 1, errorSummary: ["tr: provider unavailable"] };
+		render(<ProjectLocalizationSection project={project} />);
+		expect(screen.getByText("tr: provider unavailable")).toBeInTheDocument();
+		await user.click(screen.getByRole("button", { name: "Retry translation generation" }));
+		expect(state.generate).toHaveBeenCalledWith({ targetLocales: ["tr"] });
+	});
+
+	it("shows missing and outdated states while keeping untranslated fields editable", () => {
+		state.translations = [
+			{ translationKey: "missing", resourceType: "field", status: "missing", sourceText: "Missing", translatedText: "", origin: "untranslated" },
+			{ translationKey: "outdated", resourceType: "field", status: "outdated", sourceText: "Outdated", translatedText: "Eski", origin: "ai" },
+		];
+		render(<ProjectLocalizationSection project={project} />);
+		expect(screen.getByText("missing")).toBeInTheDocument();
+		expect(screen.getByText("outdated")).toBeInTheDocument();
+		expect(screen.getByRole("textbox", { name: "Translation for Missing" })).toBeEnabled();
+	});
 });
