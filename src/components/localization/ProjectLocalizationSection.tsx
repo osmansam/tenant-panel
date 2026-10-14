@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { FiGlobe, FiSliders } from "react-icons/fi";
 import { toast } from "react-toastify";
 import type { Project } from "../../types";
-import { useEditTranslation, useSaveLocaleSettings, useTranslations } from "../../utils/api/localization";
+import {
+  useEditTranslation,
+  useGenerateTranslations,
+  useSaveLocaleSettings,
+  useTranslationJob,
+  useTranslations,
+} from "../../utils/api/localization";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 import { Badge, EmptyState, Section, Switch, Tabs, TabsList, TabsTrigger } from "../ui";
 import { validateLocaleSettings } from "./localeSettings";
@@ -23,9 +29,18 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
     defaultLocale !== sourceLocale ? defaultLocale : (project.enabledLocales || []).find((locale) => locale !== sourceLocale) || "",
   );
   const [generateWithAI, setGenerateWithAI] = useState(true);
+	const [activeJobId, setActiveJobId] = useState("");
   const saveSettings = useSaveLocaleSettings(project.id);
   const translations = useTranslations(project.id, selectedLocale);
   const editTranslation = useEditTranslation(project.id, selectedLocale);
+	const generateTranslations = useGenerateTranslations(project.id);
+	const translationJob = useTranslationJob(project.id, activeJobId);
+
+	useEffect(() => {
+		if (translationJob.data?.status === "completed" || translationJob.data?.status === "failed") {
+			void translations.refetch();
+		}
+	}, [translationJob.data?.status, translations.refetch]);
 
   useEffect(() => {
     if (!selectedLocale || selectedLocale === sourceLocale || !enabledLocales.includes(selectedLocale)) {
@@ -41,13 +56,26 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
     const error = validateLocaleSettings(sourceLocale, defaultLocale, enabledLocales);
     if (error) return toast.error(error);
     try {
-      await saveSettings.mutateAsync({ sourceLocale, defaultLocale, enabledLocales, generateWithAI });
+		const result = await saveSettings.mutateAsync({ sourceLocale, defaultLocale, enabledLocales, generateWithAI });
+		if (result.translationJobId) setActiveJobId(result.translationJobId);
       localStorage.setItem("currentProject", JSON.stringify({ ...project, sourceLocale, defaultLocale, enabledLocales }));
       toast.success("Language settings saved");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Could not save language settings");
     }
   };
+
+	const startGeneration = async () => {
+		if (!selectedLocale) return;
+		try {
+			const result = await generateTranslations.mutateAsync({ targetLocales: [selectedLocale] });
+			setActiveJobId(result.translationJobId);
+		} catch (error: any) {
+			toast.error(error?.response?.data?.message || "Could not start translation generation");
+		}
+	};
+
+	const job = translationJob.data;
 
   return (
     <div className="space-y-4">
@@ -62,6 +90,27 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
         </TabsList>
       </Tabs>
 
+		{job ? (
+			<div
+				role="status"
+				aria-label="Translation generation progress"
+				className={`rounded-ui-md border px-4 py-3 text-sm ${job.status === "failed" ? "border-red-300 bg-red-50 text-red-800" : "border-ui-border bg-ui-surface-subtle text-ui-foreground"}`}
+			>
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<span className="font-medium">
+						{job.status === "pending" ? "Translation generation is queued" : job.status === "running" ? `Generating translations: ${job.completed} of ${job.total}` : job.status === "completed" ? `Translation generation completed: ${job.completed} of ${job.total}` : "Translation generation failed"}
+					</span>
+					{job.status === "failed" ? (
+						<GenericButton variant="secondary" onClick={startGeneration} disabled={!selectedLocale || generateTranslations.isPending}>
+							Retry translation generation
+						</GenericButton>
+					) : null}
+				</div>
+				{job.skippedManual > 0 ? <p className="mt-1 text-xs">Preserved {job.skippedManual} manual translation{job.skippedManual === 1 ? "" : "s"}.</p> : null}
+				{job.errorSummary?.slice(0, 3).map((message) => <p key={message} className="mt-1 text-xs">{message}</p>)}
+			</div>
+		) : null}
+
       {activeTab === "translations" ? (
         <Section surface="outlined" className="p-0 sm:p-0">
           <div className="flex flex-col gap-3 border-b border-ui-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -72,12 +121,17 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
               </div>
               <p className="mt-0.5 text-xs text-ui-muted">Changes save automatically when a field loses focus.</p>
             </div>
-            <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-ui-muted">
-              Target language
-              <select aria-label="Target language" className="h-9 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground" value={selectedLocale} onChange={(event) => setSelectedLocale(event.target.value)}>
-                {enabledLocales.filter((locale) => locale !== sourceLocale).map((locale) => <option key={locale}>{LANGUAGES.find(([code]) => code === locale)?.[1] || locale}</option>)}
-              </select>
-            </label>
+			<div className="flex shrink-0 flex-wrap items-center gap-2">
+				<GenericButton variant="secondary" onClick={startGeneration} disabled={!selectedLocale || generateTranslations.isPending || job?.status === "pending" || job?.status === "running"}>
+					{generateTranslations.isPending ? "Starting…" : "Regenerate missing / outdated"}
+				</GenericButton>
+				<label className="flex items-center gap-2 text-xs font-medium text-ui-muted">
+					Target language
+					<select aria-label="Target language" className="h-9 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground" value={selectedLocale} onChange={(event) => setSelectedLocale(event.target.value)}>
+						{enabledLocales.filter((locale) => locale !== sourceLocale).map((locale) => <option key={locale} value={locale}>{LANGUAGES.find(([code]) => code === locale)?.[1] || locale}</option>)}
+					</select>
+				</label>
+			</div>
           </div>
 
           {translations.isLoading ? (
@@ -108,13 +162,16 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                         }}
                       />
                     </div>
-                    <div role="cell"><Badge variant={row.origin === "manual" ? "success" : "info"}>{row.origin}</Badge></div>
+					<div role="cell"><Badge variant={row.origin === "manual" ? "success" : row.origin === "ai" ? "info" : "neutral"}>{row.origin}</Badge></div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <EmptyState title="No translations yet" description="Enable another language to begin translating project content." />
+			<EmptyState
+				title={selectedLocale ? "No translations yet" : "No target language enabled"}
+				description={selectedLocale ? "Synchronize source content or generate translations to populate this language." : "Enable another language in Language settings to begin translating project content."}
+			/>
           )}
         </Section>
       ) : (

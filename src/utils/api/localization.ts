@@ -6,8 +6,28 @@ export type TranslationRow = {
   resourceType: string;
   sourceText: string;
   translatedText: string;
-  origin: "ai" | "manual";
-  status: "current" | "outdated" | "failed";
+  origin: "untranslated" | "ai" | "manual";
+  status: "missing" | "current" | "outdated" | "failed";
+};
+
+export type TranslationJobResult = {
+  id: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  total: number;
+  completed: number;
+  skippedManual: number;
+  failed: number;
+  errorSummary?: string[];
+};
+
+export type LocaleSettingsResult = {
+  translationJobId?: string;
+  localizationVersion?: number;
+};
+
+export type GenerateTranslationsPayload = {
+  targetLocales: string[];
+  translationKeys?: string[];
 };
 
 export type LocaleSettingsPayload = {
@@ -17,11 +37,15 @@ export type LocaleSettingsPayload = {
   generateWithAI: boolean;
 };
 
+export async function saveLocaleSettings(projectId: string, payload: LocaleSettingsPayload): Promise<LocaleSettingsResult> {
+  const response = await axiosClient.patch(`/tenant/projects/${projectId}/locales`, payload);
+  return response.data.data as LocaleSettingsResult;
+}
+
 export function useSaveLocaleSettings(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: LocaleSettingsPayload) =>
-      axiosClient.patch(`/tenant/projects/${projectId}/locales`, payload),
+    mutationFn: (payload: LocaleSettingsPayload) => saveLocaleSettings(projectId, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["project", projectId] }),
   });
 }
@@ -39,6 +63,37 @@ export function translationQueryOptions(projectId: string, locale: string) {
 
 export function useTranslations(projectId: string, locale: string) {
   return useQuery(translationQueryOptions(projectId, locale));
+}
+
+export function translationJobQueryOptions(projectId: string, jobId: string) {
+  return {
+    queryKey: ["project-translation-job", projectId, jobId],
+    queryFn: async () =>
+      (await axiosClient.get(`/tenant/projects/${projectId}/translation-jobs/${jobId}`)).data.data as TranslationJobResult,
+    enabled: Boolean(projectId && jobId),
+    refetchInterval: (query: { state: { data?: TranslationJobResult } }) => {
+      const status = query.state.data?.status;
+      return status === "pending" || status === "running" ? 1000 : false;
+    },
+  } as const;
+}
+
+export function useTranslationJob(projectId: string, jobId: string) {
+  return useQuery(translationJobQueryOptions(projectId, jobId));
+}
+
+export async function generateTranslations(projectId: string, payload: GenerateTranslationsPayload): Promise<{ translationJobId: string }> {
+  const body = payload.translationKeys?.length
+    ? payload
+    : { targetLocales: payload.targetLocales };
+  const response = await axiosClient.post(`/tenant/projects/${projectId}/translations/generate`, body);
+  return response.data.data as { translationJobId: string };
+}
+
+export function useGenerateTranslations(projectId: string) {
+  return useMutation({
+    mutationFn: (payload: GenerateTranslationsPayload) => generateTranslations(projectId, payload),
+  });
 }
 
 export function useEditTranslation(projectId: string, locale: string) {
