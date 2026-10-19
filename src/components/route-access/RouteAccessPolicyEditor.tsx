@@ -4,8 +4,7 @@ import type {
   RecordAccessPolicy,
   RecordAccessRule,
 } from "../../utils/api/container";
-import { Button } from "../ui/button";
-import { WorkspaceDialog } from "../ui/workspace-dialog";
+import { Button, Input, Select, WorkspaceDialog } from "../ui";
 import {
   AUTH_CONTEXT_OPTIONS,
   RECORD_ACCESS_OPERATORS,
@@ -188,7 +187,7 @@ export function RouteAccessPolicyEditor({
             </div>
             {assignments.map((assignment, index) => (
               <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1.5fr_auto]">
-                <select
+                <Select
                   aria-label={`Assignment field ${index + 1}`}
                   className="ui-control"
                   value={assignment.field}
@@ -208,8 +207,8 @@ export function RouteAccessPolicyEditor({
                       {field.name}
                     </option>
                   ))}
-                </select>
-                <input
+                </Select>
+                <Input
                   aria-label={`Assignment value ${index + 1}`}
                   className="ui-control"
                   list="record-access-values"
@@ -275,7 +274,7 @@ export function RouteAccessPolicyEditor({
           {rules.map((rule, index) => (
             <div key={index} className="rounded-ui-md border border-ui-border p-3">
               <div className="grid gap-2 md:grid-cols-4">
-                <select
+                <Select
                   aria-label={`Rule source ${index + 1}`}
                   className="ui-control"
                   value={rule.source}
@@ -294,9 +293,9 @@ export function RouteAccessPolicyEditor({
                 >
                   <option value="field">Record field</option>
                   <option value="context">Auth context</option>
-                </select>
+                </Select>
                 {rule.source === "field" ? (
-                  <select
+                  <Select
                     aria-label={`Rule field ${index + 1}`}
                     className="ui-control"
                     value={rule.field}
@@ -316,9 +315,9 @@ export function RouteAccessPolicyEditor({
                         {field.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
-                  <select
+                  <Select
                     aria-label={`Rule context ${index + 1}`}
                     className="ui-control"
                     value={rule.context}
@@ -337,9 +336,9 @@ export function RouteAccessPolicyEditor({
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
-                <select
+                <Select
                   aria-label={`Rule operator ${index + 1}`}
                   className="ui-control"
                   value={rule.operator}
@@ -358,8 +357,8 @@ export function RouteAccessPolicyEditor({
                       {operator}
                     </option>
                   ))}
-                </select>
-                <input
+                </Select>
+                <Input
                   aria-label={`Rule value ${index + 1}`}
                   className="ui-control"
                   list="record-access-values"

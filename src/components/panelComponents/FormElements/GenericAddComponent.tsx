@@ -2,8 +2,13 @@ import { useMutation } from "@tanstack/react-query";
 import { AxiosHeaders } from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActionMeta, MultiValue, SingleValue } from "react-select";
 import { toast } from "react-toastify";
+import type {
+  SelectChangeMeta as ActionMeta,
+  SelectMultiValue as MultiValue,
+  SelectSingleValue as SingleValue,
+} from "../../ui";
+import { Input, Textarea } from "../../ui";
 import {
   FormElementsState,
   FormElementValue,
@@ -195,7 +200,7 @@ const GenericAddComponent = <T,>({
     }
   };
   return (
-    <div className="w-5/6 sm:w-1/2 flex flex-col gap-8 px-4 py-4 border border-gray-200 rounded-lg bg-white shadow-sm mx-auto __className_a182b8 ">
+    <div className="w-5/6 sm:w-1/2 flex flex-col gap-8 px-4 py-4 border border-ui-border rounded-lg bg-white shadow-sm mx-auto __className_a182b8 ">
       <div className="rounded-tl-md rounded-tr-md px-4 py-6 flex flex-col gap-4 justify-between ">
         {header && <H4>{header}</H4>}
         <div
@@ -221,10 +226,10 @@ const GenericAddComponent = <T,>({
                 />
                 <label
                   key={input.formKey}
-                  className="w-fit ml-auto inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded-md cursor-pointer my-auto border-b sm:border-b-0"
+                  className="w-fit ml-auto inline-block bg-ui-ink hover:bg-ui-ink text-white text-sm py-2 px-3 rounded-md cursor-pointer my-auto border-b sm:border-b-0"
                 >
                   {t("Upload")}
-                  <input
+                  <Input
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
@@ -383,20 +388,20 @@ const GenericAddComponent = <T,>({
                           <H6>{input.label}</H6>
                           {input.required && showRequired && (
                             <>
-                              <span className="text-red-400">* </span>
-                              <span className="text-xs text-gray-400">
+                              <span className="text-ui-danger">* </span>
+                              <span className="text-xs text-ui-placeholder">
                                 {"("} {t("required")} {")"}
                               </span>
                             </>
                           )}
                         </div>
-                        <textarea
+                        <Textarea
                           value={typeof value === "string" ? value : ""}
                           onChange={(e) => {
                             handleChange(input.formKey)(e.target.value);
                           }}
                           placeholder={input.placeholder ?? ""}
-                          className="border text-sm border-gray-300 rounded-md p-2 min-h-40"
+                          className="border text-sm border-ui-border rounded-md p-2 min-h-40"
                         />
                       </div>
                     )}

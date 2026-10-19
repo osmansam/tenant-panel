@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ContainerModel } from "../../../utils/api/container";
 import { ContainerDataModal } from "./ContainerDataModal";
 
-const mockGenericPaginatedPage = vi.fn((_props: unknown) => (
+const mockDataTable = vi.fn((_props: unknown) => (
   <div>Read-only records</div>
 ));
 
@@ -18,8 +18,8 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("../FormElements/GenericPaginatedPage", () => ({
-  default: (props: unknown) => mockGenericPaginatedPage(props),
+vi.mock("../Tables/DataTable", () => ({
+  default: (props: unknown) => mockDataTable(props),
 }));
 
 const stock = {
@@ -45,12 +45,12 @@ describe("ContainerDataModal", () => {
       />,
     );
 
-    expect(mockGenericPaginatedPage).toHaveBeenCalledWith(
+    expect(mockDataTable).toHaveBeenCalledWith(
       expect.objectContaining({
-        schemaName: "stock",
-        actionsEnabled: false,
-        isHeader: false,
-        customTitle: "stock data",
+        rows: [],
+        columns: [],
+        rowKeys: [],
+        isSearch: true,
       }),
     );
     const dialog = screen.getByRole("dialog", { name: "stock data" });

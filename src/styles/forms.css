@@ -1,16 +1,16 @@
 @layer components {
   .ui-control {
     @apply h-ui-md w-full rounded-ui-md border border-ui-border bg-ui-surface
-      px-3 text-sm text-ui-foreground outline-none transition-colors
-      placeholder:text-ui-placeholder hover:border-ui-border-hover
-      focus-visible:border-ui-focus focus-visible:ring-[3px]
-      focus-visible:ring-ui-focus/20 disabled:cursor-not-allowed
-      disabled:bg-ui-disabled disabled:text-ui-muted;
+      px-3.5 text-sm text-ui-foreground outline-none transition-[border-color,box-shadow,background-color]
+      duration-150 placeholder:text-ui-placeholder hover:border-ui-border-hover
+      focus-visible:border-ui-focus focus-visible:ring-[4px]
+      focus-visible:ring-ui-focus/15 disabled:cursor-not-allowed
+      disabled:border-ui-border disabled:bg-ui-disabled disabled:text-ui-muted;
   }
 
   .ui-control-invalid {
     @apply border-ui-danger focus-visible:border-ui-danger
-      focus-visible:ring-ui-danger/20;
+      focus-visible:ring-ui-danger/15;
   }
 
   .ui-focus-ring {
@@ -18,6 +18,8 @@
   }
 
   .ui-focus-ring:focus-visible {
-    box-shadow: 0 0 0 var(--ui-focus-ring-width) hsl(var(--ui-focus) / 0.2);
+    outline: 2px solid hsl(var(--ui-focus));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 var(--ui-focus-ring-width) hsl(var(--ui-focus) / 0.14);
   }
 }

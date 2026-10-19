@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { useModalFocus } from "../../hooks/useModalFocus";
 import { useTranslation } from "react-i18next";
 import { ComponentBlock } from "../../types/page";
 import { useUploadExcel } from "../../utils/api/container";
 import { createRuntimeId } from "../../utils/pageBindings";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
+import { Input } from "../ui";
 
 interface CellExcelUploadModalProps {
   isOpen: boolean;
@@ -25,6 +27,10 @@ export function CellExcelUploadModal({
   const [schemaName, setSchemaName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useModalFocus(dialogRef, isOpen, () => { if (!isUploading) handleClose(); });
 
   if (!isOpen) return null;
 
@@ -123,17 +129,18 @@ export function CellExcelUploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+    <div data-modal-layer="120" className="fixed inset-0 z-[120] flex items-center justify-center bg-black bg-opacity-50">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="max-h-[90dvh] overflow-y-auto rounded-ui-lg border border-ui-border bg-ui-surface p-6 shadow-ui-dialog w-[calc(100vw-2rem)] max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">
+          <h2 id={titleId} className="text-xl font-semibold">
             {mode === "cell"
               ? t("Upload Excel to Cell")
               : t("Upload Excel as Tab")}
           </h2>
           <button
+            aria-label={t("Close Excel upload")}
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-ui-muted hover:text-ui-foreground"
             disabled={isUploading}
           >
             <svg
@@ -157,15 +164,15 @@ export function CellExcelUploadModal({
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
               isDragging
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-300 hover:border-gray-400"
+                ? "border-ui-primary bg-ui-active-subtle"
+                : "border-ui-border hover:border-ui-border-strong"
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <input
+            <Input
               ref={fileInputRef}
               type="file"
               accept=".xlsx,.xls"
@@ -177,7 +184,7 @@ export function CellExcelUploadModal({
             {selectedFile ? (
               <div className="space-y-2">
                 <svg
-                  className="w-12 h-12 mx-auto text-green-500"
+                  className="w-12 h-12 mx-auto text-ui-success"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -189,10 +196,10 @@ export function CellExcelUploadModal({
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-ui-foreground">
                   {selectedFile.name}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {(selectedFile.size / 1024).toFixed(2)} KB
                 </p>
                 <button
@@ -201,7 +208,7 @@ export function CellExcelUploadModal({
                     e.stopPropagation();
                     setSelectedFile(null);
                   }}
-                  className="text-sm text-red-600 hover:text-red-800"
+                  className="text-sm text-ui-danger hover:text-ui-danger"
                   disabled={isUploading}
                 >
                   {t("Remove")}
@@ -210,7 +217,7 @@ export function CellExcelUploadModal({
             ) : (
               <div className="space-y-2">
                 <svg
-                  className="w-12 h-12 mx-auto text-gray-400"
+                  className="w-12 h-12 mx-auto text-ui-placeholder"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -222,13 +229,13 @@ export function CellExcelUploadModal({
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                   />
                 </svg>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-ui-muted">
                   {t("Drag and drop your Excel file here")}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("or click to browse")}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-ui-placeholder">
                   {t("Supported formats: .xlsx, .xls")}
                 </p>
               </div>
@@ -237,18 +244,18 @@ export function CellExcelUploadModal({
 
           {/* Schema Name Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("Schema Name")} <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ui-foreground mb-1">
+              {t("Schema Name")} <span className="text-ui-danger">*</span>
             </label>
-            <input
+            <Input
               type="text"
               value={schemaName}
               onChange={(e) => setSchemaName(e.target.value)}
               placeholder={t("Enter schema name")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full"
               disabled={isUploading}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ui-muted mt-1">
               {mode === "cell"
                 ? t(
                     "A table with this schema will be added to the cell automatically"

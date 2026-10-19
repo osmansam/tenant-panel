@@ -54,6 +54,7 @@ import {
   normalizeDynamicApiModel,
   normalizeDynamicWorkflow,
   useCreateContainer,
+  useCreateProjectAuthUser,
   useContainers,
   useUpdateContainer,
   useUpdateWorkflows,
@@ -63,6 +64,17 @@ describe("container API normalization", () => {
   beforeEach(() => {
     mocks.currentProject = { slug: "retail" };
     mocks.useGet.mockReset();
+  });
+
+  it("creates application users through the management endpoint", async () => {
+    mocks.axiosPost.mockResolvedValueOnce({ data: { data: { email: "member@example.com" } } });
+    useCreateProjectAuthUser();
+    const payload = { email: "member@example.com", password: "test-password" };
+    await mocks.mutationFn!({ schemaName: "customer accounts", payload });
+    expect(mocks.axiosPost).toHaveBeenCalledWith(
+      "/acme/retail/admin/auth/users?schemaName=customer%20accounts",
+      payload,
+    );
   });
 
   it("returns an empty list without project context when loading is disabled", () => {

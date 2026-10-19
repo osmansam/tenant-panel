@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useUserContext } from "../context/User.context";
 import { PublicRoutes } from "../navigation/constants";
 import { Tenant } from "../types";
+import { readStoredTenant, readStoredUser } from "../utils/persistedContext";
 import { axiosClient } from "../utils/api/axiosClient";
 
 const useAuth = () => {
@@ -25,12 +26,12 @@ const useAuth = () => {
         return;
       }
 
-      const storedUser = localStorage.getItem("user");
+      const storedUser = readStoredUser();
 
       if (storedUser) {
         try {
           // Set user from localStorage if available
-          const parsedUser = JSON.parse(storedUser);
+          const parsedUser = storedUser;
           setUser(parsedUser);
         } catch (e) {
           console.error("Failed to parse stored user:", e);
@@ -55,10 +56,10 @@ const useAuth = () => {
 
       // Handle login from another tab
       if (event.key === "loggedIn" && event.newValue === "true") {
-        const storedUser = localStorage.getItem("user");
+        const storedUser = readStoredUser();
         if (storedUser) {
           try {
-            setUser(JSON.parse(storedUser));
+            setUser(storedUser);
             // Navigate to dashboard or intended location
             const intendedPath = location.state?.from?.pathname || "/";
             navigate(intendedPath, { replace: true });
@@ -85,10 +86,7 @@ const useAuth = () => {
     navigate(PublicRoutes.Login, { replace: true });
   };
 
-  const getCurrentTenant = (): Tenant | null => {
-    const currentTenant = localStorage.getItem("currentTenant");
-    return currentTenant ? JSON.parse(currentTenant) : null;
-  };
+  const getCurrentTenant = readStoredTenant;
 
   const switchTenant = (tenant: Tenant) => {
     if (user && user.allTenants) {

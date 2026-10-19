@@ -12,6 +12,7 @@ import { useRoleItems } from "../../../utils/api/roleInfo";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import { Section, SectionHeader } from "../../ui";
+import { hasManagementPermission } from "../../../utils/managementPermissions";
 
 function formatRoles(roles: string[]) {
   if (roles.length === 0) return "No project roles selected";
@@ -20,7 +21,10 @@ function formatRoles(roles: string[]) {
 
 export const AuditLogsAuthorizationSection: React.FC = () => {
   const { user } = useUserContext();
-  const canManageConfig = Boolean(user?.roles?.length);
+  const canManageConfig = hasManagementPermission(
+    user?.roles,
+    "project.audit.configure",
+  );
   const { data: roleItems = [] } = useRoleItems(canManageConfig);
   const { data: config, isLoading } = useAuditLogsAuthorizationConfig(canManageConfig);
   const updateConfig = useUpdateAuditLogsAuthorizationConfig();

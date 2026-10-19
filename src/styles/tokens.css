@@ -1,47 +1,82 @@
 :root {
-  --ui-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --ui-page: 210 20% 97%;
+  /* Typography — SF Pro on Apple platforms, Inter/system fallbacks elsewhere. */
+  --ui-font-sans: "SF Pro Display", "SF Pro Text", -apple-system,
+    BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --ui-font-mono: "SF Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco,
+    "Cascadia Code", "Roboto Mono", Consolas, monospace;
+
+  /* Canvas & surfaces — quiet Apple grays with crisp white cards. */
+  --ui-page: 240 11% 96.5%;
   --ui-surface: 0 0% 100%;
-  --ui-surface-subtle: 210 20% 95%;
-  --ui-foreground: 222 47% 11%;
-  --ui-muted-foreground: 215 16% 40%;
-  --ui-placeholder: 215 14% 58%;
-  --ui-border: 214 24% 88%;
-  --ui-border-hover: 215 20% 72%;
-  --ui-primary: 201 90% 40%;
-  --ui-primary-hover: 201 90% 34%;
-  --ui-primary-active: 201 90% 30%;
+  --ui-surface-subtle: 240 8% 95%;
+  --ui-surface-raised: 0 0% 100%;
+  --ui-foreground: 240 3% 12%;
+  --ui-muted-foreground: 240 3% 43%;
+  --ui-placeholder: 240 4% 62%;
+
+  /* Ink — used for primary actions and high-contrast marks. */
+  --ui-ink: 240 4% 11%;
+  --ui-ink-hover: 240 4% 20%;
+  --ui-ink-active: 240 5% 7%;
+  --ui-ink-foreground: 0 0% 100%;
+
+  /* Hairlines */
+  --ui-border: 240 6% 90%;
+  --ui-border-hover: 240 5% 81%;
+  --ui-border-strong: 240 4% 70%;
+
+  /* Accent — Apple system blue. */
+  --ui-primary: 210 100% 44%;
+  --ui-primary-hover: 210 100% 40%;
+  --ui-primary-active: 210 100% 35%;
   --ui-primary-foreground: 0 0% 100%;
-  --ui-focus: 201 96% 45%;
-  --ui-focus-ring-width: 3px;
-  --ui-danger: 0 72% 51%;
-  --ui-danger-hover: 0 72% 45%;
-  --ui-danger-active: 0 72% 39%;
-  --ui-danger-subtle: 0 86% 97%;
-  --ui-success: 158 64% 36%;
-  --ui-success-hover: 158 64% 31%;
-  --ui-success-active: 158 64% 27%;
-  --ui-success-subtle: 152 76% 96%;
-  --ui-info: 201 90% 36%;
-  --ui-info-subtle: 204 100% 97%;
-  --ui-warning: 32 95% 32%;
-  --ui-warning-hover: 32 95% 28%;
-  --ui-warning-active: 32 95% 24%;
-  --ui-warning-subtle: 48 100% 96%;
-  --ui-neutral-subtle: 210 20% 96%;
-  --ui-disabled: 210 20% 97%;
-  --ui-overlay: 222 47% 11%;
-  --ui-active-subtle: 201 100% 97%;
-  --ui-border-strong: 215 20% 65%;
-  --ui-radius-sm: 0.375rem;
-  --ui-radius-md: 0.5rem;
-  --ui-radius-lg: 0.75rem;
-  --ui-control-sm: 2rem;
+  --ui-focus: 211 100% 50%;
+  --ui-focus-ring-width: 4px;
+
+  --ui-danger: 358 72% 46%;
+  --ui-danger-hover: 358 72% 41%;
+  --ui-danger-active: 358 72% 35%;
+  --ui-danger-subtle: 0 100% 97%;
+  --ui-success: 147 62% 30%;
+  --ui-success-hover: 147 62% 26%;
+  --ui-success-active: 147 62% 22%;
+  --ui-success-subtle: 145 65% 96%;
+  --ui-info: 210 100% 44%;
+  --ui-info-subtle: 208 100% 97%;
+  --ui-warning: 32 90% 33%;
+  --ui-warning-hover: 32 90% 28%;
+  --ui-warning-active: 32 90% 23%;
+  --ui-warning-subtle: 42 100% 96%;
+  --ui-neutral-subtle: 240 8% 95.5%;
+  --ui-subtle: 240 8% 95%;
+  --ui-surface-muted: 240 8% 96%;
+  --ui-primary-soft: 210 100% 96%;
+  --ui-danger-soft: 0 100% 97%;
+  --ui-disabled: 240 8% 96%;
+  --ui-overlay: 240 6% 10%;
+  --ui-active-subtle: 210 100% 96.5%;
+
+  /* Geometry */
+  --ui-radius-sm: 0.5rem;
+  --ui-radius-md: 0.625rem;
+  --ui-radius-lg: 0.875rem;
+  --ui-radius-xl: 1.125rem;
+  --ui-radius-2xl: 1.5rem;
+  --ui-control-sm: 2.125rem;
   --ui-control-md: 2.5rem;
-  --ui-control-lg: 2.75rem;
+  --ui-control-lg: 2.875rem;
   --ui-row-dense: 2.5rem;
   --ui-row-standard: 3rem;
-  --ui-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
-  --ui-shadow-dialog: 0 24px 64px rgb(15 23 42 / 0.18);
+
+  /* Layered, low-contrast shadows */
+  --ui-shadow-sm: 0 1px 2px rgb(16 17 20 / 0.04),
+    0 1px 1px rgb(16 17 20 / 0.02);
+  --ui-shadow-card: 0 1px 2px rgb(16 17 20 / 0.04),
+    0 8px 24px -12px rgb(16 17 20 / 0.12);
+  --ui-shadow-popover: 0 12px 40px -12px rgb(16 17 20 / 0.18),
+    0 0 0 1px rgb(16 17 20 / 0.04);
+  --ui-shadow-dialog: 0 32px 96px -16px rgb(16 17 20 / 0.3),
+    0 0 0 1px rgb(16 17 20 / 0.05);
+  --ui-shadow-button: 0 1px 2px rgb(16 17 20 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
 }

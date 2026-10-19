@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useUserContext } from "../context/User.context";
+import { readStoredProject } from "../utils/persistedContext";
 import { Project } from "../types";
 
 export const CURRENT_PROJECT_CHANGE_EVENT = "currentProjectChange";
@@ -14,14 +15,7 @@ export function emitCurrentProjectChange() {
 export function useCurrentProject() {
   const { user } = useUserContext();
 
-  const readProjectFromStorage = (): Project | null => {
-    try {
-      const project = localStorage.getItem("currentProject");
-      return project ? JSON.parse(project) : null;
-    } catch {
-      return null;
-    }
-  };
+  const readProjectFromStorage = readStoredProject;
 
   const [currentProject, setCurrentProject] = useState<Project | null>(readProjectFromStorage);
 

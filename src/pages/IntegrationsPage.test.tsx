@@ -7,6 +7,7 @@ import IntegrationsPage from "./IntegrationsPage";
 
 const state = vi.hoisted(() => ({
   inProject: true,
+  roles: ["project_developer"] as string[],
   credentials: [] as Array<Record<string, any>>,
   externalCredentials: [] as Array<Record<string, any>>,
   loading: false,
@@ -29,6 +30,9 @@ vi.mock("../hooks/useCurrentProject", () => ({
     currentProject: state.inProject ? { name: "Retail Platform" } : null,
   }),
 }));
+vi.mock("../context/User.context", () => ({
+  useUserContext: () => ({ user: { roles: state.roles } }),
+}));
 vi.mock("../utils/api/container", () => ({
   useContainers: () => [{ schemaName: "orders", workflows: [{ name: "sync" }], dynamicApis: [], pipelines: [] }],
 }));
@@ -48,6 +52,7 @@ vi.mock("../utils/api/integration", async (importOriginal) => {
 describe("IntegrationsPage", () => {
   beforeEach(() => {
     state.inProject = true;
+    state.roles = ["project_developer"];
     state.credentials = [];
     state.externalCredentials = [];
     state.loading = false;
@@ -102,6 +107,12 @@ describe("IntegrationsPage", () => {
 
   it("returns to projects when project context is unavailable", () => {
     state.inProject = false;
+    render(<IntegrationsPage />);
+    expect(screen.getByText("Redirect to /projects")).toBeInTheDocument();
+  });
+
+  it("rejects project members without integration permission", () => {
+    state.roles = ["project_editor"];
     render(<IntegrationsPage />);
     expect(screen.getByText("Redirect to /projects")).toBeInTheDocument();
   });

@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
 import { useTenant } from "../../hooks/useTenant";
 import { axiosClient } from "./axiosClient";
-import { useGet, useGetList } from "./factory";
+import { useGet, useGetList, useGetQuery } from "./factory";
 import { normalizePageRuntimeConfig } from "../pageBindings";
 import type { PageNavigatorConfig } from "../../types/page";
 
@@ -728,6 +728,16 @@ export function useGetTenantPages(enabled = true) {
   return useGetList<PageModel>(path, queryKey, enabled);
 }
 
+export function useGetTenantPagesQuery(enabled = true) {
+  const { tenantSlug, projectSlug } = usePageContext(enabled);
+  const response = useGetQuery<PageModel[]>(
+    buildPagePath(tenantSlug, projectSlug),
+    ["pages", tenantSlug, projectSlug],
+    enabled,
+  );
+  return { ...response, data: response.data || [] };
+}
+
 // Get single page
 export function useGetPage(id: string) {
   const { tenantSlug, projectSlug } = usePageContext();
@@ -774,6 +784,7 @@ export function useCreatePage() {
     createPage: (payload: CreatePagePayload) => {
       createMutation.mutate(payload);
     },
+    createPageAsync: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
   };
 }

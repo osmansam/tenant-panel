@@ -4,6 +4,7 @@ import { useGeneralContext } from "../../../context/General.context";
 import useIsLargeScreen from "../../../hooks/useIsLargeScreen";
 import { FormElementsState } from "../../../types";
 import { GenericInputType, InputTypes } from "../shared/types";
+import { Input } from "../../ui";
 import { GenericButton } from "./GenericButton";
 
 export type TabOption = {
@@ -172,16 +173,17 @@ const TabInputScreen = ({
     <div className={`${topClassName} bg-white rounded-lg shadow-lg p-2`}>
       {/* header: search + close */}
       <div className="w-full px-2 flex justify-between items-center">
-        <input
+        <Input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           autoFocus={sortedFiltered.length > 0}
           placeholder="Search..."
-          className="flex-1 border border-gray-300 rounded px-3 py-2 mr-2 mt-2"
+          aria-label="Search options"
+          className="mr-2 mt-2 flex-1"
         />
         <GenericButton onClick={handleClose} variant="icon">
-          <IoIosClose className="w-8 h-8 p-1 cursor-pointer hover:bg-gray-50 hover:rounded-full" />
+          <IoIosClose className="w-8 h-8 p-1 cursor-pointer hover:bg-ui-surface-subtle hover:rounded-full" />
         </GenericButton>
       </div>
 
@@ -202,8 +204,8 @@ const TabInputScreen = ({
                   min-h-[120px]
                   ${
                     isSelected
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 bg-white"
+                      ? "border-ui-primary bg-ui-active-subtle"
+                      : "border-ui-border bg-white"
                   }
                 `}
               >
@@ -215,7 +217,7 @@ const TabInputScreen = ({
                       className="w-16 h-16 object-cover rounded-md hidden sm:block"
                     />
                   )}
-                  <span className="text-gray-800 text-center">{opt.label}</span>
+                  <span className="text-ui-foreground text-center">{opt.label}</span>
                 </div>
               </GenericButton>
             );

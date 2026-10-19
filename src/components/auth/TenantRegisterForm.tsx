@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   TenantRegisterCredentials,
   useGoogleLogin,
   useTenantRegister,
 } from "../../utils/api/auth";
+import { createUrlSlug } from "../../utils/urlSlug";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 import TextInput from "../panelComponents/FormElements/TextInput";
 
@@ -16,6 +17,8 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
+  const formRef = useRef<HTMLFormElement>(null);
+  const focusInvalidRef = useRef(false);
   const [credentials, setCredentials] = useState<TenantRegisterCredentials>({
     email: "",
     password: "",
@@ -24,23 +27,33 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
     tenantSlug: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [isSlugEdited, setIsSlugEdited] = useState(false);
   const [errors, setErrors] = useState<Partial<TenantRegisterCredentials>>({});
+
+  useLayoutEffect(() => {
+    if (!focusInvalidRef.current) return;
+    focusInvalidRef.current = false;
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errors]);
 
   const { tenantRegister } = useTenantRegister(undefined, (error) => {
     setIsLoading(false);
+    setSubmitError(t("We could not create your account. Your details are still here. Please try again."));
     if (onError) onError(error);
   });
 
   const { initiateGoogleLogin } = useGoogleLogin((error) => {
+    setSubmitError(t("Google sign-in could not be started. Please try again."));
     if (onError) onError(error);
   });
 
   const validateForm = (): boolean => {
     const newErrors: Partial<TenantRegisterCredentials> = {};
 
-    if (!credentials.email) {
+    if (!credentials.email.trim()) {
       newErrors.email = t("Email is required");
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email.trim())) {
       newErrors.email = t("Please enter a valid email address");
     }
 
@@ -50,17 +63,17 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
       newErrors.password = t("Password must be at least 6 characters");
     }
 
-    if (!credentials.name) {
+    if (!credentials.name.trim()) {
       newErrors.name = t("Full name is required");
     }
 
-    if (!credentials.tenantName) {
+    if (!credentials.tenantName.trim()) {
       newErrors.tenantName = t("Tenant name is required");
     }
 
-    if (!credentials.tenantSlug) {
+    if (!credentials.tenantSlug.trim()) {
       newErrors.tenantSlug = t("Tenant slug is required");
-    } else if (!/^[a-z0-9-]+$/.test(credentials.tenantSlug)) {
+    } else if (!/^[a-z0-9-]+$/.test(credentials.tenantSlug.trim())) {
       newErrors.tenantSlug = t(
         "Tenant slug can only contain lowercase letters, numbers, and hyphens"
       );
@@ -72,11 +85,16 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (isLoading) return;
+    setSubmitError("");
+    if (!validateForm()) {
+      focusInvalidRef.current = true;
+      return;
+    }
 
     setIsLoading(true);
     setErrors({});
-    tenantRegister(credentials);
+    tenantRegister({ ...credentials, email: credentials.email.trim(), name: credentials.name.trim(), tenantName: credentials.tenantName.trim(), tenantSlug: credentials.tenantSlug.trim() });
   };
 
   const handleGoogleLogin = () => {
@@ -85,6 +103,9 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
 
   const handleInputChange =
     (field: keyof TenantRegisterCredentials) => (value: string) => {
+      setSubmitError("");
+      setErrors((previous) => ({ ...previous, [field]: undefined }));
+      if (field === "tenantSlug") setIsSlugEdited(true);
       setCredentials((prev) => {
         const newCredentials = {
           ...prev,
@@ -92,11 +113,8 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
         };
 
         // Auto-generate tenant slug from tenant name
-        if (field === "tenantName") {
-          newCredentials.tenantSlug = value
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
+        if (field === "tenantName" && !isSlugEdited) {
+          newCredentials.tenantSlug = createUrlSlug(value);
         }
 
         return newCredentials;
@@ -106,16 +124,23 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
   return (
     <div className="w-full">
       <form
+        ref={formRef}
+        noValidate
+        aria-label={t("Create account")}
+        aria-describedby={submitError ? "tenant-auth-error" : undefined}
         data-testid="tenant-register-form"
         aria-busy={isLoading}
         onSubmit={handleSubmit}
         className="space-y-4"
       >
+        {submitError && <p id="tenant-auth-error" role="alert" className="rounded-ui-md border border-ui-danger/20 bg-ui-danger-subtle p-3 text-sm leading-5 text-ui-danger">{submitError}</p>}
         <TextInput
           label={t("Email")}
           value={credentials.email}
           onChange={handleInputChange("email")}
           type="email"
+          name="email"
+          autoComplete="username"
           placeholder={t("Enter your email")}
           requiredField={true}
           disabled={isLoading}
@@ -129,6 +154,8 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
           value={credentials.password}
           onChange={handleInputChange("password")}
           type="password"
+          name="password"
+          autoComplete="new-password"
           placeholder={t("Enter your password")}
           requiredField={true}
           disabled={isLoading}
@@ -138,6 +165,8 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
 
         <TextInput
           label={t("Full Name")}
+          name="name"
+          autoComplete="name"
           value={credentials.name}
           onChange={handleInputChange("name")}
           type="text"
@@ -151,6 +180,8 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
 
         <TextInput
           label={t("Tenant Name")}
+          name="organization"
+          autoComplete="organization"
           value={credentials.tenantName}
           onChange={handleInputChange("tenantName")}
           type="text"
@@ -201,6 +232,7 @@ export const TenantRegisterForm: React.FC<TenantRegisterFormProps> = ({
         <GenericButton
           type="button"
           onClick={handleGoogleLogin}
+          disabled={isLoading}
           variant="outline"
           fullWidth
           className="mt-4"

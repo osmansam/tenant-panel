@@ -1,18 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import Select, {
-  components,
-  type GroupBase,
-  type InputProps,
-  type MultiValue,
-  type OptionProps,
-  type SingleValue,
-} from "react-select";
+import { useEffect, useMemo, useRef } from "react";
 import type { OptionType } from "../../types";
-import { SelectOptionContent } from "../panelComponents/FormElements/SelectOptionContent";
-import { Button } from "../ui";
+import { Button, Select } from "../ui";
 import type { FieldPresentationProps } from "./field.types";
 import { FieldShell } from "./field-shell";
-import { getSelectStyles } from "./selectStyles";
 
 export interface SelectFieldProps extends FieldPresentationProps {
   value: OptionType | readonly OptionType[] | null;
@@ -26,42 +16,9 @@ export interface SelectFieldProps extends FieldPresentationProps {
   suggestedOptions?: readonly OptionType[];
 }
 
-const normalizeText = (text: string) =>
-  text
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ı/g, "i")
-    .replace(/i̇/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c");
-
 const isOptionArray = (
   candidate: OptionType | readonly OptionType[] | null,
 ): candidate is readonly OptionType[] => Array.isArray(candidate);
-
-const CustomOption = (
-  props: OptionProps<OptionType, boolean, GroupBase<OptionType>>,
-) => (
-  <components.Option {...props}>
-    <SelectOptionContent option={props.data} />
-    {props.isSelected && <span aria-hidden="true">✓</span>}
-  </components.Option>
-);
-
-const AccessibleInput = (
-  props: InputProps<OptionType, boolean, GroupBase<OptionType>>,
-) => (
-  <components.Input
-    {...props}
-    aria-describedby={
-      (props.selectProps as typeof props.selectProps & {
-        "aria-describedby"?: string;
-      })["aria-describedby"] || props["aria-describedby"]
-    }
-  />
-);
 
 export const SelectField = ({
   autoFillSingleOption = true,
@@ -78,7 +35,7 @@ export const SelectField = ({
   value,
   ...presentation
 }: SelectFieldProps) => {
-  const [searchInput, setSearchInput] = useState("");
+  const lastAutoFillSignature = useRef<string | null>(null);
   const selectedValues = isOptionArray(value) ? value : [];
   const labelText = typeof label === "string" ? label : presentation.name;
   const visibleSuggestions = (suggestedOptions || [])
@@ -90,21 +47,30 @@ export const SelectField = ({
         ? !selectedValues.some((selected) => selected.value === suggestion.value)
         : !value || isOptionArray(value) || value.value !== suggestion.value,
     );
-  const displayedOptions = useMemo(() => {
-    if (!sortOptions) return options;
-    const normalizedSearch = normalizeText(searchInput);
-    return [...options].sort((left, right) => {
-      const leftStarts = normalizeText(left.label).startsWith(normalizedSearch);
-      const rightStarts = normalizeText(right.label).startsWith(normalizedSearch);
-      if (leftStarts && !rightStarts) return -1;
-      if (rightStarts && !leftStarts) return 1;
-      return left.label.localeCompare(right.label);
-    });
-  }, [options, searchInput, sortOptions]);
+  const displayedValue = useMemo(() => {
+    if (isOptionArray(value)) {
+      return value.flatMap((selected) => {
+        const current = options.find((option) =>
+          Object.is(option.value, selected.value),
+        );
+        return current ? [current] : [];
+      });
+    }
+    if (!value) return null;
+    return (
+      options.find((option) => Object.is(option.value, value.value)) || null
+    );
+  }, [options, value]);
   useEffect(() => {
     if (autoFillSingleOption && options.length === 1 && !value) {
-      onChange(options[0]);
+      const signature = `${typeof options[0].value}:${String(options[0].value)}`;
+      if (lastAutoFillSignature.current !== signature) {
+        lastAutoFillSignature.current = signature;
+        onChange(options[0]);
+      }
+      return;
     }
+    if (options.length !== 1) lastAutoFillSignature.current = null;
   }, [autoFillSingleOption, onChange, options, value]);
 
   return (
@@ -140,39 +106,22 @@ export const SelectField = ({
           )}
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
-              <Select<OptionType, boolean>
-                inputId={controlId}
+              <Select<OptionType>
+                id={controlId}
                 name={presentation.name}
-                value={value}
-                options={displayedOptions}
-                isMulti={multiple}
-                isDisabled={disabled || readOnly}
+                value={displayedValue}
+                options={options}
+                multiple={multiple}
+                disabled={disabled}
+                readOnly={readOnly}
+                required={presentation.required}
+                invalid={invalid}
                 placeholder={placeholder}
-                closeMenuOnSelect={!multiple}
-                hideSelectedOptions={!multiple}
-                backspaceRemovesValue
-                isClearable={false}
-                components={{
-                  Option: CustomOption,
-                  Input: AccessibleInput,
-                }}
-                styles={getSelectStyles(invalid)}
+                clearable={false}
+                sortOptions={sortOptions}
                 aria-describedby={describedBy}
-                aria-invalid={invalid || undefined}
-                aria-readonly={readOnly || undefined}
-                filterOption={(candidate, input) =>
-                  normalizeText(candidate.label).includes(normalizeText(input))
-                }
-                inputValue={searchInput}
-                onInputChange={(next, meta) => {
-                  if (meta.action === "input-change") setSearchInput(next);
-                }}
                 onChange={(selected) =>
-                  onChange(
-                    selected as
-                      | SingleValue<OptionType>
-                      | MultiValue<OptionType>,
-                  )
+                  onChange(selected as OptionType | readonly OptionType[] | null)
                 }
               />
             </div>

@@ -1,0 +1,71 @@
+- generic [ref=f22e4]:
+  - link "Skip to content" [ref=f22e5] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f22e77]:
+    - banner [ref=f22e240]:
+      - button "Open navigation" [ref=f22e241] [cursor=pointer]
+      - generic [ref=f22e244]: Tenant Panel
+    - main [ref=f22e78]:
+      - generic [ref=f22e79]:
+        - generic [ref=f22e80]:
+          - generic [ref=f22e81]:
+            - heading "Operations Workspace" [level=1] [ref=f22e82]
+            - generic [ref=f22e83]: operations
+            - generic [ref=f22e84]: Active
+          - generic [ref=f22e85]:
+            - generic [ref=f22e86]: "Role:"
+            - generic [ref=f22e87]: project_developer
+        - generic [ref=f22e88]:
+          - tablist "Pages sections" [ref=f22e89]:
+            - tab "Pages" [selected] [ref=f22e90] [cursor=pointer]
+            - tab "Audit Logs" [ref=f22e91] [cursor=pointer]
+          - tabpanel "Pages" [ref=f22e92]:
+            - region "Pages" [ref=f22e93]:
+              - generic [ref=f22e94]:
+                - generic [ref=f22e95]:
+                  - heading "Pages" [level=2] [ref=f22e96]
+                  - generic [ref=f22e97]: Manage project page views, navigation, and layouts
+                - group "Page actions" [ref=f22e98]:
+                  - button "Create with JSON" [ref=f22e99] [cursor=pointer]
+                  - button "Create Page" [ref=f22e107] [cursor=pointer]
+              - generic [ref=f22e113]:
+                - generic [ref=f22e114]:
+                  - generic [ref=f22e115]: "1"
+                  - generic [ref=f22e116]: Total Pages
+                - generic [ref=f22e118]:
+                  - generic [ref=f22e119]: "0"
+                  - generic [ref=f22e120]: Public Pages
+                - generic [ref=f22e122]:
+                  - generic [ref=f22e123]: "1"
+                  - generic [ref=f22e124]: Auth Pages
+                - generic [ref=f22e126]:
+                  - generic [ref=f22e127]: "0"
+                  - generic [ref=f22e128]: Total Sections
+              - generic [ref=f22e133] [cursor=pointer]:
+                - generic [ref=f22e134]:
+                  - generic [ref=f22e135]:
+                    - heading "Overview" [level=3] [ref=f22e140]
+                    - generic [ref=f22e141]: /overview
+                    - generic [ref=f22e142]: Authenticated
+                  - generic [ref=f22e143]:
+                    - generic [ref=f22e144]: 0 sections
+                    - generic [ref=f22e145]: •
+                    - generic [ref=f22e146]: No role restrictions
+                - generic [ref=f22e147]:
+                  - generic [ref=f22e148]:
+                    - generic [ref=f22e150]:
+                      - log [ref=f22e152]
+                      - generic [ref=f22e154]:
+                        - generic [ref=f22e155]: No parent
+                        - combobox "Parent page" [ref=f22e156]
+                    - generic [ref=f22e161]:
+                      - generic [ref=f22e162]:
+                        - checkbox "Sidebar" [checked] [ref=f22e163]
+                        - generic [ref=f22e164]: Sidebar
+                      - generic [ref=f22e166]:
+                        - checkbox "Main" [ref=f22e167]
+                        - generic [ref=f22e168]: Main
+                  - generic [ref=f22e170]:
+                    - button "Edit" [active] [ref=f22e171]
+                    - button "Preview" [ref=f22e175]
+                    - button "More options" [ref=f22e180]

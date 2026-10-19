@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { OptionType } from "../../../types";
 import { DynamicApiModel } from "../../../utils/api/container";
 import { useRoleItems } from "../../../utils/api/roleInfo";
+import { ResponsiveActionBar, WorkspaceDialog, Select } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -36,6 +36,7 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
   editDynamicApi = null,
 }) => {
   const { t } = useTranslation();
+  const methodInputId = useId();
   const { data: roleItems = [] } = useRoleItems();
 
   const defaultApiData: DynamicApiFormData = {
@@ -130,27 +131,15 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={handleClose}
-        />
-
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
-          <div className="mb-6 flex items-start justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {editDynamicApi ? t("Edit Dynamic API") : t("Add Dynamic API")}
-            </h3>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 transition-colors hover:text-gray-600"
-            >
-              <FiX size={20} />
-            </button>
-          </div>
-
-          <div className="max-h-[70vh] space-y-6 overflow-y-auto">
+    <WorkspaceDialog
+      open={isOpen}
+      onClose={handleClose}
+      layer="nested"
+      className="max-w-3xl"
+      title={editDynamicApi ? t("Edit Dynamic API") : t("Add Dynamic API")}
+      footer={<ResponsiveActionBar><GenericButton variant="outline" onClick={handleClose}>{t("Cancel")}</GenericButton><GenericButton onClick={handleSubmit}>{editDynamicApi ? t("Update API") : t("Add API")}</GenericButton></ResponsiveActionBar>}
+    >
+          <div className="space-y-6">
             <div>
               <TextInput
                 key={`dynamic-api-name-${formKey}`}
@@ -164,7 +153,7 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
                 requiredField={true}
                 disabled={!!editDynamicApi}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ui-muted">
                 {editDynamicApi
                   ? t("API name cannot be changed when editing")
                   : t("Unique identifier for this Dynamic API")}
@@ -184,22 +173,24 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
             />
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                {t("HTTP Method")} <span className="text-red-500">*</span>
+              <label htmlFor={methodInputId} className="mb-2 block text-sm font-medium text-ui-foreground">
+                {t("HTTP Method")} <span className="text-ui-danger">*</span>
               </label>
-              <select
+              <Select
+                id={methodInputId}
+                searchable={false}
                 value={apiData.method || "GET"}
                 onChange={(event) =>
                   setApiData({ ...apiData, method: event.target.value })
                 }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ui-focus"
               >
                 {HTTP_METHOD_OPTIONS.map((method) => (
                   <option key={method} value={method}>
                     {method}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <TextInput
@@ -213,16 +204,17 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
               placeholder={t("id, token, customerId")}
             />
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <div className="flex items-center justify-between rounded-lg bg-ui-surface-subtle p-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Active")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Enable or disable this Dynamic API")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Active")}
                 onChange={() =>
                   setApiData({ ...apiData, isActive: !apiData.isActive })
                 }
@@ -230,16 +222,17 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <div className="flex items-center justify-between rounded-lg bg-ui-surface-subtle p-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Require Authentication")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Users must be logged in to access this API")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Require Authentication")}
                 onChange={() =>
                   setApiData({
                     ...apiData,
@@ -253,16 +246,17 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <div className="flex items-center justify-between rounded-lg bg-ui-surface-subtle p-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Require Authorization")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Users must have specific roles to access this API")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Require Authorization")}
                 onChange={() =>
                   setApiData({
                     ...apiData,
@@ -302,16 +296,17 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
               </div>
             )}
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <div className="flex items-center justify-between rounded-lg bg-ui-surface-subtle p-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Enable Redis Caching")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Cache API results in Redis for better performance")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Enable Redis Caching")}
                 onChange={() =>
                   setApiData({
                     ...apiData,
@@ -335,16 +330,6 @@ export const AddDynamicApiModal: React.FC<AddDynamicApiModalProps> = ({
             )}
           </div>
 
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={handleClose}>
-              {t("Cancel")}
-            </GenericButton>
-            <GenericButton onClick={handleSubmit}>
-              {editDynamicApi ? t("Update API") : t("Add API")}
-            </GenericButton>
-          </div>
-        </div>
-      </div>
-    </div>
+    </WorkspaceDialog>
   );
 };

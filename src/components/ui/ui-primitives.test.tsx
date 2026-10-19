@@ -2,7 +2,7 @@
 import { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Badge, Button, Checkbox, Input } from ".";
+import { Badge, Button, Checkbox, Input, Textarea } from ".";
 
 describe("shared UI primitives", () => {
   it("forwards input state and refs", () => {
@@ -66,5 +66,34 @@ describe("shared UI primitives", () => {
   it("keeps checkbox semantics native", () => {
     render(<Checkbox aria-label="Enabled" checked readOnly />);
     expect(screen.getByRole("checkbox", { name: "Enabled" })).toBeChecked();
+  });
+
+  it("uses the shared small, medium, and large control heights", () => {
+    render(
+      <>
+        <Input aria-label="Small input" controlSize="sm" />
+        <Input aria-label="Medium input" controlSize="md" />
+        <Input aria-label="Large input" controlSize="lg" />
+        <Textarea aria-label="Large notes" controlSize="lg" />
+        <Checkbox aria-label="Large checkbox" controlSize="lg" />
+      </>,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Small input" })).toHaveClass(
+      "h-ui-sm",
+    );
+    expect(screen.getByRole("textbox", { name: "Medium input" })).toHaveClass(
+      "h-ui-md",
+    );
+    expect(screen.getByRole("textbox", { name: "Large input" })).toHaveClass(
+      "h-ui-lg",
+    );
+    expect(screen.getByRole("textbox", { name: "Large notes" })).toHaveAttribute(
+      "data-control-size",
+      "lg",
+    );
+    expect(screen.getByRole("checkbox", { name: "Large checkbox" })).toHaveClass(
+      "size-5",
+    );
   });
 });

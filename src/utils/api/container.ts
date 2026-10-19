@@ -7,7 +7,7 @@ import { TableActionConfig, TableFilterPanelConfig } from "../../types/page";
 import { normalizeContainerField } from "../containerFieldNormalization";
 import { normalizeContainerRoutes } from "../containerRoutes";
 import { axiosClient } from "./axiosClient";
-import { useGet } from "./factory";
+import { useGet, useGetQuery } from "./factory";
 
 // If you prefer using mongodb's ObjectId type, import it and replace string with ObjectId
 // import { ObjectId } from "mongodb";
@@ -167,7 +167,7 @@ export interface WorkflowCondition {
   conditions?: WorkflowCondition[];
 }
 
-/** Dynamic function spec (server-executed code) */
+/** Stored dynamic function metadata, retained while execution/editing is paused. */
 export interface DynamicFunction {
   name: string;
   codeJson: string; // serialized JSON / code payload
@@ -314,9 +314,10 @@ export interface UpdateContainerPayload {
   isGoogleLoginActive?: boolean;
 }
 
-export interface UpdateDynamicFunctionsPayload {
-  dynamicFunctions: DynamicFunction[];
-}
+// Dynamic function editing is paused; retain this payload for future use.
+// export interface UpdateDynamicFunctionsPayload {
+//   dynamicFunctions: DynamicFunction[];
+// }
 
 export interface UpdateDynamicApisPayload {
   dynamicApis: DynamicApiModel[];
@@ -462,6 +463,20 @@ export function useContainers(enabled: boolean = true) {
     enabled
   );
 
+  return normalizeContainerList(response);
+}
+
+export function useContainersQuery(enabled = true) {
+  const { tenantSlug, projectSlug } = useContainerContext(enabled);
+  const response = useGetQuery<ContainerModel[]>(
+    buildContainerPath(tenantSlug, projectSlug),
+    ["containers", tenantSlug, projectSlug],
+    enabled,
+  );
+  return { ...response, data: normalizeContainerList(response.data) };
+}
+
+function normalizeContainerList(response: ContainerModel[] | undefined) {
   // The API returns an array of containers directly
   // Handle the response which might be PascalCase from Go backend
   const containers = response || [];
@@ -623,6 +638,7 @@ export function useCreateContainer() {
     ) => {
       createMutation.mutate(payload);
     },
+    createContainerAsync: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
   };
 }
@@ -696,7 +712,7 @@ export function useCreateProjectAuthUser() {
       schemaName: string;
       payload: Record<string, string>;
     }) => {
-      const path = `/${tenantSlug}/${projectSlug}/auth/register?schemaName=${encodeURIComponent(schemaName)}`;
+      const path = `/${tenantSlug}/${projectSlug}/admin/auth/users?schemaName=${encodeURIComponent(schemaName)}`;
       const response = await axiosClient.post(path, payload);
       return response.data;
     },
@@ -765,60 +781,61 @@ export function useDeleteContainer() {
   };
 }
 
-// Dynamic Functions operations
-export function useUpdateDynamicFunctions() {
-  const queryClient = useQueryClient();
-  const { t } = useTranslation();
-  const { tenantSlug, projectSlug } = useContainerContext();
-
-  const updateMutation = useMutation({
-    mutationFn: async ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload: UpdateDynamicFunctionsPayload;
-    }) => {
-      const path = buildContainerPath(
-        tenantSlug,
-        projectSlug,
-        `/dynamicFunctions/${id}`
-      );
-      const response = await axiosClient.patch(path, payload);
-      return response.data;
-    },
-    onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["containers", tenantSlug, projectSlug],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["container", tenantSlug, projectSlug, variables.id],
-      });
-
-      const message =
-        response?.message || "Dynamic functions updated successfully";
-      toast.success(t(toCollectionTerminology(message)));
-    },
-    onError: (error: any) => {
-      console.error("Dynamic functions update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update dynamic functions";
-      toast.error(t(toCollectionTerminology(errorMessage)));
-    },
-  });
-
-  return {
-    updateDynamicFunctions: (params: {
-      id: string;
-      payload: UpdateDynamicFunctionsPayload;
-    }) => {
-      updateMutation.mutate(params);
-    },
-    isUpdating: updateMutation.isPending,
-  };
-}
+// Dynamic functions are paused to match the backend. Uncomment when reimplemented.
+// // Dynamic Functions operations
+// export function useUpdateDynamicFunctions() {
+//   const queryClient = useQueryClient();
+//   const { t } = useTranslation();
+//   const { tenantSlug, projectSlug } = useContainerContext();
+//
+//   const updateMutation = useMutation({
+//     mutationFn: async ({
+//       id,
+//       payload,
+//     }: {
+//       id: string;
+//       payload: UpdateDynamicFunctionsPayload;
+//     }) => {
+//       const path = buildContainerPath(
+//         tenantSlug,
+//         projectSlug,
+//         `/dynamicFunctions/${id}`
+//       );
+//       const response = await axiosClient.patch(path, payload);
+//       return response.data;
+//     },
+//     onSuccess: (response, variables) => {
+//       queryClient.invalidateQueries({
+//         queryKey: ["containers", tenantSlug, projectSlug],
+//       });
+//       queryClient.invalidateQueries({
+//         queryKey: ["container", tenantSlug, projectSlug, variables.id],
+//       });
+//
+//       const message =
+//         response?.message || "Dynamic functions updated successfully";
+//       toast.success(t(toCollectionTerminology(message)));
+//     },
+//     onError: (error: any) => {
+//       console.error("Dynamic functions update failed:", error);
+//       const errorMessage =
+//         error?.response?.data?.message ||
+//         error?.message ||
+//         "Failed to update dynamic functions";
+//       toast.error(t(toCollectionTerminology(errorMessage)));
+//     },
+//   });
+//
+//   return {
+//     updateDynamicFunctions: (params: {
+//       id: string;
+//       payload: UpdateDynamicFunctionsPayload;
+//     }) => {
+//       updateMutation.mutate(params);
+//     },
+//     isUpdating: updateMutation.isPending,
+//   };
+// }
 
 // Dynamic APIs operations
 export function useUpdateDynamicApis() {

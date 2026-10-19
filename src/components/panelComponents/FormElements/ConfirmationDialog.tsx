@@ -34,12 +34,12 @@ export function ConfirmationDialog({
         >
           <div
             onClick={close}
-            className="w-full h-full bg-gray-900 bg-opacity-50 z-0 absolute inset-0"
+            className="w-full h-full bg-ui-ink-hover bg-opacity-50 z-0 absolute inset-0"
           />
           <div className="mx-auto container">
             <div className="flex items-center justify-center h-full w-full">
               <div className="bg-white rounded-md shadow fixed overflow-y-auto sm:h-auto w-10/12 lg:w-1/5">
-                <div className="bg-gray-100 rounded-tl-md rounded-tr-md px-4 md:px-8 md:py-4 py-7 flex items-center justify-center lg:justify-start">
+                <div className="bg-ui-surface-subtle rounded-tl-md rounded-tr-md px-4 md:px-8 md:py-4 py-7 flex items-center justify-center lg:justify-start">
                   <p className="text-base font-semibold">{title}</p>
                 </div>
                 <div className="p-4 text-center">

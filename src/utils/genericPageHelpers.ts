@@ -1,4 +1,4 @@
-// Shared helper functions for GenericPaginatedPage and GenericUnpaginatedPage
+// Shared helper functions for container data tables
 import {
   FormKeyTypeEnum,
   InputTypes,

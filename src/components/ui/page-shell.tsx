@@ -9,7 +9,7 @@ export interface PageShellProps extends HTMLAttributes<HTMLElement> {
 
 const widthClasses: Record<PageShellWidth, string> = {
   content: "max-w-5xl",
-  wide: "max-w-[1400px]",
+  wide: "max-w-[1440px]",
   workspace: "max-w-none",
 };
 
@@ -22,7 +22,7 @@ export function PageShell({
   return (
     <div
       className={cn(
-        "mx-auto min-h-full w-full px-4 py-5 font-ui sm:px-6 sm:py-6 lg:px-8",
+        "mx-auto min-h-full w-full px-5 py-6 font-ui sm:px-8 sm:py-8 lg:px-10",
         widthClasses[width],
         className,
       )}
@@ -53,18 +53,22 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col gap-4 border-b border-ui-border pb-5 sm:flex-row sm:items-start sm:justify-between",
+        "flex flex-col gap-5 border-b border-ui-border/80 pb-6 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
       {...props}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ui-foreground">
+        <h1 className="break-words text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-ui-foreground sm:text-[32px] [overflow-wrap:anywhere]">
           {title}
         </h1>
-        {description && <div className="mt-1 text-sm text-ui-muted">{description}</div>}
+        {description && (
+          <div className="mt-2 max-w-2xl text-[15px] leading-6 text-ui-muted">
+            {description}
+          </div>
+        )}
         {context && (
-          <div className={cn("mt-2 flex flex-wrap items-center gap-2", contextClassName)}>
+          <div className={cn("mt-3 flex flex-wrap items-center gap-2", contextClassName)}>
             {context}
           </div>
         )}

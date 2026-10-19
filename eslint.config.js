@@ -31,6 +31,31 @@ export default [
         "warn",
         { allowConstantExport: true },
       ],
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "JSXOpeningElement[name.name='input']",
+          message: "Use the shared Input or Checkbox component from components/ui.",
+        },
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message: "Use the shared Select component from components/ui.",
+        },
+        {
+          selector: "JSXOpeningElement[name.name='textarea']",
+          message: "Use the shared Textarea component from components/ui.",
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/ui/input.tsx",
+      "src/components/ui/checkbox.tsx",
+      "src/components/ui/textarea.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": "off",
     },
   },
 ];

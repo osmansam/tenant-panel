@@ -1,0 +1,168 @@
+- generic [ref=f20e1]:
+  - generic [ref=f20e4]:
+    - link "Skip to content" [ref=f20e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary "Workspace navigation" [ref=f20e6]:
+      - generic [ref=f20e8]:
+        - generic [ref=f20e13]:
+          - generic [ref=f20e14]: Tenant Panel
+          - paragraph [ref=f20e15]: alex
+        - button "Collapse Sidebar" [expanded] [ref=f20e16] [cursor=pointer]
+      - generic [ref=f20e19]:
+        - generic [ref=f20e21]:
+          - generic [ref=f20e22]: Current Project
+          - generic [ref=f20e28]: Operations Workspace
+          - button "Back to Tenant" [ref=f20e29] [cursor=pointer]
+        - navigation "Main navigation" [ref=f20e33]:
+          - button "Dashboard" [ref=f20e34] [cursor=pointer]
+          - button "Collections" [ref=f20e40] [cursor=pointer]
+          - button "Pages" [ref=f20e46] [cursor=pointer]
+          - button "Localization" [ref=f20e52] [cursor=pointer]
+          - button "Integrations" [ref=f20e58] [cursor=pointer]
+          - button "Settings" [ref=f20e64] [cursor=pointer]
+        - button "Logout" [ref=f20e71] [cursor=pointer]
+    - main [ref=f20e78]:
+      - generic [ref=f20e79]:
+        - generic [ref=f20e80]:
+          - generic [ref=f20e81]:
+            - heading "Operations Workspace" [level=1] [ref=f20e82]
+            - generic [ref=f20e83]: operations
+            - generic [ref=f20e84]: Active
+          - generic [ref=f20e85]:
+            - generic [ref=f20e86]: "Role:"
+            - generic [ref=f20e87]: project_developer
+        - region "Collections" [ref=f20e89]:
+          - generic [ref=f20e90]:
+            - generic [ref=f20e91]:
+              - heading "Collections" [level=2] [ref=f20e92]
+              - generic [ref=f20e93]: Manage project schemas and their records
+            - group "Collection actions" [ref=f20e94]:
+              - button "Create with JSON" [ref=f20e95] [cursor=pointer]
+              - button "Upload Excel" [ref=f20e103] [cursor=pointer]
+              - button "Create Collection" [ref=f20e111] [cursor=pointer]
+          - toolbar "Collection toolbar" [ref=f20e117]:
+            - search "Search collections" [ref=f20e118]:
+              - searchbox "Search collections" [ref=f20e120]
+            - generic [ref=f20e121]:
+              - generic [ref=f20e122]:
+                - generic [ref=f20e123]: "2"
+                - generic [ref=f20e124]: Total Collections
+              - generic [ref=f20e126]:
+                - generic [ref=f20e127]: "0"
+                - generic [ref=f20e128]: Auth Collections
+              - generic [ref=f20e130]:
+                - generic [ref=f20e131]: "5"
+                - generic [ref=f20e132]: Total Fields
+          - generic [ref=f20e133]:
+            - generic [ref=f20e134]:
+              - generic [ref=f20e135]: Collection / Schema
+              - generic [ref=f20e136]: Actions
+            - article "customers collection" [ref=f20e137] [cursor=pointer]:
+              - generic [ref=f20e144]:
+                - generic [ref=f20e145]:
+                  - heading "customers" [level=3] [ref=f20e146]
+                  - generic [ref=f20e147]: Regular Collection
+                  - generic [ref=f20e148]: Customer directory
+                - paragraph [ref=f20e149]:
+                  - generic [ref=f20e150]: 3 fields
+              - generic [ref=f20e151]:
+                - button "Edit" [ref=f20e152]
+                - button "View Data" [ref=f20e160]
+                - button "Details" [ref=f20e169]
+            - article "orders collection" [ref=f20e176] [cursor=pointer]:
+              - generic [ref=f20e183]:
+                - generic [ref=f20e184]:
+                  - heading "orders" [level=3] [ref=f20e185]
+                  - generic [ref=f20e186]: Regular Collection
+                  - generic [ref=f20e187]: Sales orders
+                - paragraph [ref=f20e188]:
+                  - generic [ref=f20e189]: 2 fields
+                  - generic [ref=f20e190]: •
+                  - generic [ref=f20e191]: Redis Cached
+              - generic [ref=f20e192]:
+                - button "Edit" [ref=f20e193]
+                - button "View Data" [ref=f20e201]
+                - button "Details" [ref=f20e210]
+          - navigation "Collection pagination" [ref=f20e217]:
+            - paragraph [ref=f20e218]: Showing 1–2 of 2 collections
+            - generic [ref=f20e220]:
+              - generic [ref=f20e221]: Collections per page
+              - generic [ref=f20e223]:
+                - log [ref=f20e225]
+                - generic [ref=f20e227] [cursor=pointer]:
+                  - generic [ref=f20e228]: "10"
+                  - combobox "Collections per page" [ref=f20e229]
+  - dialog [ref=f20e235]:
+    - banner [ref=f20e236]:
+      - generic [ref=f20e237]:
+        - heading "Manage customers" [level=2] [ref=f20e238]
+        - generic [ref=f20e242]:
+          - generic [ref=f20e243]: ID
+          - generic [ref=f20e244]: collection-1
+          - button "Copy ID" [ref=f20e245] [cursor=pointer]
+      - button "Close collection" [ref=f20e249] [cursor=pointer]
+    - generic [ref=f20e254]:
+      - tablist [ref=f20e257]:
+        - tab "Structured" [ref=f20e258] [cursor=pointer]
+        - tab "Pipelines" [selected] [ref=f20e260] [cursor=pointer]
+        - tab "Workflows" [ref=f20e265] [cursor=pointer]
+        - tab "Dynamic APIs" [ref=f20e269] [cursor=pointer]
+        - tab "Permissions" [ref=f20e273] [cursor=pointer]
+        - tab "Routes" [ref=f20e276] [cursor=pointer]
+        - tab "JSON" [ref=f20e280] [cursor=pointer]
+      - generic [ref=f20e286]:
+        - generic [ref=f20e447]:
+          - generic [ref=f20e448]:
+            - heading "Pipelines (0)" [level=4] [ref=f20e449]
+            - paragraph [ref=f20e450]: Manage MongoDB aggregation pipelines for this collection
+          - button "Add Pipeline" [ref=f20e451] [cursor=pointer]
+        - generic [ref=f20e458]:
+          - paragraph [ref=f20e463]: No pipelines defined for this collection
+          - button "Add Your First Pipeline" [ref=f20e464] [cursor=pointer]
+    - contentinfo [ref=f20e433]:
+      - generic [ref=f20e434]:
+        - button "Close" [ref=f20e435] [cursor=pointer]
+        - button "Copy JSON" [ref=f20e439] [cursor=pointer]
+  - dialog [ref=f20e471]:
+    - banner [ref=f20e472]:
+      - heading "Add New Pipeline" [level=2] [ref=f20e474]
+      - button "Close dialog" [active] [ref=f20e475] [cursor=pointer]
+    - generic [ref=f20e481]:
+      - generic [ref=f20e482]:
+        - generic [ref=f20e483]:
+          - generic [ref=f20e484]: Pipeline Name*
+          - textbox "Pipeline Name*" [ref=f20e486]:
+            - /placeholder: e.g., ssGraph, userAnalytics
+        - paragraph [ref=f20e487]: Unique identifier for this pipeline
+      - generic [ref=f20e488]:
+        - generic [ref=f20e489]:
+          - generic [ref=f20e490]: Pipeline JSON *
+          - button "Format JSON" [disabled] [ref=f20e491]
+        - 'textbox "[{\"$project\":{\"_id\":0,\"day\":\"$day\",\"value\":\"$value\"}}]" [ref=f20e495]'
+        - paragraph [ref=f20e496]:
+          - text: "MongoDB aggregation pipeline as JSON array. Example:"
+          - code [ref=f20e497]: "[{\"$match\":{\"status\":\"active\"}},{\"$project\":{\"name\":1}}]"
+      - generic [ref=f20e498]:
+        - generic [ref=f20e499]:
+          - text: Active
+          - paragraph [ref=f20e500]: Enable or disable this pipeline
+        - switch [checked] [ref=f20e501] [cursor=pointer]
+      - generic [ref=f20e502]:
+        - generic [ref=f20e503]:
+          - text: Require Authentication
+          - paragraph [ref=f20e504]: Users must be logged in to access this pipeline
+        - switch [ref=f20e505] [cursor=pointer]
+      - generic [ref=f20e506]:
+        - generic [ref=f20e507]:
+          - text: Require Authorization
+          - paragraph [ref=f20e508]: Users must have specific roles to access this pipeline
+        - switch [ref=f20e509] [cursor=pointer]
+      - generic [ref=f20e510]:
+        - generic [ref=f20e511]:
+          - text: Enable Redis Caching
+          - paragraph [ref=f20e512]: Cache pipeline results in Redis for better performance
+        - switch [ref=f20e513] [cursor=pointer]
+    - contentinfo [ref=f20e514]:
+      - group [ref=f20e515]:
+        - button "Cancel" [ref=f20e516] [cursor=pointer]
+        - button "Add Pipeline" [ref=f20e520] [cursor=pointer]

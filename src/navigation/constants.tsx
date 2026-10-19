@@ -54,12 +54,11 @@ export const systemRoutes: RouteConfig[] = [
     isOnSidebar: true,
     icon: "MdInventory2",
     requiredRoles: [
-      "tenant_owner",
-      "tenant_admin",
       "project_admin",
       "project_developer",
       "project_editor",
       "project_viewer",
+      "project_support",
     ],
   },
   {
@@ -68,12 +67,11 @@ export const systemRoutes: RouteConfig[] = [
     isOnSidebar: true,
     icon: "MdDescription",
     requiredRoles: [
-      "tenant_owner",
-      "tenant_admin",
       "project_admin",
       "project_developer",
       "project_editor",
       "project_viewer",
+      "project_support",
     ],
   },
   {
@@ -81,6 +79,13 @@ export const systemRoutes: RouteConfig[] = [
     path: Routes.Localization,
     isOnSidebar: true,
     icon: "MdTranslate",
+    requiredRoles: [
+      "project_admin",
+      "project_developer",
+      "project_editor",
+      "project_viewer",
+      "project_support",
+    ],
   },
   {
     name: "Integrations",
@@ -92,7 +97,7 @@ export const systemRoutes: RouteConfig[] = [
   {
     name: "Users",
     path: Routes.Users,
-    isOnSidebar: true,
+    isOnSidebar: false,
     icon: "MdGroup",
     requiredRoles: ["tenant_owner", "tenant_admin"],
   },

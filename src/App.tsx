@@ -7,12 +7,17 @@ import { useLocation } from "react-router-dom";
 import { Slide, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Loading from "./common/Loading";
-import { Sidebar } from "./common/Sidebar";
+import { lazy, Suspense } from "react";
+import { RouteErrorBoundary } from "./common/RouteErrorBoundary";
+import { NavigationRecovery } from "./common/NavigationRecovery";
+import { WorkspaceLayout } from "./common/WorkspaceLayout";
 import { GeneralContextProvider } from "./context/General.context";
 import { UserContextProvider } from "./context/User.context";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { PublicRoutes } from "./navigation/constants";
 import RouterContainer from "./navigation/routes";
+
+const Sidebar = lazy(() => import("./common/Sidebar").then((module) => ({ default: module.Sidebar })));
 
 function App() {
   const isMutating = useIsMutating();
@@ -30,12 +35,15 @@ function App() {
       <UserContextProvider>
         <GeneralContextProvider>
           {isMutating ? <Loading /> : null}
-          <div className="flex h-screen bg-ui-page font-ui text-ui-foreground">
-            {showSidebar && <Sidebar />}
-            <main className="min-w-0 flex-1 overflow-auto bg-ui-page">
+          {showSidebar ? (
+            <WorkspaceLayout sidebar={<RouteErrorBoundary resetKey={location.pathname} fallback={(onRetry, requiresReload) => <NavigationRecovery onRetry={onRetry} requiresReload={requiresReload} />}><Suspense fallback={<div className="hidden w-16 shrink-0 border-r border-ui-border bg-ui-surface md:block" />}><Sidebar /></Suspense></RouteErrorBoundary>}>
               <RouterContainer />
-            </main>
-          </div>
+            </WorkspaceLayout>
+          ) : (
+            <div className="h-dvh overflow-auto bg-ui-page font-ui text-ui-foreground">
+              <RouterContainer />
+            </div>
+          )}
           <ToastContainer
             autoClose={2000}
             hideProgressBar={true}

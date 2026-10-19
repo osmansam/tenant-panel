@@ -9,6 +9,7 @@ import {
 } from "../../types/page";
 import { buildFormSubmitRequestPreview } from "../../utils/formConfig";
 import { ContainerModel, Field } from "../../utils/api/container";
+import { Checkbox, Input, Select, type SelectOption } from "../ui";
 import FormFieldEditor from "./FormFieldEditor";
 import {
   addDiscountTier,
@@ -31,6 +32,26 @@ type Props = {
   containers: ContainerModel[];
   onChange: (value: FormComponentConfig) => void;
 };
+
+type ScalarOption = SelectOption<string | number>;
+const ScalarSelect = ({ label, value, options, disabled, onChange }: {
+  label: string;
+  value: string | number;
+  options: readonly ScalarOption[];
+  disabled?: boolean;
+  onChange: (value: string | number) => void;
+}) => (
+  <Select<ScalarOption>
+    value={options.find((option) => Object.is(option.value, value)) || null}
+    options={options}
+    disabled={disabled}
+    onChange={(selected) => {
+      const option = selected as ScalarOption | null;
+      if (option) onChange(option.value);
+    }}
+    aria-label={label}
+  />
+);
 
 const FORM_AREAS: { value: FormAreaKey; label: string }[] = [
   { value: "top", label: "Top" },
@@ -61,11 +82,10 @@ const FieldPicker = ({
   selected: string[];
   onChange: (selected: string[]) => void;
 }) => (
-  <div className="grid max-h-40 grid-cols-1 gap-1 overflow-y-auto rounded border border-neutral-200 bg-white p-2 sm:grid-cols-2">
+  <div className="grid max-h-40 grid-cols-1 gap-1 overflow-y-auto rounded border border-ui-border bg-white p-2 sm:grid-cols-2">
     {fields.map((field) => (
-      <label key={field.name} className="flex items-center gap-2 text-xs text-neutral-700">
-        <input
-          type="checkbox"
+      <label key={field.name} className="flex items-center gap-2 text-xs text-ui-foreground">
+        <Checkbox
           checked={selected.includes(field.name)}
           onChange={(event) =>
             onChange(
@@ -204,56 +224,53 @@ const FormComponentEditor = ({
   };
 
   return (
-    <div className="space-y-5 rounded-xl border border-neutral-200 bg-white p-5">
+    <div className="space-y-5 rounded-xl border border-ui-border bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-sm font-semibold text-neutral-900">Form Builder</h4>
-          <p className="mt-1 text-xs text-neutral-500">
+          <h4 className="text-sm font-semibold text-ui-foreground">Form Builder</h4>
+          <p className="mt-1 text-xs text-ui-muted">
             Arrange schema fields and configure embedded object lists.
           </p>
         </div>
         <button
           type="button"
           onClick={addObjectList}
-          className="inline-flex h-9 items-center gap-2 rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-ui-border px-3 text-sm font-medium text-ui-foreground hover:bg-ui-surface-subtle"
         >
           <FiPlus /> Add List
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <label className="text-xs font-semibold text-neutral-600">
+        <label className="text-xs font-semibold text-ui-muted">
           Form title
-          <input
+          <Input
             value={value.title || ""}
             onChange={(event) => onChange({ ...value, title: event.target.value })}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-normal"
+            className="mt-1 w-full font-normal"
           />
         </label>
-        <label className="text-xs font-semibold text-neutral-600">
+        <label className="text-xs font-semibold text-ui-muted">
           Columns
-          <select
+          <ScalarSelect
+            label="Columns"
             value={value.layout?.columns || 2}
-            onChange={(event) =>
+            onChange={(columns) =>
               onChange({
                 ...value,
                 layout: {
                   ...value.layout,
                   variant: "page",
-                  columns: Number(event.target.value) as 1 | 2 | 3,
+                  columns: Number(columns) as 1 | 2 | 3,
                 },
               })
             }
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-normal"
-          >
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-          </select>
+            options={[1, 2, 3].map((column) => ({ value: column, label: String(column) }))}
+          />
         </label>
-        <label className="text-xs font-semibold text-neutral-600">
+        <label className="text-xs font-semibold text-ui-muted">
           Save button
-          <input
+          <Input
             value={value.actions?.find((action) => action.kind === "submit")?.buttonName || ""}
             onChange={(event) =>
               onChange({
@@ -265,120 +282,103 @@ const FormComponentEditor = ({
                 ),
               })
             }
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-normal"
+            className="mt-1 w-full font-normal"
           />
         </label>
-        <label className="text-xs font-semibold text-neutral-600">
+        <label className="text-xs font-semibold text-ui-muted">
           Save area
-          <select
+          <ScalarSelect
+            label="Save area"
             value={value.actions?.find((action) => action.kind === "submit")?.area || "right"}
-            onChange={(event) =>
+            onChange={(area) =>
               onChange({
                 ...value,
                 actions: (value.actions || []).map((action) =>
                   action.kind === "submit"
-                    ? { ...action, area: event.target.value as FormAreaKey }
+                    ? { ...action, area: area as FormAreaKey }
                     : action,
                 ),
               })
             }
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-normal"
-          >
-            {FORM_AREAS.map((area) => (
-              <option key={area.value} value={area.value}>{area.label}</option>
-            ))}
-          </select>
+            options={FORM_AREAS}
+          />
         </label>
       </div>
 
-      <section className="space-y-4 border-y border-neutral-200 py-5">
+      <section className="space-y-4 border-y border-ui-border py-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <label className="text-xs font-semibold text-neutral-600">
+          <label className="text-xs font-semibold text-ui-muted">
             Submit function
-            <select
+            <ScalarSelect
+              label="Submit function"
               value={submitMode}
-              onChange={(event) =>
+              onChange={(mode) =>
                 onChange({
                   ...value,
                   submit: {
                     ...value.submit,
-                    mode: event.target.value as FormSubmitMode,
+                    mode: mode as FormSubmitMode,
                   },
                 })
               }
-              className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
-            >
-              <option value="create">Create</option>
-              <option value="createMany">Bulk Create</option>
-              <option value="workflow">Workflow</option>
-            </select>
+              options={[{ value: "create", label: "Create" }, { value: "createMany", label: "Bulk Create" }, { value: "workflow", label: "Workflow" }]}
+            />
           </label>
 
           {submitMode === "createMany" && (
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-semibold text-ui-muted">
               Bulk object list
-              <select
+              <ScalarSelect
+                label="Bulk object list"
                 value={value.submit?.bulkObjectListKey || ""}
-                onChange={(event) =>
+                onChange={(bulkObjectListKey) =>
                   onChange({
                     ...value,
                     submit: {
                       ...value.submit,
                       mode: "createMany",
-                      bulkObjectListKey: event.target.value,
+                      bulkObjectListKey: String(bulkObjectListKey),
                     },
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
-              >
-                <option value="">Select object list</option>
-                {(value.objectLists || []).map((objectList) => (
-                  <option key={objectList.key} value={objectList.key}>
-                    {objectList.title || objectList.key}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: "", label: "Select object list" }, ...(value.objectLists || []).map((objectList) => ({ value: objectList.key, label: objectList.title || objectList.key }))]}
+              />
             </label>
           )}
 
           {submitMode === "workflow" && (
             <>
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-semibold text-ui-muted">
                 Workflow body
-                <select
+                <ScalarSelect
+                  label="Workflow body"
                   value={value.submit?.bulkObjectListKey || ""}
-                  onChange={(event) =>
+                  onChange={(bulkObjectListKey) =>
                     onChange({
                       ...value,
                       submit: {
                         ...value.submit,
                         mode: "workflow",
-                        bulkObjectListKey: event.target.value,
+                        bulkObjectListKey: String(bulkObjectListKey),
                       },
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
-                >
-                  <option value="">Record object</option>
-                  {workflowBodyOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={[{ value: "", label: "Record object" }, ...workflowBodyOptions.map((option) => ({ value: option.key, label: option.label }))]}
+                />
               </label>
 
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-semibold text-ui-muted">
                 Workflow
-                <select
+                <ScalarSelect
+                  label="Workflow"
                   value={
                     value.submit?.workflowSchema && value.submit.workflowName
                       ? `${value.submit.workflowSchema}::${value.submit.workflowName}`
                       : ""
                   }
-                  onChange={(event) => {
+                  onChange={(workflowValue) => {
                     const [workflowSchema, workflowName] =
-                      event.target.value.split("::");
+                      String(workflowValue).split("::");
                     onChange({
                       ...value,
                       submit: {
@@ -389,42 +389,32 @@ const FormComponentEditor = ({
                       },
                     });
                   }}
-                  className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
-                >
-                  <option value="">Select workflow</option>
-                  {workflowOptions.map(({ schemaName, workflow }) => (
-                    <option
-                      key={`${schemaName}::${workflow.name}`}
-                      value={`${schemaName}::${workflow.name}`}
-                    >
-                      {schemaName} / {workflow.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[{ value: "", label: "Select workflow" }, ...workflowOptions.map(({ schemaName, workflow }) => ({ value: `${schemaName}::${workflow.name}`, label: `${schemaName} / ${workflow.name}` }))]}
+                />
               </label>
             </>
           )}
         </div>
 
         <div>
-          <div className="mb-2 text-xs font-semibold text-neutral-600">
+          <div className="mb-2 text-xs font-semibold text-ui-muted">
             Request body preview
           </div>
-          <pre className="max-h-72 overflow-auto rounded-lg border border-neutral-800 bg-neutral-950 p-4 text-xs leading-5 text-neutral-100">
+          <pre className="max-h-72 overflow-auto rounded-lg border border-ui-ink bg-ui-ink-hover p-4 text-xs leading-5 text-white">
             {JSON.stringify(requestPreview, null, 2)}
           </pre>
         </div>
       </section>
 
       <div>
-        <h5 className="mb-3 text-xs font-semibold uppercase text-neutral-500">
+        <h5 className="mb-3 text-xs font-semibold uppercase text-ui-muted">
           Area headers
         </h5>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {FORM_AREAS.map((area) => (
-            <label key={area.value} className="text-xs font-semibold text-neutral-600">
+            <label key={area.value} className="text-xs font-semibold text-ui-muted">
               {area.label}
-              <input
+              <Input
                 value={
                   value.layout?.areas?.find(
                     (candidate) => candidate.key === area.value,
@@ -433,7 +423,7 @@ const FormComponentEditor = ({
                 onChange={(event) =>
                   updateAreaTitle(area.value, event.target.value)
                 }
-                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm font-normal outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10"
+                className="mt-1 w-full font-normal"
                 placeholder="Optional"
               />
             </label>
@@ -443,11 +433,11 @@ const FormComponentEditor = ({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h5 className="text-xs font-semibold uppercase text-neutral-500">Fields</h5>
+          <h5 className="text-xs font-semibold uppercase text-ui-muted">Fields</h5>
           <button
             type="button"
             onClick={addCustomField}
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs hover:bg-neutral-50"
+            className="inline-flex h-8 items-center gap-1 rounded-md border border-ui-border px-2 text-xs hover:bg-ui-surface-subtle"
           >
             <FiPlus /> Add Field
           </button>
@@ -474,9 +464,9 @@ const FormComponentEditor = ({
 
       <div className="space-y-4">
         {(value.objectLists || []).map((objectList, listIndex) => (
-          <section key={`${objectList.key}-${listIndex}`} className="border-t border-neutral-200 pt-4">
+          <section key={`${objectList.key}-${listIndex}`} className="border-t border-ui-border pt-4">
             <div className="mb-3 flex items-center justify-between">
-              <h5 className="text-sm font-semibold text-neutral-800">Object List {listIndex + 1}</h5>
+              <h5 className="text-sm font-semibold text-ui-foreground">Object List {listIndex + 1}</h5>
               <button
                 type="button"
                 title="Remove list"
@@ -487,50 +477,47 @@ const FormComponentEditor = ({
                     objectLists: (value.objectLists || []).filter((_item, index) => index !== listIndex),
                   })
                 }
-                className="inline-flex h-8 w-8 items-center justify-center text-red-600 hover:bg-red-50"
+                className="inline-flex h-8 w-8 items-center justify-center text-ui-danger hover:bg-ui-danger-subtle"
               >
                 <FiTrash2 />
               </button>
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="rounded-lg border border-neutral-200 p-3">
+              <div className="rounded-lg border border-ui-border p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-neutral-700">Source field snapshots</div>
-                    <div className="text-[11px] text-neutral-500">Copy product fields such as price into each cart item.</div>
+                    <div className="text-xs font-semibold text-ui-foreground">Source field snapshots</div>
+                    <div className="text-[11px] text-ui-muted">Copy product fields such as price into each cart item.</div>
                   </div>
-                  <button type="button" onClick={() => onChange(addFieldMapping(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Mapping</button>
+                  <button type="button" onClick={() => onChange(addFieldMapping(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-ui-border px-2 text-xs"><FiPlus /> Mapping</button>
                 </div>
                 <div className="space-y-2">
                   {(objectList.fieldMappings || []).map((mapping, mappingIndex) => (
                     <div key={mappingIndex} className="grid grid-cols-1 gap-2 md:grid-cols-5">
-                      <select value={mapping.sourceFormKey} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceFormKey: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
-                        <option value="">Source select</option>
-                        {(value.fields || []).filter((field) => field.type === "select" && field.optionsSource === "schema").map((field) => <option key={field.formKey} value={field.formKey}>{field.label || field.formKey}</option>)}
-                      </select>
-                      <input value={mapping.sourceField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Source field (price)" />
-                      <input value={mapping.targetField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Item field (unitPrice)" />
-                      <label className="flex items-center gap-2 text-xs text-neutral-600"><input type="checkbox" checked={mapping.required ?? false} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { required: event.target.checked }))} /> Required</label>
-                      <button type="button" aria-label="Remove mapping" onClick={() => onChange(removeFieldMapping(value, listIndex, mappingIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+                      <ScalarSelect label={`Mapping ${mappingIndex + 1} source select`} value={mapping.sourceFormKey} onChange={(sourceFormKey) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceFormKey: String(sourceFormKey) }))} options={[{ value: "", label: "Source select" }, ...(value.fields || []).filter((field) => field.type === "select" && field.optionsSource === "schema").map((field) => ({ value: field.formKey, label: field.label || field.formKey }))]} />
+                      <Input value={mapping.sourceField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { sourceField: event.target.value }))} className="text-xs" placeholder="Source field (price)" />
+                      <Input value={mapping.targetField} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { targetField: event.target.value }))} className="text-xs" placeholder="Item field (unitPrice)" />
+                      <label className="flex items-center gap-2 text-xs text-ui-muted"><Checkbox checked={mapping.required ?? false} onChange={(event) => onChange(updateFieldMapping(value, listIndex, mappingIndex, { required: event.target.checked }))} /> Required</label>
+                      <button type="button" aria-label="Remove mapping" onClick={() => onChange(removeFieldMapping(value, listIndex, mappingIndex))} className="inline-flex h-8 w-8 items-center justify-center text-ui-danger"><FiTrash2 /></button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-lg border border-neutral-200 p-3">
+              <div className="rounded-lg border border-ui-border p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-neutral-700">Item calculations</div>
-                    <div className="text-[11px] text-neutral-500">Calculate fields such as unitPrice × quantity.</div>
+                    <div className="text-xs font-semibold text-ui-foreground">Item calculations</div>
+                    <div className="text-[11px] text-ui-muted">Calculate fields such as unitPrice × quantity.</div>
                   </div>
-                  <button type="button" onClick={() => onChange(addItemCalculation(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Calculation</button>
+                  <button type="button" onClick={() => onChange(addItemCalculation(value, listIndex))} className="inline-flex h-8 items-center gap-1 rounded-md border border-ui-border px-2 text-xs"><FiPlus /> Calculation</button>
                 </div>
                 <div className="space-y-2">
                   {(objectList.itemCalculations || []).map((calculation, calculationIndex) => (
                     <div key={calculationIndex} className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
-                      <select value={calculation.operation} onChange={(event) => {
-                        const operation = event.target.value as typeof calculation.operation;
+                      <ScalarSelect label={`Calculation ${calculationIndex + 1} operation`} value={calculation.operation} onChange={(nextOperation) => {
+                        const operation = nextOperation as typeof calculation.operation;
                         onChange(updateItemCalculation(value, listIndex, calculationIndex, operation === "quantityDiscount" ? {
                           operation,
                           originalTargetField: calculation.originalTargetField || "originalLineTotal",
@@ -544,104 +531,89 @@ const FormComponentEditor = ({
                           minimumQuantity: undefined,
                           discountPercentage: undefined,
                         }));
-                      }} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
-                        <option value="multiply">Multiply</option>
-                        <option value="quantityDiscount">Quantity discount</option>
-                      </select>
+                      }} options={[{ value: "multiply", label: "Multiply" }, { value: "quantityDiscount", label: "Quantity discount" }]} />
                       {[0, 1].map((inputIndex) => {
                         const options = getAvailableCalculationInputs(value, listIndex, calculationIndex);
                         const groups = ["Item fields", "Additional option data", "Calculated fields"] as const;
                         return (
-                          <select key={inputIndex} aria-label={`Calculation input ${inputIndex + 1}`} value={calculation.inputs[inputIndex] || ""} onChange={(event) => {
+                          <ScalarSelect key={inputIndex} label={`Calculation input ${inputIndex + 1}`} value={calculation.inputs[inputIndex] || ""} onChange={(nextInput) => {
                             const inputs = [...calculation.inputs];
-                            inputs[inputIndex] = event.target.value;
+                            inputs[inputIndex] = String(nextInput);
                             onChange(updateItemCalculation(value, listIndex, calculationIndex, { inputs }));
-                          }} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">
-                            <option value="">Select input</option>
-                            {groups.map((group) => {
-                              const groupOptions = options.filter((option) => option.group === group);
-                              return groupOptions.length > 0 ? <optgroup key={group} label={group}>{groupOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</optgroup> : null;
-                            })}
-                          </select>
+                          }} options={[{ value: "", label: "Select input" }, ...groups.flatMap((group) => options.filter((option) => option.group === group).map((option) => ({ value: option.value, label: `${group}: ${option.label}` })))]} />
                         );
                       })}
                       {calculation.operation === "quantityDiscount" && <>
-                        <input value={calculation.originalTargetField || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { originalTargetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Original total field" aria-label="Original total field" />
+                        <Input value={calculation.originalTargetField || ""} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { originalTargetField: event.target.value }))} className="text-xs" placeholder="Original total field" aria-label="Original total field" />
                         {calculation.discountTiers ? (
-                          <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 md:col-span-2 xl:col-span-4">
+                          <div className="space-y-2 rounded-md border border-ui-border bg-ui-surface-subtle p-2 md:col-span-2 xl:col-span-4">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-semibold text-neutral-600">Discount tiers</span>
-                              <button type="button" onClick={() => onChange(addDiscountTier(value, listIndex, calculationIndex))} className="inline-flex h-7 items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 text-[11px] font-medium text-neutral-700"><FiPlus /> Add tier</button>
+                              <span className="text-[11px] font-semibold text-ui-muted">Discount tiers</span>
+                              <button type="button" onClick={() => onChange(addDiscountTier(value, listIndex, calculationIndex))} className="inline-flex h-7 items-center gap-1 rounded-md border border-ui-border bg-white px-2 text-[11px] font-medium text-ui-foreground"><FiPlus /> Add tier</button>
                             </div>
                             {calculation.discountTiers.map((tier, tierIndex) => (
                               <div key={tierIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                                <input type="number" min={0.000001} value={tier.minimumQuantity} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs" placeholder="Minimum quantity" aria-label={`Tier ${tierIndex + 1} minimum quantity`} />
-                                <input type="number" min={0.000001} max={100} value={tier.discountPercentage} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs" placeholder="Discount %" aria-label={`Tier ${tierIndex + 1} discount percentage`} />
-                                <button type="button" aria-label={`Remove discount tier ${tierIndex + 1}`} onClick={() => onChange(removeDiscountTier(value, listIndex, calculationIndex, tierIndex))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><FiTrash2 /></button>
+                                <Input type="number" min={0.000001} value={tier.minimumQuantity} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { minimumQuantity: Number(event.target.value) }))} className="text-xs" placeholder="Minimum quantity" aria-label={`Tier ${tierIndex + 1} minimum quantity`} />
+                                <Input type="number" min={0.000001} max={100} value={tier.discountPercentage} onChange={(event) => onChange(updateDiscountTier(value, listIndex, calculationIndex, tierIndex, { discountPercentage: Number(event.target.value) }))} className="text-xs" placeholder="Discount %" aria-label={`Tier ${tierIndex + 1} discount percentage`} />
+                                <button type="button" aria-label={`Remove discount tier ${tierIndex + 1}`} onClick={() => onChange(removeDiscountTier(value, listIndex, calculationIndex, tierIndex))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-ui-danger hover:bg-ui-danger-subtle"><FiTrash2 /></button>
                               </div>
                             ))}
                           </div>
                         ) : <>
-                          <input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
-                          <input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discount %" aria-label="Discount percentage" />
+                          <Input type="number" min={0.000001} value={calculation.minimumQuantity ?? 6} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { minimumQuantity: Number(event.target.value) }))} className="text-xs" placeholder="Minimum quantity" aria-label="Minimum quantity" />
+                          <Input type="number" min={0.000001} max={100} value={calculation.discountPercentage ?? 30} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountPercentage: Number(event.target.value) }))} className="text-xs" placeholder="Discount %" aria-label="Discount percentage" />
                         </>}
                         <label className="space-y-1 md:col-span-2 xl:col-span-4">
-                          <span className="text-xs font-medium text-neutral-700">Discount message</span>
-                          <input
+                          <span className="text-xs font-medium text-ui-foreground">Discount message</span>
+                          <Input
                             value={calculation.discountMessage || ""}
                             onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { discountMessage: event.target.value }))}
-                            className="w-full rounded-md border border-neutral-300 px-2 py-2 text-xs"
+                            className="w-full text-xs"
                             placeholder="%{{discountPercentage}} indirim için {{missingQuantity}} ürün daha ekleyin"
                           />
-                          <span className="block text-[11px] text-neutral-500">
+                          <span className="block text-[11px] text-ui-muted">
                             {"Use {{discountPercentage}} for the next discount and {{missingQuantity}} for the number of items to add. Leave empty for the default message."}
                           </span>
                         </label>
                       </>}
-                      <input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="lineTotal" />
-                      <input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Calculation precision" />
-                      <button type="button" aria-label="Remove calculation" onClick={() => onChange(removeItemCalculation(value, listIndex, calculationIndex))} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+                      <Input value={calculation.targetField} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { targetField: event.target.value }))} className="text-xs" placeholder="lineTotal" />
+                      <Input type="number" min={0} max={6} value={calculation.precision ?? 2} onChange={(event) => onChange(updateItemCalculation(value, listIndex, calculationIndex, { precision: Number(event.target.value) }))} className="text-xs" aria-label="Calculation precision" />
+                      <button type="button" aria-label="Remove calculation" onClick={() => onChange(removeItemCalculation(value, listIndex, calculationIndex))} className="inline-flex h-8 w-8 items-center justify-center text-ui-danger"><FiTrash2 /></button>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <input
+              <Input
                 value={objectList.key}
                 onChange={(event) => updateObjectList(listIndex, { key: event.target.value })}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                 placeholder="items"
               />
-              <input
+              <Input
                 value={objectList.title || ""}
                 onChange={(event) => updateObjectList(listIndex, { title: event.target.value })}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                 placeholder="List title"
               />
-              <select
+              <ScalarSelect
+                label={`Object list ${listIndex + 1} area`}
                 value={objectList.area || "right"}
-                onChange={(event) => updateObjectList(listIndex, { area: event.target.value as FormAreaKey })}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              >
-                {FORM_AREAS.map((area) => (
-                  <option key={area.value} value={area.value}>{area.label}</option>
-                ))}
-              </select>
-              <input
+                onChange={(area) => updateObjectList(listIndex, { area: area as FormAreaKey })}
+                options={FORM_AREAS}
+              />
+              <Input
                 value={objectList.addAction?.label || ""}
                 onChange={(event) =>
                   updateObjectList(listIndex, {
                     addAction: { ...objectList.addAction!, kind: "addObject", label: event.target.value },
                   })
                 }
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                 placeholder="Add button label"
               />
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-semibold text-ui-muted">
                 Item/source fields
                 <FieldPicker
                   fields={schemaFields}
@@ -658,7 +630,7 @@ const FormComponentEditor = ({
                   }
                 />
               </label>
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-semibold text-ui-muted">
                 Clear after add
                 <FieldPicker
                   fields={schemaFields}
@@ -675,68 +647,60 @@ const FormComponentEditor = ({
                 />
               </label>
               <div className="grid grid-cols-1 gap-2">
-                <select
+                <ScalarSelect
+                  label={`Object list ${listIndex + 1} add action area`}
                   value={objectList.addAction?.area || "left"}
-                  onChange={(event) =>
+                  onChange={(area) =>
                     updateObjectList(listIndex, {
                       addAction: {
                         ...objectList.addAction!,
                         kind: "addObject",
-                        area: event.target.value as FormAreaKey,
+                        area: area as FormAreaKey,
                       },
                     })
                   }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                >
-                  {FORM_AREAS.map((area) => (
-                    <option key={area.value} value={area.value}>Add action: {area.label}</option>
-                  ))}
-                </select>
-                <input
+                  options={FORM_AREAS.map((area) => ({ ...area, label: `Add action: ${area.label}` }))}
+                />
+                <Input
                   value={objectList.display?.primaryField || ""}
                   onChange={(event) =>
                     updateObjectList(listIndex, {
                       display: { ...objectList.display, primaryField: event.target.value },
                     })
                   }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Primary field, e.g. productLabel"
                 />
-                <input
+                <Input
                   value={objectList.display?.secondaryTemplate || ""}
                   onChange={(event) =>
                     updateObjectList(listIndex, {
                       display: { ...objectList.display, secondaryTemplate: event.target.value },
                     })
                   }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Secondary template, e.g. {{quantity}} items"
                 />
-                <input
+                <Input
                   value={objectList.display?.imageField || ""}
                   onChange={(event) =>
                     updateObjectList(listIndex, {
                       display: { ...objectList.display, imageField: event.target.value },
                     })
                   }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Image field"
                 />
-                <input
+                <Input
                   value={objectList.display?.rightTemplate || ""}
                   onChange={(event) =>
                     updateObjectList(listIndex, {
                       display: { ...objectList.display, rightTemplate: event.target.value },
                     })
                   }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="Right-side template, e.g. {{lineTotal}} TRY"
                 />
               </div>
-              <div className="mt-3 rounded-lg border border-neutral-200 p-3">
-                <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700">
-                  <input
-                    type="checkbox"
+              <div className="mt-3 rounded-lg border border-ui-border p-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-ui-foreground">
+                  <Checkbox
                     checked={Boolean(objectList.display?.priceComparison)}
                     onChange={(event) => updateObjectList(listIndex, {
                       display: {
@@ -754,17 +718,16 @@ const FormComponentEditor = ({
                 </label>
                 {objectList.display?.priceComparison && (
                   <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-4">
-                    <input value={objectList.display.priceComparison.originalField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, originalField: event.target.value } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Original price field" aria-label="Original price field" />
-                    <input value={objectList.display.priceComparison.discountedField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, discountedField: event.target.value } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Discounted price field" aria-label="Discounted price field" />
-                    <input value={objectList.display.priceComparison.currency || ""} maxLength={3} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, currency: event.target.value.toUpperCase() } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="TRY" aria-label="Price currency" />
-                    <input type="number" min={0} max={6} value={objectList.display.priceComparison.precision ?? 2} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, precision: Number(event.target.value) } } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Price precision" />
+                    <Input value={objectList.display.priceComparison.originalField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, originalField: event.target.value } } })} className="text-xs" placeholder="Original price field" aria-label="Original price field" />
+                    <Input value={objectList.display.priceComparison.discountedField} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, discountedField: event.target.value } } })} className="text-xs" placeholder="Discounted price field" aria-label="Discounted price field" />
+                    <Input value={objectList.display.priceComparison.currency || ""} maxLength={3} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, currency: event.target.value.toUpperCase() } } })} className="text-xs" placeholder="TRY" aria-label="Price currency" />
+                    <Input type="number" min={0} max={6} value={objectList.display.priceComparison.precision ?? 2} onChange={(event) => updateObjectList(listIndex, { display: { ...objectList.display, priceComparison: { ...objectList.display!.priceComparison!, precision: Number(event.target.value) } } })} className="text-xs" aria-label="Price precision" />
                   </div>
                 )}
               </div>
-              <div className="mt-3 rounded-lg border border-neutral-200 p-3">
-                <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700">
-                  <input
-                    type="checkbox"
+              <div className="mt-3 rounded-lg border border-ui-border p-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-ui-foreground">
+                  <Checkbox
                     checked={Boolean(objectList.mergeOnAdd)}
                     onChange={(event) => updateObjectList(listIndex, {
                       mergeOnAdd: event.target.checked ? {
@@ -777,14 +740,8 @@ const FormComponentEditor = ({
                 </label>
                 {objectList.mergeOnAdd && (
                   <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <select value={objectList.mergeOnAdd.matchField} onChange={(event) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, matchField: event.target.value } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Merge match field">
-                      <option value="">Match field</option>
-                      {(objectList.itemFields || []).map((field) => <option key={field} value={field}>{field}</option>)}
-                    </select>
-                    <select value={objectList.mergeOnAdd.quantityField} onChange={(event) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, quantityField: event.target.value } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Merge quantity field">
-                      <option value="">Quantity field</option>
-                      {(objectList.itemFields || []).map((field) => <option key={field} value={field}>{field}</option>)}
-                    </select>
+                    <ScalarSelect label="Merge match field" value={objectList.mergeOnAdd.matchField} onChange={(matchField) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, matchField: String(matchField) } })} options={[{ value: "", label: "Match field" }, ...(objectList.itemFields || []).map((field) => ({ value: field, label: field }))]} />
+                    <ScalarSelect label="Merge quantity field" value={objectList.mergeOnAdd.quantityField} onChange={(quantityField) => updateObjectList(listIndex, { mergeOnAdd: { ...objectList.mergeOnAdd!, quantityField: String(quantityField) } })} options={[{ value: "", label: "Quantity field" }, ...(objectList.itemFields || []).map((field) => ({ value: field, label: field }))]} />
                   </div>
                 )}
               </div>
@@ -792,7 +749,7 @@ const FormComponentEditor = ({
 
             <div className="mt-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-neutral-600">Item actions</span>
+                <span className="text-xs font-semibold text-ui-muted">Item actions</span>
                 <button
                   type="button"
                   onClick={() =>
@@ -800,43 +757,38 @@ const FormComponentEditor = ({
                       actions: [...(objectList.actions || []), { kind: "editObject", position: "end" }],
                     })
                   }
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs hover:bg-neutral-50"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-ui-border px-2 text-xs hover:bg-ui-surface-subtle"
                 >
                   <FiPlus /> Add Action
                 </button>
               </div>
               {(objectList.actions || []).map((action, actionIndex) => (
                 <div key={`${action.kind}-${actionIndex}`} className="grid grid-cols-1 gap-2 md:grid-cols-7">
-                  <select
+                  <ScalarSelect
+                    label={`Action ${actionIndex + 1} kind`}
                     value={action.kind}
-                    onChange={(event) =>
+                    onChange={(kind) =>
                       updateObjectAction(listIndex, actionIndex, {
-                        kind: event.target.value as FormObjectActionConfig["kind"],
+                        kind: kind as FormObjectActionConfig["kind"],
                       })
                     }
-                    className="rounded-md border border-neutral-300 px-2 py-2 text-xs"
-                  >
-                    {OBJECT_ACTION_KINDS.map((kind) => (
-                      <option key={kind.value} value={kind.value}>{kind.label}</option>
-                    ))}
-                  </select>
-                  <select
+                    options={OBJECT_ACTION_KINDS}
+                  />
+                  <ScalarSelect
+                    label={`Action ${actionIndex + 1} position`}
                     value={action.position || "end"}
-                    onChange={(event) =>
+                    onChange={(position) =>
                       updateObjectAction(listIndex, actionIndex, {
-                        position: event.target.value as "start" | "end",
+                        position: position as "start" | "end",
                       })
                     }
-                    className="rounded-md border border-neutral-300 px-2 py-2 text-xs"
-                  >
-                    <option value="start">Left</option>
-                    <option value="end">Right</option>
-                  </select>
-                  <input value={action.label || ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { label: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Label" />
-                  <input value={action.field || ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { field: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Numeric field" />
-                  <input type="number" value={action.min ?? ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { min: event.target.value === "" ? undefined : Number(event.target.value) })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Min" />
-                  <input type="number" value={action.step ?? 1} onChange={(event) => updateObjectAction(listIndex, actionIndex, { step: Number(event.target.value) })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Step" />
-                  <button type="button" title="Remove action" aria-label="Remove action" onClick={() => updateObjectList(listIndex, { actions: (objectList.actions || []).filter((_item, index) => index !== actionIndex) })} className="inline-flex h-8 w-8 items-center justify-center text-red-600 hover:bg-red-50"><FiTrash2 /></button>
+                    options={[{ value: "start", label: "Left" }, { value: "end", label: "Right" }]}
+                  />
+                  <Input value={action.label || ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { label: event.target.value })} className="text-xs" placeholder="Label" />
+                  <Input value={action.field || ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { field: event.target.value })} className="text-xs" placeholder="Numeric field" />
+                  <Input type="number" value={action.min ?? ""} onChange={(event) => updateObjectAction(listIndex, actionIndex, { min: event.target.value === "" ? undefined : Number(event.target.value) })} className="text-xs" placeholder="Min" />
+                  <Input type="number" value={action.step ?? 1} onChange={(event) => updateObjectAction(listIndex, actionIndex, { step: Number(event.target.value) })} className="text-xs" placeholder="Step" />
+                  <button type="button" title="Remove action" aria-label="Remove action" onClick={() => updateObjectList(listIndex, { actions: (objectList.actions || []).filter((_item, index) => index !== actionIndex) })} className="inline-flex h-8 w-8 items-center justify-center text-ui-danger hover:bg-ui-danger-subtle"><FiTrash2 /></button>
                 </div>
               ))}
             </div>
@@ -844,32 +796,32 @@ const FormComponentEditor = ({
         ))}
       </div>
 
-      <section className="border-t border-neutral-200 pt-4">
+      <section className="border-t border-ui-border pt-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h5 className="text-sm font-semibold text-neutral-800">Order summaries</h5>
-            <p className="text-xs text-neutral-500">Display subtotal and total in a form area.</p>
+            <h5 className="text-sm font-semibold text-ui-foreground">Order summaries</h5>
+            <p className="text-xs text-ui-muted">Display subtotal and total in a form area.</p>
           </div>
-          <button type="button" onClick={() => onChange(addSummary(value))} className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 px-2 text-xs"><FiPlus /> Summary</button>
+          <button type="button" onClick={() => onChange(addSummary(value))} className="inline-flex h-8 items-center gap-1 rounded-md border border-ui-border px-2 text-xs"><FiPlus /> Summary</button>
         </div>
         <div className="space-y-2">
           {(value.summaries || []).map((summary, summaryIndex) => {
             const updateSummary = (patch: Partial<typeof summary>) => onChange({ ...value, summaries: (value.summaries || []).map((item, index) => index === summaryIndex ? { ...item, ...patch } : item) });
-            return <div key={summaryIndex} className="grid grid-cols-2 gap-2 rounded-lg border border-neutral-200 p-3 md:grid-cols-10">
-              <input value={summary.key} onChange={(event) => updateSummary({ key: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Key" />
-              <input value={summary.label || ""} onChange={(event) => updateSummary({ label: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Label" />
-              <select value={summary.operation} onChange={(event) => updateSummary({ operation: event.target.value as "sum" | "copy" })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="sum">Sum list</option><option value="copy">Copy summary</option></select>
-              <select value={summary.objectListKey || ""} disabled={summary.operation !== "sum"} onChange={(event) => updateSummary({ objectListKey: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs"><option value="">List</option>{(value.objectLists || []).map((list) => <option key={list.key} value={list.key}>{list.title || list.key}</option>)}</select>
-              <input value={summary.sourceField} onChange={(event) => updateSummary({ sourceField: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Source field" />
-              <input value={summary.targetField} onChange={(event) => updateSummary({ targetField: event.target.value })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="Target field" />
-              <select value={summary.area || "right"} onChange={(event) => updateSummary({ area: event.target.value as FormAreaKey })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs">{FORM_AREAS.map((area) => <option key={area.value} value={area.value}>{area.label}</option>)}</select>
-              <input maxLength={3} value={summary.format?.currency || "TRY"} onChange={(event) => updateSummary({ format: { ...summary.format, style: "currency", currency: event.target.value.toUpperCase() } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" placeholder="TRY" />
-              <input type="number" min={0} max={6} value={summary.format?.precision ?? 2} onChange={(event) => updateSummary({ format: { ...summary.format, precision: Number(event.target.value) } })} className="rounded-md border border-neutral-300 px-2 py-2 text-xs" aria-label="Summary precision" />
-              <button type="button" aria-label="Remove summary" onClick={() => onChange({ ...value, summaries: (value.summaries || []).filter((_item, index) => index !== summaryIndex) })} className="inline-flex h-8 w-8 items-center justify-center text-red-600"><FiTrash2 /></button>
+            return <div key={summaryIndex} className="grid grid-cols-2 gap-2 rounded-lg border border-ui-border p-3 md:grid-cols-10">
+              <Input value={summary.key} onChange={(event) => updateSummary({ key: event.target.value })} className="text-xs" placeholder="Key" />
+              <Input value={summary.label || ""} onChange={(event) => updateSummary({ label: event.target.value })} className="text-xs" placeholder="Label" />
+              <ScalarSelect label={`Summary ${summaryIndex + 1} operation`} value={summary.operation} onChange={(operation) => updateSummary({ operation: operation as "sum" | "copy" })} options={[{ value: "sum", label: "Sum list" }, { value: "copy", label: "Copy summary" }]} />
+              <ScalarSelect label={`Summary ${summaryIndex + 1} list`} value={summary.objectListKey || ""} disabled={summary.operation !== "sum"} onChange={(objectListKey) => updateSummary({ objectListKey: String(objectListKey) })} options={[{ value: "", label: "List" }, ...(value.objectLists || []).map((list) => ({ value: list.key, label: list.title || list.key }))]} />
+              <Input value={summary.sourceField} onChange={(event) => updateSummary({ sourceField: event.target.value })} className="text-xs" placeholder="Source field" />
+              <Input value={summary.targetField} onChange={(event) => updateSummary({ targetField: event.target.value })} className="text-xs" placeholder="Target field" />
+              <ScalarSelect label={`Summary ${summaryIndex + 1} area`} value={summary.area || "right"} onChange={(area) => updateSummary({ area: area as FormAreaKey })} options={FORM_AREAS} />
+              <Input maxLength={3} value={summary.format?.currency || "TRY"} onChange={(event) => updateSummary({ format: { ...summary.format, style: "currency", currency: event.target.value.toUpperCase() } })} className="text-xs" placeholder="TRY" />
+              <Input type="number" min={0} max={6} value={summary.format?.precision ?? 2} onChange={(event) => updateSummary({ format: { ...summary.format, precision: Number(event.target.value) } })} className="text-xs" aria-label="Summary precision" />
+              <button type="button" aria-label="Remove summary" onClick={() => onChange({ ...value, summaries: (value.summaries || []).filter((_item, index) => index !== summaryIndex) })} className="inline-flex h-8 w-8 items-center justify-center text-ui-danger"><FiTrash2 /></button>
             </div>;
           })}
         </div>
-        {calculationErrors.length > 0 && <div role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700"><div className="font-semibold">Fix calculation configuration before saving:</div><ul className="mt-1 list-disc pl-5">{calculationErrors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
+        {calculationErrors.length > 0 && <div role="alert" className="mt-3 rounded-md border border-ui-danger/30 bg-ui-danger-subtle p-3 text-xs text-ui-danger"><div className="font-semibold">Fix calculation configuration before saving:</div><ul className="mt-1 list-disc pl-5">{calculationErrors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
       </section>
     </div>
   );

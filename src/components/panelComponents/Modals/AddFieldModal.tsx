@@ -625,7 +625,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 options={FIELD_TYPES}
                 requiredField={true}
                 // Add custom styles to ensure proper z-index
-                customControlBackgroundColor="white"
+                customControlBackgroundColor="text-white"
               />
             </div>
 
@@ -660,14 +660,14 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 }}
                 options={containerOptions}
                 placeholder={t("Select collection schema")}
-                customControlBackgroundColor="white"
+                customControlBackgroundColor="text-white"
               />
             )}
 
             {/* Enum Values (for enum type) */}
             {fieldData.type === "enum" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ui-foreground mb-2">
                   {t("Enum Values")}
                 </label>
                 <TextInput
@@ -682,9 +682,9 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             {/* Equation (for int type) */}
             {fieldData.type === "int" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ui-foreground mb-2">
                   {t("Equation")}{" "}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-ui-muted">
                     {t("(Optional)")}
                   </span>
                 </label>
@@ -694,7 +694,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   onChange={setEquation}
                   placeholder="e.g., quantity * price"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ui-muted mt-1">
                   {t(
                     "Define a formula to auto-calculate this field's value using other field names"
                   )}
@@ -719,7 +719,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     >
                       {t("Child Fields")}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ui-muted mt-1">
                       {fieldData.type === "array"
                         ? t(
                             "Each child field describes one object inside this array"
@@ -738,7 +738,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3">
+                <div className="grid grid-cols-2 gap-3 rounded-lg bg-ui-surface-subtle p-3">
                   <TextInput
                     label={t("Child Field Name")}
                     type="text"
@@ -772,7 +772,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       }
                     }}
                     options={CHILD_FIELD_TYPES}
-                    customControlBackgroundColor="white"
+                    customControlBackgroundColor="text-white"
                   />
                   {isObjectReferenceType(childFieldDraft.type) && (
                     <SelectInput
@@ -795,7 +795,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       }}
                       options={containerOptions}
                       placeholder={t("Select collection schema")}
-                      customControlBackgroundColor="white"
+                      customControlBackgroundColor="text-white"
                     />
                   )}
                   <TextInput
@@ -817,7 +817,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     />
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ui-foreground mb-2">
                       {t("Unique")}
                     </label>
                     <CheckSwitch
@@ -831,7 +831,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ui-foreground mb-2">
                       {t("Searchable")}
                     </label>
                     <CheckSwitch
@@ -862,19 +862,19 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   {childFields.map((childField, index) => (
                     <div
                       key={`${childField.name}-${index}`}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
+                      className="flex items-center justify-between rounded-lg border border-ui-border bg-white p-3"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-ui-foreground">
                             {childField.name}
                           </span>
-                          <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                          <span className="rounded bg-ui-surface-subtle px-2 py-1 text-xs font-medium text-ui-foreground">
                             {childField.type}
                           </span>
                         </div>
                         {childField.tag && (
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-ui-muted">
                             {t("Tag")}: {childField.tag}
                           </p>
                         )}
@@ -890,7 +890,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveChildField(index)}
-                          className="p-1.5 text-red-500 hover:text-red-700"
+                          className="p-1.5 text-ui-danger hover:text-ui-danger"
                           title={t("Remove Child Field")}
                         >
                           <FiTrash2 size={16} />
@@ -900,7 +900,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   ))}
 
                   {childFields.length === 0 && (
-                    <p className="text-sm text-gray-500 italic">
+                    <p className="text-sm text-ui-muted italic">
                       {t("No child fields added")}
                     </p>
                   )}
@@ -922,7 +922,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ui-foreground mb-2">
                     {t("Unique")}
                   </label>
                   <CheckSwitch
@@ -933,7 +933,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ui-foreground mb-2">
                     {t("Searchable")}
                   </label>
                   <CheckSwitch
@@ -944,7 +944,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ui-foreground mb-2">
                     {t("Login Credential")}
                   </label>
                   <CheckSwitch
@@ -958,7 +958,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ui-foreground mb-2">
                     {t("Audit Identity")}
                   </label>
                   <CheckSwitch
@@ -972,7 +972,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ui-foreground mb-2">
                     {t("Hashed")}
                   </label>
                   <CheckSwitch
@@ -1027,7 +1027,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       options={selectedContainerFields}
                       placeholder={t("Select fields to populate")}
                       isMultiple={true}
-                      customControlBackgroundColor="white"
+                      customControlBackgroundColor="text-white"
                     />
                     <SelectInput
                       label={t("Display Fields")}
@@ -1045,7 +1045,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       options={selectedContainerFields}
                       placeholder={t("Select fields to display")}
                       isMultiple={true}
-                      customControlBackgroundColor="white"
+                      customControlBackgroundColor="text-white"
                     />
                     <SelectInput
                       label={t("Input Selection Field")}
@@ -1064,7 +1064,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       }}
                       options={selectedContainerFields}
                       placeholder={t("Select input selection field")}
-                      customControlBackgroundColor="white"
+                      customControlBackgroundColor="text-white"
                     />
                     <TextInput
                       label={t("Display Label")}
@@ -1104,7 +1104,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 {validationRules.map((rule, index) => (
                   <div
                     key={index}
-                    className="flex items-end space-x-2 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-end space-x-2 p-3 bg-ui-surface-subtle rounded-lg"
                   >
                     <div className="flex-1">
                       <SelectInput
@@ -1190,7 +1190,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 ))}
 
                 {validationRules.length === 0 && (
-                  <p className="text-sm text-gray-500 italic">
+                  <p className="text-sm text-ui-muted italic">
                     {t("No validation rules added")}
                   </p>
                 )}
@@ -1200,11 +1200,11 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
             {/* Generated Tag Preview */}
             {validationRules.length > 0 && (
               <div className="border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                <h4 className="text-sm font-medium text-ui-foreground mb-2">
                   {t("Generated Tag")}
                 </h4>
-                <div className="bg-gray-100 p-3 rounded-lg">
-                  <code className="text-xs text-gray-800 break-all">
+                <div className="bg-ui-surface-subtle p-3 rounded-lg">
+                  <code className="text-xs text-ui-foreground break-all">
                     {buildTagString() || t("No validation rules")}
                   </code>
                 </div>

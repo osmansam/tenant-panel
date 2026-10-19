@@ -1,0 +1,27 @@
+- generic [ref=f2e4]:
+  - link "Skip to content" [ref=f2e5] [cursor=pointer]:
+    - /url: "#main-content"
+  - complementary "Workspace navigation" [ref=f2e6]:
+    - generic [ref=f2e8]:
+      - generic [ref=f2e13]:
+        - generic [ref=f2e14]: Tenant Panel
+        - paragraph [ref=f2e15]: qa
+      - button "Collapse Sidebar" [expanded] [ref=f2e16] [cursor=pointer]
+    - generic [ref=f2e19]:
+      - navigation "Main navigation" [ref=f2e20]:
+        - button "Dashboard" [ref=f2e21] [cursor=pointer]
+        - button "Projects" [ref=f2e27] [cursor=pointer]
+        - button "Settings" [ref=f2e33] [cursor=pointer]
+      - button "Logout" [ref=f2e40] [cursor=pointer]
+  - main [ref=f2e47]:
+    - generic [ref=f2e48]:
+      - generic [ref=f2e49]:
+        - generic [ref=f2e50]:
+          - heading "Projects" [level=1] [ref=f2e51]
+          - generic [ref=f2e53]: Choose a workspace to manage its data, pages, and integrations.
+        - group "Page actions" [ref=f2e54]:
+          - button "New Project" [ref=f2e55] [cursor=pointer]
+      - status "No projects yet" [ref=f2e60]:
+        - heading "No projects yet" [level=3] [ref=f2e64]
+        - generic [ref=f2e65]: Create your first project to organize your work and collaborate with your team.
+        - button "Create your first project" [ref=f2e67] [cursor=pointer]

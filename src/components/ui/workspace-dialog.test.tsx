@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { WorkspaceDialog } from "./workspace-dialog";
@@ -103,4 +103,36 @@ describe("WorkspaceDialog", () => {
     expect(closeNested).toHaveBeenCalledTimes(1);
     expect(closeParent).not.toHaveBeenCalled();
   });
+
+  it("keeps Tab and Shift+Tab within the active dialog", async () => {
+    const user = userEvent.setup();
+    render(<><button>Outside</button><WorkspaceDialog open onClose={vi.fn()} title="Edit project"><input aria-label="Project name" /><button>Save project</button></WorkspaceDialog></>);
+    const close = screen.getByRole("button", { name: "Close dialog" });
+    await waitFor(() => expect(close).toHaveFocus());
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Save project" })).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus();
+  });
+
+  it("makes the page behind a dialog inert and restores it on close", () => {
+    const { rerender } = render(<><main><button>Page action</button></main><WorkspaceDialog open onClose={vi.fn()} title="Edit project">Content</WorkspaceDialog></>);
+    expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
+    rerender(<><main><button>Page action</button></main><WorkspaceDialog open={false} onClose={vi.fn()} title="Edit project">Content</WorkspaceDialog></>);
+    expect(screen.getByRole("main").closest("[inert]")).toBeNull();
+  });
+
+
+  it("keeps the top dialog interactive when parent and child mount together", () => {
+    const close = vi.fn();
+    const { rerender } = render(<><main>Workspace</main><WorkspaceDialog open onClose={close} title="Parent">Parent content</WorkspaceDialog><WorkspaceDialog open layer="nested" onClose={close} title="Nested">Nested content</WorkspaceDialog></>);
+    const parent = screen.getByRole("dialog", { name: "Parent" });
+    const nested = screen.getByRole("dialog", { name: "Nested" });
+    expect(nested.closest("[inert]")).toBeNull();
+    expect(parent.closest("[inert]")).not.toBeNull();
+    rerender(<><main>Workspace</main><WorkspaceDialog open onClose={close} title="Parent">Parent content</WorkspaceDialog><WorkspaceDialog open={false} layer="nested" onClose={close} title="Nested">Nested content</WorkspaceDialog></>);
+    expect(screen.getByRole("dialog", { name: "Parent" }).closest("[inert]")).toBeNull();
+    expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
+  });
+
 });

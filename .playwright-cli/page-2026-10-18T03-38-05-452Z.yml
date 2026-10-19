@@ -1,0 +1,85 @@
+- generic [ref=f4e4]:
+  - link "Skip to content" [ref=f4e5] [cursor=pointer]:
+    - /url: "#main-content"
+  - dialog "Workspace navigation" [ref=f4e162]:
+    - generic [ref=f4e164]:
+      - generic [ref=f4e169]:
+        - generic [ref=f4e170]: Tenant Panel
+        - paragraph [ref=f4e171]: alex
+      - button "Collapse Sidebar" [expanded] [active] [ref=f4e172] [cursor=pointer]
+    - generic [ref=f4e175]:
+      - navigation "Main navigation" [ref=f4e176]:
+        - button "Dashboard" [ref=f4e177] [cursor=pointer]
+        - button "Projects" [ref=f4e183] [cursor=pointer]
+        - button "Users" [ref=f4e189] [cursor=pointer]
+        - button "Settings" [ref=f4e195] [cursor=pointer]
+      - button "Logout" [ref=f4e202] [cursor=pointer]
+  - generic [ref=f4e6]:
+    - banner [ref=f4e7]:
+      - button "Open navigation" [expanded] [ref=f4e8] [cursor=pointer]
+      - generic [ref=f4e11]: Tenant Panel
+    - main [ref=f4e12]:
+      - generic [ref=f4e87]:
+        - generic [ref=f4e88]:
+          - generic [ref=f4e89]:
+            - heading "Projects 3" [level=1] [ref=f4e90]:
+              - generic [ref=f4e91]:
+                - text: Projects
+                - generic [ref=f4e92]: "3"
+            - generic [ref=f4e93]: Choose a workspace to manage its data, pages, and integrations.
+          - group "Page actions" [ref=f4e94]:
+            - button "New Project" [ref=f4e95] [cursor=pointer]
+        - generic [ref=f4e99]:
+          - search "Find a project" [ref=f4e100]:
+            - searchbox "Search projects" [ref=f4e102]
+            - generic [ref=f4e103]:
+              - generic [ref=f4e105]:
+                - log [ref=f4e107]
+                - generic [ref=f4e109] [cursor=pointer]:
+                  - generic [ref=f4e110]: All statuses
+                  - combobox "Project status" [ref=f4e111]
+              - generic [ref=f4e117]:
+                - log [ref=f4e119]
+                - generic [ref=f4e121] [cursor=pointer]:
+                  - generic [ref=f4e122]: Newest first
+                  - combobox "Sort projects" [ref=f4e123]
+          - paragraph [ref=f4e129]: Showing 3 of 3 projects
+        - generic [ref=f4e131]:
+          - article [ref=f4e132]:
+            - button "Switch to Operations Workspace" [ref=f4e133] [cursor=pointer]
+            - generic: OP
+            - generic:
+              - heading "Operations Workspace" [level=2]
+              - paragraph: /operations
+              - paragraph: Daily operations, team workflows, and internal data.
+            - group "Project actions" [ref=f4e134]:
+              - generic [ref=f4e135]:
+                - generic [ref=f4e136]: Active
+                - button "Open Operations Workspace in a new tab" [ref=f4e137] [cursor=pointer]: Open
+                - button "Make Template" [ref=f4e141] [cursor=pointer]
+              - time [ref=f4e142]: Oct 12
+          - article [ref=f4e143]:
+            - button "Switch to Customer Portal" [ref=f4e144] [cursor=pointer]
+            - generic: CU
+            - generic:
+              - heading "Customer Portal" [level=2]
+              - paragraph: /customers
+              - paragraph: A shared home for customers and account teams.
+            - group "Project actions" [ref=f4e145]:
+              - generic [ref=f4e146]:
+                - generic [ref=f4e147]: Active
+                - button "Open Customer Portal in a new tab" [ref=f4e148] [cursor=pointer]: Open
+                - button "Make Template" [ref=f4e152] [cursor=pointer]
+              - time [ref=f4e153]: Oct 8
+          - article [ref=f4e154]:
+            - button "Research Archive" [disabled] [ref=f4e155]
+            - generic: RE
+            - generic:
+              - heading "Research Archive" [level=2]
+              - paragraph: /research
+              - paragraph: Historical datasets and completed experiments.
+            - group "Project actions" [ref=f4e156]:
+              - generic [ref=f4e157]:
+                - generic [ref=f4e158]: Inactive
+                - button "Make Template" [ref=f4e159] [cursor=pointer]
+              - time [ref=f4e160]: Sep 1

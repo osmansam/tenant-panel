@@ -12,7 +12,7 @@ import {
 import { BrandingAssetField } from "./BrandingAssetField";
 import { BrandingPreview } from "./BrandingPreview";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
-import { EmptyState, Section, SectionHeader, Switch } from "../ui";
+import { EmptyState, Input, Section, SectionHeader, Switch } from "../ui";
 import {
   buildBrandingPatch,
   validateBrandingDraft,
@@ -24,9 +24,10 @@ interface BrandingEditorProps {
   scope: BrandingScope;
   tenantId: string;
   projectId?: string;
+  readOnly?: boolean;
 }
 
-export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorProps) {
+export function BrandingEditor({ scope, tenantId, projectId, readOnly = false }: BrandingEditorProps) {
   const id = scope === "tenant" ? tenantId : projectId || "";
   const tenantQuery = useTenantBranding(scope === "tenant" ? tenantId : "");
   const projectQuery = useProjectBranding(scope === "project" ? projectId || "" : "");
@@ -130,7 +131,7 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
         <Section surface="outlined" className="space-y-6 rounded-ui-xl p-6 shadow-ui-sm">
           <SectionHeader
             title={scope === "tenant" ? "Tenant branding" : "Project branding"}
-            description={scope === "tenant" ? "Defaults used by every project in this tenant." : "Override tenant defaults only where this project needs a different identity."}
+            description={readOnly ? "You can view these settings, but your current role cannot change them." : scope === "tenant" ? "Defaults used by every project in this tenant." : "Override tenant defaults only where this project needs a different identity."}
           />
           <div className="grid gap-5 sm:grid-cols-2">
             {scalarFields.map((field) => {
@@ -140,14 +141,15 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
               <div key={field.key} className="min-w-0">
                 <span className="flex items-center justify-between gap-2 text-sm font-medium text-ui-foreground">
                   <label htmlFor={inputId}>{field.label}</label>
-                  {scope === "project" && data.overrides?.[field.key] !== undefined && (
+                  {!readOnly && scope === "project" && data.overrides?.[field.key] !== undefined && (
                     <button type="button" onClick={() => inheritField(field.key)} className="text-xs font-medium text-ui-primary hover:underline">Use tenant default</button>
                   )}
                 </span>
-                <input
+                <Input
                   id={inputId}
                   aria-describedby={descriptionId}
                   value={draft[field.key]}
+                  disabled={readOnly}
                   onChange={(event) => updateField(field.key, event.target.value)}
                   className="ui-control mt-2 min-w-0 w-full"
                 />
@@ -158,25 +160,27 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
             <div className="block min-w-0">
               <span className="flex items-center justify-between gap-2 text-sm font-medium text-ui-foreground">
                 <label htmlFor="branding-primary-color">Primary color</label>
-                {scope === "project" && data.overrides?.primaryColor !== undefined && (
+                {!readOnly && scope === "project" && data.overrides?.primaryColor !== undefined && (
                   <button type="button" onClick={() => inheritField("primaryColor")} className="text-xs font-medium text-ui-primary hover:underline">Use tenant default</button>
                 )}
               </span>
               <div className="mt-2 flex items-center gap-2.5">
                 <label className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-ui-md border border-ui-border shadow-ui-sm overflow-hidden transition-all hover:scale-105" title="Pick color">
                   <span className="absolute inset-0" style={{ backgroundColor: draft.primaryColor }} />
-                  <input
+                  <Input
                     type="color"
                     value={draft.primaryColor}
+                    disabled={readOnly}
                     onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())}
                     className="absolute inset-0 opacity-0 cursor-pointer h-full w-full"
                   />
                 </label>
-                <input
+                <Input
                   id="branding-primary-color"
                   aria-invalid={Boolean(errors.primaryColor)}
                   aria-describedby={errors.primaryColor ? "branding-primary-color-error" : undefined}
                   value={draft.primaryColor}
+                  disabled={readOnly}
                   onChange={(event) => updateField("primaryColor", event.target.value)}
                   className="ui-control min-w-0 flex-1 font-mono text-sm uppercase"
                   placeholder="#000000"
@@ -188,6 +192,7 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
                   <button
                     key={preset}
                     type="button"
+                    disabled={readOnly}
                     onClick={() => updateField("primaryColor", preset)}
                     title={preset}
                     aria-label={`Select ${preset}`}
@@ -199,14 +204,16 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
               {errors.primaryColor && <span id="branding-primary-color-error" className="mt-1 block text-xs text-ui-danger">{errors.primaryColor}</span>}
             </div>
             <div className="pt-1">
-              <Switch checked={draft.loginBrandingEnabled} onCheckedChange={(checked) => updateField("loginBrandingEnabled", checked)} label="Brand the login page" description="Show this identity before users sign in." />
+              <Switch checked={draft.loginBrandingEnabled} disabled={readOnly} onCheckedChange={(checked) => updateField("loginBrandingEnabled", checked)} label="Brand the login page" description="Show this identity before users sign in." />
             </div>
           </div>
-          <div className="flex justify-end border-t border-ui-border pt-4">
-            <GenericButton variant="primary" disabled={patchMutation.isPending} onClick={() => void save()}>
-              {patchMutation.isPending ? "Saving…" : "Save branding"}
-            </GenericButton>
-          </div>
+          {!readOnly && (
+            <div className="flex justify-end border-t border-ui-border pt-4">
+              <GenericButton variant="primary" disabled={patchMutation.isPending} onClick={() => void save()}>
+                {patchMutation.isPending ? "Saving…" : "Save branding"}
+              </GenericButton>
+            </div>
+          )}
         </Section>
         <BrandingPreview branding={preview} />
       </div>
@@ -217,9 +224,9 @@ export function BrandingEditor({ scope, tenantId, projectId }: BrandingEditorPro
           <p className="text-xs text-ui-muted">Upload customized logos and icons used across your navigation and browser chrome.</p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <BrandingAssetField label="Primary logo" hint="Header, login, and expanded navigation. PNG, JPEG, or WebP up to 2 MB." slot="logo" stored={data.overrides?.logo} effectiveUrl={data.effective.logoUrl} inherited={scope === "project" && !data.overrides?.logo} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
-          <BrandingAssetField label="Compact logo" hint="Collapsed sidebar and compact navigation." slot="compactLogo" stored={data.overrides?.compactLogo} effectiveUrl={data.effective.compactLogoUrl} inherited={scope === "project" && !data.overrides?.compactLogo} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
-          <BrandingAssetField label="Favicon" hint="Browser tab icon; a square image works best." slot="favicon" stored={data.overrides?.favicon} effectiveUrl={data.effective.faviconUrl} inherited={scope === "project" && !data.overrides?.favicon} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
+          <BrandingAssetField readOnly={readOnly} label="Primary logo" hint="Header, login, and expanded navigation. PNG, JPEG, or WebP up to 2 MB." slot="logo" stored={data.overrides?.logo} effectiveUrl={data.effective.logoUrl} inherited={scope === "project" && !data.overrides?.logo} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
+          <BrandingAssetField readOnly={readOnly} label="Compact logo" hint="Collapsed sidebar and compact navigation." slot="compactLogo" stored={data.overrides?.compactLogo} effectiveUrl={data.effective.compactLogoUrl} inherited={scope === "project" && !data.overrides?.compactLogo} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
+          <BrandingAssetField readOnly={readOnly} label="Favicon" hint="Browser tab icon; a square image works best." slot="favicon" stored={data.overrides?.favicon} effectiveUrl={data.effective.faviconUrl} inherited={scope === "project" && !data.overrides?.favicon} busy={uploadMutation.isPending || resetAssetMutation.isPending} onUpload={upload} onReset={resetAsset} />
         </div>
       </div>
     </section>

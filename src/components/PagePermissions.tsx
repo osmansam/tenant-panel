@@ -1,15 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoCheckmark, IoCloseOutline } from "react-icons/io5";
-import { toast } from "react-toastify";
 import { CheckSwitch } from "../common/CheckSwitch";
-import { PageModel, useGetTenantPages, useUpdatePage } from "../utils/api/page";
+import { PageModel, useGetTenantPagesQuery, useUpdatePage } from "../utils/api/page";
 import { useRoleItems } from "../utils/api/roleInfo";
-import GenericTable from "./panelComponents/Tables/GenericTable";
-import SwitchButton from "./panelComponents/common/SwitchButton";
+import DataTable from "./panelComponents/Tables/DataTable";
+import { EmptyState, ResourceLoading } from "./ui";
+import { GenericButton } from "./panelComponents/FormElements/GenericButton";
 
 interface PagePermissionsProps {
   projectId?: string;
+  pageId?: string;
+  readOnly?: boolean;
 }
 
 interface PageRow {
@@ -23,14 +25,14 @@ interface PageRow {
   icon?: string;
 }
 
-const PagePermissions = ({ projectId }: PagePermissionsProps) => {
+const PagePermissions = ({ projectId, pageId, readOnly = false }: PagePermissionsProps) => {
   const { t } = useTranslation();
   const [isEnableEdit, setIsEnableEdit] = useState(false);
 
   // Fetch roles and pages data
   const { data: roleItems = [] } = useRoleItems();
-  const pages = useGetTenantPages();
-  const { updatePage } = useUpdatePage();
+  const { data: pages, isLoading, error, refetch } = useGetTenantPagesQuery();
+  const { updatePage, isUpdating } = useUpdatePage();
 
   // Convert pages array to flat array for table display
   const pageRows = useMemo(() => {
@@ -63,8 +65,8 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
     };
 
     flattenPages(pages);
-    return rows;
-  }, [pages]);
+    return pageId ? rows.filter((row) => row.pageId === pageId) : rows;
+  }, [pages, pageId]);
 
   // Handle isAuthenticated toggle
   const handleIsAuthenticatedToggle = useCallback(
@@ -86,7 +88,6 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         payload: finalPayload,
       });
 
-      toast.success(t("Page authentication updated successfully"));
     },
     [updatePage, t, pages]
   );
@@ -112,7 +113,6 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         },
       });
 
-      toast.success(t("Page authorization updated successfully"));
     },
     [updatePage, t, pages]
   );
@@ -135,7 +135,6 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         },
       });
 
-      toast.success(t("Page group status updated successfully"));
     },
     [updatePage, t, pages]
   );
@@ -170,7 +169,6 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         },
       });
 
-      toast.success(t("Page permissions updated successfully"));
     },
     [updatePage, t, pages]
   );
@@ -197,51 +195,57 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
       {
         key: "slug",
         node: (row: PageRow) => (
-          <span className="text-sm text-gray-600 font-mono">{row.slug}</span>
+          <span className="text-sm text-ui-muted font-mono">{row.slug}</span>
         ),
       },
       {
         key: "isGroupOnly",
         node: (row: PageRow) => {
-          return isEnableEdit ? (
+          return isEnableEdit && !readOnly ? (
             <CheckSwitch
+              disabled={isUpdating}
+              ariaLabel={`${t("Navigation group")}: ${row.pageName}`}
               checked={!!row.isGroupOnly}
               onChange={() => handleIsGroupOnlyToggle(row)}
             />
           ) : row.isGroupOnly ? (
-            <IoCheckmark className="text-purple-500 text-2xl" />
+            <IoCheckmark role="img" aria-label={t("Enabled")} className="text-purple-500 text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline role="img" aria-label={t("Disabled")} className="text-ui-danger text-2xl" />
           );
         },
       },
       {
         key: "isAuthenticated",
         node: (row: PageRow) => {
-          return isEnableEdit ? (
+          return isEnableEdit && !readOnly ? (
             <CheckSwitch
+              disabled={isUpdating}
+              ariaLabel={`${t("Sign-in required")}: ${row.pageName}`}
               checked={!!row.isAuthenticated}
               onChange={() => handleIsAuthenticatedToggle(row)}
             />
           ) : row.isAuthenticated ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark role="img" aria-label={t("Enabled")} className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline role="img" aria-label={t("Disabled")} className="text-ui-danger text-2xl" />
           );
         },
       },
       {
         key: "isAuthorized",
         node: (row: PageRow) => {
-          return isEnableEdit ? (
+          return isEnableEdit && !readOnly ? (
             <CheckSwitch
+              disabled={isUpdating}
+              ariaLabel={`${t("Role restrictions")}: ${row.pageName}`}
               checked={!!row.isAuthorized}
               onChange={() => handleIsAuthorizedToggle(row)}
             />
           ) : row.isAuthorized ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark role="img" aria-label={t("Enabled")} className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline role="img" aria-label={t("Disabled")} className="text-ui-danger text-2xl" />
           );
         },
       },
@@ -258,21 +262,23 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         node: (row: PageRow) => {
           // If not authorized, show disabled state
           if (!row.isAuthorized) {
-            return <span className="text-gray-300">-</span>;
+            return <span className="text-ui-placeholder">-</span>;
           }
 
           const authorizeRoles = row.authorizeRole || [];
           const hasRolePermission = authorizeRoles.includes(roleId);
 
-          return isEnableEdit ? (
+          return isEnableEdit && !readOnly ? (
             <CheckSwitch
+              disabled={isUpdating}
+              ariaLabel={`${roleName}: ${row.pageName}`}
               checked={hasRolePermission}
               onChange={() => handlePageRolePermission(row, roleId)}
             />
           ) : hasRolePermission ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark role="img" aria-label={t("Enabled")} className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline role="img" aria-label={t("Disabled")} className="text-ui-danger text-2xl" />
           );
         },
       });
@@ -283,6 +289,8 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
     t,
     roleItems,
     isEnableEdit,
+    isUpdating,
+    readOnly,
     handleIsGroupOnlyToggle,
     handleIsAuthenticatedToggle,
     handleIsAuthorizedToggle,
@@ -295,26 +303,24 @@ const PagePermissions = ({ projectId }: PagePermissionsProps) => {
         label: t("Enable Edit"),
         isUpperSide: true,
         node: (
-          <SwitchButton checked={isEnableEdit} onChange={setIsEnableEdit} />
+          <CheckSwitch ariaLabel={t("Enable Edit")} checked={isEnableEdit} disabled={isUpdating} onChange={() => setIsEnableEdit((value) => !value)} />
         ),
       },
     ],
-    [t, isEnableEdit]
+    [t, isEnableEdit, isUpdating]
   );
 
-  if (!pages) {
-    return <div className="p-4">{t("Loading...")}</div>;
-  }
+  if (isLoading) return <ResourceLoading label={t("Loading page permissions")} />;
+  if (error) return <EmptyState role="alert" title={t("Page permissions could not be loaded")} description={t("Check your connection and try again.")} action={<GenericButton variant="outline" onClick={() => { void refetch(); }}>{t("Try again")}</GenericButton>} />;
 
   return (
     <div className="w-full h-full">
-      <GenericTable
+      <DataTable
         rowKeys={rowKeys}
         columns={columns}
         rows={pageRows}
-        filters={filters}
+        filters={readOnly ? [] : filters}
         title={t("Page Permissions")}
-        isActionsActive={false}
         isSearch={true}
       />
     </div>

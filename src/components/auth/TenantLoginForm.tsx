@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   TenantLoginCredentials,
@@ -16,28 +16,39 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
+  const formRef = useRef<HTMLFormElement>(null);
+  const focusInvalidRef = useRef(false);
   const [credentials, setCredentials] = useState<TenantLoginCredentials>({
     email: "",
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState<Partial<TenantLoginCredentials>>({});
+
+  useLayoutEffect(() => {
+    if (!focusInvalidRef.current) return;
+    focusInvalidRef.current = false;
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errors]);
 
   const { tenantLogin } = useTenantLogin(undefined, (error) => {
     setIsLoading(false);
+    setSubmitError(t("We could not sign you in. Check your details and try again."));
     if (onError) onError(error);
   });
 
   const { initiateGoogleLogin } = useGoogleLogin((error) => {
+    setSubmitError(t("Google sign-in could not be started. Please try again."));
     if (onError) onError(error);
   });
 
   const validateForm = (): boolean => {
     const newErrors: Partial<TenantLoginCredentials> = {};
 
-    if (!credentials.email) {
+    if (!credentials.email.trim()) {
       newErrors.email = t("Email is required");
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email.trim())) {
       newErrors.email = t("Please enter a valid email address");
     }
 
@@ -53,11 +64,16 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (isLoading) return;
+    setSubmitError("");
+    if (!validateForm()) {
+      focusInvalidRef.current = true;
+      return;
+    }
 
     setIsLoading(true);
     setErrors({});
-    tenantLogin(credentials);
+    tenantLogin({ ...credentials, email: credentials.email.trim() });
   };
 
   const handleGoogleLogin = () => {
@@ -66,6 +82,8 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
 
   const handleInputChange =
     (field: keyof TenantLoginCredentials) => (value: string) => {
+      setSubmitError("");
+      setErrors((previous) => ({ ...previous, [field]: undefined }));
       setCredentials((prev) => ({
         ...prev,
         [field]: value,
@@ -75,16 +93,23 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
   return (
     <div className="w-full">
       <form
+        ref={formRef}
+        noValidate
+        aria-label={t("Sign in")}
+        aria-describedby={submitError ? "tenant-auth-error" : undefined}
         data-testid="tenant-login-form"
         aria-busy={isLoading}
         onSubmit={handleSubmit}
         className="space-y-4"
       >
+        {submitError && <p id="tenant-auth-error" role="alert" className="rounded-ui-md border border-ui-danger/20 bg-ui-danger-subtle p-3 text-sm leading-5 text-ui-danger">{submitError}</p>}
         <TextInput
           label={t("Email")}
           value={credentials.email}
           onChange={handleInputChange("email")}
           type="email"
+          name="email"
+          autoComplete="username"
           placeholder={t("Enter your email")}
           requiredField={true}
           disabled={isLoading}
@@ -98,6 +123,8 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
           value={credentials.password}
           onChange={handleInputChange("password")}
           type="password"
+          name="password"
+          autoComplete="current-password"
           placeholder={t("Enter your password")}
           requiredField={true}
           disabled={isLoading}
@@ -107,7 +134,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
 
         <GenericButton
           type="submit"
-          disabled={isLoading || !credentials.email || !credentials.password}
+          disabled={isLoading}
           isLoading={isLoading}
           fullWidth
           data-primary-action="true"
@@ -131,6 +158,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({
         <GenericButton
           type="button"
           onClick={handleGoogleLogin}
+          disabled={isLoading}
           variant="outline"
           fullWidth
           className="mt-4"

@@ -21,6 +21,36 @@ export const axiosClient = axios.create({
 export const ACCESS_TOKEN = "jwt";
 let refreshPromise: Promise<unknown> | null = null;
 
+export function selectManagementRefreshPath(requestUrl?: string): string | null {
+  if (!requestUrl) return null;
+  let pathname: string;
+  try {
+    pathname = new URL(requestUrl, "http://tenant-panel.local").pathname;
+  } catch {
+    return null;
+  }
+  const apiPrefix = "/api/v1";
+  if (pathname === apiPrefix) return null;
+  if (pathname.startsWith(`${apiPrefix}/`)) pathname = pathname.slice(apiPrefix.length);
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.includes("refresh") || segments.length === 0) return null;
+  if (segments[0] === "tenant") return "/tenant/auth/refresh";
+  if (segments.length >= 3 && segments[2] !== "auth" && segments[2] !== "tenant-auth") {
+    return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
+  }
+  return null;
+}
+
+export function shouldAttemptManagementRefresh(
+  responseStatus: number | undefined,
+  responseStatusCode: number | undefined,
+  requestUrl: string | undefined,
+  alreadyRetried = false,
+): boolean {
+  const isUnauthorized = responseStatus === 401 || responseStatusCode === 401;
+  return isUnauthorized && !alreadyRetried && selectManagementRefreshPath(requestUrl) !== null;
+}
+
 axiosClient.interceptors.response.use(
   (response) => {
     if (response.data) response.data = toCamelCase(response.data);
@@ -28,14 +58,19 @@ axiosClient.interceptors.response.use(
   },
   async (error) => {
     const request = error.config;
-    const is401 = error?.response?.status === 401 || error?.response?.data?.statusCode === 401;
-    if (!is401 || request?._retry || request?.url?.includes("/tenant/auth/refresh")) {
+    const refreshPath = selectManagementRefreshPath(request?.url);
+    if (!shouldAttemptManagementRefresh(
+      error?.response?.status,
+      error?.response?.data?.statusCode,
+      request?.url,
+      request?._retry,
+    ) || !refreshPath) {
       return Promise.reject(error);
     }
     request._retry = true;
     try {
       refreshPromise ??= axios.post(
-        `${import.meta.env.VITE_API_URL}/tenant/auth/refresh`,
+        `${import.meta.env.VITE_API_URL}${refreshPath}`,
         undefined,
         { withCredentials: true },
       ).finally(() => { refreshPromise = null; });

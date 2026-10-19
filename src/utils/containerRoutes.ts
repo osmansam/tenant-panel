@@ -18,6 +18,11 @@ export type CanonicalContainerRoutes = Record<
   CanonicalContainerRouteSpec
 >;
 
+// Dynamic function execution is paused in the backend. Keep its saved route
+// metadata, but exclude it from route displays and bulk permission changes.
+export const isContainerRouteAvailable = (routeName: string): boolean =>
+  routeName.toLowerCase() !== "executedynamiccode";
+
 const normalizeAccessRule = (
   rule: Record<string, any>,
 ): RecordAccessRule => {

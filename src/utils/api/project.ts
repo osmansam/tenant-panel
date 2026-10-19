@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { axiosClient } from "./axiosClient";
-import { useGet, useMutationApi } from "./factory";
+import { useGet, useGetQuery, useMutationApi } from "./factory";
 import type { BrandingOverrides } from "../../types/branding";
 
 // Project types - Updated to match API response
@@ -77,19 +77,23 @@ const projectSortFunction = (a: Partial<Project>, b: Partial<Project>) => {
 
 // React Query hooks using factory pattern
 export function useProjects(enabled: boolean = true) {
-  const response = useGet<{
+  return useProjectsQuery(enabled).data;
+}
+
+export function useProjectsQuery(enabled: boolean = true) {
+  const response = useGetQuery<{
     status: number;
     message: string;
     data: { projects: Project[] };
   }>(BASE_QUERY, QUERY_KEY, enabled);
 
   // Extract projects array from nested response structure and map id to _id for factory compatibility
-  const projects = response?.data?.projects || [];
-  return projects.map((project) => ({
+  const projects = response.data?.data?.projects || [];
+  return { ...response, data: projects.map((project) => ({
     ...project,
     id: getProjectId(project),
     _id: getProjectId(project),
-  }));
+  })) };
 }
 
 export function useProject(id: string, enabled: boolean = true) {
@@ -154,7 +158,7 @@ export function useCreateProject() {
 
   return {
     createProject: (payload: CreateProjectPayload) => {
-      createMutation.mutate(payload);
+      return createMutation.mutateAsync(payload);
     },
     isCreating: createMutation.isPending,
   };

@@ -11,8 +11,8 @@ const SwitchButton = ({ checked, onChange }: Props) => {
       checked={checked}
       onChange={() => onChange((value) => !value)}
       className={`${
-        checked ? "bg-blue-600" : "bg-gray-300"
-      } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+        checked ? "bg-ui-ink" : "bg-ui-border-strong"
+      } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ui-focus focus:ring-offset-2`}
     >
       <span
         aria-hidden="true"

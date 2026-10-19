@@ -1,0 +1,134 @@
+- generic [ref=f29e1]:
+  - generic [ref=f29e4]:
+    - link "Skip to content" [ref=f29e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary "Workspace navigation" [ref=f29e6]:
+      - generic [ref=f29e8]:
+        - generic [ref=f29e13]:
+          - generic [ref=f29e14]: Tenant Panel
+          - paragraph [ref=f29e15]: alex
+        - button "Collapse Sidebar" [expanded] [ref=f29e16] [cursor=pointer]
+      - generic [ref=f29e19]:
+        - generic [ref=f29e21]:
+          - generic [ref=f29e22]: Current Project
+          - generic [ref=f29e28]: Operations Workspace
+          - button "Back to Tenant" [ref=f29e29] [cursor=pointer]
+        - navigation "Main navigation" [ref=f29e33]:
+          - button "Dashboard" [ref=f29e34] [cursor=pointer]
+          - button "Collections" [ref=f29e40] [cursor=pointer]
+          - button "Pages" [ref=f29e46] [cursor=pointer]
+          - button "Localization" [ref=f29e52] [cursor=pointer]
+          - button "Integrations" [ref=f29e58] [cursor=pointer]
+          - button "Settings" [ref=f29e64] [cursor=pointer]
+        - button "Logout" [ref=f29e71] [cursor=pointer]
+    - main [ref=f29e78]:
+      - generic [ref=f29e79]:
+        - generic [ref=f29e80]:
+          - generic [ref=f29e81]:
+            - heading "Operations Workspace" [level=1] [ref=f29e82]
+            - generic [ref=f29e83]: operations
+            - generic [ref=f29e84]: Active
+          - generic [ref=f29e85]:
+            - generic [ref=f29e86]: "Role:"
+            - generic [ref=f29e87]: Project developer
+        - generic [ref=f29e88]:
+          - tablist "Pages sections" [ref=f29e89]:
+            - tab "Pages" [selected] [ref=f29e90] [cursor=pointer]
+            - tab "Audit Logs" [ref=f29e91] [cursor=pointer]
+          - tabpanel "Pages" [ref=f29e92]:
+            - region "Pages" [ref=f29e93]:
+              - generic [ref=f29e94]:
+                - generic [ref=f29e95]:
+                  - heading "Pages" [level=2] [ref=f29e96]
+                  - generic [ref=f29e97]: Manage project page views, navigation, and layouts
+                - group "Page actions" [ref=f29e98]:
+                  - button "Create with JSON" [ref=f29e99] [cursor=pointer]
+                  - button "Create Page" [ref=f29e107] [cursor=pointer]
+              - generic [ref=f29e113]:
+                - generic [ref=f29e114]:
+                  - generic [ref=f29e115]: "1"
+                  - generic [ref=f29e116]: Total Pages
+                - generic [ref=f29e118]:
+                  - generic [ref=f29e119]: "0"
+                  - generic [ref=f29e120]: Public Pages
+                - generic [ref=f29e122]:
+                  - generic [ref=f29e123]: "1"
+                  - generic [ref=f29e124]: Auth Pages
+                - generic [ref=f29e126]:
+                  - generic [ref=f29e127]: "0"
+                  - generic [ref=f29e128]: Total Sections
+              - generic [ref=f29e129]:
+                - searchbox "Search pages" [ref=f29e131]
+                - generic [ref=f29e133]:
+                  - log [ref=f29e135]
+                  - generic [ref=f29e137] [cursor=pointer]:
+                    - generic [ref=f29e138]: All page types
+                    - combobox "Page access filter" [ref=f29e139]
+                - status [ref=f29e144]: 1 of 1 pages
+              - generic [ref=f29e145]:
+                - generic [ref=f29e146]:
+                  - generic [ref=f29e147]: Page / Slug
+                  - generic [ref=f29e148]: Hierarchy & Actions
+                - generic [ref=f29e149] [cursor=pointer]:
+                  - generic [ref=f29e150]:
+                    - generic [ref=f29e151]:
+                      - heading [level=3] [ref=f29e156]:
+                        - 'button "View page details: Overview" [ref=f29e157]': Overview
+                      - generic [ref=f29e158]: /overview
+                      - generic [ref=f29e159]: Authenticated
+                    - generic [ref=f29e160]:
+                      - generic [ref=f29e161]: 0 sections
+                      - generic [ref=f29e162]: •
+                      - generic [ref=f29e163]: No role restrictions
+                  - generic [ref=f29e164]:
+                    - generic [ref=f29e165]:
+                      - generic [ref=f29e167]:
+                        - log [ref=f29e169]
+                        - generic [ref=f29e171]:
+                          - generic [ref=f29e172]: No parent
+                          - 'combobox "Parent page: Overview" [ref=f29e173]'
+                      - generic [ref=f29e178]:
+                        - generic [ref=f29e179]:
+                          - checkbox "Sidebar" [checked] [ref=f29e180]
+                          - generic [ref=f29e181]: Sidebar
+                        - generic [ref=f29e183]:
+                          - checkbox "Main" [ref=f29e184]
+                          - generic [ref=f29e185]: Main
+                    - generic [ref=f29e187]:
+                      - button "Edit" [ref=f29e188]
+                      - button "Preview" [ref=f29e192]
+                      - 'button "More options: Overview" [ref=f29e197]'
+  - dialog [ref=f29e202]:
+    - generic [ref=f29e203]:
+      - banner [ref=f29e204]:
+        - generic [ref=f29e206]:
+          - generic [ref=f29e211]:
+            - heading "Overview browser draft" [level=1] [ref=f29e212]
+            - status [ref=f29e213]: Unsaved changes
+          - tablist "Page editor sections" [ref=f29e214]:
+            - tab "Content" [ref=f29e215] [cursor=pointer]
+            - tab "Navigation" [ref=f29e218] [cursor=pointer]
+            - tab "Page settings" [selected] [ref=f29e221] [cursor=pointer]
+          - generic [ref=f29e225]:
+            - button "Cancel" [ref=f29e226] [cursor=pointer]
+            - button "Save Page" [ref=f29e230] [cursor=pointer]
+      - tabpanel "Page settings" [ref=f29e235]:
+        - generic [ref=f29e236]:
+          - generic [ref=f29e237]:
+            - heading "Page settings" [level=2] [ref=f29e238]
+            - paragraph [ref=f29e239]: Edit the identity shown in project navigation.
+          - generic [ref=f29e240]:
+            - generic [ref=f29e241]:
+              - generic [ref=f29e242]:
+                - text: Page Name
+                - textbox "Page Name" [active] [ref=f29e243]: Overview browser draft
+              - generic [ref=f29e244]:
+                - text: Page Icon
+                - generic [ref=f29e251]:
+                  - log [ref=f29e253]
+                  - generic [ref=f29e255] [cursor=pointer]:
+                    - generic [ref=f29e256]: Dashboard (MdSpaceDashboard)
+                    - combobox "Page Icon" [ref=f29e258]
+            - generic [ref=f29e263]:
+              - generic [ref=f29e264]: Page URL
+              - generic [ref=f29e265]: /overview

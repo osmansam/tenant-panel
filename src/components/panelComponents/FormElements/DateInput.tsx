@@ -1,4 +1,3 @@
-import { TextField } from "@mui/material";
 import { tr } from "date-fns/locale";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
@@ -9,6 +8,7 @@ import "react-day-picker/dist/style.css";
 import { FaRegCalendar } from "react-icons/fa";
 import { IoIosArrowBack, IoIosArrowForward, IoIosClose } from "react-icons/io";
 import ReactInputMask from "react-input-mask";
+import { Button, Input } from "../../ui";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
 import { getDatePickerPopupPosition } from "../../../utils/datePickerPosition";
@@ -60,7 +60,6 @@ export default function DateInput({
   const [inputText, setInputText] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [month, setMonth] = useState(new Date());
-  const [hasError, setHasError] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -199,7 +198,7 @@ export default function DateInput({
       {!hideLabel && label && (
         <H6 className="min-w-10">
           {label}
-          {requiredField && <span className="text-red-400">*</span>}
+          {requiredField && <span className="text-ui-danger">*</span>}
         </H6>
       )}
 
@@ -225,43 +224,42 @@ export default function DateInput({
               maskChar: "",
               value: inputText,
               onChange: handleChange,
-              onFocus: () => setShowCalendar(true),
+              onFocus: () => {
+                if (!disabled && !isReadOnly) setShowCalendar(true);
+              },
               disabled: disabled,
+              readOnly: isReadOnly,
               children: (inputProps: any) => (
-                <TextField
+                <Input
                   {...inputProps}
                   id={id}
                   name={name}
                   placeholder={placeholder}
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  error={hasError || Boolean(ariaInvalid)}
-                  inputProps={{
-                    "aria-describedby": ariaDescribedBy,
-                    "aria-invalid": ariaInvalid,
-                  }}
-                  InputProps={{
-                    readOnly: isReadOnly,
-                    style: {
-                      fontSize: "14px",
-                      backgroundColor: disabled ? "#f5f5f5" : "white",
-                    },
-                  }}
+                  required={requiredField}
+                  invalid={Boolean(ariaInvalid)}
+                  aria-describedby={ariaDescribedBy}
+                  className="w-full pr-10"
                 />
               ),
             })}
 
-            <FaRegCalendar
-              className="absolute right-3 cursor-pointer text-gray-500"
+            <Button
+              type="button"
+              variant="icon"
+              size="sm"
+              disabled={disabled || isReadOnly}
+              aria-label={`Open ${label || "date"} calendar`}
               onClick={() => setShowCalendar((v) => !v)}
-            />
+              className="absolute right-1 text-ui-muted shadow-none"
+            >
+              <FaRegCalendar aria-hidden="true" />
+            </Button>
 
             {showCalendar &&
               createPortal(
               <div
                 ref={popupRef}
-                className="fixed z-[100000] bg-white shadow-xl rounded-md border border-neutral-200 p-2"
+                className="fixed z-[100000] bg-white shadow-xl rounded-md border border-ui-border p-2"
                 style={{ left: popupPosition.left, top: popupPosition.top }}
               >
                 <DayPicker
@@ -299,7 +297,7 @@ export default function DateInput({
             aria-label={`Clear ${label || "date"}`}
             onClick={handleClear}
             variant="icon"
-            className="w-8 h-8 text-gray-500 hover:text-red-700"
+            className="w-8 h-8 text-ui-muted hover:text-ui-danger"
           >
             <IoIosClose />
           </GenericButton>

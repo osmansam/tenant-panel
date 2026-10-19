@@ -52,7 +52,7 @@ export function Field({
   };
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5 font-ui", className)} {...props}>
+    <div className={cn("flex min-w-0 flex-col gap-2 font-ui", className)} {...props}>
       <Label htmlFor={controlId}>
         {label}
         {required ? (

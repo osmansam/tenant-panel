@@ -60,7 +60,7 @@ export function buildAuditLogsPath(
   projectSlug: string,
   suffix = ""
 ) {
-  return `/${tenantSlug}/${projectSlug}/audit-logs${suffix}`;
+  return `/${tenantSlug}/${projectSlug}/admin/audit-logs${suffix}`;
 }
 
 function buildQueryString(filters?: FormElementsState) {

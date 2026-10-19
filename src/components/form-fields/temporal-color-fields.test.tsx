@@ -36,6 +36,10 @@ describe("date, time, month-year, and color fields", () => {
       "aria-describedby",
       "delivery-date-description delivery-date-error",
     );
+    expect(input).toHaveAttribute("data-control-size", "md");
+    expect(
+      screen.getByRole("button", { name: "Open Delivery date calendar" }),
+    ).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "09/23/2026" } });
     expect(onChange).toHaveBeenCalledWith("2026-09-23");
@@ -84,6 +88,10 @@ describe("date, time, month-year, and color fields", () => {
     );
     expect(screen.getByText("12")).toBeVisible();
     expect(screen.getByText("45")).toBeVisible();
+    expect(screen.getByLabelText("Hour").closest("[data-control-size]"))?.toHaveAttribute(
+      "data-control-size",
+      "md",
+    );
     await user.click(screen.getByLabelText("Hour"));
     await user.click(screen.getByText("13"));
     expect(nativeChange).toHaveBeenLastCalledWith("13:45");
@@ -99,6 +107,10 @@ describe("date, time, month-year, and color fields", () => {
         value="09-2026"
         onChange={onChange}
       />,
+    );
+    expect(screen.getByLabelText("Month").closest("[data-control-size]"))?.toHaveAttribute(
+      "data-control-size",
+      "md",
     );
     await user.click(screen.getByLabelText("Month"));
     await user.click(screen.getByText("10"));

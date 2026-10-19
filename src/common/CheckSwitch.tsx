@@ -24,9 +24,9 @@ export function CheckSwitch({
       aria-label={ariaLabel}
       disabled={disabled}
       className={`${
-        checked ? checkedBg || "bg-blue-500" : uncheckedBg || "bg-gray-500"
+        checked ? checkedBg || "bg-ui-primary" : uncheckedBg || "bg-ui-border-strong"
       }
-       min-w-[36px] relative inline-flex h-[20px] w-[36px] border-[1px] rounded-full border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+       ui-focus-ring min-w-[36px] relative inline-flex h-[20px] w-[36px] border-[1px] rounded-full border-transparent transition-colors duration-200 ease-in-out before:absolute before:-inset-x-1 before:-inset-y-2 ${
          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
        }`}
     >

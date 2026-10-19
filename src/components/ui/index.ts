@@ -3,10 +3,19 @@ export type { ButtonProps, ButtonSize, ButtonVariant } from "./button";
 export { Checkbox } from "./checkbox";
 export type { CheckboxProps } from "./checkbox";
 export { Input } from "./input";
-export type { InputProps } from "./input";
+export type { ControlSize, InputProps } from "./input";
 export { Label } from "./label";
 export { Textarea } from "./textarea";
 export type { TextareaProps } from "./textarea";
+export { Select, normalizeSelectSearch } from "./select";
+export type {
+  SelectChangeMeta,
+  SelectMultiValue,
+  LegacySelectProps,
+  SelectOption,
+  SelectProps,
+  SelectSingleValue,
+} from "./select";
 export { WorkspaceDialog } from "./workspace-dialog";
 export type { WorkspaceDialogProps } from "./workspace-dialog";
 export { PageActions, PageHeader, PageShell } from "./page-shell";
@@ -47,3 +56,5 @@ export type {
   DropdownMenuProps,
   DropdownMenuTriggerProps,
 } from "./dropdown-menu";
+
+export { ResourceLoading } from "./resource-loading";

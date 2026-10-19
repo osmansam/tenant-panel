@@ -41,7 +41,7 @@ describe("ProjectManagementPage", () => {
     expect(heading).toBeInTheDocument();
     expect(heading.closest("header")).toBeInTheDocument();
     expect(screen.getByText("Active")).toHaveAttribute("data-variant", "success");
-    expect(screen.getByText("project_developer")).toBeInTheDocument();
+    expect(screen.getByText("Project developer")).toBeInTheDocument();
     expect(screen.getByRole("main")).toContainElement(
       screen.getByRole("region", { name: "Collections" }),
     );
@@ -57,11 +57,10 @@ describe("ProjectManagementPage", () => {
 
     const heading = screen.getByRole("heading", { name: "Demo Project" });
     const header = heading.closest("header");
-    const slug = screen.getByText("demo");
-    const status = screen.getByText("Active");
 
-    expect(header?.parentElement).toHaveClass("py-3", "sm:py-3");
-    expect(slug.parentElement).toBe(heading.parentElement);
-    expect(status.parentElement).toBe(heading.parentElement);
+    expect(header).toBeInTheDocument();
+    expect(header).toContainElement(screen.getByText("demo"));
+    expect(header).toContainElement(screen.getByText("Active"));
+    expect(header).toContainElement(screen.getByText("Project developer"));
   });
 });

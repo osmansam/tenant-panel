@@ -1,0 +1,101 @@
+- generic [ref=f14e1]:
+  - generic [ref=f14e4]:
+    - link "Skip to content" [ref=f14e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary "Workspace navigation" [ref=f14e6]:
+      - generic [ref=f14e8]:
+        - generic [ref=f14e13]:
+          - generic [ref=f14e14]: Tenant Panel
+          - paragraph [ref=f14e15]: alex
+        - button "Collapse Sidebar" [expanded] [ref=f14e16] [cursor=pointer]
+      - generic [ref=f14e19]:
+        - navigation "Main navigation" [ref=f14e20]:
+          - button "Dashboard" [ref=f14e21] [cursor=pointer]
+          - button "Projects" [ref=f14e27] [cursor=pointer]
+          - button "Settings" [ref=f14e33] [cursor=pointer]
+        - button "Logout" [ref=f14e40] [cursor=pointer]
+    - main [ref=f14e47]:
+      - generic [ref=f14e48]:
+        - generic [ref=f14e49]:
+          - generic [ref=f14e50]:
+            - heading "Projects 3" [level=1] [ref=f14e51]:
+              - generic [ref=f14e52]:
+                - text: Projects
+                - generic [ref=f14e53]: "3"
+            - generic [ref=f14e54]: Choose a workspace to manage its data, pages, and integrations.
+          - group "Page actions" [ref=f14e55]:
+            - button "New Project" [ref=f14e56] [cursor=pointer]
+        - generic [ref=f14e60]:
+          - search "Find a project" [ref=f14e61]:
+            - searchbox "Search projects" [ref=f14e63]
+            - generic [ref=f14e64]:
+              - generic [ref=f14e66]:
+                - log [ref=f14e68]
+                - generic [ref=f14e70] [cursor=pointer]:
+                  - generic [ref=f14e71]: All statuses
+                  - combobox "Project status" [ref=f14e72]
+              - generic [ref=f14e78]:
+                - log [ref=f14e80]
+                - generic [ref=f14e82] [cursor=pointer]:
+                  - generic [ref=f14e83]: Newest first
+                  - combobox "Sort projects" [ref=f14e84]
+          - paragraph [ref=f14e90]: Showing 3 of 3 projects
+        - generic [ref=f14e92]:
+          - article [ref=f14e93]:
+            - button "Switch to Operations Workspace" [ref=f14e94] [cursor=pointer]
+            - generic: OP
+            - generic:
+              - heading "Operations Workspace" [level=2]
+              - paragraph: /operations
+              - paragraph: Daily operations, team workflows, and internal data.
+            - group "Project actions" [ref=f14e95]:
+              - generic [ref=f14e96]:
+                - generic [ref=f14e97]: Active
+                - button "Open Operations Workspace in a new tab" [ref=f14e98] [cursor=pointer]: Open
+                - button "Make Template" [ref=f14e102] [cursor=pointer]
+              - time [ref=f14e103]: Oct 12
+          - article [ref=f14e104]:
+            - button "Switch to Customer Portal" [ref=f14e105] [cursor=pointer]
+            - generic: CU
+            - generic:
+              - heading "Customer Portal" [level=2]
+              - paragraph: /customers
+              - paragraph: A shared home for customers and account teams.
+            - group "Project actions" [ref=f14e106]:
+              - generic [ref=f14e107]:
+                - generic [ref=f14e108]: Active
+                - button "Open Customer Portal in a new tab" [ref=f14e109] [cursor=pointer]: Open
+                - button "Make Template" [ref=f14e113] [cursor=pointer]
+              - time [ref=f14e114]: Oct 8
+          - article [ref=f14e115]:
+            - button "Research Archive" [disabled] [ref=f14e116]
+            - generic: RE
+            - generic:
+              - heading "Research Archive" [level=2]
+              - paragraph: /research
+              - paragraph: Historical datasets and completed experiments.
+            - group "Project actions" [ref=f14e117]:
+              - generic [ref=f14e118]:
+                - generic [ref=f14e119]: Inactive
+                - button "Make Template" [ref=f14e120] [cursor=pointer]
+              - time [ref=f14e121]: Sep 1
+  - dialog [ref=f14e123]:
+    - banner [ref=f14e124]:
+      - generic [ref=f14e125]:
+        - heading "Create New Project" [level=2] [ref=f14e126]
+        - generic [ref=f14e127]: Set up a new project for your team
+      - button "Close dialog" [ref=f14e128] [cursor=pointer]
+    - generic [ref=f14e134]:
+      - generic [ref=f14e135]:
+        - generic [ref=f14e136]: Project Name *
+        - textbox "Project Name *" [active] [ref=f14e137]:
+          - /placeholder: Enter project name
+      - generic [ref=f14e138]:
+        - generic [ref=f14e139]: Project Slug (optional)
+        - textbox "Project Slug (optional)" [ref=f14e140]:
+          - /placeholder: auto-generated-slug
+        - paragraph [ref=f14e141]: If left blank, the slug is generated from the project name.
+    - contentinfo [ref=f14e142]:
+      - group [ref=f14e143]:
+        - button "Cancel" [ref=f14e144] [cursor=pointer]
+        - button "Create Project" [ref=f14e148] [cursor=pointer]

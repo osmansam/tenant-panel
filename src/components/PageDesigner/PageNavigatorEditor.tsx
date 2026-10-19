@@ -10,6 +10,7 @@ import {
 } from "./pageNavigatorEditorState";
 import { defaultPageNavigatorConfig, resolvePageNavigatorPreview } from "./pageNavigatorResolver";
 import { PageNavigatorPreview } from "./PageNavigatorPreview";
+import { Checkbox, Input, Select, type SelectOption } from "../ui";
 
 interface Props {
   value?: PageNavigatorConfig;
@@ -18,7 +19,23 @@ interface Props {
   onChange: (value: PageNavigatorConfig | undefined) => void;
 }
 
-const inputClass = "w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2 text-sm text-ui-foreground focus:outline-none focus:ring-2 focus:ring-ui-focus";
+type StringOption = SelectOption<string>;
+const ScalarSelect = ({ label, value, options, onChange }: {
+  label: string;
+  value: string;
+  options: readonly StringOption[];
+  onChange: (value: string) => void;
+}) => (
+  <Select<StringOption>
+    value={options.find((option) => option.value === value) || null}
+    options={options}
+    onChange={(selected) => {
+      const option = selected as StringOption | null;
+      if (option) onChange(option.value);
+    }}
+    aria-label={label}
+  />
+);
 
 export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: Props) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -40,7 +57,7 @@ export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: P
           <p className="mt-0.5 text-xs text-ui-muted">Show the current page hierarchy in the page header.</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ui-foreground">
-          <input type="checkbox" checked={config.enabled} onChange={(event) => update({ enabled: event.target.checked })} className="h-4 w-4 accent-neutral-900" />
+          <Checkbox checked={config.enabled} onChange={(event) => update({ enabled: event.target.checked })} />
           {config.enabled ? "Enabled" : "Disabled"}
         </label>
       </div>
@@ -48,25 +65,25 @@ export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: P
       {config.enabled && (
         <div className="space-y-5 border-t border-ui-border bg-ui-subtle/30 p-4 sm:p-5">
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1.5 text-sm font-medium text-neutral-700">Mode
-              <select className={inputClass} value={config.mode} onChange={(event) => update({ mode: event.target.value as PageNavigatorConfig["mode"] })}>
-                <option value="automatic">Automatic hierarchy</option>
-                <option value="custom">Custom trail</option>
-              </select>
+            <label className="space-y-1.5 text-sm font-medium text-ui-foreground">Mode
+              <ScalarSelect label="Mode" value={config.mode} options={[
+                { value: "automatic", label: "Automatic hierarchy" },
+                { value: "custom", label: "Custom trail" },
+              ]} onChange={(mode) => update({ mode: mode as PageNavigatorConfig["mode"] })} />
             </label>
-            <label className="space-y-1.5 text-sm font-medium text-neutral-700">Home label
-              <input className={inputClass} maxLength={100} value={config.homeLabel || ""} onChange={(event) => update({ homeLabel: event.target.value })} placeholder="Home" />
-              {errors.homeLabel && <span className="block text-xs text-red-600">{errors.homeLabel}</span>}
+            <label className="space-y-1.5 text-sm font-medium text-ui-foreground">Home label
+              <Input maxLength={100} value={config.homeLabel || ""} onChange={(event) => update({ homeLabel: event.target.value })} placeholder="Home" />
+              {errors.homeLabel && <span className="block text-xs text-ui-danger">{errors.homeLabel}</span>}
             </label>
-            <label className="flex items-center gap-2 self-end rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm font-medium text-neutral-700">
-              <input type="checkbox" checked={config.showHome} onChange={(event) => update({ showHome: event.target.checked })} className="h-4 w-4 accent-violet-600" />
+            <label className="flex items-center gap-2 self-end rounded-lg border border-ui-border bg-white px-3 py-2.5 text-sm font-medium text-ui-foreground">
+              <Checkbox checked={config.showHome} onChange={(event) => update({ showHome: event.target.checked })} />
               Show project home
             </label>
           </div>
 
           {config.mode === "automatic" && (
             <div>
-              <h4 className="text-sm font-semibold text-neutral-800">Generated hierarchy overrides</h4>
+              <h4 className="text-sm font-semibold text-ui-foreground">Generated hierarchy overrides</h4>
               <div className="mt-2 grid gap-2">
                 {resolvePageNavigatorPreview({ pages, currentPageId, config: { ...config, overrides: [] } }).filter((item) => !item.current && item.pageId).map((item) => {
                   const override = config.overrides?.find((candidate) => candidate.pageId === item.pageId);
@@ -74,10 +91,10 @@ export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: P
                     const others = (config.overrides || []).filter((candidate) => candidate.pageId !== item.pageId);
                     update({ overrides: [...others, { pageId: item.pageId!, ...override, ...patch }] });
                   };
-                  return <div key={item.pageId} className="grid items-center gap-2 rounded-lg border border-neutral-200 bg-white p-3 md:grid-cols-[1fr_1fr_auto]">
-                    <span className="text-sm font-medium text-neutral-700">{item.label}</span>
-                    <input className={inputClass} value={override?.label || ""} onChange={(event) => setOverride({ label: event.target.value })} placeholder="Custom label" maxLength={100} />
-                    <label className="flex items-center gap-2 text-xs font-medium text-neutral-600"><input type="checkbox" checked={Boolean(override?.hidden)} onChange={(event) => setOverride({ hidden: event.target.checked })} /> Hide</label>
+                  return <div key={item.pageId} className="grid items-center gap-2 rounded-lg border border-ui-border bg-white p-3 md:grid-cols-[1fr_1fr_auto]">
+                    <span className="text-sm font-medium text-ui-foreground">{item.label}</span>
+                    <Input aria-label={`${item.label} custom label`} value={override?.label || ""} onChange={(event) => setOverride({ label: event.target.value })} placeholder="Custom label" maxLength={100} />
+                    <label className="flex items-center gap-2 text-xs font-medium text-ui-muted"><Checkbox checked={Boolean(override?.hidden)} onChange={(event) => setOverride({ hidden: event.target.checked })} /> Hide</label>
                   </div>;
                 })}
               </div>
@@ -86,22 +103,22 @@ export function PageNavigatorEditor({ value, pages, currentPageId, onChange }: P
 
           <div>
             <div className="flex items-center justify-between">
-              <div><h4 className="text-sm font-semibold text-neutral-800">Additional links</h4><p className="text-xs text-neutral-500">Use project pages or safe external URLs.</p></div>
-              <button type="button" onClick={() => onChange(addPageNavigatorItem(config))} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-700"><FiPlus /> Add link</button>
+              <div><h4 className="text-sm font-semibold text-ui-foreground">Additional links</h4><p className="text-xs text-ui-muted">Use project pages or safe external URLs.</p></div>
+              <button type="button" onClick={() => onChange(addPageNavigatorItem(config))} className="inline-flex items-center gap-1.5 rounded-lg bg-ui-ink px-3 py-2 text-xs font-semibold text-white hover:bg-ui-ink"><FiPlus /> Add link</button>
             </div>
             <div className="mt-3 space-y-3">
               {items.map((item, index) => (
-                <div key={item.id} draggable onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedIndex !== null) onChange(movePageNavigatorItem(config, draggedIndex, index)); setDraggedIndex(null); }} className="rounded-xl border border-neutral-200 bg-white p-3">
+                <div key={item.id} draggable onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedIndex !== null) onChange(movePageNavigatorItem(config, draggedIndex, index)); setDraggedIndex(null); }} className="rounded-xl border border-ui-border bg-white p-3">
                   <div className="grid gap-3 lg:grid-cols-[auto_1fr_150px_1.5fr_auto] lg:items-start">
-                    <FiMenu className="mt-3 cursor-grab text-neutral-400" aria-hidden />
-                    <label className="space-y-1 text-xs font-medium text-neutral-600">Label<input className={inputClass} maxLength={100} value={item.label} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, label: event.target.value } : candidate) })} />{errors[`additionalItems.${index}.label`] && <span className="text-red-600">{errors[`additionalItems.${index}.label`]}</span>}</label>
-                    <label className="space-y-1 text-xs font-medium text-neutral-600">Type<select className={inputClass} value={item.destination.type} onChange={(event) => onChange(changePageNavigatorDestinationType(config, item.id, event.target.value as "page" | "external"))}><option value="page">Project page</option><option value="external">External URL</option></select></label>
-                    <label className="space-y-1 text-xs font-medium text-neutral-600">Destination
-                      {item.destination.type === "page" ? <select className={inputClass} value={item.destination.pageId} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, destination: { type: "page", pageId: event.target.value } } : candidate) })}><option value="">Select a page</option>{pages.filter((page) => page.id && page.id !== currentPageId).map((page) => <option key={page.id} value={page.id}>{page.name}</option>)}</select> : <input className={inputClass} value={item.destination.url} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, destination: { type: "external", url: event.target.value } } : candidate) })} placeholder="https://example.com" />}
-                      {errors[`additionalItems.${index}.destination`] && <span className="text-red-600">{errors[`additionalItems.${index}.destination`]}</span>}
-                      {item.destination.type === "external" && <span className="mt-1 flex items-center gap-1"><input type="checkbox" checked={Boolean(item.openInNewTab)} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, openInNewTab: event.target.checked } : candidate) })} /> Open in new tab</span>}
+                    <FiMenu className="mt-3 cursor-grab text-ui-placeholder" aria-hidden />
+                    <label className="space-y-1 text-xs font-medium text-ui-muted">Label<Input maxLength={100} value={item.label} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, label: event.target.value } : candidate) })} />{errors[`additionalItems.${index}.label`] && <span className="text-ui-danger">{errors[`additionalItems.${index}.label`]}</span>}</label>
+                    <label className="space-y-1 text-xs font-medium text-ui-muted">Type<ScalarSelect label={`Link ${index + 1} type`} value={item.destination.type} options={[{ value: "page", label: "Project page" }, { value: "external", label: "External URL" }]} onChange={(type) => onChange(changePageNavigatorDestinationType(config, item.id, type as "page" | "external"))} /></label>
+                    <label className="space-y-1 text-xs font-medium text-ui-muted">Destination
+                      {item.destination.type === "page" ? <ScalarSelect label={`Link ${index + 1} destination`} value={item.destination.pageId} options={[{ value: "", label: "Select a page" }, ...pages.filter((page) => page.id && page.id !== currentPageId).map((page) => ({ value: page.id!, label: page.name }))]} onChange={(pageId) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, destination: { type: "page", pageId } } : candidate) })} /> : <Input value={item.destination.url} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, destination: { type: "external", url: event.target.value } } : candidate) })} placeholder="https://example.com" />}
+                      {errors[`additionalItems.${index}.destination`] && <span className="text-ui-danger">{errors[`additionalItems.${index}.destination`]}</span>}
+                      {item.destination.type === "external" && <span className="mt-1 flex items-center gap-1"><Checkbox checked={Boolean(item.openInNewTab)} onChange={(event) => update({ additionalItems: items.map((candidate) => candidate.id === item.id ? { ...candidate, openInNewTab: event.target.checked } : candidate) })} /> Open in new tab</span>}
                     </label>
-                    <div className="flex gap-1 pt-5"><button type="button" aria-label="Move link up" disabled={index === 0} onClick={() => onChange(movePageNavigatorItem(config, index, index - 1))} className="rounded p-2 hover:bg-neutral-100 disabled:opacity-30"><FiArrowUp /></button><button type="button" aria-label="Move link down" disabled={index === items.length - 1} onClick={() => onChange(movePageNavigatorItem(config, index, index + 1))} className="rounded p-2 hover:bg-neutral-100 disabled:opacity-30"><FiArrowDown /></button><button type="button" aria-label="Remove link" onClick={() => onChange(removePageNavigatorItem(config, item.id))} className="rounded p-2 text-red-600 hover:bg-red-50"><FiTrash2 /></button></div>
+                    <div className="flex gap-1 pt-5"><button type="button" aria-label="Move link up" disabled={index === 0} onClick={() => onChange(movePageNavigatorItem(config, index, index - 1))} className="rounded p-2 hover:bg-ui-surface-subtle disabled:opacity-30"><FiArrowUp /></button><button type="button" aria-label="Move link down" disabled={index === items.length - 1} onClick={() => onChange(movePageNavigatorItem(config, index, index + 1))} className="rounded p-2 hover:bg-ui-surface-subtle disabled:opacity-30"><FiArrowDown /></button><button type="button" aria-label="Remove link" onClick={() => onChange(removePageNavigatorItem(config, item.id))} className="rounded p-2 text-ui-danger hover:bg-ui-danger-subtle"><FiTrash2 /></button></div>
                   </div>
                 </div>
               ))}

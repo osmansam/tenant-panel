@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { OptionType } from "../../../types";
 import { DynamicWorkflow } from "../../../utils/api/container";
 import { useRoleItems } from "../../../utils/api/roleInfo";
+import { ResponsiveActionBar, WorkspaceDialog, Textarea } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -64,6 +64,7 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
   editWorkflow = null,
 }) => {
   const { t } = useTranslation();
+  const jsonInputId = useId();
   const { data: roleItems = [] } = useRoleItems();
   const roleOptions: OptionType[] = useMemo(
     () => roleItems.map((role) => ({ value: role._id, label: role.name })),
@@ -186,20 +187,15 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={handleClose} />
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
-          <div className="mb-6 flex items-start justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {editWorkflow ? t("Edit Workflow") : t("Add New Workflow")}
-            </h3>
-            <button onClick={handleClose} className="text-gray-400 transition-colors hover:text-gray-600">
-              <FiX size={20} />
-            </button>
-          </div>
-
-          <div className="max-h-[70vh] space-y-6 overflow-y-auto">
+    <WorkspaceDialog
+      open={isOpen}
+      onClose={handleClose}
+      layer="nested"
+      className="max-w-4xl"
+      title={editWorkflow ? t("Edit Workflow") : t("Add New Workflow")}
+      footer={<ResponsiveActionBar><GenericButton variant="outline" onClick={handleClose}>{t("Cancel")}</GenericButton><GenericButton onClick={handleSubmit}>{editWorkflow ? t("Update Workflow") : t("Add Workflow")}</GenericButton></ResponsiveActionBar>}
+    >
+          <div className="space-y-6">
             <TextInput
               key={`workflow-name-${formKey}`}
               label={t("Workflow Name")}
@@ -315,12 +311,13 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
               ["Stop On Error", "Stop workflow execution when a step fails", "stopOnError"],
               ["Run In Transaction", "Run write workflow steps in a transaction", "runInTransaction"],
             ].map(([label, description, key]) => (
-              <div key={key} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+              <div key={key} className="flex items-center justify-between rounded-lg bg-ui-surface-subtle p-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">{t(label)}</label>
-                  <p className="text-xs text-gray-500">{t(description)}</p>
+                  <label className="text-sm font-medium text-ui-foreground">{t(label)}</label>
+                  <p className="text-xs text-ui-muted">{t(description)}</p>
                 </div>
                 <CheckSwitch
+                  ariaLabel={t(label)}
                   checked={Boolean((workflowData as any)[key])}
                   onChange={() =>
                     setWorkflowData({
@@ -375,31 +372,24 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
               ["Steps", stepsJson, setStepsJson, "steps"],
             ].map(([label, value, setter, key]) => (
               <div key={String(key)}>
-                <label className="mb-2 block text-sm font-medium text-gray-700">{t(String(label))}</label>
-                <textarea
+                <label htmlFor={`${jsonInputId}-${String(key)}`} className="mb-2 block text-sm font-medium text-ui-foreground">{t(String(label))}</label>
+                <Textarea
+                  id={`${jsonInputId}-${String(key)}`}
+                  invalid={Boolean(jsonErrors[String(key)])}
+                  aria-describedby={jsonErrors[String(key)] ? `${jsonInputId}-${String(key)}-error` : undefined}
                   value={String(value)}
                   onChange={(event) => (setter as React.Dispatch<React.SetStateAction<string>>)(event.target.value)}
-                  className={`h-40 w-full rounded-lg border px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    jsonErrors[String(key)] ? "border-red-300 bg-red-50" : "border-gray-300 bg-gray-50"
+                  className={`h-40 w-full rounded-lg border px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ui-focus ${
+                    jsonErrors[String(key)] ? "border-ui-danger/30 bg-ui-danger-subtle" : "border-ui-border bg-ui-surface-subtle"
                   }`}
                 />
                 {jsonErrors[String(key)] && (
-                  <p className="mt-1 text-xs text-red-600">{jsonErrors[String(key)]}</p>
+                  <p id={`${jsonInputId}-${String(key)}-error`} role="alert" className="mt-1 text-xs text-ui-danger">{jsonErrors[String(key)]}</p>
                 )}
               </div>
             ))}
           </div>
 
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={handleClose}>
-              {t("Cancel")}
-            </GenericButton>
-            <GenericButton onClick={handleSubmit}>
-              {editWorkflow ? t("Update Workflow") : t("Add Workflow")}
-            </GenericButton>
-          </div>
-        </div>
-      </div>
-    </div>
+    </WorkspaceDialog>
   );
 };

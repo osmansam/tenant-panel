@@ -5,7 +5,7 @@ import type {
   BrandingAssetSlot,
 } from "../../types/branding";
 import { brandingUploadErrorMessage } from "../../utils/api/branding";
-import { Badge } from "../ui";
+import { Badge, Input } from "../ui";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 
 interface BrandingAssetFieldProps {
@@ -16,6 +16,7 @@ interface BrandingAssetFieldProps {
   effectiveUrl: string;
   inherited: boolean;
   busy: boolean;
+  readOnly?: boolean;
   onUpload: (slot: BrandingAssetSlot, file: File) => Promise<void>;
   onReset: (slot: BrandingAssetSlot) => Promise<void>;
 }
@@ -36,6 +37,7 @@ export function BrandingAssetField({
   effectiveUrl,
   inherited,
   busy,
+  readOnly = false,
   onUpload,
   onReset,
 }: BrandingAssetFieldProps) {
@@ -45,7 +47,7 @@ export function BrandingAssetField({
   const SlotIcon = slotIcons[slot] || FiImage;
 
   const selectFile = async (file?: File) => {
-    if (!file) return;
+    if (!file || readOnly) return;
     if (!acceptedTypes.has(file.type)) {
       setError("Choose a PNG, JPEG, or WebP image");
       return;
@@ -85,8 +87,8 @@ export function BrandingAssetField({
 
         {/* Standardized Dropzone Preview */}
         <div
-          onClick={() => inputRef.current?.click()}
-          className="group relative mt-3 flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-ui-lg border-2 border-dashed border-ui-border bg-ui-surface-subtle/40 p-4 transition-all hover:border-ui-primary hover:bg-ui-surface-subtle"
+          onClick={() => !readOnly && inputRef.current?.click()}
+          className={`group relative mt-3 flex h-32 w-full flex-col items-center justify-center rounded-ui-lg border-2 border-dashed border-ui-border bg-ui-surface-subtle/40 p-4 transition-all ${readOnly ? "cursor-default" : "cursor-pointer hover:border-ui-primary hover:bg-ui-surface-subtle"}`}
         >
           {hasValidImage ? (
             <img
@@ -113,8 +115,8 @@ export function BrandingAssetField({
       </div>
 
       {/* Standardized 2-Button Footer Grid */}
-      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-ui-border pt-3">
-        <input
+      {!readOnly && <div className="mt-4 grid grid-cols-2 gap-2 border-t border-ui-border pt-3">
+        <Input
           ref={inputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp"
@@ -142,7 +144,7 @@ export function BrandingAssetField({
         >
           Use default
         </GenericButton>
-      </div>
+      </div>}
     </div>
   );
 }

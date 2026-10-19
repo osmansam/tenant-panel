@@ -10,7 +10,7 @@ import {
   useTranslations,
 } from "../../utils/api/localization";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
-import { Badge, EmptyState, Section, Switch, Tabs, TabsList, TabsTrigger } from "../ui";
+import { Badge, EmptyState, Input, Section, Select, Switch, Tabs, TabsList, TabsTrigger } from "../ui";
 import { validateLocaleSettings } from "./localeSettings";
 
 const LANGUAGES = [
@@ -20,7 +20,13 @@ const LANGUAGES = [
 
 const selectClassName = "h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus";
 
-export function ProjectLocalizationSection({ project }: { project: Project }) {
+export function ProjectLocalizationSection({
+  project,
+  readOnly = false,
+}: {
+  project: Project;
+  readOnly?: boolean;
+}) {
   const [activeTab, setActiveTab] = useState("translations");
   const [sourceLocale, setSourceLocale] = useState(project.sourceLocale || "en");
   const [defaultLocale, setDefaultLocale] = useState(project.defaultLocale || "en");
@@ -94,14 +100,14 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
 			<div
 				role="status"
 				aria-label="Translation generation progress"
-				className={`rounded-ui-md border px-4 py-3 text-sm ${job.status === "failed" ? "border-red-300 bg-red-50 text-red-800" : "border-ui-border bg-ui-surface-subtle text-ui-foreground"}`}
+				className={`rounded-ui-md border px-4 py-3 text-sm ${job.status === "failed" ? "border-ui-danger/30 bg-ui-danger-subtle text-ui-danger" : "border-ui-border bg-ui-surface-subtle text-ui-foreground"}`}
 			>
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<span className="font-medium">
 						{job.status === "pending" ? "Translation generation is queued" : job.status === "running" ? `Generating translations: ${job.completed} of ${job.total}` : job.status === "completed" ? `Translation generation completed: ${job.completed} of ${job.total}` : "Translation generation failed"}
 					</span>
 					{job.status === "failed" ? (
-						<GenericButton variant="secondary" onClick={startGeneration} disabled={!selectedLocale || generateTranslations.isPending}>
+						<GenericButton variant="secondary" onClick={startGeneration} disabled={readOnly || !selectedLocale || generateTranslations.isPending}>
 							Retry translation generation
 						</GenericButton>
 					) : null}
@@ -119,17 +125,17 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                 <h2 className="text-sm font-semibold text-ui-foreground">Translation editor</h2>
                 <Badge variant="neutral">{translations.data?.length || 0}</Badge>
               </div>
-              <p className="mt-0.5 text-xs text-ui-muted">Changes save automatically when a field loses focus.</p>
+              <p className="mt-0.5 text-xs text-ui-muted">{readOnly ? "Your current role has read-only access." : "Changes save automatically when a field loses focus."}</p>
             </div>
 			<div className="flex shrink-0 flex-wrap items-center gap-2">
-				<GenericButton variant="secondary" onClick={startGeneration} disabled={!selectedLocale || generateTranslations.isPending || job?.status === "pending" || job?.status === "running"}>
+				<GenericButton variant="secondary" onClick={startGeneration} disabled={readOnly || !selectedLocale || generateTranslations.isPending || job?.status === "pending" || job?.status === "running"}>
 					{generateTranslations.isPending ? "Starting…" : "Regenerate missing / outdated"}
 				</GenericButton>
 				<label className="flex items-center gap-2 text-xs font-medium text-ui-muted">
 					Target language
-					<select aria-label="Target language" className="h-9 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground" value={selectedLocale} onChange={(event) => setSelectedLocale(event.target.value)}>
+					<Select aria-label="Target language" className="h-9 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground" value={selectedLocale} onChange={(event) => setSelectedLocale(event.target.value)}>
 						{enabledLocales.filter((locale) => locale !== sourceLocale).map((locale) => <option key={locale} value={locale}>{LANGUAGES.find(([code]) => code === locale)?.[1] || locale}</option>)}
-					</select>
+					</Select>
 				</label>
 			</div>
           </div>
@@ -153,8 +159,9 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                       </div>
                     </div>
                     <div role="cell">
-                      <input
+                      <Input
                         aria-label={`Translation for ${row.sourceText}`}
+                        disabled={readOnly}
                         className="h-9 w-full min-w-0 rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm shadow-ui-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus transition-colors"
                         defaultValue={row.translatedText}
                         onBlur={(event) => {
@@ -183,15 +190,15 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-sm font-medium text-ui-foreground">
               Source language
-              <select className={`${selectClassName} mt-1.5`} value={sourceLocale} onChange={(event) => setSourceLocale(event.target.value)}>
+              <Select aria-label="Source language" disabled={readOnly} className={`${selectClassName} mt-1.5`} value={sourceLocale} onChange={(event) => setSourceLocale(event.target.value)}>
                 {LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-              </select>
+              </Select>
             </label>
             <label className="text-sm font-medium text-ui-foreground">
               Default language
-              <select className={`${selectClassName} mt-1.5`} value={defaultLocale} onChange={(event) => setDefaultLocale(event.target.value)}>
+              <Select aria-label="Default language" disabled={readOnly} className={`${selectClassName} mt-1.5`} value={defaultLocale} onChange={(event) => setDefaultLocale(event.target.value)}>
                 {enabledLocales.map((code) => <option key={code} value={code}>{LANGUAGES.find(([id]) => id === code)?.[1] || code}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
 
@@ -202,7 +209,7 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
                 const enabled = enabledLocales.includes(code);
                 return (
                   <label key={code} className={`flex cursor-pointer items-center gap-3 rounded-ui-md border px-3 py-2.5 text-sm transition-colors ${enabled ? "border-ui-primary bg-ui-active-subtle text-ui-foreground" : "border-ui-border text-ui-muted hover:bg-ui-surface-subtle"}`}>
-                    <input type="checkbox" checked={enabled} onChange={() => toggleLocale(code)} className="h-4 w-4 accent-[hsl(var(--ui-primary))]" />
+                    <Input type="checkbox" disabled={readOnly} checked={enabled} onChange={() => toggleLocale(code)} className="h-4 w-4 accent-[hsl(var(--ui-primary))]" />
                     <span className="font-medium">{name}</span>
                     <Badge variant="mono" className="ml-auto text-[10px] uppercase">{code}</Badge>
                   </label>
@@ -212,10 +219,12 @@ export function ProjectLocalizationSection({ project }: { project: Project }) {
           </fieldset>
 
           <div className="mt-5 flex flex-col gap-4 border-t border-ui-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <Switch checked={generateWithAI} onCheckedChange={setGenerateWithAI} label="Generate missing translations with AI" description="Runs after saving newly enabled languages." />
-            <GenericButton variant="primary" onClick={save} disabled={saveSettings.isPending}>
-              {saveSettings.isPending ? "Saving…" : "Save language settings"}
-            </GenericButton>
+            <Switch checked={generateWithAI} disabled={readOnly} onCheckedChange={setGenerateWithAI} label="Generate missing translations with AI" description="Runs after saving newly enabled languages." />
+            {!readOnly && (
+              <GenericButton variant="primary" onClick={save} disabled={saveSettings.isPending}>
+                {saveSettings.isPending ? "Saving…" : "Save language settings"}
+              </GenericButton>
+            )}
           </div>
         </Section>
       )}

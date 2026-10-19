@@ -1,13 +1,11 @@
 import { useUserContext } from "../context/User.context";
+import { readStoredTenant } from "../utils/persistedContext";
 import { Tenant } from "../types";
 
 export const useTenant = () => {
   const { user } = useUserContext();
 
-  const getCurrentTenant = (): Tenant | null => {
-    const currentTenant = localStorage.getItem("currentTenant");
-    return currentTenant ? JSON.parse(currentTenant) : null;
-  };
+  const getCurrentTenant = readStoredTenant;
 
   const getAllTenants = (): Tenant[] => {
     return user?.allTenants || [];

@@ -68,4 +68,19 @@ describe("BrandingEditor", () => {
     rerender(<BrandingEditor scope="tenant" tenantId="tenant-1" />);
     expect(screen.getByRole("alert")).toHaveTextContent("Branding settings could not be loaded");
   });
+
+  it("renders branding as read-only without mutation controls", () => {
+    render(
+      <BrandingEditor
+        scope="project"
+        tenantId="tenant-1"
+        projectId="project-1"
+        readOnly
+      />,
+    );
+    expect(screen.getByRole("textbox", { name: "Display name" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Brand the login page" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save branding" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument();
+  });
 });

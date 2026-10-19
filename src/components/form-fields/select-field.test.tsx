@@ -23,6 +23,23 @@ describe("SelectField", () => {
     expect(onChange).toHaveBeenCalledWith({ value: 1, label: "One" });
   });
 
+  it("delegates rendering to the shared select control", () => {
+    render(
+      <SelectField
+        name="status"
+        label="Status"
+        value={null}
+        options={[{ value: "open", label: "Open" }]}
+        onChange={() => undefined}
+        autoFillSingleOption={false}
+      />,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Status" }).closest("[data-control-size]"),
+    ).toHaveAttribute("data-control-size", "md");
+  });
+
   it("emits multiple options as option objects", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -75,6 +92,68 @@ describe("SelectField", () => {
     await waitFor(() =>
       expect(onChange).toHaveBeenCalledWith({ value: "tr", label: "Türkiye" }),
     );
+  });
+
+  it("auto-fills once for an equivalent async option set", async () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SelectField
+        name="country"
+        label="Country"
+        value={null}
+        options={[]}
+        onChange={onChange}
+      />,
+    );
+
+    rerender(
+      <SelectField
+        name="country"
+        label="Country"
+        value={null}
+        options={[{ value: "tr", label: "Türkiye" }]}
+        onChange={onChange}
+      />,
+    );
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <SelectField
+        name="country"
+        label="Country"
+        value={null}
+        options={[{ value: "tr", label: "Türkiye" }]}
+        onChange={onChange}
+      />,
+    );
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not display a selected option after async options replace it", () => {
+    const selected = { value: "old", label: "Old option" };
+    const { rerender } = render(
+      <SelectField
+        name="status"
+        label="Status"
+        value={selected}
+        options={[selected]}
+        onChange={() => undefined}
+        autoFillSingleOption={false}
+      />,
+    );
+    expect(screen.getByText("Old option")).toBeVisible();
+
+    rerender(
+      <SelectField
+        name="status"
+        label="Status"
+        value={selected}
+        options={[{ value: "new", label: "New option" }]}
+        onChange={() => undefined}
+        autoFillSingleOption={false}
+      />,
+    );
+    expect(screen.queryByText("Old option")).not.toBeInTheDocument();
   });
 
   it("normalizes Turkish characters while searching", async () => {

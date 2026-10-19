@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { FiCheck, FiCode, FiCopy, FiDownload, FiUpload } from "react-icons/fi";
 import { PageDesigner } from "../components/PageDesigner/PageDesigner";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
-import { Badge } from "../components/ui";
+import { Badge, Input } from "../components/ui";
 import { GridSection } from "../types/page";
 import type { PageFilterDefinition } from "../utils/api/page";
 
@@ -58,7 +58,7 @@ export const PageDesignerPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen min-h-0 flex-col bg-ui-canvas font-ui">
+    <div className="flex h-screen min-h-0 flex-col bg-ui-page font-ui">
       <header className="z-20 border-b border-ui-border bg-ui-surface">
         <div className="flex min-h-16 flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="min-w-0">
@@ -78,7 +78,7 @@ export const PageDesignerPage: React.FC = () => {
             <label className="ui-focus-ring inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-ui-md px-3 text-xs font-medium text-ui-foreground transition hover:bg-ui-surface-subtle">
               <FiUpload size={15} aria-hidden="true" />
               Import
-              <input type="file" accept=".json" onChange={handleImport} className="sr-only" />
+              <Input type="file" accept=".json" onChange={handleImport} className="sr-only" />
             </label>
             <GenericButton variant="ghost" size="sm" onClick={handleExport} iconLeft={<FiDownload size={15} />}>
               Export
@@ -93,10 +93,10 @@ export const PageDesignerPage: React.FC = () => {
 
       {/* JSON Preview */}
       {showJson && (
-        <section aria-labelledby="page-json-title" className="border-b border-neutral-800 bg-neutral-950">
+        <section aria-labelledby="page-json-title" className="border-b border-ui-ink bg-ui-ink-hover">
           <div className="px-4 py-4 sm:px-6 lg:px-8">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 id="page-json-title" className="text-sm font-semibold text-neutral-100">Page structure JSON</h2>
+              <h2 id="page-json-title" className="text-sm font-semibold text-white">Page structure JSON</h2>
               <GenericButton
                 onClick={() => {
                   navigator.clipboard.writeText(
@@ -106,13 +106,13 @@ export const PageDesignerPage: React.FC = () => {
                 }}
                 variant="ghost"
                 size="sm"
-                className="text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                className="text-ui-placeholder hover:bg-ui-ink-hover hover:text-white"
                 iconLeft={<FiCopy size={14} />}
               >
                 Copy
               </GenericButton>
             </div>
-            <pre className="max-h-56 overflow-auto rounded-ui-md border border-neutral-800 bg-neutral-900 p-3 font-mono text-xs text-emerald-300">
+            <pre className="max-h-56 overflow-auto rounded-ui-md border border-ui-ink bg-ui-ink-hover p-3 font-mono text-xs text-ui-success">
               {JSON.stringify({ sections, filters }, null, 2)}
             </pre>
           </div>

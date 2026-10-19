@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { OptionType } from "../../../types";
 import { PipelineStage } from "../../../utils/api/container";
 import { useRoleItems } from "../../../utils/api/roleInfo";
+import { ResponsiveActionBar, WorkspaceDialog, Textarea } from "../../ui";
 import { GenericButton } from "../FormElements/GenericButton";
 import SelectInput from "../FormElements/SelectInput";
 import TextInput from "../FormElements/TextInput";
@@ -24,6 +24,7 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
   editPipeline = null,
 }) => {
   const { t } = useTranslation();
+  const jsonInputId = useId();
 
   // Fetch roles from the backend
   const { data: roleItems = [] } = useRoleItems();
@@ -55,7 +56,6 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
   // Initialize form when editing
   useEffect(() => {
     if (editPipeline && isOpen) {
-      console.log("Setting pipeline data from editPipeline:", editPipeline);
       setPipelineData({
         name: editPipeline.name,
         pipelineJson: editPipeline.pipelineJson,
@@ -70,7 +70,6 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
       setFormKey((prev) => prev + 1); // Force form re-render
     } else if (isOpen) {
       // Reset to default when not editing
-      console.log("Resetting to default pipeline data");
       setPipelineData({
         name: "",
         pipelineJson: "",
@@ -163,31 +162,15 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={handleClose}
-        />
-
-        {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {editPipeline ? t("Edit Pipeline") : t("Add New Pipeline")}
-            </h3>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <FiX size={20} />
-            </button>
-          </div>
-
-          {/* Form */}
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+    <WorkspaceDialog
+      open={isOpen}
+      onClose={handleClose}
+      layer="nested"
+      className="max-w-3xl"
+      title={editPipeline ? t("Edit Pipeline") : t("Add New Pipeline")}
+      footer={<ResponsiveActionBar><GenericButton variant="outline" onClick={handleClose}>{t("Cancel")}</GenericButton><GenericButton onClick={handleSubmit}>{editPipeline ? t("Update Pipeline") : t("Add Pipeline")}</GenericButton></ResponsiveActionBar>}
+    >
+          <div className="space-y-6">
             {/* Pipeline Name */}
             <div>
               <TextInput
@@ -202,7 +185,7 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                 requiredField={true}
                 disabled={!!editPipeline}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-ui-muted mt-1">
                 {editPipeline
                   ? t("Pipeline name cannot be changed when editing")
                   : t("Unique identifier for this pipeline")}
@@ -212,8 +195,8 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
             {/* Pipeline JSON */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  {t("Pipeline JSON")} <span className="text-red-500">*</span>
+                <label htmlFor={jsonInputId} className="block text-sm font-medium text-ui-foreground">
+                  {t("Pipeline JSON")} <span className="text-ui-danger">*</span>
                 </label>
                 <GenericButton
                   size="sm"
@@ -224,7 +207,10 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   {t("Format JSON")}
                 </GenericButton>
               </div>
-              <textarea
+              <Textarea
+                id={jsonInputId}
+                invalid={Boolean(jsonError)}
+                aria-describedby={jsonError ? `${jsonInputId}-error` : undefined}
                 value={pipelineData.pipelineJson || ""}
                 onChange={(e) => {
                   setPipelineData({
@@ -234,35 +220,36 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   validateJSON(e.target.value);
                 }}
                 placeholder={`[{"$project":{"_id":0,"day":"$day","value":"$value"}}]`}
-                className={`w-full h-48 px-3 py-2 text-sm font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full h-48 px-3 py-2 text-sm font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus ${
                   jsonError
-                    ? "border-red-300 bg-red-50"
-                    : "border-gray-300 bg-gray-50"
+                    ? "border-ui-danger/30 bg-ui-danger-subtle"
+                    : "border-ui-border bg-ui-surface-subtle"
                 }`}
               />
               {jsonError && (
-                <p className="text-xs text-red-600 mt-1">{jsonError}</p>
+                <p id={`${jsonInputId}-error`} role="alert" className="mt-1 text-xs text-ui-danger">{jsonError}</p>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-ui-muted mt-1">
                 {t("MongoDB aggregation pipeline as JSON array. Example:")}
                 <br />
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                <code className="text-xs bg-ui-surface-subtle px-1 py-0.5 rounded">
                   {`[{"$match":{"status":"active"}},{"$project":{"name":1}}]`}
                 </code>
               </p>
             </div>
 
             {/* Active Status */}
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center justify-between bg-ui-surface-subtle p-3 rounded-lg">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Active")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Enable or disable this pipeline")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Active")}
                 onChange={() =>
                   setPipelineData({
                     ...pipelineData,
@@ -274,16 +261,17 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
             </div>
 
             {/* Authentication */}
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center justify-between bg-ui-surface-subtle p-3 rounded-lg">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Require Authentication")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Users must be logged in to access this pipeline")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Require Authentication")}
                 onChange={() =>
                   setPipelineData({
                     ...pipelineData,
@@ -298,16 +286,17 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
             </div>
 
             {/* Authorization */}
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center justify-between bg-ui-surface-subtle p-3 rounded-lg">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Require Authorization")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Users must have specific roles to access this pipeline")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Require Authorization")}
                 onChange={() =>
                   setPipelineData({
                     ...pipelineData,
@@ -348,7 +337,7 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   isMultiple={true}
                   requiredField={false}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ui-muted mt-1">
                   {t(
                     "Select one or more roles allowed to access this pipeline"
                   )}
@@ -357,16 +346,17 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
             )}
 
             {/* Redis Caching */}
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center justify-between bg-ui-surface-subtle p-3 rounded-lg">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-ui-foreground">
                   {t("Enable Redis Caching")}
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   {t("Cache pipeline results in Redis for better performance")}
                 </p>
               </div>
               <CheckSwitch
+                ariaLabel={t("Enable Redis Caching")}
                 onChange={() =>
                   setPipelineData({
                     ...pipelineData,
@@ -392,24 +382,13 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
                   }
                   placeholder="10"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ui-muted mt-1">
                   {t("How long to cache the results (in seconds)")}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <GenericButton variant="outline" onClick={handleClose}>
-              {t("Cancel")}
-            </GenericButton>
-            <GenericButton onClick={handleSubmit}>
-              {editPipeline ? t("Update Pipeline") : t("Add Pipeline")}
-            </GenericButton>
-          </div>
-        </div>
-      </div>
-    </div>
+    </WorkspaceDialog>
   );
 };
