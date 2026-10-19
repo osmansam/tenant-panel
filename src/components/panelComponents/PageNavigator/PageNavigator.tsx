@@ -18,7 +18,7 @@ const PageNavigator = ({ navigations }: Props) => {
           key={index}
           className={`flex flex-row justify-between items-center gap-3  ${
             navigation.canBeClicked && " cursor-pointer"
-          } text-sm ${isLastOne(index) ? "text-gray-600" : "text-gray-400"} `}
+          } text-sm ${isLastOne(index) ? "text-ui-muted" : "text-ui-placeholder"} `}
           onClick={() => {
             navigation?.additionalSubmitFunction?.();
             navigate(navigation.path);

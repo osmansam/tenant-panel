@@ -25,14 +25,13 @@ describe("RouteAccessPolicyEditor", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Add assignment" }));
-    await user.selectOptions(screen.getByLabelText("Assignment field 1"), "ownerId");
     fireEvent.change(screen.getByLabelText("Assignment value 1"), {
       target: { value: "{{auth.user.id}}" },
     });
 
     await user.click(screen.getByRole("button", { name: "Add allow rule" }));
-    await user.selectOptions(screen.getByLabelText("Rule source 1"), "context");
-    await user.selectOptions(screen.getByLabelText("Rule context 1"), "{{auth.user.role}}");
+    await user.click(screen.getByLabelText("Rule source 1"));
+    await user.click(screen.getByRole("option", { name: "Auth context" }));
     await user.clear(screen.getByLabelText("Rule value 1"));
     await user.type(screen.getByLabelText("Rule value 1"), "admin");
     await user.click(screen.getByRole("button", { name: "Save policy" }));
@@ -58,7 +57,8 @@ describe("RouteAccessPolicyEditor", () => {
     );
     expect(screen.queryByRole("button", { name: "Add assignment" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add allow rule" }));
-    await user.selectOptions(screen.getByLabelText("Rule operator 1"), "in");
+    await user.click(screen.getByLabelText("Rule operator 1"));
+    await user.click(screen.getByRole("option", { name: "in" }));
     await user.type(screen.getByLabelText("Rule value 1"), "open");
     await user.click(screen.getByRole("button", { name: "Save policy" }));
     expect(onSave).not.toHaveBeenCalled();

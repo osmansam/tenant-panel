@@ -1,16 +1,14 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { SketchPicker } from "react-color";
-import "react-day-picker/dist/style.css";
+import { lazy, Suspense, useEffect, useId, useRef, useState, type InputHTMLAttributes } from "react";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { FiMinusCircle } from "react-icons/fi";
 import { GoPlusCircle } from "react-icons/go";
 import { IoIosClose } from "react-icons/io";
-import {
-  MdOutlineCheckBox,
-  MdOutlineCheckBoxOutlineBlank,
-} from "react-icons/md";
+import { Button, Checkbox, Input } from "../../ui";
+import { cn } from "../../../utils/cn";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
+
+const SketchPicker = lazy(() => import("react-color").then((module) => ({ default: module.SketchPicker })));
 
 type TextInputProps = {
   label?: string;
@@ -37,6 +35,8 @@ type TextInputProps = {
   isDatePickerLabel?: boolean;
   isReadOnly?: boolean;
   error?: string; // Validation error message
+  autoComplete?: InputHTMLAttributes<HTMLInputElement>["autoComplete"];
+  name?: string;
 };
 
 const TextInput = ({
@@ -58,10 +58,13 @@ const TextInput = ({
   isDebounce = false,
   isReadOnly = false,
   error,
-  className = "px-4 py-2.5 border rounded-md __className_a182b8",
+  autoComplete,
+  name,
+  className,
 }: TextInputProps) => {
   const [localValue, setLocalValue] = useState(value);
   const inputId = useId();
+  const errorId = `${inputId}-error`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<
     typeof setTimeout
@@ -178,11 +181,11 @@ const TextInput = ({
     }
   };
 
-  const inputClassName = `${className} ${
-    inputWidth ? "border-gray-200" : ""
-  } w-full text-sm ${
-    type === "number" ? "inputHideNumberArrows" : ""
-  } text-base ${error ? "border-red-500 border-2" : ""}`;
+  const inputClassName = cn(
+    "w-full text-sm",
+    type === "number" && "inputHideNumberArrows",
+    className,
+  );
 
   const handleWheel = () => {
     if (document.activeElement instanceof HTMLElement) {
@@ -202,17 +205,19 @@ const TextInput = ({
           {label}
           {requiredField && (
             <>
-              <span className="text-red-400">* </span>
+              <span className="text-ui-danger">* </span>
             </>
           )}
         </H6>
         <div className=" flex flex-row gap-2 ">
+          <Suspense fallback={<div role="status" className="h-64 w-56 rounded-ui-md bg-ui-surface-subtle p-4 text-sm text-ui-muted">Loading color picker…</div>}>
           <SketchPicker
             color={value}
             onChange={(color) => {
               onChange(color.hex);
             }}
           />
+          </Suspense>
 
           <GenericButton
             onClick={() => {
@@ -231,29 +236,23 @@ const TextInput = ({
   if (type === "checkbox") {
     return (
       <div className="flex justify-between items-center w-full">
-        {/* Label on the left */}
-        <H6 className="my-auto">
+        <label htmlFor={inputId} className="text-sm font-medium leading-6 my-auto">
           {label}
-          {requiredField && <span className="text-red-400">*</span>}
-        </H6>
-
-        {/* Icon on the right */}
-        <GenericButton
-          type="button"
-          disabled={disabled}
-          onClick={() => {
-            const newValue = !(localValue ?? value);
+          {requiredField && <span className="text-ui-danger">*</span>}
+        </label>
+        <Checkbox
+          id={inputId}
+          checked={Boolean(localValue ?? value)}
+          disabled={isInputLocked}
+          required={requiredField}
+          invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(event) => {
+            const newValue = event.target.checked;
             setLocalValue(newValue);
             onChange(newValue);
           }}
-          variant="icon"
-        >
-          {localValue ?? value ? (
-            <MdOutlineCheckBox className="h-6 w-6" />
-          ) : (
-            <MdOutlineCheckBoxOutlineBlank className="h-6 w-6" />
-          )}
-        </GenericButton>
+        />
       </div>
     );
   }
@@ -272,7 +271,7 @@ const TextInput = ({
         {label}
         {requiredField && (
           <>
-            <span className="text-red-400">* </span>
+            <span className="text-ui-danger">* </span>
           </>
         )}
       </label>
@@ -281,8 +280,10 @@ const TextInput = ({
           isNumberButtonsActive ? "gap-4" : "gap-2"
         } ${inputWidth ? inputWidth : "w-full"} relative`}
       >
-        <input
+        <Input
           id={inputId}
+          name={name}
+          autoComplete={autoComplete}
           ref={inputRef}
           type={
             type === "password" && !showPassword
@@ -291,14 +292,15 @@ const TextInput = ({
               ? "text"
               : type
           }
-          style={{
-            fontSize: "16px",
-          }}
           placeholder={placeholder}
-          disabled={isInputLocked}
+          disabled={disabled}
+          readOnly={isReadOnly}
+          required={requiredField}
+          invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           value={localValue}
           onChange={handleChange}
-          className={inputClassName}
+          className={cn(inputClassName, type === "password" && "pr-12")}
           {...(type === "number"
             ? {
                 ...(isMinNumber ? { min: minNumber } : {}),
@@ -308,52 +310,64 @@ const TextInput = ({
           onWheel={type === "number" ? handleWheel : undefined}
         />
         {type === "password" && (
-          <button
+          <Button
             type="button"
+            variant="icon"
+            size="sm"
+            disabled={isInputLocked}
+            aria-label={`${showPassword ? "Hide" : "Show"} ${label || "password"}`}
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 text-gray-500 hover:text-gray-700 focus:outline-none"
+            className="absolute right-1 text-ui-muted shadow-none"
           >
             {showPassword ? (
-              <AiOutlineEyeInvisible size={20} />
+              <AiOutlineEyeInvisible size={20} aria-hidden="true" />
             ) : (
-              <AiOutlineEye size={20} />
+              <AiOutlineEye size={20} aria-hidden="true" />
             )}
-          </button>
+          </Button>
         )}
         {isNumberButtonsActive && (
-          <FiMinusCircle
-            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
-              isInputLocked
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-red-500 hover:text-red-800 cursor-pointer"
-            }`}
+          <Button
+            type="button"
+            variant="icon"
+            size="sm"
+            disabled={isInputLocked}
+            aria-label={`Decrement ${label || "value"}`}
             onClick={handleDecrement}
-          />
+            className="shrink-0 text-ui-danger shadow-none"
+          >
+            <FiMinusCircle className="h-5 w-5" aria-hidden="true" />
+          </Button>
         )}
         {isNumberButtonsActive && (
-          <GoPlusCircle
-            className={`w-8 h-8 flex-shrink-0 focus:outline-none ${
-              isInputLocked
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-green-500 hover:text-green-800 cursor-pointer"
-            }`}
+          <Button
+            type="button"
+            variant="icon"
+            size="sm"
+            disabled={isInputLocked}
+            aria-label={`Increment ${label || "value"}`}
             onClick={handleIncrement}
-          />
+            className="shrink-0 text-ui-success shadow-none"
+          >
+            <GoPlusCircle className="h-5 w-5" aria-hidden="true" />
+          </Button>
         )}
         {onClear && isOnClearActive && (
           <GenericButton
+            type="button"
+            aria-label={`Clear ${label || "input"}`}
             onClick={() => {
               setLocalValue("");
               onClear();
             }}
             variant="icon"
-            className="w-8 h-8 my-auto text-2xl text-gray-500 hover:text-red-700"
+            className="my-auto h-8 w-8 text-2xl text-ui-muted hover:text-ui-danger"
           >
             <IoIosClose size={28} />
           </GenericButton>
         )}
       </div>
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+      {error && <p id={errorId} className="text-ui-danger text-sm" role="alert">{error}</p>}
     </div>
   );
 };

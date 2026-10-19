@@ -1,18 +1,15 @@
 import React, { useMemo } from "react";
+import { getRoleLabel } from "../utils/roleLabels";
 import { useTranslation } from "react-i18next";
 import {
-  FiActivity,
   FiArrowRight,
   FiCheckCircle,
-  FiClock,
   FiDatabase,
   FiFileText,
   FiFolder,
   FiGlobe,
   FiKey,
-  FiMenu,
   FiSettings,
-  FiUsers,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
@@ -24,34 +21,46 @@ import {
   PageShell,
   Section,
   SectionHeader,
+  ResourceLoading,
 } from "../components/ui";
-import { useGeneralContext } from "../context/General.context";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import useTenant from "../hooks/useTenant";
 import { useTenantLogout } from "../utils/api/auth";
-import { useContainers } from "../utils/api/container";
+import { useContainersQuery } from "../utils/api/container";
 import { useIntegrationCredentials } from "../utils/api/integration";
-import { useGetTenantPages } from "../utils/api/page";
-import { useProjects } from "../utils/api/project";
+import { useGetTenantPagesQuery } from "../utils/api/page";
+import { hasManagementPermission } from "../utils/managementPermissions";
+import { useProjectsQuery } from "../utils/api/project";
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useUserContext();
-  const { setIsSidebarOpen } = useGeneralContext();
   const { currentTenant, allTenants, hasMultipleTenants, switchTenant } = useTenant();
   const { currentProject, isInProject } = useCurrentProject();
   const { tenantLogout } = useTenantLogout();
 
-  const projects = useProjects(Boolean(currentTenant));
-  const containers = useContainers(Boolean(isInProject));
-  const pages = useGetTenantPages(Boolean(isInProject));
-  const { data: integrations = [] } = useIntegrationCredentials(Boolean(isInProject));
+  const canReadProject = hasManagementPermission(user?.roles, "project.config.read");
+  const canViewIntegrations = hasManagementPermission(user?.roles, "project.integrations.read");
+  const projectsQuery = useProjectsQuery(Boolean(currentTenant) && !isInProject);
+  const containersQuery = useContainersQuery(Boolean(isInProject && canReadProject));
+  const pagesQuery = useGetTenantPagesQuery(Boolean(isInProject && canReadProject));
+  const integrationsQuery = useIntegrationCredentials(Boolean(isInProject && canViewIntegrations));
+  const projects = projectsQuery.data;
+  const containers = containersQuery.data;
+  const pages = pagesQuery.data;
+  const integrations = integrationsQuery.data || [];
+  const workspaceLoading = isInProject ? containersQuery.isLoading || pagesQuery.isLoading : projectsQuery.isLoading;
+  const workspaceError = isInProject ? containersQuery.error || pagesQuery.error : projectsQuery.error;
+  const retrySummary = () => {
+    const queries = isInProject ? [containersQuery, pagesQuery] : [projectsQuery];
+    void Promise.allSettled(queries.map((query) => query.refetch()));
+  };
 
   const displayName = user?.name || user?.email;
 
-  // Recent activity stream synthesized from tenant and project context
+  // Describe the available workspace context without inventing activity events.
   const recentActivities = useMemo(() => {
     const items = [];
 
@@ -70,7 +79,7 @@ const Dashboard: React.FC = () => {
       });
     }
 
-    if (projects.length > 0) {
+    if (!isInProject && projects.length > 0) {
       const firstProject = projects[0];
       items.push({
         id: "proj-status",
@@ -82,40 +91,41 @@ const Dashboard: React.FC = () => {
         }),
         badge: firstProject.isActive ? t("Online") : t("Offline"),
         badgeVariant: (firstProject.isActive ? "info" : "neutral") as "info" | "neutral",
-        time: t("Recently updated"),
+        time: t("Project status"),
       });
     }
 
-    if (isInProject && integrations.length > 0) {
+    if (isInProject && canViewIntegrations && integrations.length > 0) {
       items.push({
         id: "integrations-status",
         icon: FiKey,
         title: t("API credentials configured"),
-        description: t("{{count}} integration keys active for external automation and webhooks.", {
+        description: t("{{count}} integration credentials configured for this project.", {
           count: integrations.length,
         }),
-        badge: t("Secure"),
+        badge: t("Configured"),
         badgeVariant: "success" as const,
         time: t("Active"),
       });
     }
 
-    items.push({
+    if (isInProject && canReadProject) items.push({
       id: "localization-status",
       icon: FiGlobe,
-      title: t("Localization system active"),
-      description: t("Multi-language translations and locale overrides available."),
-      badge: t("System"),
+      title: t("Project localization"),
+      description: t("Manage translations and language preferences for this workspace."),
+      badge: t("Available"),
       badgeVariant: "neutral" as const,
-      time: t("All environments"),
+      time: t("Project tools"),
     });
 
     return items;
-  }, [currentProject, containers.length, pages.length, projects, isInProject, integrations.length, t]);
+  }, [currentProject, containers.length, pages.length, projects, isInProject, integrations.length, canReadProject, canViewIntegrations, t]);
 
   // Quick Action items as actionable destinations
   const quickActions = useMemo(() => [
     {
+      scope: "tenant",
       label: t("Projects"),
       description: t("View and switch between all tenant projects"),
       path: "/projects",
@@ -123,6 +133,7 @@ const Dashboard: React.FC = () => {
       badge: `${projects.length}`,
     },
     {
+      scope: "project",
       label: t("Collections"),
       description: t("Manage data schemas, fields, and API endpoints"),
       path: isInProject ? "/collections" : "/projects",
@@ -130,6 +141,7 @@ const Dashboard: React.FC = () => {
       badge: isInProject ? `${containers.length}` : undefined,
     },
     {
+      scope: "project",
       label: t("Pages"),
       description: t("Design page layouts, components, and navigation"),
       path: isInProject ? "/pages" : "/projects",
@@ -137,6 +149,7 @@ const Dashboard: React.FC = () => {
       badge: isInProject ? `${pages.length}` : undefined,
     },
     {
+      scope: "project",
       label: t("Integrations"),
       description: t("Configure API keys, webhooks, and third-party tools"),
       path: isInProject ? "/integrations" : "/projects",
@@ -144,24 +157,40 @@ const Dashboard: React.FC = () => {
       badge: isInProject ? `${integrations.length}` : undefined,
     },
     {
+      scope: "project",
       label: t("Localization"),
       description: t("Customize languages and project dictionary translations"),
       path: isInProject ? "/localization" : "/projects",
       icon: FiGlobe,
     },
     {
+      scope: "both",
       label: t("Settings & Branding"),
       description: t("Manage tenant identity, assets, logos, and theme"),
       path: "/settings",
       icon: FiSettings,
     },
-  ], [projects.length, isInProject, containers.length, pages.length, integrations.length, t]);
+  ].filter((action) => {
+    if (!isInProject) return action.scope !== "project";
+    if (action.scope === "tenant") return false;
+    if (action.path === "/integrations") return canViewIntegrations;
+    return canReadProject;
+  }), [projects.length, isInProject, containers.length, pages.length, integrations.length, canReadProject, canViewIntegrations, t]);
+
+  const metrics = isInProject ? [
+    { label: t("Collections"), value: containersQuery.isLoading || containersQuery.error ? "—" : containers.length, description: t("In current project"), icon: FiDatabase, path: "/collections" },
+    { label: t("Pages"), value: pagesQuery.isLoading || pagesQuery.error ? "—" : pages.length, description: t("In current project"), icon: FiFileText, path: "/pages" },
+    ...(canViewIntegrations ? [{ label: t("Integrations"), value: integrationsQuery.isLoading || integrationsQuery.error ? "—" : integrations.length, description: t("Configured credentials"), icon: FiKey, path: "/integrations" }] : []),
+  ].filter(() => canReadProject) : [
+    { label: t("Projects"), value: projectsQuery.isLoading || projectsQuery.error ? "—" : projects.length, description: t("Total projects"), icon: FiFolder, path: "/projects" },
+    { label: t("Active projects"), value: projectsQuery.isLoading || projectsQuery.error ? "—" : projects.filter((project) => project.isActive).length, description: t("Available to open"), icon: FiCheckCircle, path: "/projects" },
+  ];
 
   return (
     <PageShell width="content">
       {/* Header */}
       <PageHeader
-        title={currentTenant?.name || t("Dashboard")}
+        title={currentProject?.name || currentTenant?.name || t("Dashboard")}
         description={
           currentTenant
             ? `${t("Welcome")}${displayName ? `, ${displayName}` : ""}`
@@ -179,14 +208,7 @@ const Dashboard: React.FC = () => {
         }
         actions={
           <PageActions aria-label={t("Dashboard actions")}>
-            <button
-              type="button"
-              aria-label={t("Open navigation")}
-              onClick={() => setIsSidebarOpen(true)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-ui-md text-ui-muted transition-colors hover:bg-ui-surface-subtle hover:text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus md:hidden"
-            >
-              <FiMenu className="h-4 w-4" aria-hidden="true" />
-            </button>
+
             <GenericButton onClick={() => tenantLogout()} variant="outline" size="sm">
               {t("Logout")}
             </GenericButton>
@@ -194,88 +216,22 @@ const Dashboard: React.FC = () => {
         }
       />
 
-      {/* 1. Tenant & Project Summary Stats Strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => navigate("/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Projects")}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
-              <FiFolder className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">{projects.length}</div>
-          <div className="mt-1 text-[11px] text-ui-muted">{t("Total active projects")}</div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate(isInProject ? "/collections" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Collections")}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
-              <FiDatabase className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
-            {isInProject ? containers.length : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-ui-muted">
-            {isInProject ? t("In current project") : t("Select a project")}
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate(isInProject ? "/pages" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Pages")}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
-              <FiFileText className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
-            {isInProject ? pages.length : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-ui-muted">
-            {isInProject ? t("In current project") : t("Select a project")}
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate(isInProject ? "/integrations" : "/projects")}
-          className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-4 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs font-medium text-ui-muted">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">{t("Integrations")}</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-ui-md bg-ui-surface-subtle border border-ui-border/70 text-ui-muted group-hover:text-ui-foreground group-hover:border-ui-border transition-colors">
-              <FiKey className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-ui-foreground">
-            {isInProject ? integrations.length : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-ui-muted">
-            {isInProject ? t("Active credentials") : t("Select a project")}
-          </div>
-        </button>
+      <div className={`mt-6 grid grid-cols-2 gap-3 ${metrics.length === 3 ? "sm:grid-cols-3" : ""}`}>
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return <button key={metric.label} aria-label={`${metric.label}: ${metric.value}. ${metric.description}`} type="button" onClick={() => navigate(metric.path)} className="group ui-focus-ring flex min-w-0 flex-col rounded-ui-xl border border-ui-border bg-ui-surface p-5 text-left shadow-ui-card transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ui-border-hover hover:shadow-md"><div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ui-muted"><span>{metric.label}</span><Icon aria-hidden="true" className="size-4 shrink-0" /></div><span className="mt-3 text-4xl font-semibold tracking-[-0.03em] text-ui-foreground">{metric.value}</span><span className="mt-1.5 text-xs text-ui-muted">{metric.description}</span></button>;
+        })}
       </div>
 
       {/* 2. Recent Activity Section */}
       <Section aria-labelledby="recent-activity-heading">
         <SectionHeader
-          title={<span id="recent-activity-heading">{t("Recent Activity")}</span>}
-          description={t("Status, updates, and active workspaces in your tenant.")}
+          title={<span id="recent-activity-heading">{t("Workspace overview")}</span>}
+          description={t("Current projects and available workspace tools.")}
         />
-        <div className="divide-y divide-ui-border rounded-ui-lg border border-ui-border bg-ui-surface shadow-ui-sm overflow-hidden">
+        <div className="divide-y divide-ui-border overflow-hidden rounded-ui-xl border border-ui-border bg-ui-surface shadow-ui-card">
+          {workspaceLoading ? <ResourceLoading label={t("Loading workspace")} /> : workspaceError ? <EmptyState role="alert" title={t("Workspace summary could not be loaded")} description={t("Check your connection and try again.")} action={<GenericButton variant="outline" onClick={retrySummary}>{t("Try again")}</GenericButton>} /> : <>
+          {recentActivities.length === 0 && <EmptyState icon={<FiFolder size={28} />} title={t("Your workspace is ready")} description={t("Open Projects to choose a workspace or create your first project.")} action={<GenericButton variant="outline" onClick={() => navigate("/projects")}>{t("Open projects")}</GenericButton>} />}
           {recentActivities.map((activity) => {
             const Icon = activity.icon;
             return (
@@ -301,6 +257,7 @@ const Dashboard: React.FC = () => {
               </div>
             );
           })}
+          </>}
         </div>
       </Section>
 
@@ -308,7 +265,7 @@ const Dashboard: React.FC = () => {
       <Section aria-labelledby="quick-actions-heading">
         <SectionHeader
           title={<span id="quick-actions-heading">{t("Quick Actions")}</span>}
-          description={t("Direct shortcuts to common management areas and toolsets.")}
+          description={isInProject ? t("Continue working in this project.") : t("Choose a project or manage your tenant settings.")}
         />
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {quickActions.map((action) => {
@@ -318,7 +275,7 @@ const Dashboard: React.FC = () => {
                 key={action.label}
                 type="button"
                 onClick={() => navigate(action.path)}
-                className="group flex flex-col justify-between rounded-ui-lg border border-ui-border bg-ui-surface p-3.5 text-left shadow-ui-sm transition-all duration-150 hover:border-ui-border-strong hover:bg-ui-surface-subtle/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
+                className="group flex flex-col justify-between rounded-ui-xl border border-ui-border bg-ui-surface p-4 text-left shadow-ui-card transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ui-border-hover hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -387,7 +344,7 @@ const Dashboard: React.FC = () => {
           description={t("Your current tenant membership and access details.")}
         />
         {currentTenant ? (
-          <div className="rounded-ui-lg border border-ui-border bg-ui-surface p-4 shadow-ui-sm">
+          <div className="rounded-ui-xl border border-ui-border bg-ui-surface p-5 shadow-ui-card">
             <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-3">
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-ui-muted">
@@ -403,11 +360,11 @@ const Dashboard: React.FC = () => {
                   {t("Your Role")}
                 </dt>
                 <dd className="mt-1 text-sm font-medium text-ui-foreground">
-                  {user?.role || t("Member")}
+                  {t(getRoleLabel(user?.role || user?.roles?.[0] || "user"))}
                 </dd>
                 {user?.roles && user.roles.length > 1 && (
                   <dd className="mt-0.5 text-xs text-ui-muted">
-                    {user.roles.join(", ")}
+                    {user.roles.map((role) => t(getRoleLabel(role))).join(", ")}
                   </dd>
                 )}
               </div>
@@ -417,7 +374,7 @@ const Dashboard: React.FC = () => {
                 </dt>
                 <dd className="mt-1 flex items-center gap-2">
                   <Badge variant="success">{t("Active")}</Badge>
-                  <span className="text-xs text-ui-muted">{t("Full Access")}</span>
+                  <span className="text-xs text-ui-muted">{t("Signed in")}</span>
                 </dd>
               </div>
             </dl>
@@ -426,6 +383,7 @@ const Dashboard: React.FC = () => {
           <EmptyState
             title={t("Tenant context is unavailable")}
             description={t("Sign in again or contact an administrator to restore tenant access.")}
+            action={<GenericButton variant="outline" onClick={() => tenantLogout()}>{t("Sign in again")}</GenericButton>}
           />
         )}
       </Section>

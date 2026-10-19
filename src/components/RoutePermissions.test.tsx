@@ -49,7 +49,7 @@ vi.mock("../utils/api/roleInfo", () => ({
   useRoleItems: () => [],
 }));
 
-vi.mock("./panelComponents/Tables/GenericTable", () => ({
+vi.mock("./panelComponents/Tables/DataTable", () => ({
   default: ({ columns, filters, rowKeys, rows }: {
     columns: Array<{ key: string; headerNode?: React.ReactNode }>;
     filters: Array<{ label: string; node: React.ReactNode }>;
@@ -151,6 +151,48 @@ describe("RoutePermissions bulk switches", () => {
       },
     });
   });
+
+  it.each(["Is Active", "Is Authenticated", "Is Authorized"])(
+    "hides paused function routes and preserves their settings when changing %s",
+    async (flag) => {
+      const functionRoute = {
+        isActive: false,
+        isAuthenticated: true,
+        isAuthorized: true,
+        authorizeRole: ["legacy-owner"],
+        method: "GET",
+      };
+      state.container = {
+        ...state.container,
+        routes: {
+          ...state.container.routes,
+          ExecuteDynamicCode: functionRoute,
+          ExecuteWorkflow: { ...state.container.routes.createItem },
+          GetPipeline: { ...state.container.routes.listItems },
+          HandleDynamicAPI: { ...state.container.routes.listItems },
+        },
+      } as typeof state.container;
+      render(<RoutePermissions containerId="container-1" />);
+
+      expect(screen.queryByText("Execute Dynamic Code")).not.toBeInTheDocument();
+      expect(screen.getByText("Execute Workflow")).toBeInTheDocument();
+      expect(screen.getByText("Get Pipeline")).toBeInTheDocument();
+      expect(screen.getByText("Handle Dynamic A P I")).toBeInTheDocument();
+
+      const user = await enableEditing();
+      await user.click(screen.getByRole("switch", { name: `Set all ${flag}` }));
+      await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+      const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+      expect(savedRoutes.ExecuteDynamicCode).toEqual(functionRoute);
+      const routeFlag = {
+        "Is Active": "isActive",
+        "Is Authenticated": "isAuthenticated",
+        "Is Authorized": "isAuthorized",
+      }[flag];
+      expect(savedRoutes.listItems[routeFlag!]).toBe(flag === "Is Active");
+      expect(state.container.routes).toHaveProperty("ExecuteDynamicCode", functionRoute);
+    },
+  );
 
   it("turns authentication off for every route", async () => {
     render(<RoutePermissions containerId="container-1" />);

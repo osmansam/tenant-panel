@@ -68,7 +68,7 @@ export function LinkCell({ field, row, linkConfig }: LinkCellProps) {
       <a
         href={href}
         onClick={handleClick}
-        className="text-blue-500 hover:text-blue-800  cursor-pointer"
+        className="text-ui-primary hover:text-ui-foreground  cursor-pointer"
       >
         {label}
       </a>
@@ -82,7 +82,7 @@ export function LinkCell({ field, row, linkConfig }: LinkCellProps) {
         href={href}
         target="_blank"
         rel="noreferrer"
-        className="text-blue-500 hover:text-blue-800 "
+        className="text-ui-primary hover:text-ui-foreground "
       >
         {label}
       </a>
@@ -91,7 +91,7 @@ export function LinkCell({ field, row, linkConfig }: LinkCellProps) {
 
   // Handle email, phone, and file links
   return (
-    <a href={href} className="text-blue-500 hover:text-blue-800 ">
+    <a href={href} className="text-ui-primary hover:text-ui-foreground ">
       {label}
     </a>
   );

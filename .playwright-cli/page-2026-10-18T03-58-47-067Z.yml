@@ -1,0 +1,187 @@
+- generic [ref=f20e1]:
+  - generic [ref=f20e4]:
+    - link "Skip to content" [ref=f20e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary "Workspace navigation" [ref=f20e6]:
+      - generic [ref=f20e8]:
+        - generic [ref=f20e13]:
+          - generic [ref=f20e14]: Tenant Panel
+          - paragraph [ref=f20e15]: alex
+        - button "Collapse Sidebar" [expanded] [ref=f20e16] [cursor=pointer]
+      - generic [ref=f20e19]:
+        - generic [ref=f20e21]:
+          - generic [ref=f20e22]: Current Project
+          - generic [ref=f20e28]: Operations Workspace
+          - button "Back to Tenant" [ref=f20e29] [cursor=pointer]
+        - navigation "Main navigation" [ref=f20e33]:
+          - button "Dashboard" [ref=f20e34] [cursor=pointer]
+          - button "Collections" [ref=f20e40] [cursor=pointer]
+          - button "Pages" [ref=f20e46] [cursor=pointer]
+          - button "Localization" [ref=f20e52] [cursor=pointer]
+          - button "Integrations" [ref=f20e58] [cursor=pointer]
+          - button "Settings" [ref=f20e64] [cursor=pointer]
+        - button "Logout" [ref=f20e71] [cursor=pointer]
+    - main [ref=f20e78]:
+      - generic [ref=f20e79]:
+        - generic [ref=f20e80]:
+          - generic [ref=f20e81]:
+            - heading "Operations Workspace" [level=1] [ref=f20e82]
+            - generic [ref=f20e83]: operations
+            - generic [ref=f20e84]: Active
+          - generic [ref=f20e85]:
+            - generic [ref=f20e86]: "Role:"
+            - generic [ref=f20e87]: project_developer
+        - region "Collections" [ref=f20e89]:
+          - generic [ref=f20e90]:
+            - generic [ref=f20e91]:
+              - heading "Collections" [level=2] [ref=f20e92]
+              - generic [ref=f20e93]: Manage project schemas and their records
+            - group "Collection actions" [ref=f20e94]:
+              - button "Create with JSON" [ref=f20e95] [cursor=pointer]
+              - button "Upload Excel" [ref=f20e103] [cursor=pointer]
+              - button "Create Collection" [ref=f20e111] [cursor=pointer]
+          - toolbar "Collection toolbar" [ref=f20e117]:
+            - search "Search collections" [ref=f20e118]:
+              - searchbox "Search collections" [ref=f20e120]
+            - generic [ref=f20e121]:
+              - generic [ref=f20e122]:
+                - generic [ref=f20e123]: "2"
+                - generic [ref=f20e124]: Total Collections
+              - generic [ref=f20e126]:
+                - generic [ref=f20e127]: "0"
+                - generic [ref=f20e128]: Auth Collections
+              - generic [ref=f20e130]:
+                - generic [ref=f20e131]: "5"
+                - generic [ref=f20e132]: Total Fields
+          - generic [ref=f20e133]:
+            - generic [ref=f20e134]:
+              - generic [ref=f20e135]: Collection / Schema
+              - generic [ref=f20e136]: Actions
+            - article "customers collection" [ref=f20e137] [cursor=pointer]:
+              - generic [ref=f20e144]:
+                - generic [ref=f20e145]:
+                  - heading "customers" [level=3] [ref=f20e146]
+                  - generic [ref=f20e147]: Regular Collection
+                  - generic [ref=f20e148]: Customer directory
+                - paragraph [ref=f20e149]:
+                  - generic [ref=f20e150]: 3 fields
+              - generic [ref=f20e151]:
+                - button "Edit" [ref=f20e152]
+                - button "View Data" [ref=f20e160]
+                - button "Details" [ref=f20e169]
+            - article "orders collection" [ref=f20e176] [cursor=pointer]:
+              - generic [ref=f20e183]:
+                - generic [ref=f20e184]:
+                  - heading "orders" [level=3] [ref=f20e185]
+                  - generic [ref=f20e186]: Regular Collection
+                  - generic [ref=f20e187]: Sales orders
+                - paragraph [ref=f20e188]:
+                  - generic [ref=f20e189]: 2 fields
+                  - generic [ref=f20e190]: •
+                  - generic [ref=f20e191]: Redis Cached
+              - generic [ref=f20e192]:
+                - button "Edit" [ref=f20e193]
+                - button "View Data" [ref=f20e201]
+                - button "Details" [ref=f20e210]
+          - navigation "Collection pagination" [ref=f20e217]:
+            - paragraph [ref=f20e218]: Showing 1–2 of 2 collections
+            - generic [ref=f20e220]:
+              - generic [ref=f20e221]: Collections per page
+              - generic [ref=f20e223]:
+                - log [ref=f20e225]
+                - generic [ref=f20e227] [cursor=pointer]:
+                  - generic [ref=f20e228]: "10"
+                  - combobox "Collections per page" [ref=f20e229]
+  - dialog [ref=f20e235]:
+    - banner [ref=f20e236]:
+      - generic [ref=f20e237]:
+        - heading "Manage customers" [level=2] [ref=f20e238]
+        - generic [ref=f20e242]:
+          - generic [ref=f20e243]: ID
+          - generic [ref=f20e244]: collection-1
+          - button "Copy ID" [active] [ref=f20e245] [cursor=pointer]
+      - button "Close collection" [ref=f20e249] [cursor=pointer]
+    - generic [ref=f20e254]:
+      - tablist [ref=f20e257]:
+        - tab "Structured" [selected] [ref=f20e258] [cursor=pointer]
+        - tab "Pipelines" [ref=f20e260] [cursor=pointer]
+        - tab "Workflows" [ref=f20e265] [cursor=pointer]
+        - tab "Dynamic APIs" [ref=f20e269] [cursor=pointer]
+        - tab "Permissions" [ref=f20e273] [cursor=pointer]
+        - tab "Routes" [ref=f20e276] [cursor=pointer]
+        - tab "JSON" [ref=f20e280] [cursor=pointer]
+      - generic [ref=f20e286]:
+        - region "Collection overview" [ref=f20e287]:
+          - generic [ref=f20e288]:
+            - generic [ref=f20e289]:
+              - generic [ref=f20e290]: Schema Name
+              - generic [ref=f20e291]: customers
+            - generic [ref=f20e292]:
+              - generic [ref=f20e293]: Collection Name
+              - generic [ref=f20e294]: Customer directory
+            - generic [ref=f20e295]:
+              - generic [ref=f20e296]: Auth Collection
+              - generic [ref=f20e297]: "No"
+            - generic [ref=f20e299]:
+              - generic [ref=f20e300]: Total Fields
+              - generic [ref=f20e301]: "3"
+            - generic [ref=f20e302]:
+              - generic [ref=f20e303]: Redis Cached
+              - generic [ref=f20e304]: "No"
+        - generic [ref=f20e306]:
+          - toolbar "Field toolbar" [ref=f20e307]:
+            - generic [ref=f20e308]:
+              - heading "Fields" [level=4] [ref=f20e309]
+              - searchbox "Search fields" [ref=f20e311]
+            - generic [ref=f20e312]:
+              - button "Add Timestamps" [ref=f20e313] [cursor=pointer]
+              - button "Add Field" [ref=f20e321] [cursor=pointer]
+          - table "Collection fields" [ref=f20e327]:
+            - row [ref=f20e328]:
+              - columnheader "Name" [ref=f20e329]
+              - columnheader "Type" [ref=f20e330]
+              - columnheader "Attributes" [ref=f20e331]
+              - columnheader "Actions" [ref=f20e332]
+            - row [ref=f20e333]:
+              - cell "name" [ref=f20e334]
+              - cell "string" [ref=f20e337]
+              - cell
+              - cell [ref=f20e339]:
+                - generic [ref=f20e340]:
+                  - button "Move name up" [disabled] [ref=f20e341]
+                  - button "Move name down" [ref=f20e345] [cursor=pointer]
+                - button "Edit" [ref=f20e348] [cursor=pointer]
+                - button "Delete" [ref=f20e356] [cursor=pointer]
+            - row [ref=f20e363]:
+              - cell "email" [ref=f20e364]
+              - cell "string" [ref=f20e367]
+              - cell
+              - cell [ref=f20e369]:
+                - generic [ref=f20e370]:
+                  - button "Move email up" [ref=f20e371] [cursor=pointer]
+                  - button "Move email down" [ref=f20e375] [cursor=pointer]
+                - button "Edit" [ref=f20e378] [cursor=pointer]
+                - button "Delete" [ref=f20e386] [cursor=pointer]
+            - row [ref=f20e393]:
+              - cell "createdAt" [ref=f20e394]
+              - cell "date" [ref=f20e397]
+              - cell
+              - cell [ref=f20e399]:
+                - generic [ref=f20e400]:
+                  - button "Move createdAt up" [ref=f20e401] [cursor=pointer]
+                  - button "Move createdAt down" [disabled] [ref=f20e405]
+                - button "Edit" [ref=f20e408] [cursor=pointer]
+                - button "Delete" [ref=f20e416] [cursor=pointer]
+        - generic [ref=f20e424]:
+          - generic [ref=f20e425]: Redis Configuration
+          - generic [ref=f20e426]:
+            - generic [ref=f20e427]:
+              - generic [ref=f20e428]: "Cached:"
+              - generic [ref=f20e429]: "No"
+            - generic [ref=f20e430]:
+              - generic [ref=f20e431]: "Cache Time:"
+              - generic [ref=f20e432]: 0s
+    - contentinfo [ref=f20e433]:
+      - generic [ref=f20e434]:
+        - button "Close" [ref=f20e435] [cursor=pointer]
+        - button "Copy JSON" [ref=f20e439] [cursor=pointer]

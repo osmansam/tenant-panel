@@ -1,6 +1,7 @@
 // useWebSocket.ts
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { readStoredProject } from "../utils/persistedContext";
 
 type WSInvalidateEvent =
   | { type: "invalidate"; schema: string; ts?: number }
@@ -29,13 +30,12 @@ export function useWebSocket() {
   const [connectTrigger, setConnectTrigger] = useState(0);
 
   useEffect(() => {
+    const project = readStoredProject();
     if (!API_URL) {
       console.warn("VITE_API_URL is not set; WebSocket will not connect.");
       return;
     }
 
-    const currentProject = localStorage.getItem("currentProject");
-    const project = currentProject ? JSON.parse(currentProject) : undefined;
     const WS_URL = toWsUrl(API_URL, "/ws", project?.tenantSlug, project?.slug);
     const state = stateRef.current;
 

@@ -3,13 +3,20 @@ import { BrandingEditor } from "../components/branding/BrandingEditor";
 import { Badge, PageHeader, PageShell } from "../components/ui";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import useTenant from "../hooks/useTenant";
+import { useUserContext } from "../context/User.context";
+import { hasManagementPermission } from "../utils/managementPermissions";
 
 export default function TenantBrandingPage() {
   const { currentTenant } = useTenant();
   const { currentProject } = useCurrentProject();
+  const { user } = useUserContext();
   if (!currentTenant) return <Navigate to="/dashboard" replace />;
 
   const scopeLabel = currentProject ? currentProject.name : currentTenant.name;
+  const canManage = hasManagementPermission(
+    user?.roles,
+    currentProject ? "project.branding.manage" : "tenant.branding.manage",
+  );
 
   return (
     <PageShell width="wide">
@@ -22,6 +29,7 @@ export default function TenantBrandingPage() {
           scope={currentProject ? "project" : "tenant"}
           tenantId={currentTenant.id}
           projectId={currentProject?.id}
+          readOnly={!canManage}
         />
     </PageShell>
   );

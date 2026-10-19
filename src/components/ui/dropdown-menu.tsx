@@ -54,7 +54,7 @@ export function DropdownMenuContent({
   return (
     <Menu.Items
       className={cn(
-        "absolute z-50 mt-1 min-w-[8rem] overflow-hidden rounded-ui-md border border-ui-border bg-ui-surface py-1 shadow-ui-dialog focus:outline-none",
+        "absolute z-50 mt-1.5 min-w-[8rem] overflow-hidden rounded-ui-lg border border-ui-border/80 bg-ui-surface p-1 shadow-ui-popover focus:outline-none",
         align === "end" ? "right-0" : "left-0",
         className,
       )}
@@ -86,7 +86,7 @@ export function DropdownMenuItem({
           type="button"
           disabled={disabled}
           className={cn(
-            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+            "flex w-full items-center gap-2 rounded-ui-sm px-2.5 py-2 text-left text-[13px] transition-colors",
             active && !destructive && "bg-ui-surface-subtle text-ui-foreground",
             active && destructive && "bg-ui-danger-subtle text-ui-danger",
             !active && !destructive && "text-ui-foreground",

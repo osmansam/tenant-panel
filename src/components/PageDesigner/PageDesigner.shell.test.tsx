@@ -75,6 +75,8 @@ describe("PageDesigner workspace shell", () => {
     expect(screen.getByTestId("section-layout-toolbar")).toContainElement(
       screen.getByLabelText("Grid Columns"),
     );
+    expect(screen.getByLabelText("Grid Columns").closest("[data-control-size]"))
+      .toHaveAttribute("data-control-size", "md");
     expect(screen.getByTestId("grid-layout-canvas")).toHaveClass("min-h-[280px]");
   });
 });

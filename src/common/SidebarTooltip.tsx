@@ -57,16 +57,16 @@ export default function SidebarTooltip({ children, content }: Props) {
             animation: "fadeInTooltip 0.15s ease-in",
           }}
         >
-          <div className="bg-gray-900 text-white text-sm font-medium px-3 py-2 rounded-lg shadow-lg whitespace-nowrap relative">
+          <div className="relative whitespace-nowrap rounded-ui-md bg-ui-ink px-2.5 py-1.5 text-xs font-medium text-white shadow-ui-popover">
             {content}
             <div
               className="absolute right-full top-1/2 -translate-y-1/2"
               style={{
                 width: 0,
                 height: 0,
-                borderTop: "6px solid transparent",
-                borderBottom: "6px solid transparent",
-                borderRight: "6px solid rgb(17, 24, 39)", // gray-900
+                borderTop: "5px solid transparent",
+                borderBottom: "5px solid transparent",
+                borderRight: "5px solid hsl(var(--ui-ink))",
               }}
             />
           </div>

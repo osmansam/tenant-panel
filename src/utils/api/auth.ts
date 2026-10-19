@@ -325,7 +325,23 @@ export function useGoogleCallback(
 }
 
 async function tenantLogoutMethod() {
-  return post<undefined, { success: boolean }>({
+	const currentTenant = localStorage.getItem("currentTenant");
+	const currentProject = localStorage.getItem("currentProject");
+	if (currentTenant && currentProject) {
+		try {
+			const tenant = JSON.parse(currentTenant);
+			const project = JSON.parse(currentProject);
+			if (tenant?.slug && project?.slug) {
+				await post<undefined, { success: boolean }>({
+					path: `/${encodeURIComponent(tenant.slug)}/${encodeURIComponent(project.slug)}/tenant-auth/logout`,
+					payload: undefined,
+				});
+			}
+		} catch {
+			// Root logout still revokes the tenant session and local state is cleared by the caller.
+		}
+	}
+	return post<undefined, { success: boolean }>({
     path: "/tenant/auth/logout",
     payload: undefined,
   });

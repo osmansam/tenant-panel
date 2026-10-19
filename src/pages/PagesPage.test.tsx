@@ -37,7 +37,7 @@ describe("PagesPage", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "Demo Project" })).toBeInTheDocument();
     expect(screen.getByText("Active")).toHaveAttribute("data-variant", "success");
-    expect(screen.getByText("project_developer")).toBeInTheDocument();
+    expect(screen.getByText("Project developer")).toBeInTheDocument();
     expect(screen.getByRole("main")).toContainElement(
       screen.getByRole("region", { name: "Pages" }),
     );

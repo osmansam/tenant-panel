@@ -8,6 +8,7 @@ import {
   TableActionOptionsSource,
 } from "../../types/page";
 import { ContainerModel, Field } from "../../utils/api/container";
+import { Checkbox, Input, Select, Textarea, type SelectOption } from "../ui";
 
 type Props = {
   field: FormFieldConfig;
@@ -18,8 +19,25 @@ type Props = {
   onRemove: () => void;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/10 disabled:bg-neutral-100 disabled:text-neutral-400";
+type StringOption = SelectOption<string>;
+const ScalarSelect = ({ label, value, options, disabled, onChange }: {
+  label: string;
+  value: string;
+  options: readonly StringOption[];
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) => (
+  <Select<StringOption>
+    value={options.find((option) => option.value === value) || null}
+    options={options}
+    disabled={disabled}
+    onChange={(selected) => {
+      const option = selected as StringOption | null;
+      if (option) onChange(option.value);
+    }}
+    aria-label={label}
+  />
+);
 
 const AREAS: { value: FormAreaKey; label: string }[] = [
   { value: "top", label: "Top" },
@@ -92,7 +110,7 @@ const parseRequestFilters = (value: string) => {
 
 const Control = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="space-y-1.5">
-    <span className="block text-xs font-medium text-neutral-600">{label}</span>
+    <span className="block text-xs font-medium text-ui-muted">{label}</span>
     {children}
   </label>
 );
@@ -106,12 +124,10 @@ const Toggle = ({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) => (
-  <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
-    <input
-      type="checkbox"
+  <label className="flex items-center gap-2 text-xs font-medium text-ui-foreground">
+    <Checkbox
       checked={checked}
       onChange={(event) => onChange(event.target.checked)}
-      className="h-4 w-4 rounded border-neutral-300"
     />
     {label}
   </label>
@@ -154,18 +170,18 @@ const FormFieldEditor = ({
   };
 
   return (
-    <section className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-      <header className="flex items-center justify-between gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-3">
+    <section className="overflow-hidden rounded-lg border border-ui-border bg-white shadow-sm">
+      <header className="flex items-center justify-between gap-3 border-b border-ui-border bg-ui-surface-subtle/70 px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-neutral-900 px-1.5 text-xs font-semibold text-white">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-ui-ink-hover px-1.5 text-xs font-semibold text-white">
               {index + 1}
             </span>
-            <h6 className="truncate text-sm font-semibold text-neutral-900">
+            <h6 className="truncate text-sm font-semibold text-ui-foreground">
               {field.label || field.formKey || `Field ${index + 1}`}
             </h6>
           </div>
-          <p className="mt-1 truncate text-xs text-neutral-500">
+          <p className="mt-1 truncate text-xs text-ui-muted">
             {field.formKey || "Unconfigured field"} · {field.type}
           </p>
         </div>
@@ -174,7 +190,7 @@ const FormFieldEditor = ({
           title="Remove field"
           aria-label="Remove field"
           onClick={onRemove}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ui-danger transition hover:bg-ui-danger-subtle"
         >
           <FiTrash2 size={15} />
         </button>
@@ -183,51 +199,44 @@ const FormFieldEditor = ({
       <div className="space-y-5 p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Control label="Form key">
-            <input value={field.formKey} onChange={(event) => onChange({ formKey: event.target.value })} className={inputClass} placeholder="field name" />
+            <Input value={field.formKey} onChange={(event) => onChange({ formKey: event.target.value })} placeholder="field name" />
           </Control>
           <Control label="Input type">
-            <select
+            <ScalarSelect
+              label="Input type"
               value={field.type}
-              onChange={(event) => {
-                const type = event.target.value as TableActionInputType;
+              onChange={(nextType) => {
+                const type = nextType as TableActionInputType;
                 onChange({
                   type,
                   formKeyType: formKeyTypeForInput(type, field.isMultiple),
                   isNumberButtonsActive: type === "number" && field.isNumberButtonsActive,
                 });
               }}
-              className={inputClass}
-            >
-              {INPUT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-            </select>
+              options={INPUT_TYPES}
+            />
           </Control>
           <Control label="Label">
-            <input value={field.label || ""} onChange={(event) => onChange({ label: event.target.value })} className={inputClass} placeholder="Field label" />
+            <Input value={field.label || ""} onChange={(event) => onChange({ label: event.target.value })} placeholder="Field label" />
           </Control>
           <Control label="Placeholder">
-            <input value={field.placeholder || ""} onChange={(event) => onChange({ placeholder: event.target.value })} className={inputClass} placeholder="Placeholder" />
+            <Input value={field.placeholder || ""} onChange={(event) => onChange({ placeholder: event.target.value })} placeholder="Placeholder" />
           </Control>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <Control label="Area">
-            <select value={field.area || "main"} onChange={(event) => onChange({ area: event.target.value as FormAreaKey })} className={inputClass}>
-              {AREAS.map((area) => <option key={area.value} value={area.value}>{area.label}</option>)}
-            </select>
+            <ScalarSelect label="Area" value={field.area || "main"} onChange={(area) => onChange({ area: area as FormAreaKey })} options={AREAS} />
           </Control>
           <Control label="Width">
-            <select value={field.width || "full"} onChange={(event) => onChange({ width: event.target.value as FormFieldConfig["width"] })} className={inputClass}>
-              <option value="full">Full</option>
-              <option value="half">Half</option>
-              <option value="third">Third</option>
-            </select>
+            <ScalarSelect label="Width" value={field.width || "full"} onChange={(width) => onChange({ width: width as FormFieldConfig["width"] })} options={[{ value: "full", label: "Full" }, { value: "half", label: "Half" }, { value: "third", label: "Third" }]} />
           </Control>
           <Control label="Order">
-            <input type="number" min={0} value={field.order ?? index + 1} onChange={(event) => onChange({ order: Number(event.target.value) })} className={inputClass} />
+            <Input type="number" min={0} value={field.order ?? index + 1} onChange={(event) => onChange({ order: Number(event.target.value) })} />
           </Control>
         </div>
 
-        <div className="flex flex-wrap gap-x-5 gap-y-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+        <div className="flex flex-wrap gap-x-5 gap-y-3 rounded-lg border border-ui-border bg-ui-surface-subtle px-4 py-3">
           <Toggle label="Required" checked={!!field.required} onChange={(checked) => onChange({ required: checked })} />
           <Toggle label="Disabled" checked={!!field.isDisabled} onChange={(checked) => onChange({ isDisabled: checked })} />
           <Toggle label="Multiple" checked={!!field.isMultiple} onChange={(checked) => onChange({ isMultiple: checked, formKeyType: formKeyTypeForInput(field.type, checked) })} />
@@ -237,62 +246,50 @@ const FormFieldEditor = ({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Control label={field.isMultiple ? "Default values (comma separated)" : "Default value"}>
             {field.type === "checkbox" ? (
-              <select value={String(field.defaultValue ?? false)} onChange={(event) => onChange({ defaultValue: event.target.value === "true" })} className={inputClass}>
-                <option value="false">False</option><option value="true">True</option>
-              </select>
+              <ScalarSelect label="Default value" value={String(field.defaultValue ?? false)} onChange={(defaultValue) => onChange({ defaultValue: defaultValue === "true" })} options={[{ value: "false", label: "False" }, { value: "true", label: "True" }]} />
             ) : (
-              <input type={isNumber && !field.isMultiple ? "number" : "text"} value={Array.isArray(field.defaultValue) ? field.defaultValue.join(", ") : String(field.defaultValue ?? "")} onChange={(event) => updateDefaultValue(event.target.value)} className={inputClass} />
+              <Input type={isNumber && !field.isMultiple ? "number" : "text"} value={Array.isArray(field.defaultValue) ? field.defaultValue.join(", ") : String(field.defaultValue ?? "")} onChange={(event) => updateDefaultValue(event.target.value)} />
             )}
           </Control>
-          <Control label="Minimum"><input type="number" value={field.min ?? ""} onChange={(event) => onChange({ min: event.target.value === "" ? undefined : Number(event.target.value) })} disabled={!isNumber} className={inputClass} /></Control>
-          <Control label="Maximum"><input type="number" value={field.max ?? ""} onChange={(event) => onChange({ max: event.target.value === "" ? undefined : Number(event.target.value) })} disabled={!isNumber} className={inputClass} /></Control>
-          <Control label="Validation message"><input value={field.validationMessage || ""} onChange={(event) => onChange({ validationMessage: event.target.value })} className={inputClass} /></Control>
-          <Control label="Minimum length"><input type="number" value={field.minLength ?? ""} onChange={(event) => onChange({ minLength: event.target.value === "" ? undefined : Number(event.target.value) })} className={inputClass} /></Control>
-          <Control label="Maximum length"><input type="number" value={field.maxLength ?? ""} onChange={(event) => onChange({ maxLength: event.target.value === "" ? undefined : Number(event.target.value) })} className={inputClass} /></Control>
-          <Control label="Pattern"><input value={field.pattern || ""} onChange={(event) => onChange({ pattern: event.target.value })} className={inputClass} placeholder="Regular expression" /></Control>
+          <Control label="Minimum"><Input type="number" value={field.min ?? ""} onChange={(event) => onChange({ min: event.target.value === "" ? undefined : Number(event.target.value) })} disabled={!isNumber} /></Control>
+          <Control label="Maximum"><Input type="number" value={field.max ?? ""} onChange={(event) => onChange({ max: event.target.value === "" ? undefined : Number(event.target.value) })} disabled={!isNumber} /></Control>
+          <Control label="Validation message"><Input value={field.validationMessage || ""} onChange={(event) => onChange({ validationMessage: event.target.value })} /></Control>
+          <Control label="Minimum length"><Input type="number" value={field.minLength ?? ""} onChange={(event) => onChange({ minLength: event.target.value === "" ? undefined : Number(event.target.value) })} /></Control>
+          <Control label="Maximum length"><Input type="number" value={field.maxLength ?? ""} onChange={(event) => onChange({ maxLength: event.target.value === "" ? undefined : Number(event.target.value) })} /></Control>
+          <Control label="Pattern"><Input value={field.pattern || ""} onChange={(event) => onChange({ pattern: event.target.value })} placeholder="Regular expression" /></Control>
         </div>
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Control label="Required condition"><input value={field.requiredCondition || ""} onChange={(event) => onChange({ requiredCondition: event.target.value })} className={inputClass} placeholder={'status = "active"'} /></Control>
-          <Control label="Disabled condition"><input value={field.disabledCondition || ""} onChange={(event) => onChange({ disabledCondition: event.target.value })} className={inputClass} placeholder={'status = "closed"'} /></Control>
+          <Control label="Required condition"><Input value={field.requiredCondition || ""} onChange={(event) => onChange({ requiredCondition: event.target.value })} placeholder={'status = "active"'} /></Control>
+          <Control label="Disabled condition"><Input value={field.disabledCondition || ""} onChange={(event) => onChange({ disabledCondition: event.target.value })} placeholder={'status = "closed"'} /></Control>
         </div>
 
         {isSelect && (
-          <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <div className="space-y-4 rounded-lg border border-ui-border bg-ui-surface-subtle p-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Control label="Options source">
-                <select value={field.optionsSource || "static"} onChange={(event) => onChange({ optionsSource: event.target.value as TableActionOptionsSource })} className={inputClass}>
-                  <option value="static">Static</option><option value="schema">Schema</option>
-                </select>
+                <ScalarSelect label="Options source" value={field.optionsSource || "static"} onChange={(optionsSource) => onChange({ optionsSource: optionsSource as TableActionOptionsSource })} options={[{ value: "static", label: "Static" }, { value: "schema", label: "Schema" }]} />
               </Control>
               <Control label="Source schema">
-                <select value={field.sourceSchemaName || ""} onChange={(event) => onChange({ sourceSchemaName: event.target.value, sourceValueField: "_id", sourceLabelField: "", sourceDataFields: [], optionDisplay: undefined })} disabled={field.optionsSource !== "schema"} className={inputClass}>
-                  <option value="">Select schema</option>
-                  {containers.map((container) => <option key={container.schemaName} value={container.schemaName}>{container.schemaName}</option>)}
-                </select>
+                <ScalarSelect label="Source schema" value={field.sourceSchemaName || ""} onChange={(sourceSchemaName) => onChange({ sourceSchemaName, sourceValueField: "_id", sourceLabelField: "", sourceDataFields: [], optionDisplay: undefined })} disabled={field.optionsSource !== "schema"} options={[{ value: "", label: "Select schema" }, ...containers.map((container) => ({ value: container.schemaName, label: container.schemaName }))]} />
               </Control>
               <Control label="Value field">
-                <select value={field.sourceValueField || "_id"} onChange={(event) => onChange({ sourceValueField: event.target.value })} disabled={field.optionsSource !== "schema" || !field.sourceSchemaName} className={inputClass}>
-                  <option value="_id">_id</option>{sourceFields.map((sourceField) => <option key={sourceField.name} value={sourceField.name}>{sourceField.name}</option>)}
-                </select>
+                <ScalarSelect label="Value field" value={field.sourceValueField || "_id"} onChange={(sourceValueField) => onChange({ sourceValueField })} disabled={field.optionsSource !== "schema" || !field.sourceSchemaName} options={[{ value: "_id", label: "_id" }, ...sourceFields.map((sourceField) => ({ value: sourceField.name, label: sourceField.name }))]} />
               </Control>
               <Control label="Label field">
-                <select value={field.sourceLabelField || ""} onChange={(event) => onChange({ sourceLabelField: event.target.value })} disabled={field.optionsSource !== "schema" || !field.sourceSchemaName} className={inputClass}>
-                  <option value="">Select label field</option>{sourceFields.map((sourceField) => <option key={sourceField.name} value={sourceField.name}>{sourceField.name}</option>)}
-                </select>
+                <ScalarSelect label="Label field" value={field.sourceLabelField || ""} onChange={(sourceLabelField) => onChange({ sourceLabelField })} disabled={field.optionsSource !== "schema" || !field.sourceSchemaName} options={[{ value: "", label: "Select label field" }, ...sourceFields.map((sourceField) => ({ value: sourceField.name, label: sourceField.name }))]} />
               </Control>
             </div>
             {field.optionsSource === "schema" && field.sourceSchemaName && (
-              <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+              <div className="space-y-3 rounded-lg border border-ui-border bg-white p-3">
                 <div>
-                  <div className="text-xs font-semibold text-neutral-700">Additional option data</div>
+                  <div className="text-xs font-semibold text-ui-foreground">Additional option data</div>
                   <div className="mt-2 flex flex-wrap gap-3">
                     {sourceFields.map((sourceField) => {
                       const checked = (field.sourceDataFields || []).includes(sourceField.name);
                       return (
-                        <label key={sourceField.name} className="flex items-center gap-2 text-xs text-neutral-700">
-                          <input
-                            type="checkbox"
+                        <label key={sourceField.name} className="flex items-center gap-2 text-xs text-ui-foreground">
+                          <Checkbox
                             checked={checked}
                             onChange={(event) => onChange({
                               sourceDataFields: event.target.checked
@@ -308,32 +305,30 @@ const FormFieldEditor = ({
                 </div>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <Control label="Left option template">
-                    <input
+                    <Input
                       value={field.optionDisplay?.leftTemplate || ""}
                       onChange={(event) => onChange({ optionDisplay: { ...field.optionDisplay, leftTemplate: event.target.value } })}
-                      className={inputClass}
                       placeholder="{{name}}"
                     />
                   </Control>
                   <Control label="Right option template">
-                    <input
+                    <Input
                       value={field.optionDisplay?.rightTemplate || ""}
                       onChange={(event) => onChange({ optionDisplay: { ...field.optionDisplay, rightTemplate: event.target.value } })}
-                      className={inputClass}
                       placeholder="{{price}} ₺"
                     />
                   </Control>
                 </div>
-                <div className="flex items-center justify-between rounded-md border border-dashed border-neutral-300 px-3 py-2 text-sm text-neutral-600">
+                <div className="flex items-center justify-between rounded-md border border-dashed border-ui-border px-3 py-2 text-sm text-ui-muted">
                   <span>{field.optionDisplay?.leftTemplate || (field.sourceLabelField ? `{{${field.sourceLabelField}}}` : "Left label")}</span>
                   <span className="text-right font-medium">{field.optionDisplay?.rightTemplate || "Right label"}</span>
                 </div>
               </div>
             )}
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <Control label="Source filter condition"><input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} className={inputClass} placeholder={'tenantId = {{tenantId}}'} /></Control>
+              <Control label="Source filter condition"><Input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} placeholder={'tenantId = {{tenantId}}'} /></Control>
               <Control label="Request filters">
-                <textarea
+                <Textarea
                   defaultValue={formatRequestFilters(field.sourceRequestFilters)}
                   onBlur={(event) =>
                     onChange({
@@ -343,7 +338,7 @@ const FormFieldEditor = ({
                     })
                   }
                   disabled={field.optionsSource !== "schema"}
-                  className={`${inputClass} min-h-[84px] font-mono`}
+                  className="min-h-[84px] font-mono"
                   placeholder={'{"active": true}'}
                 />
               </Control>
@@ -352,14 +347,14 @@ const FormFieldEditor = ({
             {(field.optionsSource || "static") === "static" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-neutral-600">Static options</span>
-                  <button type="button" onClick={() => onChange({ staticOptions: [...staticOptions, { value: "", label: "" }] })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100"><FiPlus size={13} /> Add option</button>
+                  <span className="text-xs font-medium text-ui-muted">Static options</span>
+                  <button type="button" onClick={() => onChange({ staticOptions: [...staticOptions, { value: "", label: "" }] })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-ui-border bg-white px-2.5 text-xs font-medium text-ui-foreground hover:bg-ui-surface-subtle"><FiPlus size={13} /> Add option</button>
                 </div>
                 {staticOptions.map((option, optionIndex) => (
                   <div key={optionIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <input value={option.value} onChange={(event) => onChange({ staticOptions: staticOptions.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { ...candidate, value: event.target.value } : candidate) })} className={inputClass} placeholder="Value" />
-                    <input value={option.label} onChange={(event) => onChange({ staticOptions: staticOptions.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { ...candidate, label: event.target.value } : candidate) })} className={inputClass} placeholder="Label" />
-                    <button type="button" title="Remove option" aria-label="Remove option" onClick={() => onChange({ staticOptions: staticOptions.filter((_candidate, candidateIndex) => candidateIndex !== optionIndex) })} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><FiTrash2 size={14} /></button>
+                    <Input value={option.value} onChange={(event) => onChange({ staticOptions: staticOptions.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { ...candidate, value: event.target.value } : candidate) })} placeholder="Value" />
+                    <Input value={option.label} onChange={(event) => onChange({ staticOptions: staticOptions.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { ...candidate, label: event.target.value } : candidate) })} placeholder="Label" />
+                    <button type="button" title="Remove option" aria-label="Remove option" onClick={() => onChange({ staticOptions: staticOptions.filter((_candidate, candidateIndex) => candidateIndex !== optionIndex) })} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ui-danger hover:bg-ui-danger-subtle"><FiTrash2 size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -368,11 +363,11 @@ const FormFieldEditor = ({
         )}
 
         <div>
-          <span className="mb-2 block text-xs font-medium text-neutral-600">Invalidate fields</span>
-          <div className="grid max-h-36 grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
+          <span className="mb-2 block text-xs font-medium text-ui-muted">Invalidate fields</span>
+          <div className="grid max-h-36 grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-ui-border bg-ui-surface-subtle p-3 sm:grid-cols-2 lg:grid-cols-3">
             {formFields.filter((candidate) => candidate.formKey && candidate.formKey !== field.formKey).map((candidate) => (
-              <label key={candidate.formKey} className="flex items-center gap-2 text-xs text-neutral-700">
-                <input type="checkbox" checked={(field.invalidateKeys || []).includes(candidate.formKey)} onChange={(event) => onChange({ invalidateKeys: event.target.checked ? [...(field.invalidateKeys || []), candidate.formKey] : (field.invalidateKeys || []).filter((key) => key !== candidate.formKey) })} className="h-4 w-4 rounded border-neutral-300" />
+              <label key={candidate.formKey} className="flex items-center gap-2 text-xs text-ui-foreground">
+                <Checkbox checked={(field.invalidateKeys || []).includes(candidate.formKey)} onChange={(event) => onChange({ invalidateKeys: event.target.checked ? [...(field.invalidateKeys || []), candidate.formKey] : (field.invalidateKeys || []).filter((key) => key !== candidate.formKey) })} />
                 <span className="truncate">{candidate.label || candidate.formKey}</span>
               </label>
             ))}

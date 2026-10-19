@@ -7,6 +7,7 @@ import type {
   ParameterBinding,
 } from "../../utils/api/page";
 import { formatBindingLabel, isSafeRuntimeName } from "../../utils/pageBindings";
+import { Input, Select, type SelectOption } from "../ui";
 
 interface ParameterBindingsEditorProps {
   page: PageModel;
@@ -21,6 +22,28 @@ interface OutputOption {
   component: ComponentBlock;
   output: ComponentOutputDefinition;
 }
+
+type StringOption = SelectOption<string>;
+const ScalarSelect = ({ label, value, options, disabled, onChange, className }: {
+  label: string;
+  value: string;
+  options: readonly StringOption[];
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  className?: string;
+}) => (
+  <Select<StringOption>
+    value={options.find((option) => option.value === value) || null}
+    options={options}
+    disabled={disabled}
+    onChange={(selected) => {
+      const option = selected as StringOption | null;
+      if (option) onChange(option.value);
+    }}
+    aria-label={label}
+    className={className}
+  />
+);
 
 function parseStaticValue(value: string): unknown {
   const trimmed = value.trim();
@@ -144,12 +167,12 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
         : "";
 
   return (
-    <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+    <div className="space-y-4 rounded-xl border border-ui-border bg-ui-surface-subtle/50 p-4">
       <div>
-        <h4 className="text-sm font-semibold text-neutral-900">
+        <h4 className="text-sm font-semibold text-ui-foreground">
           Request Parameter Bindings
         </h4>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-ui-muted">
           Bind the pipeline/workflow request parameter name to a value. The
           left field is the request parameter sent to the backend, for example
           pageSize, productId, or selectedCategory. It is not the component id.
@@ -158,7 +181,7 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
 
       <div className="space-y-3">
         {parameterNames.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-neutral-200 bg-white p-3 text-xs text-neutral-500">
+          <div className="rounded-lg border border-dashed border-ui-border bg-white p-3 text-xs text-ui-muted">
             No request parameters detected. Add a custom parameter below.
           </div>
         ) : (
@@ -190,39 +213,40 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
             return (
               <div
                 key={name}
-                className="space-y-2 rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
+                className="space-y-2 rounded-lg border border-ui-border bg-white p-3 shadow-sm"
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-2">
                   <label className="space-y-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted">
                       Request parameter name
                     </span>
-                    <input
+                    <Input
                       type="text"
                       defaultValue={name}
                       onBlur={(event) => renameParameter(name, event.target.value)}
-                      className="w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-mono focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      className="w-full font-mono text-xs"
                       aria-label={`Request parameter ${name}`}
                     />
                   </label>
                   <label className="space-y-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted">
                       Value source
                     </span>
-                    <select
+                    <ScalarSelect
+                    label={`Value source for ${name}`}
                     value={
                       binding.source === "componentOutput" || binding.source === "pageFilter"
                         ? binding.source
                         : "static"
                     }
-                    onChange={(event) => {
-                      if (event.target.value === "componentOutput" && firstOutput) {
+                    onChange={(nextSource) => {
+                      if (nextSource === "componentOutput" && firstOutput) {
                         updateParameter(name, {
                           source: "componentOutput",
                           componentId: firstOutput.component.id,
                           outputId: firstOutput.output.id,
                         });
-                      } else if (event.target.value === "pageFilter" && pageFilters[0]) {
+                      } else if (nextSource === "pageFilter" && pageFilters[0]) {
                         updateParameter(name, {
                           source: "pageFilter",
                           filterId: pageFilters[0].id,
@@ -231,26 +255,23 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                         updateParameter(name, { source: "static", value: "" });
                       }
                     }}
-                    className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
-                    >
-                      <option value="static">Static</option>
-                      <option value="componentOutput" disabled={outputOptions.length === 0}>
-                        Component output
-                      </option>
-                      <option value="pageFilter" disabled={pageFilters.length === 0}>
-                        Page filter
-                      </option>
-                    </select>
+                    options={[
+                      { value: "static", label: "Static" },
+                      { value: "componentOutput", label: "Component output", disabled: outputOptions.length === 0 },
+                      { value: "pageFilter", label: "Page filter", disabled: pageFilters.length === 0 },
+                    ]}
+                    />
                   </label>
                 </div>
 
                 {binding.source === "componentOutput" ? (
                   <div className="grid grid-cols-[minmax(0,1fr)_150px_32px] gap-2">
-                    <select
+                    <ScalarSelect
+                      label={`Component output for ${name}`}
                       value={selectedValue}
-                      onChange={(event) => {
+                      onChange={(nextValue) => {
                         const option = outputOptions.find(
-                          (candidate) => outputOptionValue(candidate) === event.target.value,
+                          (candidate) => outputOptionValue(candidate) === nextValue,
                         );
                         if (!option) return;
                         updateParameter(name, {
@@ -259,25 +280,20 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                           outputId: option.output.id,
                         });
                       }}
-                      className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
-                    >
-                      {outputOptions.map((option) => (
-                        <option key={outputOptionValue(option)} value={outputOptionValue(option)}>
-                          {labelForOutput(option)}
-                        </option>
-                      ))}
-                    </select>
-                    <select
+                      options={outputOptions.map((option) => ({ value: outputOptionValue(option), label: labelForOutput(option) }))}
+                    />
+                    <ScalarSelect
+                      label={`Output field for ${name}`}
                       value={binding.field ?? ""}
                       disabled={selectedOutput?.output.type !== "dateRange"}
-                      onChange={(event) =>
+                      onChange={(field) =>
                         updateParameter(name, {
                           source: "componentOutput",
                           componentId: binding.componentId,
                           outputId: binding.outputId,
-                          ...(event.target.value
+                          ...(field
                             ? {
-                                field: event.target.value as
+                                field: field as
                                   | "start"
                                   | "end"
                                   | "preset"
@@ -286,51 +302,43 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                             : {}),
                         })
                       }
-                      className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-neutral-100 disabled:text-neutral-400"
-                    >
-                      <option value="">Whole value</option>
-                      <option value="start">start</option>
-                      <option value="end">end</option>
-                      <option value="preset">preset</option>
-                      <option value="timezone">timezone</option>
-                    </select>
+                      options={["", "start", "end", "preset", "timezone"].map((field) => ({ value: field, label: field || "Whole value" }))}
+                    />
                     <button
                       type="button"
                       onClick={() => removeParameter(name)}
-                      className="rounded-md p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-md p-1.5 text-ui-placeholder transition hover:bg-ui-danger-subtle hover:text-ui-danger"
                     >
                       <FiTrash2 size={14} />
                     </button>
                   </div>
                 ) : binding.source === "pageFilter" ? (
                   <div className="grid grid-cols-[minmax(0,1fr)_150px_32px] gap-2">
-                    <select
+                    <ScalarSelect
+                      label={`Page filter for ${name}`}
                       value={binding.filterId || ""}
-                      onChange={(event) =>
+                      onChange={(filterId) =>
                         updateParameter(name, {
                           source: "pageFilter",
-                          filterId: event.target.value,
+                          filterId,
                         })
                       }
-                      className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
-                    >
-                      <option value="">Select page filter...</option>
-                      {pageFilters.map((filter) => (
-                        <option key={filter.id} value={filter.id}>
-                          {(filter.label || "").trim() || filter.key}
-                        </option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "", label: "Select page filter..." },
+                        ...pageFilters.map((filter) => ({ value: filter.id, label: (filter.label || "").trim() || filter.key })),
+                      ]}
+                    />
+                    <ScalarSelect
+                      label={`Page filter field for ${name}`}
                       value={binding.field ?? ""}
                       disabled={pageFilterFieldOptions.length === 0}
-                      onChange={(event) =>
+                      onChange={(field) =>
                         updateParameter(name, {
                           source: "pageFilter",
                           filterId: binding.filterId,
-                          ...(event.target.value
+                          ...(field
                             ? {
-                                field: event.target.value as
+                                field: field as
                                   | "value"
                                   | "month"
                                   | "year"
@@ -342,26 +350,22 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                             : {}),
                         })
                       }
-                      className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-neutral-100 disabled:text-neutral-400"
-                    >
-                      <option value="">Whole value</option>
-                      {pageFilterFieldOptions.map((field) => (
-                        <option key={field} value={field}>
-                          {field}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "", label: "Whole value" },
+                        ...pageFilterFieldOptions.map((field) => ({ value: field, label: field })),
+                      ]}
+                    />
                     <button
                       type="button"
                       onClick={() => removeParameter(name)}
-                      className="rounded-md p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-md p-1.5 text-ui-placeholder transition hover:bg-ui-danger-subtle hover:text-ui-danger"
                     >
                       <FiTrash2 size={14} />
                     </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-[minmax(0,1fr)_32px] gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={stringifyStaticValue(
                         (binding as Extract<ParameterBinding, { source: "static" }>).value,
@@ -373,19 +377,19 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                         })
                       }
                       placeholder="Static value"
-                      className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      className="text-xs"
                     />
                     <button
                       type="button"
                       onClick={() => removeParameter(name)}
-                      className="rounded-md p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-md p-1.5 text-ui-placeholder transition hover:bg-ui-danger-subtle hover:text-ui-danger"
                     >
                       <FiTrash2 size={14} />
                     </button>
                   </div>
                 )}
 
-                <div className="rounded bg-neutral-50 px-2 py-1 text-[11px] text-neutral-500">
+                <div className="rounded bg-ui-surface-subtle px-2 py-1 text-[11px] text-ui-muted">
                   Preview:{" "}
                   {binding.source === "componentOutput"
                     ? formatBindingLabel(page, binding)
@@ -394,7 +398,7 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
                     : "static"}
                 </div>
                 {parameterIssues.map((issue) => (
-                  <div key={issue.message} className="text-xs text-red-600">
+                  <div key={issue.message} className="text-xs text-ui-danger">
                     {issue.message}
                   </div>
                 ))}
@@ -404,12 +408,12 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
         )}
       </div>
 
-      <div className="flex items-start gap-2 border-t border-neutral-200 pt-3">
+      <div className="flex items-start gap-2 border-t border-ui-border pt-3">
         <label className="flex-1 space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-muted">
             Add request parameter name
           </span>
-          <input
+          <Input
             type="text"
             value={customParameter}
             onChange={(event) => setCustomParameter(event.target.value)}
@@ -420,9 +424,9 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
               }
             }}
             placeholder="pageSize"
-            className="w-full rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs focus:border-transparent focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="w-full text-xs"
           />
-          <span className={customParameterError ? "block text-[11px] text-red-600" : "block text-[11px] text-neutral-500"}>
+          <span className={customParameterError ? "block text-[11px] text-ui-danger" : "block text-[11px] text-ui-muted"}>
             {customParameterError || "Use letters, numbers, and underscores. Start with a letter or underscore."}
           </span>
         </label>
@@ -430,14 +434,14 @@ export const ParameterBindingsEditor: React.FC<ParameterBindingsEditorProps> = (
           type="button"
           onClick={addParameter}
           disabled={!trimmedCustomParameter || Boolean(customParameterError)}
-          className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-ui-ink-hover px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ui-ink-hover disabled:cursor-not-allowed disabled:bg-ui-border-strong"
         >
           <FiPlus size={13} />
           Add
         </button>
       </div>
 
-      <div className="text-[11px] text-neutral-500">
+      <div className="text-[11px] text-ui-muted">
         Editing component id: <span className="font-mono">{componentId}</span>
       </div>
     </div>

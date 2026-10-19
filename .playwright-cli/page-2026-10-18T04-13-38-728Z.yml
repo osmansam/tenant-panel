@@ -1,0 +1,128 @@
+- generic [ref=f26e1]:
+  - generic [ref=f26e4]:
+    - link "Skip to content" [ref=f26e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - generic [ref=f26e6]:
+      - banner [ref=f26e7]:
+        - button "Open navigation" [ref=f26e8] [cursor=pointer]
+        - generic [ref=f26e11]: Tenant Panel
+      - main [ref=f26e12]:
+        - generic [ref=f26e13]:
+          - generic [ref=f26e14]:
+            - generic [ref=f26e15]:
+              - heading "Operations Workspace" [level=1] [ref=f26e16]
+              - generic [ref=f26e17]: operations
+              - generic [ref=f26e18]: Active
+            - generic [ref=f26e19]:
+              - generic [ref=f26e20]: "Role:"
+              - generic [ref=f26e21]: Project developer
+          - generic [ref=f26e22]:
+            - tablist "Pages sections" [ref=f26e23]:
+              - tab "Pages" [selected] [ref=f26e24] [cursor=pointer]
+              - tab "Audit Logs" [ref=f26e25] [cursor=pointer]
+            - tabpanel "Pages" [ref=f26e26]:
+              - region "Pages" [ref=f26e408]:
+                - generic [ref=f26e409]:
+                  - generic [ref=f26e410]:
+                    - heading "Pages" [level=2] [ref=f26e411]
+                    - generic [ref=f26e412]: Manage project page views, navigation, and layouts
+                  - group "Page actions" [ref=f26e413]:
+                    - button "Create with JSON" [ref=f26e414] [cursor=pointer]
+                    - button "Create Page" [ref=f26e422] [cursor=pointer]
+                - generic [ref=f26e428]:
+                  - generic [ref=f26e429]:
+                    - generic [ref=f26e430]: "1"
+                    - generic [ref=f26e431]: Total Pages
+                  - generic [ref=f26e433]:
+                    - generic [ref=f26e434]: "0"
+                    - generic [ref=f26e435]: Public Pages
+                  - generic [ref=f26e437]:
+                    - generic [ref=f26e438]: "1"
+                    - generic [ref=f26e439]: Auth Pages
+                  - generic [ref=f26e441]:
+                    - generic [ref=f26e442]: "0"
+                    - generic [ref=f26e443]: Total Sections
+                - generic [ref=f26e444]:
+                  - searchbox "Search pages" [ref=f26e446]
+                  - generic [ref=f26e448]:
+                    - log [ref=f26e450]
+                    - generic [ref=f26e452] [cursor=pointer]:
+                      - generic [ref=f26e453]: All page types
+                      - combobox "Page access filter" [ref=f26e454]
+                  - status [ref=f26e459]: 1 of 1 pages
+                - generic [ref=f26e461] [cursor=pointer]:
+                  - generic [ref=f26e462]:
+                    - generic [ref=f26e463]:
+                      - heading [level=3] [ref=f26e468]:
+                        - 'button "View page details: Overview" [ref=f26e469]': Overview
+                      - generic [ref=f26e470]: /overview
+                      - generic [ref=f26e471]: Authenticated
+                    - generic [ref=f26e472]:
+                      - generic [ref=f26e473]: 0 sections
+                      - generic [ref=f26e474]: •
+                      - generic [ref=f26e475]: No role restrictions
+                  - generic [ref=f26e476]:
+                    - generic [ref=f26e477]:
+                      - generic [ref=f26e479]:
+                        - log [ref=f26e481]
+                        - generic [ref=f26e483]:
+                          - generic [ref=f26e484]: No parent
+                          - 'combobox "Parent page: Overview" [ref=f26e485]'
+                      - generic [ref=f26e490]:
+                        - generic [ref=f26e491]:
+                          - checkbox "Sidebar" [checked] [ref=f26e492]
+                          - generic [ref=f26e493]: Sidebar
+                        - generic [ref=f26e495]:
+                          - checkbox "Main" [ref=f26e496]
+                          - generic [ref=f26e497]: Main
+                    - generic [ref=f26e498]:
+                      - button "Edit" [ref=f26e499]
+                      - button "Preview" [ref=f26e503]
+                      - 'button "More options: Overview" [ref=f26e508]'
+  - dialog [ref=f26e514]:
+    - banner [ref=f26e515]:
+      - generic [ref=f26e516]:
+        - heading "Create New Page" [level=2] [ref=f26e517]
+        - generic [ref=f26e518]: Set up a new page for your project
+      - button "Close dialog" [active] [ref=f26e519] [cursor=pointer]
+    - form "Create page" [ref=f26e525]:
+      - group [ref=f26e526]:
+        - generic [ref=f26e532]:
+          - paragraph [ref=f26e533]: Preview
+          - paragraph [ref=f26e534]: New Page
+          - paragraph [ref=f26e535]: /new-page
+        - generic [ref=f26e536]:
+          - generic [ref=f26e537]:
+            - generic [ref=f26e538]: Page Name *
+            - textbox "Page Name" [ref=f26e539]:
+              - /placeholder: Enter page name
+          - generic [ref=f26e540]:
+            - generic [ref=f26e541]: Icon
+            - generic [ref=f26e543]:
+              - log [ref=f26e545]
+              - generic [ref=f26e547] [cursor=pointer]:
+                - generic [ref=f26e548]: Dashboard
+                - combobox "Icon" [ref=f26e550]
+            - button "Browse icons" [ref=f26e555] [cursor=pointer]
+        - generic [ref=f26e556]:
+          - generic [ref=f26e557]: Page Path
+          - textbox "Page Path" [ref=f26e558]:
+            - /placeholder: count/:id
+          - paragraph [ref=f26e559]: "Use :param for route values, for example count/:id. Components can use {{route.id}} in source params."
+        - generic [ref=f26e560]:
+          - checkbox "Show in sidebar Turn this off for detail pages like count/:id that should only open from links." [checked] [ref=f26e561] [cursor=pointer]
+          - generic [ref=f26e562]:
+            - generic [ref=f26e563]: Show in sidebar
+            - generic [ref=f26e564]: Turn this off for detail pages like count/:id that should only open from links.
+        - generic [ref=f26e565]:
+          - generic [ref=f26e566]: Parent Page
+          - generic [ref=f26e568]:
+            - log [ref=f26e570]
+            - generic [ref=f26e572] [cursor=pointer]:
+              - generic [ref=f26e573]: No parent page
+              - combobox "Parent Page" [ref=f26e575]
+        - paragraph [ref=f26e583]: The page will be created with an empty structure. You can add sections and components later.
+    - contentinfo [ref=f26e584]:
+      - generic [ref=f26e585]:
+        - button "Cancel" [ref=f26e586] [cursor=pointer]
+        - button "Create Page" [disabled] [ref=f26e590]

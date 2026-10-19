@@ -1,5 +1,5 @@
 import { useMemo, type AriaAttributes } from "react";
-import Select, { StylesConfig } from "react-select";
+import { Select } from "../../ui";
 
 type MonthYearOption = {
   value: string;
@@ -36,17 +36,6 @@ const numericMonthOptions = generateOptions(1, 12).map((opt) => ({
 const currentYear = new Date().getFullYear();
 const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
 const yearOptions = generateOptions(currentYear - 10, currentYear + 10);
-const selectMenuStyles: StylesConfig<MonthYearOption, false> = {
-  menu: (base) => ({
-    ...base,
-    zIndex: 99999,
-  }),
-  menuPortal: (base) => ({
-    ...base,
-    zIndex: 99999,
-  }),
-};
-
 const normalizeMonthYearValue = (value: MonthYearInputProps["value"]) => {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return {
@@ -104,53 +93,53 @@ const MonthYearInput = ({
     const formatted = `${month}-${year}`;
     onChange(formatted);
   };
-  const menuPortalTarget =
-    typeof document === "undefined" ? undefined : document.body;
+  const invalid =
+    ariaInvalid !== undefined &&
+    ariaInvalid !== false &&
+    ariaInvalid !== "false";
 
   return (
     <div className={`flex flex-col gap-2 w-full ${className || ""}`}>
       {!hideLabel && label && (
         <label className="text-sm font-medium">
-          {label} {requiredField && <span className="text-red-500">*</span>}
+          {label} {requiredField && <span className="text-ui-danger">*</span>}
         </label>
       )}
       <div className="flex gap-2 items-center">
         {/* Month Dropdown */}
         <Select
           options={monthOptions}
-          value={monthOptions.find((opt) => opt.value === selectedMonth)}
+          value={monthOptions.find((opt) => opt.value === selectedMonth) || null}
           onChange={(option) =>
-            option && handleChange(option.value, selectedYear)
+            option && "value" in option &&
+            handleChange(option.value, selectedYear)
           }
-          isDisabled={disabled || isReadOnly}
-          inputId={id}
+          disabled={disabled}
+          readOnly={isReadOnly}
+          id={id}
           name={name}
           className={language ? "min-w-36 flex-1" : "w-28"}
           aria-label={language === "tr" ? "Ay" : "Month"}
           aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
-          noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
-          menuPosition="fixed"
-          menuPortalTarget={menuPortalTarget}
-          styles={selectMenuStyles}
+          invalid={invalid}
+          noOptionsMessage={language === "tr" ? "Seçenek bulunamadı" : "No options"}
         />
 
         {/* Year Dropdown */}
         <Select
           options={yearOptions}
-          value={yearOptions.find((opt) => opt.value === selectedYear)}
+          value={yearOptions.find((opt) => opt.value === selectedYear) || null}
           onChange={(option) =>
-            option && handleChange(selectedMonth, option.value)
+            option && "value" in option &&
+            handleChange(selectedMonth, option.value)
           }
-          isDisabled={disabled || isReadOnly}
+          disabled={disabled}
+          readOnly={isReadOnly}
           className="w-32"
           aria-label={language === "tr" ? "Yıl" : "Year"}
           aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
-          noOptionsMessage={() => language === "tr" ? "Seçenek bulunamadı" : "No options"}
-          menuPosition="fixed"
-          menuPortalTarget={menuPortalTarget}
-          styles={selectMenuStyles}
+          invalid={invalid}
+          noOptionsMessage={language === "tr" ? "Seçenek bulunamadı" : "No options"}
         />
       </div>
     </div>

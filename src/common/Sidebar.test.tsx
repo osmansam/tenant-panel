@@ -135,6 +135,20 @@ describe("Sidebar", () => {
     expect(state.switchBackToTenant).toHaveBeenCalledOnce();
   });
 
+  it("does not treat a tenant owner role as project membership", () => {
+    state.isInProject = true;
+    state.project = { id: "project-1", name: "Demo Project", slug: "demo" };
+    state.user.roles = ["tenant_owner"];
+    state.user.roleScope = "project";
+
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("button", { name: "Collections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pages" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Localization" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Integrations" })).not.toBeInTheDocument();
+  });
+
   it("exposes collapse and expand controls", async () => {
     const user = userEvent.setup();
     const { rerender } = render(<Sidebar />);
@@ -170,4 +184,51 @@ describe("Sidebar", () => {
       "page",
     );
   });
+
+  it("keeps collapsed navigation controls named for keyboard and screen reader users", () => {
+    state.isSidebarOpen = false;
+    render(<Sidebar />);
+    expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
+  });
+
+  it("closes mobile navigation after selecting a destination", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    const user = userEvent.setup();
+    render(<Sidebar />);
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+    expect(state.navigate).toHaveBeenCalledWith("/projects");
+    expect(state.setIsSidebarOpen).toHaveBeenCalledWith(false);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+  });
+
+  it("dismisses mobile navigation with Escape and restores focus to its opener", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const user = userEvent.setup();
+    const { unmount } = render(<Sidebar />);
+    await user.keyboard("{Escape}");
+    expect(state.setIsSidebarOpen).toHaveBeenCalledWith(false);
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+  });
+
+
+  it("keeps the mobile backdrop clickable while isolating the page", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    render(<><main>Workspace content</main><Sidebar /></>);
+    const backdrop = document.querySelector('[data-modal-backdrop-for="main-navigation"]');
+    expect(backdrop).not.toBeNull();
+    expect(backdrop?.closest("[inert]")).toBeNull();
+    expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
+    await userEvent.click(backdrop as HTMLElement);
+    expect(state.setIsSidebarOpen).toHaveBeenCalledWith(false);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+  });
+
 });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCreateContainer } from "../../../utils/api/container";
 import { WorkspaceDialog } from "../../ui/workspace-dialog";
@@ -16,32 +16,39 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const formId = useId();
+  const submittingRef = useRef(false);
+  const [submitError, setSubmitError] = useState("");
   const [schemaName, setSchemaName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { createContainer, isCreating } = useCreateContainer();
+  const { createContainerAsync, isCreating } = useCreateContainer();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!schemaName.trim()) return;
+    if (!schemaName.trim() || submittingRef.current || isCreating) return;
+    submittingRef.current = true;
+    setSubmitError("");
 
     setIsSubmitting(true);
 
     const containerPayload = buildCreateContainerPayload(schemaName);
 
     try {
-      createContainer(containerPayload);
+      await createContainerAsync(containerPayload);
       // Reset form and close modal on success
       setSchemaName("");
       onClose();
     } catch (error) {
-      console.error("Failed to create container:", error);
+      setSubmitError(t("Your collection could not be created. Your changes are still here. Please try again."));
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
-    if (!isCreating && !isSubmitting) {
+    if (!isCreating && !submittingRef.current) {
+      setSubmitError("");
       setSchemaName("");
       onClose();
     }
@@ -67,9 +74,9 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
             {t("Cancel")}
           </GenericButton>
           <GenericButton
-            type="button"
+            type="submit"
+            form={formId}
             variant="primary"
-            onClick={handleSubmit}
             disabled={!schemaName.trim() || isCreating || isSubmitting}
             isLoading={isCreating || isSubmitting}
           >
@@ -80,13 +87,14 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({
         </div>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id={formId} aria-label={t("Create collection")} onSubmit={handleSubmit} className="space-y-4">
+        {submitError && <p role="alert" className="rounded-ui-md bg-ui-danger-subtle p-3 text-sm text-ui-danger">{submitError}</p>}
         <div>
           <TextInput
             type="text"
             label={t("Schema Name")}
             value={schemaName}
-            onChange={(value: string) => setSchemaName(value)}
+            onChange={(value: string) => { setSchemaName(value); setSubmitError(""); }}
             placeholder={t("Enter collection schema name")}
             requiredField={true}
             disabled={isCreating || isSubmitting}

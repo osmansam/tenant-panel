@@ -21,25 +21,25 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "border-transparent bg-ui-primary text-[hsl(var(--ui-primary-foreground))] hover:bg-ui-primary-hover active:bg-[hsl(var(--ui-primary-active))] shadow-ui-sm",
+    "border-transparent bg-ui-ink text-[hsl(var(--ui-ink-foreground))] shadow-ui-button hover:bg-ui-ink-hover active:bg-ui-ink-active",
   secondary:
-    "border-transparent bg-ui-surface-subtle text-ui-foreground hover:bg-ui-disabled active:bg-ui-neutral-subtle",
+    "border-transparent bg-ui-surface-subtle text-ui-foreground hover:bg-ui-neutral-subtle active:bg-ui-disabled",
   outline:
-    "border-ui-border bg-ui-surface text-ui-foreground hover:bg-ui-surface-subtle hover:border-ui-border-hover shadow-sm",
+    "border-ui-border bg-ui-surface text-ui-foreground shadow-ui-sm hover:border-ui-border-hover hover:bg-ui-surface-subtle active:bg-ui-disabled",
   ghost:
-    "border-transparent bg-transparent text-ui-foreground hover:bg-ui-surface-subtle",
+    "border-transparent bg-transparent text-ui-foreground hover:bg-ui-surface-subtle active:bg-ui-disabled",
   destructive:
-    "border-transparent bg-ui-danger text-white hover:bg-[hsl(var(--ui-danger-hover))] active:bg-[hsl(var(--ui-danger-active))] shadow-ui-sm",
+    "border-transparent bg-ui-danger text-white shadow-ui-button hover:bg-[hsl(var(--ui-danger-hover))] active:bg-[hsl(var(--ui-danger-active))]",
   success:
-    "border-transparent bg-ui-success text-white hover:bg-[hsl(var(--ui-success-hover))] active:bg-[hsl(var(--ui-success-active))] shadow-ui-sm",
+    "border-transparent bg-ui-success text-white shadow-ui-button hover:bg-[hsl(var(--ui-success-hover))] active:bg-[hsl(var(--ui-success-active))]",
   warning:
-    "border-transparent bg-[hsl(var(--ui-warning))] text-white hover:bg-[hsl(var(--ui-warning-hover))] active:bg-[hsl(var(--ui-warning-active))] shadow-ui-sm",
+    "border-transparent bg-[hsl(var(--ui-warning))] text-white shadow-ui-button hover:bg-[hsl(var(--ui-warning-hover))] active:bg-[hsl(var(--ui-warning-active))]",
   icon:
-    "border-transparent bg-transparent text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground",
+    "border-transparent bg-transparent text-ui-muted hover:bg-ui-surface-subtle hover:text-ui-foreground active:bg-ui-disabled",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-ui-sm rounded-ui-sm px-3 text-sm gap-1.5",
+  sm: "h-ui-sm rounded-ui-md px-3 text-[13px] gap-1.5",
   md: "h-ui-md rounded-ui-md px-4 text-sm gap-2",
   lg: "h-ui-lg rounded-ui-md px-5 text-sm gap-2.5",
 };
@@ -68,7 +68,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       aria-busy={loading || undefined}
       disabled={disabled || loading}
       className={cn(
-        "ui-focus-ring relative inline-flex items-center justify-center border font-medium select-none transition-[background-color,border-color,color,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-60",
+        "ui-focus-ring relative inline-flex items-center justify-center border font-medium tracking-tight select-none transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         variants[variant],
         sizes[size],
         variant === "icon" && iconSizes[size],

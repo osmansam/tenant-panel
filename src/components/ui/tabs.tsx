@@ -39,7 +39,18 @@ export function Tabs({ value, onValueChange, className, children, ...props }: Ta
 }
 
 export function TabsList({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div role="tablist" className={cn("flex max-w-full gap-1 overflow-x-auto border-b border-ui-border", className)} {...props}>{children}</div>;
+  return (
+    <div
+      role="tablist"
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-ui-border/70 bg-ui-surface-subtle p-1",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }
 
 export interface TabsTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -78,8 +89,10 @@ export function TabsTrigger({ value, className, children, disabled, ...props }: 
       onClick={() => context.onValueChange(value)}
       onKeyDown={handleKeyDown}
       className={cn(
-        "shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus disabled:opacity-50",
-        selected ? "border-ui-primary text-ui-foreground" : "border-transparent text-ui-muted hover:text-ui-foreground",
+        "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus disabled:opacity-50",
+        selected
+          ? "bg-ui-surface text-ui-foreground shadow-ui-sm ring-1 ring-ui-border/60"
+          : "text-ui-muted hover:text-ui-foreground",
         className,
       )}
       {...props}

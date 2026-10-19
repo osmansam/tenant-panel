@@ -10,11 +10,12 @@ import {
 } from "../utils/api/container";
 import { useRoleItems } from "../utils/api/roleInfo";
 import {
+  isContainerRouteAvailable,
   normalizeContainerRoutes,
   toggleContainerRouteFlag,
   updateContainerRouteSpec,
 } from "../utils/containerRoutes";
-import GenericTable from "./panelComponents/Tables/GenericTable";
+import DataTable from "./panelComponents/Tables/DataTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
 import type { ColumnType } from "./panelComponents/shared/types";
 import { RouteAccessPolicyEditor } from "./route-access/RouteAccessPolicyEditor";
@@ -126,6 +127,8 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     const rows: RouteRow[] = [];
     Object.entries(editableRoutes).forEach(
       ([routeName, routeSpec]: [string, any]) => {
+        if (!isContainerRouteAvailable(routeName)) return;
+
         // Convert camelCase to readable format
         const displayName = routeName.replace(/([A-Z])/g, " $1").trim();
 
@@ -152,21 +155,24 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
 
       const updatedRoutes = Object.fromEntries(
         Object.entries(editableRoutesRef.current).map(
-          ([routeName, routeSpec]) => [
-            routeName,
-            {
-              ...routeSpec,
-              [flag]:
-                flag === "isAuthenticated" &&
-                !value &&
-                routeSpec.access
-                  ? true
-                  : value,
-              ...(flag === "isAuthorized" && !value
-                ? { authorizeRole: [] }
-                : {}),
-            },
-          ],
+          ([routeName, routeSpec]) =>
+            !isContainerRouteAvailable(routeName)
+              ? [routeName, routeSpec]
+              : [
+                  routeName,
+                  {
+                    ...routeSpec,
+                    [flag]:
+                      flag === "isAuthenticated" &&
+                      !value &&
+                      routeSpec.access
+                        ? true
+                        : value,
+                    ...(flag === "isAuthorized" && !value
+                      ? { authorizeRole: [] }
+                      : {}),
+                  },
+                ],
         ),
       );
 
@@ -338,7 +344,7 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
       {
         key: "method",
         node: (row: RouteRow) => (
-          <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-800">
+          <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-ui-surface-subtle text-ui-foreground">
             {row.method}
           </span>
         ),
@@ -352,9 +358,9 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
               onChange={() => handleIsActiveToggle(row)}
             />
           ) : row.isActive ? (
-            <IoCheckmark className="text-green-500 text-2xl" />
+            <IoCheckmark className="text-ui-success text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline className="text-ui-danger text-2xl" />
           );
         },
       },
@@ -369,9 +375,9 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
               ariaLabel={`${t("Is Authenticated")} ${row.displayName}`}
             />
           ) : row.isAuthenticated ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline className="text-ui-danger text-2xl" />
           );
         },
       },
@@ -384,9 +390,9 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
               onChange={() => handleIsAuthorizedToggle(row)}
             />
           ) : row.isAuthorized ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline className="text-ui-danger text-2xl" />
           );
         },
       },
@@ -394,7 +400,7 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         key: "accessPolicy",
         node: (row: RouteRow) => {
           if (!row.supportsAccessPolicy) {
-            return <span className="text-gray-300">-</span>;
+            return <span className="text-ui-placeholder">-</span>;
           }
           return (
             <div className="flex min-w-40 items-center justify-between gap-2">
@@ -425,7 +431,7 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
         node: (row: RouteRow) => {
           // If not authorized, show disabled state
           if (!row.isAuthorized) {
-            return <span className="text-gray-300">-</span>;
+            return <span className="text-ui-placeholder">-</span>;
           }
 
           const authorizeRoles = row.authorizeRole || [];
@@ -437,9 +443,9 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
               onChange={() => handleRouteRolePermission(row, roleId)}
             />
           ) : hasRolePermission ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline className="text-ui-danger text-2xl" />
           );
         },
       });
@@ -477,13 +483,12 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
 
   return (
     <div className="w-full h-full">
-      <GenericTable
+      <DataTable
         rowKeys={rowKeys}
         columns={columns}
         rows={routeRows}
         filters={filters}
         title={t("Route Permissions") + ` - ${container?.schemaName || ""}`}
-        isActionsActive={false}
         isSearch={true}
       />
       {policyRouteName && (

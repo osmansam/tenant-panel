@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getRoleLabel } from "../utils/roleLabels";
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { AuditLogsAuthorizationSection } from "../components/panelComponents/common/AuditLogsAuthorizationSection";
@@ -6,6 +7,7 @@ import { PagesSection } from "../components/panelComponents/common/PagesSection"
 import { Badge, PageShell, Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
+import { hasManagementPermission } from "../utils/managementPermissions";
 
 const PagesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -19,6 +21,10 @@ const PagesPage: React.FC = () => {
   }
 
   const projectRoles = user?.roles || [];
+  const canConfigureAuditLogs = hasManagementPermission(
+    projectRoles,
+    "project.audit.configure",
+  );
 
   return (
     <PageShell>
@@ -41,7 +47,7 @@ const PagesPage: React.FC = () => {
         <div className="flex items-center gap-1.5 text-xs text-ui-muted shrink-0">
           <span className="text-ui-muted">{t("Role")}:</span>
           <span className="font-medium text-ui-foreground">
-            {projectRoles.map((role) => t(role)).join(", ")}
+            {projectRoles.map((role) => t(getRoleLabel(role))).join(", ")}
           </span>
         </div>
       </div>
@@ -49,14 +55,18 @@ const PagesPage: React.FC = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList aria-label="Pages sections">
           <TabsTrigger value="pages">Pages</TabsTrigger>
-          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+          {canConfigureAuditLogs && (
+            <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="pages" className="py-3">
           <PagesSection />
         </TabsContent>
-        <TabsContent value="audit-logs" className="py-3">
-          <AuditLogsAuthorizationSection />
-        </TabsContent>
+        {canConfigureAuditLogs && (
+          <TabsContent value="audit-logs" className="py-3">
+            <AuditLogsAuthorizationSection />
+          </TabsContent>
+        )}
       </Tabs>
     </PageShell>
   );

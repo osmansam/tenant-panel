@@ -14,8 +14,9 @@ export function Section({
   return (
     <section
       className={cn(
-        "py-5",
-        surface === "outlined" && "rounded-ui-lg border border-ui-border bg-ui-surface p-5 sm:p-6",
+        "py-6",
+        surface === "outlined" &&
+          "rounded-ui-xl border border-ui-border bg-ui-surface p-5 shadow-ui-card sm:p-6",
         className,
       )}
       {...props}
@@ -41,14 +42,14 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        "mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+        "mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
         className,
       )}
       {...props}
     >
       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-ui-foreground">{title}</h2>
-        {description && <div className="mt-1 text-sm text-ui-muted">{description}</div>}
+        <h2 className="text-[17px] font-semibold tracking-tight text-ui-foreground">{title}</h2>
+        {description && <div className="mt-1 text-sm leading-6 text-ui-muted">{description}</div>}
       </div>
       {actions}
     </div>

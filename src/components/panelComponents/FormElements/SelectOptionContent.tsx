@@ -1,6 +1,6 @@
-import { OptionType } from "../../../types";
+import type { SelectOption } from "../../ui";
 
-export const SelectOptionContent = ({ option }: { option: OptionType }) => {
+export const SelectOptionContent = ({ option }: { option: SelectOption }) => {
   if (!option.leftLabel && !option.rightLabel) return <span>{option.label}</span>;
   return (
     <span className="flex min-w-0 flex-1 items-center justify-between gap-4">

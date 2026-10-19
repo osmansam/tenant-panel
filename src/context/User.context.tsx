@@ -1,5 +1,6 @@
 import { createContext, PropsWithChildren, useContext, useState } from "react";
 import { User } from "../types";
+import { readStoredUser } from "../utils/persistedContext";
 import { logout as authLogout } from "../utils/auth";
 
 type UserContextType = {
@@ -15,10 +16,7 @@ const UserContext = createContext<UserContextType>({
 });
 
 export const UserContextProvider = ({ children }: PropsWithChildren) => {
-  const [user, setUser] = useState<User | undefined>(() => {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : undefined;
-  });
+  const [user, setUser] = useState<User | undefined>(readStoredUser);
 
   const logout = (showMessage: boolean = true) => {
     // Clear user state

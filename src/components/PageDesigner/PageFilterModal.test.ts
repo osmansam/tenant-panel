@@ -10,8 +10,8 @@ describe("month/year filter language", () => {
       filter: { id: "month", key: "month", label: "", type: "monthYear", language: "tr", placement: { kind: "navbar" } },
       defaultCellId: "", cells: [], onClose: () => {}, onSave: () => {},
     }));
-    expect(html).toContain('<option value="tr" selected="">Türkçe</option>');
-    expect(html).toContain('<option value="en">English</option>');
+    expect(html).toContain("Türkçe");
+    expect(html).toContain('aria-label="Language"');
   });
 
   it.each([["tr", "Eylül"], ["en", "September"]])("renders %s month names", (language, expected) => {

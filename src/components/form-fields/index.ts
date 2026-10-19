@@ -18,7 +18,6 @@ export { MonthYearField } from "./month-year-field";
 export type { MonthYearFieldProps } from "./month-year-field";
 export { SelectField } from "./select-field";
 export type { SelectFieldProps } from "./select-field";
-export { getSelectStyles } from "./selectStyles";
 export { TextField } from "./text-field";
 export type { TextFieldProps } from "./text-field";
 export { TextareaField } from "./textarea-field";

@@ -1,7 +1,0 @@
-th .sort-buttons {
-  visibility: hidden;
-}
-
-th:hover .sort-buttons {
-  visibility: visible;
-}

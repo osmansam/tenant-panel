@@ -1,5 +1,5 @@
 import type { AriaAttributes } from "react";
-import Select from "react-select";
+import { Select } from "../../ui";
 
 type HourInputProps = {
   label?: string;
@@ -46,28 +46,34 @@ const HourInput = ({
     onChange(`${hour}:${selectedMinute}`);
   const handleMinuteChange = (minute: string) =>
     onChange(`${selectedHour}:${minute}`);
+  const invalid =
+    ariaInvalid !== undefined &&
+    ariaInvalid !== false &&
+    ariaInvalid !== "false";
 
   return (
     <div className={`flex flex-col gap-2 w-full ${className || ""}`}>
       {!hideLabel && label && (
         <label className="text-sm font-medium">
-          {label} {requiredField && <span className="text-red-500">*</span>}
+          {label} {requiredField && <span className="text-ui-danger">*</span>}
         </label>
       )}
       <div className="flex gap-2 items-center">
         {/* Hour Dropdown */}
         <Select
           options={hourOptions}
-          value={hourOptions.find((option) => option.value === selectedHour)}
-          onChange={(option) => option && handleHourChange(option.value)}
-          isDisabled={disabled || isReadOnly}
-          inputId={id}
+          value={hourOptions.find((option) => option.value === selectedHour) || null}
+          onChange={(option) =>
+            option && "value" in option && handleHourChange(option.value)
+          }
+          disabled={disabled}
+          readOnly={isReadOnly}
+          id={id}
           name={name}
           aria-label="Hour"
           aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
+          invalid={invalid}
           className="w-24"
-          menuPosition="fixed"
         />
 
         <span className="text-lg">:</span>
@@ -77,14 +83,16 @@ const HourInput = ({
           options={minuteOptions}
           value={minuteOptions.find(
             (option) => option.value === selectedMinute
-          )}
-          onChange={(option) => option && handleMinuteChange(option.value)}
-          isDisabled={disabled || isReadOnly}
+          ) || null}
+          onChange={(option) =>
+            option && "value" in option && handleMinuteChange(option.value)
+          }
+          disabled={disabled}
+          readOnly={isReadOnly}
           aria-label="Minute"
           aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
+          invalid={invalid}
           className="w-24"
-          menuPosition="fixed"
         />
       </div>
     </div>

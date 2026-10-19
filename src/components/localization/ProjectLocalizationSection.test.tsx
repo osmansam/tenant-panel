@@ -151,4 +151,22 @@ describe("ProjectLocalizationSection", () => {
 		expect(screen.getByText("outdated")).toBeInTheDocument();
 		expect(screen.getByRole("textbox", { name: "Translation for Missing" })).toBeEnabled();
 	});
+
+  it("keeps viewer localization access read-only", async () => {
+    const user = userEvent.setup();
+    state.translations = [{
+      translationKey: "product.title",
+      resourceType: "field",
+      status: "translated",
+      sourceText: "Product",
+      translatedText: "Ürün",
+      origin: "manual",
+    }];
+    render(<ProjectLocalizationSection project={project} readOnly />);
+    expect(screen.getByRole("textbox", { name: "Translation for Product" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Regenerate missing / outdated" })).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "Languages" }));
+    expect(screen.getByLabelText("Source language")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save language settings" })).not.toBeInTheDocument();
+  });
 });

@@ -1,0 +1,139 @@
+- generic [ref=f26e1]:
+  - generic [ref=f26e4]:
+    - link "Skip to content" [ref=f26e5] [cursor=pointer]:
+      - /url: "#main-content"
+    - generic [ref=f26e6]:
+      - banner [ref=f26e7]:
+        - button "Open navigation" [ref=f26e8] [cursor=pointer]
+        - generic [ref=f26e11]: Tenant Panel
+      - main [ref=f26e12]:
+        - generic [ref=f26e13]:
+          - generic [ref=f26e14]:
+            - generic [ref=f26e15]:
+              - heading "Operations Workspace" [level=1] [ref=f26e16]
+              - generic [ref=f26e17]: operations
+              - generic [ref=f26e18]: Active
+            - generic [ref=f26e19]:
+              - generic [ref=f26e20]: "Role:"
+              - generic [ref=f26e21]: Project developer
+          - generic [ref=f26e22]:
+            - tablist "Pages sections" [ref=f26e23]:
+              - tab "Pages" [selected] [ref=f26e24] [cursor=pointer]
+              - tab "Audit Logs" [ref=f26e25] [cursor=pointer]
+            - tabpanel "Pages" [ref=f26e26]:
+              - region "Pages" [ref=f26e27]:
+                - generic [ref=f26e28]:
+                  - generic [ref=f26e29]:
+                    - heading "Pages" [level=2] [ref=f26e30]
+                    - generic [ref=f26e31]: Manage project page views, navigation, and layouts
+                  - group "Page actions" [ref=f26e32]:
+                    - button "Create with JSON" [ref=f26e33] [cursor=pointer]
+                    - button "Create Page" [ref=f26e41] [cursor=pointer]
+                - generic [ref=f26e47]:
+                  - generic [ref=f26e48]:
+                    - generic [ref=f26e49]: "1"
+                    - generic [ref=f26e50]: Total Pages
+                  - generic [ref=f26e52]:
+                    - generic [ref=f26e53]: "0"
+                    - generic [ref=f26e54]: Public Pages
+                  - generic [ref=f26e56]:
+                    - generic [ref=f26e57]: "1"
+                    - generic [ref=f26e58]: Auth Pages
+                  - generic [ref=f26e60]:
+                    - generic [ref=f26e61]: "0"
+                    - generic [ref=f26e62]: Total Sections
+                - generic [ref=f26e63]:
+                  - searchbox "Search pages" [ref=f26e65]
+                  - generic [ref=f26e67]:
+                    - log [ref=f26e69]
+                    - generic [ref=f26e71] [cursor=pointer]:
+                      - generic [ref=f26e72]: All page types
+                      - combobox "Page access filter" [ref=f26e73]
+                  - status [ref=f26e78]: 1 of 1 pages
+                - generic [ref=f26e80] [cursor=pointer]:
+                  - generic [ref=f26e81]:
+                    - generic [ref=f26e82]:
+                      - heading [level=3] [ref=f26e87]:
+                        - 'button "View page details: Overview" [ref=f26e88]': Overview
+                      - generic [ref=f26e89]: /overview
+                      - generic [ref=f26e90]: Authenticated
+                    - generic [ref=f26e91]:
+                      - generic [ref=f26e92]: 0 sections
+                      - generic [ref=f26e93]: •
+                      - generic [ref=f26e94]: No role restrictions
+                  - generic [ref=f26e95]:
+                    - generic [ref=f26e96]:
+                      - generic [ref=f26e98]:
+                        - log [ref=f26e100]
+                        - generic [ref=f26e102]:
+                          - generic [ref=f26e103]: No parent
+                          - 'combobox "Parent page: Overview" [ref=f26e104]'
+                      - generic [ref=f26e109]:
+                        - generic [ref=f26e110]:
+                          - checkbox "Sidebar" [checked] [ref=f26e111]
+                          - generic [ref=f26e112]: Sidebar
+                        - generic [ref=f26e114]:
+                          - checkbox "Main" [ref=f26e115]
+                          - generic [ref=f26e116]: Main
+                    - generic [ref=f26e117]:
+                      - button "Edit" [ref=f26e118]
+                      - button "Preview" [ref=f26e122]
+                      - 'button "More options: Overview" [ref=f26e127]'
+  - dialog [ref=f26e132]:
+    - generic [ref=f26e133]:
+      - banner [ref=f26e134]:
+        - generic [ref=f26e136]:
+          - generic [ref=f26e141]:
+            - heading "Overview" [level=1] [ref=f26e142]
+            - status [ref=f26e143]: Unsaved changes
+          - tablist "Page editor sections" [ref=f26e144]:
+            - tab "Content" [selected] [ref=f26e145] [cursor=pointer]
+            - tab "Navigation" [ref=f26e148] [cursor=pointer]
+            - tab "Page settings" [ref=f26e151] [cursor=pointer]
+          - generic [ref=f26e155]:
+            - button "Cancel" [ref=f26e156] [cursor=pointer]
+            - button "Save Page" [ref=f26e160] [cursor=pointer]
+      - tabpanel "Content" [ref=f26e165]:
+        - generic [ref=f26e166]:
+          - navigation "Page structure" [ref=f26e167]:
+            - generic [ref=f26e168]:
+              - generic [ref=f26e169]:
+                - heading "Structure" [level=2] [ref=f26e170]
+                - paragraph [ref=f26e171]: 1 section
+              - button "Add section" [active] [ref=f26e172] [cursor=pointer]:
+                - generic [ref=f26e173]: Add
+            - generic [ref=f26e187]:
+              - button "Section 1, 1 column, 0 cells" [ref=f26e188] [cursor=pointer]:
+                - generic [ref=f26e189]: "1"
+                - generic [ref=f26e190]:
+                  - generic [ref=f26e191]: Section 1
+                  - generic [ref=f26e192]: 1 col · 0 cells
+              - button "Delete section 1" [ref=f26e193] [cursor=pointer]
+          - main "Page canvas" [ref=f26e179]:
+            - generic [ref=f26e196]:
+              - region [ref=f26e197]:
+                - generic [ref=f26e198]:
+                  - paragraph [ref=f26e199]: Section 1
+                  - heading "Layout settings" [level=3] [ref=f26e200]
+                - generic [ref=f26e201]:
+                  - generic [ref=f26e202]:
+                    - generic [ref=f26e203]: Grid Columns
+                    - generic [ref=f26e205]:
+                      - log [ref=f26e207]
+                      - generic [ref=f26e209] [cursor=pointer]:
+                        - generic [ref=f26e210]: 1 Column
+                        - combobox "Grid Columns" [ref=f26e212]
+                  - generic [ref=f26e217]:
+                    - generic [ref=f26e218]: Gap (pixels)
+                    - spinbutton "Gap (pixels)" [ref=f26e219]: "16"
+              - region [ref=f26e220]:
+                - generic [ref=f26e221]:
+                  - generic [ref=f26e222]:
+                    - heading "Grid Layout" [level=3] [ref=f26e223]
+                    - paragraph [ref=f26e224]: Design your page structure with cells and components
+                  - generic [ref=f26e225]:
+                    - button "Add cell" [ref=f26e226] [cursor=pointer]
+                    - button "Import Excel" [ref=f26e232] [cursor=pointer]
+                - generic [ref=f26e242]:
+                  - paragraph [ref=f26e249]: No cells yet
+                  - button "Add your first cell" [ref=f26e250] [cursor=pointer]

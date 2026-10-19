@@ -1,18 +1,22 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { GoogleCallbackHandler } from "../components/auth";
-import {
-  CollectionsPage,
-  Dashboard,
-  IntegrationsPage,
-  LocalizationPage,
-  LoginPage,
-  PagePreviewPage,
-  PagesPage,
-  ProjectManagementPage,
-  RegisterPage,
-  TenantBrandingPage,
-} from "../pages";
-import ProjectsPage from "../pages/ProjectsPage";
+import { lazy, Suspense, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
+import { RouteErrorBoundary } from "../common/RouteErrorBoundary";
+import { RouteLoading } from "../common/RouteLoading";
+import { NotFoundPage } from "../pages/NotFoundPage";
+import { systemRoutes } from "./constants";
+
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const LoginPage = lazy(() => import("../pages/LoginPage"));
+const RegisterPage = lazy(() => import("../pages/RegisterPage"));
+const ProjectsPage = lazy(() => import("../pages/ProjectsPage"));
+const CollectionsPage = lazy(() => import("../pages/CollectionsPage"));
+const PagesPage = lazy(() => import("../pages/PagesPage"));
+const IntegrationsPage = lazy(() => import("../pages/IntegrationsPage"));
+const LocalizationPage = lazy(() => import("../pages/LocalizationPage"));
+const TenantBrandingPage = lazy(() => import("../pages/TenantBrandingPage"));
+const GoogleCallbackHandler = lazy(() => import("../components/auth/GoogleCallbackHandler").then((module) => ({ default: module.GoogleCallbackHandler })));
 import { PrivateRoutes } from "./PrivateRoutes";
 import { Routes as ProtectedRoutes, PublicRoutes } from "./constants";
 
@@ -27,7 +31,16 @@ interface RouteConfig {
 }
 
 const RouterContainer = () => {
+  const { pathname } = useLocation();
+  const { t } = useTranslation();
+  useEffect(() => {
+    const title = systemRoutes.find((route) => route.path === pathname)?.name
+      || (pathname === "/login" ? "Sign in" : pathname === "/register" ? "Create account" : "Tenant Panel");
+    document.title = `${t(title)} · AutoAPI`;
+  }, [pathname, t]);
   return (
+    <RouteErrorBoundary resetKey={pathname}>
+    <Suspense fallback={<RouteLoading />}>
     <Routes>
       {/* Public Routes */}
       <Route path={PublicRoutes.Login} element={<LoginPage />} />
@@ -67,16 +80,16 @@ const RouterContainer = () => {
           path={ProtectedRoutes.Integrations}
           element={<IntegrationsPage />}
         />
-        <Route path="/page-preview/:pageId/*" element={<PagePreviewPage />} />
-        <Route path="/page-preview/:pageId" element={<PagePreviewPage />} />
         {/* <Route path={ProtectedRoutes.Users} element={<UsersPage />} /> */}
         <Route path={ProtectedRoutes.Settings} element={<TenantBrandingPage />} />
         {/* <Route path={ProtectedRoutes.Profile} element={<ProfilePage />} /> */}
       </Route>
 
       {/* 404 Route */}
-      <Route path={PublicRoutes.NotFound} element={<div>Page Not Found</div>} />
+      <Route path={PublicRoutes.NotFound} element={<NotFoundPage />} />
     </Routes>
+    </Suspense>
+    </RouteErrorBoundary>
   );
 };
 

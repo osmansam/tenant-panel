@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IoClose } from "react-icons/io5";
 import {
   PageModel,
   useCreatePage,
@@ -13,21 +12,16 @@ import {
   PAGE_ICON_OPTIONS,
   PageIconCategory,
 } from "../../../utils/pageIcons";
-import TextInput from "../FormElements/TextInput";
+import { Input, Select, WorkspaceDialog } from "../../ui";
+import { GenericButton } from "../FormElements/GenericButton";
+import { createUrlSlug } from "../../../utils/urlSlug";
 
 interface CreatePageModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const buildPathFromName = (name: string) =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+const buildPathFromName = createUrlSlug;
 
 const normalizePagePath = (path: string) =>
   path
@@ -52,6 +46,14 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const formId = useId();
+  const nameId = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const pathId = useId();
+  const pathHelpId = useId();
+  const submittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [pageName, setPageName] = useState("");
   const [pagePath, setPagePath] = useState("");
   const [isPagePathEdited, setIsPagePathEdited] = useState(false);
@@ -63,7 +65,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     PageIconCategory | "All"
   >("All");
   const [parentPageId, setParentPageId] = useState("");
-  const { createPage, isCreating } = useCreatePage();
+  const { createPageAsync, isCreating } = useCreatePage();
   const pages = useGetTenantPages() || [];
 
   const getPageId = (page: PageModel) => page._id || page.id || "";
@@ -86,126 +88,105 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
     setPagePath(buildPathFromName(pageName));
   }, [isPagePathEdited, pageName]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pageName.trim() || pathError) return;
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pageName.trim() || pathError || isCreating || submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      await createPageAsync({
+        name: pageName.trim(), icon: selectedIcon,
+        slug: normalizedPagePath || undefined,
+        parentPageId: parentPageId || undefined,
+        isOnSidebar, sections: [], isAuthenticated: true,
+      });
+      resetForm();
+      onClose();
+    } catch {
+      setSubmitError(t("Your page could not be created. Your changes are still here. Please try again."));
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
 
-    // Create page with just name, icon, and empty sections
-    createPage({
-      name: pageName.trim(),
-      icon: selectedIcon,
-      slug: normalizedPagePath || undefined,
-      parentPageId: parentPageId || undefined,
-      isOnSidebar,
-      sections: [], // Empty sections as requested
-      isAuthenticated: true, // Default to authenticated
-    });
-
-    // Reset form and close modal
-    setPageName("");
-    setPagePath("");
-    setIsPagePathEdited(false);
-    setIsOnSidebar(true);
-    setSelectedIcon("MdSpaceDashboard");
-    setIsIconBrowserOpen(false);
-    setIconSearch("");
-    setIconCategory("All");
-    setParentPageId("");
-    onClose();
+  const resetForm = () => {
+    setPageName(""); setPagePath(""); setIsPagePathEdited(false);
+    setIsOnSidebar(true); setSelectedIcon("MdSpaceDashboard");
+    setIsIconBrowserOpen(false); setIconSearch(""); setIconCategory("All");
+    setParentPageId(""); setSubmitError("");
   };
 
   const handleCancel = () => {
-    setPageName("");
-    setPagePath("");
-    setIsPagePathEdited(false);
-    setIsOnSidebar(true);
-    setSelectedIcon("MdSpaceDashboard");
-    setIsIconBrowserOpen(false);
-    setIconSearch("");
-    setIconCategory("All");
-    setParentPageId("");
+    if (isCreating || submittingRef.current) return;
+    resetForm();
     onClose();
   };
+  const busy = isCreating || isSubmitting;
 
   if (!isOpen) return null;
 
   const SelectedIconComponent = getIconByName(selectedIcon);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <div>
-            <h2 className="text-base font-semibold text-neutral-900">
-              {t("Create New Page")}
-            </h2>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              {t("Set up a new page for your project")}
-            </p>
-          </div>
-          <button
-            onClick={handleCancel}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 active:scale-95"
-          >
-            <IoClose size={20} />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+    <WorkspaceDialog initialFocusRef={nameRef} open={isOpen} onClose={handleCancel} title={t("Create New Page")} description={t("Set up a new page for your project")} className="max-w-xl" footer={
+      <div className="flex justify-end gap-2.5">
+        <GenericButton variant="outline" onClick={handleCancel} disabled={busy}>{t("Cancel")}</GenericButton>
+        <GenericButton type="submit" form={formId} disabled={!pageName.trim() || Boolean(pathError) || busy} isLoading={busy}>{busy ? t("Creating...") : t("Create Page")}</GenericButton>
+      </div>
+    }>
+      <form id={formId} aria-label={t("Create page")} onSubmit={handleSubmit} className="space-y-5">
+        {submitError && <p role="alert" className="rounded-ui-md bg-ui-danger-subtle p-3 text-sm text-ui-danger">{submitError}</p>}
+        <fieldset disabled={busy} className="min-w-0 space-y-5 border-0 p-0">
           {/* Preview Section - Moved to Top */}
-          <div className="flex items-center gap-4 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
-            <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border border-neutral-200 text-neutral-700">
+          <div className="flex items-center gap-4 p-4 bg-ui-surface-subtle border border-ui-border rounded-xl">
+            <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border border-ui-border text-ui-foreground">
               <SelectedIconComponent size={24} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-neutral-500 mb-0.5">
+              <p className="text-xs font-medium text-ui-muted mb-0.5">
                 {t("Preview")}
               </p>
-              <p className="text-sm font-semibold text-neutral-900 truncate">
-                {pageName || t("test")}
+              <p className="text-sm font-semibold text-ui-foreground truncate">
+                {pageName || t("New Page")}
               </p>
-              <p className="mt-1 text-xs font-mono text-neutral-500 truncate">
-                /{normalizedPagePath || buildPathFromName(pageName) || "test"}
+              <p className="mt-1 text-xs font-mono text-ui-muted truncate">
+                /{normalizedPagePath || buildPathFromName(pageName) || "new-page"}
               </p>
             </div>
           </div>
 
           {/* Page Name and Icon - Side by Side */}
-          <div className="grid grid-cols-[1fr,auto] gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
             {/* Page Name Input */}
             <div>
-              <TextInput
-                label={t("Page Name")}
-                value={pageName}
-                onChange={(value) => setPageName(value)}
-                placeholder={t("Enter page name")}
-                type="text"
-                requiredField
-              />
+              <label htmlFor={nameId} className="mb-2 block text-sm font-medium text-ui-foreground">{t("Page Name")} <span aria-hidden="true" className="text-ui-danger">*</span></label>
+              <Input ref={nameRef} id={nameId} name="pageName" value={pageName} onChange={(event) => { setPageName(event.target.value); setSubmitError(""); }} placeholder={t("Enter page name")} required className="w-full" />
             </div>
 
             {/* Icon Selection */}
-            <div className="w-48">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <div className="min-w-0">
+              <label className="block text-sm font-medium text-ui-foreground mb-2">
                 {t("Icon")}
               </label>
-              <select
+              <Select
+                disabled={busy}
+                aria-label={t("Icon")}
                 value={selectedIcon}
                 onChange={(e) => setSelectedIcon(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-ink focus:border-transparent transition-all"
               >
                 {PAGE_ICON_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
               <button
                 type="button"
                 onClick={() => setIsIconBrowserOpen((current) => !current)}
-                className="mt-2 w-full px-3 py-2 text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-colors"
+                className="mt-2 w-full px-3 py-2 text-xs font-medium text-ui-foreground bg-ui-surface-subtle border border-ui-border rounded-lg hover:bg-ui-surface-subtle transition-colors"
               >
                 {isIconBrowserOpen
                   ? t("Close icon browser")
@@ -215,27 +196,28 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
           </div>
 
           {isIconBrowserOpen && (
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 space-y-3">
+            <div className="rounded-xl border border-ui-border bg-ui-surface-subtle p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">
+                  <h3 className="text-sm font-semibold text-ui-foreground">
                     {t("Browse icons")}
                   </h3>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-ui-muted">
                     {t("Search by icon name or filter by category")}
                   </p>
                 </div>
-                <span className="text-xs font-medium text-neutral-500">
+                <span className="text-xs font-medium text-ui-muted">
                   {filteredIcons.length} {t("icons")}
                 </span>
               </div>
 
-              <input
+              <Input
                 type="search"
+                aria-label={t("Search icons")}
                 value={iconSearch}
                 onChange={(event) => setIconSearch(event.target.value)}
                 placeholder={t("Search icons...")}
-                className="w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm bg-white border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-ink focus:border-transparent"
               />
 
               <div className="flex flex-wrap gap-1.5">
@@ -244,11 +226,12 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                     <button
                       key={category}
                       type="button"
+                      aria-pressed={iconCategory === category}
                       onClick={() => setIconCategory(category)}
                       className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                         iconCategory === category
-                          ? "bg-neutral-900 text-white"
-                          : "bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100"
+                          ? "bg-ui-ink-hover text-white"
+                          : "bg-white text-ui-muted border border-ui-border hover:bg-ui-surface-subtle"
                       }`}
                     >
                       {t(category)}
@@ -267,6 +250,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                       <button
                         key={option.value}
                         type="button"
+                        aria-pressed={isSelected}
                         title={`${option.label} (${option.value})`}
                         onClick={() => {
                           setSelectedIcon(option.value);
@@ -274,8 +258,8 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                         }}
                         className={`min-h-20 rounded-lg border p-2 flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                           isSelected
-                            ? "border-neutral-900 bg-neutral-900 text-white"
-                            : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-100"
+                            ? "bg-ui-ink bg-ui-ink-hover text-white"
+                            : "border-ui-border bg-white text-ui-foreground hover:border-ui-border-strong hover:bg-ui-surface-subtle"
                         }`}
                       >
                         <IconComponent size={22} />
@@ -287,7 +271,7 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                   })}
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
+                <div className="rounded-lg border border-dashed border-ui-border bg-white px-4 py-8 text-center text-sm text-ui-muted">
                   {t("No icons match your search")}
                 </div>
               )}
@@ -296,23 +280,27 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
 
           {/* Page Path */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label htmlFor={pathId} className="block text-sm font-medium text-ui-foreground mb-2">
               {t("Page Path")}
             </label>
-            <input
+            <Input
+              id={pathId}
+              aria-invalid={Boolean(pathError)}
+              aria-describedby={pathHelpId}
               value={pagePath}
               onChange={(e) => {
                 setIsPagePathEdited(true);
                 setPagePath(e.target.value);
               }}
               placeholder="count/:id"
-              className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all font-mono ${
-                pathError ? "border-red-400" : "border-neutral-300"
+              className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-ink focus:border-transparent transition-all font-mono ${
+                pathError ? "border-ui-danger" : "border-ui-border"
               }`}
             />
             <p
+              id={pathHelpId}
               className={`mt-2 text-xs ${
-                pathError ? "text-red-600" : "text-neutral-500"
+                pathError ? "text-ui-danger" : "text-ui-muted"
               }`}
             >
               {pathError ||
@@ -323,18 +311,18 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
           </div>
 
           {/* Sidebar Visibility */}
-          <label className="flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-3">
-            <input
+          <label className="flex items-start gap-3 rounded-lg border border-ui-border bg-white p-3">
+            <Input
               type="checkbox"
               checked={isOnSidebar}
               onChange={(event) => setIsOnSidebar(event.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+              className="mt-1 h-4 w-4 rounded border-ui-border text-ui-foreground focus:ring-ui-ink"
             />
             <span>
-              <span className="block text-sm font-medium text-neutral-800">
+              <span className="block text-sm font-medium text-ui-foreground">
                 {t("Show in sidebar")}
               </span>
-              <span className="mt-0.5 block text-xs text-neutral-500">
+              <span className="mt-0.5 block text-xs text-ui-muted">
                 {t(
                   "Turn this off for detail pages like count/:id that should only open from links."
                 )}
@@ -344,13 +332,15 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
 
           {/* Parent Page Selection */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-ui-foreground mb-2">
               {t("Parent Page")}
             </label>
-            <select
+            <Select
+              disabled={busy}
+              aria-label={t("Parent Page")}
               value={parentPageId}
               onChange={(e) => setParentPageId(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-ink focus:border-transparent transition-all"
             >
               <option value="">{t("No parent page")}</option>
               {parentOptions.map((page) => {
@@ -362,13 +352,13 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                   </option>
                 );
               })}
-            </select>
+            </Select>
           </div>
 
           {/* Info Box */}
-          <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3 bg-ui-active-subtle border border-ui-border rounded-lg p-4">
             <svg
-              className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5"
+              className="w-5 h-5 text-ui-primary flex-shrink-0 mt-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -380,33 +370,15 @@ export const CreatePageModal: React.FC<CreatePageModalProps> = ({
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-xs text-blue-900 leading-relaxed">
+            <p className="text-xs text-ui-foreground leading-relaxed">
               {t(
                 "The page will be created with an empty structure. You can add sections and components later."
               )}
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={isCreating}
-              className="px-4 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 active:scale-[0.98] transition-all disabled:opacity-50"
-            >
-              {t("Cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={!pageName.trim() || Boolean(pathError) || isCreating}
-              className="px-4 py-2.5 text-sm font-medium text-white bg-neutral-900 rounded-lg hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-900"
-            >
-              {isCreating ? t("Creating...") : t("Create Page")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </fieldset>
+      </form>
+    </WorkspaceDialog>
   );
 };

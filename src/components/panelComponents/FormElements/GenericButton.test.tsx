@@ -53,7 +53,7 @@ describe("GenericButton compatibility wrapper", () => {
       "bg-ui-danger",
     );
     expect(screen.getByRole("button", { name: "Create" })).toHaveClass(
-      "bg-ui-primary",
+      "bg-ui-ink",
     );
     expect(screen.getByRole("button", { name: "Clear" })).toHaveClass(
       "absolute",

@@ -19,6 +19,14 @@ vi.mock("../../../utils/dynamic", () => ({
   useGetSelection: () => [],
 }));
 
+vi.mock("../../../hooks/useTenant", () => ({
+  useTenant: () => ({ currentTenant: { slug: "acme" } }),
+}));
+
+vi.mock("../../../hooks/useCurrentProject", () => ({
+  useCurrentProject: () => ({ currentProject: { slug: "shop" } }),
+}));
+
 vi.mock("../../../utils/api/roleInfo", () => ({
   useRoleItems: () => ({ data: [] }),
 }));
@@ -87,6 +95,58 @@ describe("ContainerDetailsModal", () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it("omits paused function routes from the overview and its route count", async () => {
+    const user = userEvent.setup();
+    const route = {
+      isActive: true,
+      isAuthenticated: false,
+      isAuthorized: false,
+      authorizeRole: [],
+      method: "GET",
+    };
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{
+          ...stock,
+          routes: {
+            ExecuteDynamicCode: route,
+            ExecuteWorkflow: route,
+            GetPipeline: route,
+          },
+        }}
+      />,
+    );
+
+    const summary = screen.getByText("Available Routes").closest("summary")!;
+    expect(within(summary).getByText("2")).toBeInTheDocument();
+    await user.click(summary);
+    expect(screen.queryByText("Execute Dynamic Code")).not.toBeInTheDocument();
+    expect(screen.getByText("Execute Workflow")).toBeVisible();
+    expect(screen.getByText("Get Pipeline")).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Workflows" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Dynamic APIs" })).toBeInTheDocument();
+  });
+
+  it("omits the available-routes summary when only a paused function route remains", () => {
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{ ...stock, routes: { ExecuteDynamicCode: {
+          isActive: true,
+          isAuthenticated: false,
+          isAuthorized: false,
+          authorizeRole: [],
+          method: "GET",
+        } } }}
+      />,
+    );
+
+    expect(screen.queryByText("Available Routes")).not.toBeInTheDocument();
+  });
+
   it("opens the manager at its searchable Fields section", async () => {
     render(
       <ContainerDetailsModal
@@ -145,6 +205,7 @@ describe("ContainerDetailsModal", () => {
 
     const structuredTab = screen.getByRole("tab", { name: "Structured" });
     expect(screen.getByRole("tablist")).toHaveClass("overflow-x-auto");
+    expect(screen.getByRole("tab", { name: "Endpoints" })).toBeInTheDocument();
     const dialog = screen.getByRole("dialog", { name: "stock" });
     expect(dialog.children.item(1)).toHaveClass("min-w-0");
     expect(within(dialog).getByRole("heading", { name: "stock" }).firstElementChild).toHaveClass(
@@ -156,10 +217,62 @@ describe("ContainerDetailsModal", () => {
 
     structuredTab.focus();
     await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Endpoints" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "Pipelines" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+  });
+
+  it("lists swagger-style request paths for available routes", async () => {
+    const user = userEvent.setup();
+    const route = {
+      isActive: true,
+      isAuthenticated: true,
+      isAuthorized: false,
+      authorizeRole: [],
+      method: "GET",
+    };
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{
+          ...stock,
+          routes: {
+            GetAllDynamicModelItems: { ...route, method: "GET" },
+            CreateDynamicModelItem: { ...route, method: "POST" },
+            UpdateDynamicModelItem: { ...route, method: "PATCH" },
+            ExecuteDynamicCode: route,
+          },
+        }}
+        intent="details"
+      />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Endpoints" }));
+
+    expect(
+      screen.getByText("https://api-production.autoapi.org/api/v1/acme/shop/"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("/dynamic?schemaName=stock").length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText("/dynamic/{id}?schemaName=stock"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Create a record")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Example payload").length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Example response")).toBeInTheDocument();
+    expect(screen.getAllByText(/"product":/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/"quantity":/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Execute Dynamic Code")).not.toBeInTheDocument();
   });
 
   it("renders accessible Edit and Delete buttons for each field", () => {

@@ -6,7 +6,7 @@ import { CheckSwitch } from "../common/CheckSwitch";
 import type { Field } from "../utils/api/container";
 import { useContainer, useUpdateContainer } from "../utils/api/container";
 import { useRoleItems } from "../utils/api/roleInfo";
-import GenericTable from "./panelComponents/Tables/GenericTable";
+import DataTable from "./panelComponents/Tables/DataTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
 
 interface FieldPermissionsProps {
@@ -172,7 +172,7 @@ const FieldPermissions = ({ containerId }: FieldPermissionsProps) => {
               <span style={{ marginLeft: `${row.depth * 20}px` }}>
                 {row.name}
               </span>
-              <span className="text-xs text-gray-500">({row.type})</span>
+              <span className="text-xs text-ui-muted">({row.type})</span>
             </div>
           );
         },
@@ -190,9 +190,9 @@ const FieldPermissions = ({ containerId }: FieldPermissionsProps) => {
             onChange={() => handleIsAuthorizedToggle(row)}
           />
         ) : row.isAuthorized ? (
-          <IoCheckmark className="text-blue-500 text-2xl" />
+          <IoCheckmark className="text-ui-primary text-2xl" />
         ) : (
-          <IoCloseOutline className="text-red-800 text-2xl" />
+          <IoCloseOutline className="text-ui-danger text-2xl" />
         );
       },
     });
@@ -207,7 +207,7 @@ const FieldPermissions = ({ containerId }: FieldPermissionsProps) => {
         node: (row: FlatField) => {
           // If not authorized, show disabled state
           if (!row.isAuthorized) {
-            return <span className="text-gray-300">-</span>;
+            return <span className="text-ui-placeholder">-</span>;
           }
 
           const authorizeRoles = row.authorizeRole || [];
@@ -220,9 +220,9 @@ const FieldPermissions = ({ containerId }: FieldPermissionsProps) => {
               onChange={() => handleFieldRolePermission(row, roleId)}
             />
           ) : hasRolePermission ? (
-            <IoCheckmark className="text-blue-500 text-2xl" />
+            <IoCheckmark className="text-ui-primary text-2xl" />
           ) : (
-            <IoCloseOutline className="text-red-800 text-2xl" />
+            <IoCloseOutline className="text-ui-danger text-2xl" />
           );
         },
       });
@@ -254,13 +254,12 @@ const FieldPermissions = ({ containerId }: FieldPermissionsProps) => {
   }
   return (
     <div className="w-full h-full">
-      <GenericTable
+      <DataTable
         rowKeys={rowKeys}
         columns={columns}
         rows={flatFields}
         filters={filters}
         title={t("Field Permissions") + ` - ${container?.schemaName || ""}`}
-        isActionsActive={false}
         isSearch={true}
       />
     </div>

@@ -17,14 +17,14 @@ interface Props<T> {
   additionalInvalidates?: QueryKey[];
 }
 
-export function useGet<T>(
+export function useGetQuery<T>(
   path: string,
   queryKey?: QueryKey,
   enabled: boolean = true
 ) {
   // We are using path as a query key if queryKey is not provided
   const fetchQueryKey = queryKey || [path];
-  const { data } = useQuery({
+  return useQuery({
     queryKey: fetchQueryKey,
     queryFn: () => get<T>({ path }),
     enabled: enabled, // Control whether the query should run
@@ -34,7 +34,14 @@ export function useGet<T>(
     refetchOnReconnect: false, // no auto-refetch
     refetchOnMount: false, // no auto-refetch
   });
-  return data;
+}
+
+export function useGet<T>(
+  path: string,
+  queryKey?: QueryKey,
+  enabled: boolean = true,
+) {
+  return useGetQuery<T>(path, queryKey, enabled).data;
 }
 
 export function useGetList<T>(

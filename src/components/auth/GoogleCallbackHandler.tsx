@@ -42,7 +42,7 @@ export const GoogleCallbackHandler: React.FC<GoogleCallbackHandlerProps> = ({
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <Loading />
-        <p className="mt-4 text-gray-600">
+        <p className="mt-4 text-ui-muted">
           {t("Completing Google sign-in...")}
         </p>
       </div>

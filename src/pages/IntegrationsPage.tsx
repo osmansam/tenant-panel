@@ -18,15 +18,19 @@ import { GenericButton } from "../components/panelComponents/FormElements/Generi
 import {
   Badge,
   EmptyState,
+  Input,
   PageActions,
   PageHeader,
   PageShell,
   Section,
   SectionHeader,
+  Select,
   WorkspaceDialog,
 } from "../components/ui";
 import { getHttpMethodBadgeTreatment } from "../components/integrations/http-method-badge";
 import { useCurrentProject } from "../hooks/useCurrentProject";
+import { useUserContext } from "../context/User.context";
+import { hasManagementPermission } from "../utils/managementPermissions";
 import { cn } from "../utils/cn";
 import {
   ContainerModel,
@@ -407,13 +411,13 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
       <div className="space-y-6">
         {createdToken && (
-          <section className="rounded-ui-md border border-amber-200 bg-amber-50 p-4">
+          <section className="rounded-ui-xl border border-[hsl(var(--ui-warning)/0.2)] bg-[hsl(var(--ui-warning-subtle))] p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-amber-900">
+                <div className="text-sm font-semibold text-[hsl(var(--ui-warning))]">
                   New token
                 </div>
-                <div className="mt-2 flex items-center gap-2 rounded-ui-sm border border-amber-200 bg-ui-surface px-3 py-2">
+                <div className="mt-2 flex items-center gap-2 rounded-ui-md border border-[hsl(var(--ui-warning)/0.2)] bg-ui-surface px-3 py-2">
                   <code className="min-w-0 flex-1 truncate text-xs text-ui-foreground">
                     {createdToken}
                   </code>
@@ -430,7 +434,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
               <button
                 type="button"
                 onClick={() => setCreatedToken(null)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-ui-sm text-amber-800 hover:bg-amber-100"
+                className="inline-flex size-8 items-center justify-center rounded-full text-[hsl(var(--ui-warning))] transition-colors hover:bg-[hsl(var(--ui-warning)/0.1)]"
                 title="Dismiss"
               >
                 <FiX className="h-4 w-4" />
@@ -451,7 +455,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Name
                   </span>
-                  <input
+                  <Input
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     className="mt-1 ui-control w-full"
@@ -462,7 +466,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Expires at
                   </span>
-                  <input
+                  <Input
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(event) => setExpiresAt(event.target.value)}
@@ -497,7 +501,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                       key={index}
                       className="grid gap-3 rounded-ui-md border border-ui-border bg-ui-surface-subtle p-3 md:grid-cols-[1.1fr_1fr_1.4fr_.7fr_auto]"
                     >
-                      <select
+                      <Select
                         value={permission.kind}
                         onChange={(event) =>
                           updatePermission(index, {
@@ -511,9 +515,9 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             {kind.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
 
-                      <select
+                      <Select
                         value={permission.schemaName}
                         onChange={(event) =>
                           updatePermission(index, {
@@ -528,10 +532,10 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             {schemaName}
                           </option>
                         ))}
-                      </select>
+                      </Select>
 
                       {permission.kind === "dynamicRoute" ? (
-                        <select
+                        <Select
                           value={permission.route || ""}
                           onChange={(event) =>
                             updatePermission(index, {
@@ -546,9 +550,9 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                               {routeName}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       ) : (
-                        <input
+                        <Input
                           value={permission.name || ""}
                           onChange={(event) =>
                             updatePermission(index, {
@@ -568,7 +572,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                         </datalist>
                       )}
 
-                      <select
+                      <Select
                         value={permission.method}
                         onChange={(event) =>
                           updatePermission(index, {
@@ -582,7 +586,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                             {method}
                           </option>
                         ))}
-                      </select>
+                      </Select>
 
                       <button
                         type="button"
@@ -630,7 +634,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Name
                   </span>
-                  <input
+                  <Input
                     value={externalName}
                     onChange={(event) => setExternalName(event.target.value)}
                     className="mt-1 ui-control w-full"
@@ -642,7 +646,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Auth type
                   </span>
-                  <select
+                  <Select
                     value={externalAuthType}
                     onChange={(event) =>
                       setExternalAuthType(event.target.value as ExternalAPIAuthType)
@@ -651,7 +655,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   >
                     <option value="bearer">Bearer token</option>
                     <option value="header">Custom header</option>
-                  </select>
+                  </Select>
                 </label>
 
                 {externalAuthType === "header" && (
@@ -659,7 +663,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                     <span className="text-xs font-medium text-ui-foreground">
                       Header name
                     </span>
-                    <input
+                    <Input
                       value={externalHeaderName}
                       onChange={(event) =>
                         setExternalHeaderName(event.target.value)
@@ -674,7 +678,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Allowed domain
                   </span>
-                  <input
+                  <Input
                     value={externalAllowedDomains}
                     onChange={(event) =>
                       setExternalAllowedDomains(event.target.value)
@@ -689,7 +693,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                     External API token
                   </label>
                   <div className="relative mt-1">
-                    <input
+                    <Input
                       id="external-api-token"
                       type={showExternalSecret ? "text" : "password"}
                       value={externalSecret}
@@ -713,7 +717,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                   <span className="text-xs font-medium text-ui-foreground">
                     Expires at
                   </span>
-                  <input
+                  <Input
                     type="datetime-local"
                     value={externalExpiresAt}
                     onChange={(event) =>
@@ -749,11 +753,11 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
           <SectionHeader
             title={
               <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[hsl(var(--ui-info-subtle))] text-[hsl(var(--ui-info))]">
                   <FiArrowUpRight className="h-3.5 w-3.5" />
                 </span>
                 <span className="font-semibold text-ui-foreground">External API credentials</span>
-                <span className="inline-flex items-center rounded-ui-sm border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                <span className="inline-flex items-center rounded-full bg-[hsl(var(--ui-info-subtle))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--ui-info))]">
                   Outbound
                 </span>
               </div>
@@ -839,11 +843,11 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
           <SectionHeader
             title={
               <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 items-center justify-center rounded-ui-sm bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[hsl(var(--ui-neutral-subtle))] text-ui-muted">
                   <FiArrowDownLeft className="h-3.5 w-3.5" />
                 </span>
                 <span className="font-semibold text-ui-foreground">Integration credentials</span>
-                <span className="inline-flex items-center rounded-ui-sm border border-purple-200 bg-purple-50/80 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                <span className="inline-flex items-center rounded-full bg-[hsl(var(--ui-neutral-subtle))] px-2 py-0.5 text-[11px] font-medium text-ui-muted">
                   Inbound
                 </span>
               </div>
@@ -967,8 +971,13 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 
 const IntegrationsPage: React.FC = () => {
   const { currentProject, isInProject } = useCurrentProject();
+  const { user } = useUserContext();
 
-  if (!isInProject || !currentProject) {
+  if (
+    !isInProject ||
+    !currentProject ||
+    !hasManagementPermission(user?.roles, "project.integrations.read")
+  ) {
     return <Navigate to="/projects" replace />;
   }
 

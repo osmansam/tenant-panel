@@ -22,6 +22,9 @@ const allContainers = Array.from({ length: 40 }, (_, index) =>
   makeContainer(index + 1),
 );
 let mockContainers: ContainerModel[] = allContainers;
+let mockLoading = false;
+let mockError = false;
+const mockRefetch = vi.fn();
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -42,6 +45,7 @@ vi.mock("../../../utils/api/container", async (importOriginal) => {
   return {
     ...actual,
     useContainers: () => mockContainers,
+    useContainersQuery: () => ({ data: mockContainers, isLoading: mockLoading, error: mockError ? new Error("Offline") : null, refetch: mockRefetch }),
     useCreateContainer: () => ({ createContainer: vi.fn(), isCreating: false }),
   };
 });
@@ -92,6 +96,9 @@ vi.mock("../Modals/ContainerDataModal", () => ({
 describe("ContainersSection", () => {
   beforeEach(() => {
     mockContainers = allContainers;
+    mockLoading = false;
+    mockError = false;
+    mockRefetch.mockClear();
   });
 
   it("paginates collections and changes page size", async () => {
@@ -108,7 +115,8 @@ describe("ContainersSection", () => {
     expect(screen.getByRole("article", { name: "schema-11 collection" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "schema-1 collection" })).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Collections per page"), "20");
+    await user.click(screen.getByLabelText("Collections per page"));
+    await user.click(screen.getByRole("option", { name: "20" }));
     expect(screen.getAllByRole("article")).toHaveLength(20);
     expect(screen.getByRole("article", { name: "schema-20 collection" })).toBeInTheDocument();
   });
@@ -196,4 +204,19 @@ describe("ContainersSection", () => {
     expect(screen.getByText("No collections found in this project")).toBeInTheDocument();
     expect(screen.queryByText("No collections match your search")).not.toBeInTheDocument();
   });
+
+  it("shows loading and retry states without claiming the project is empty", async () => {
+    mockContainers = [];
+    mockLoading = true;
+    const { rerender } = render(<ContainersSection />);
+    expect(screen.getByRole("status", { name: "Loading collections" })).toBeInTheDocument();
+    expect(screen.queryByText("No collections found in this project")).not.toBeInTheDocument();
+    mockLoading = false;
+    mockError = true;
+    rerender(<ContainersSection />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Collections could not be loaded");
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mockRefetch).toHaveBeenCalledOnce();
+  });
+
 });

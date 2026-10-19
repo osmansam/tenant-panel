@@ -1,20 +1,9 @@
-import { IconType } from "react-icons";
-import * as AiIcons from "react-icons/ai";
-import * as BiIcons from "react-icons/bi";
-import * as BsIcons from "react-icons/bs";
-import * as CgIcons from "react-icons/cg";
-import * as DiIcons from "react-icons/di";
-import * as FaIcons from "react-icons/fa";
-import * as FcIcons from "react-icons/fc";
-import * as FiIcons from "react-icons/fi";
-import * as GiIcons from "react-icons/gi";
-import * as GoIcons from "react-icons/go";
-import * as GrIcons from "react-icons/gr";
-import * as HiIcons from "react-icons/hi";
-import * as ImIcons from "react-icons/im";
-import * as IoIcons from "react-icons/io";
-import * as MdIcons from "react-icons/md";
+import { useEffect, useState } from "react";
+import type { IconBaseProps, IconType } from "react-icons";
 import {
+  MdGroup,
+  MdTranslate,
+  MdVpnKey,
   MdAccountBalanceWallet,
   MdAddShoppingCart,
   MdAdminPanelSettings,
@@ -63,11 +52,6 @@ import {
   MdVerifiedUser,
   MdWarning,
 } from "react-icons/md";
-import * as RiIcons from "react-icons/ri";
-import * as SiIcons from "react-icons/si";
-import * as SlIcons from "react-icons/sl";
-import * as TbIcons from "react-icons/tb";
-import * as TiIcons from "react-icons/ti";
 
 export const getMenuIcon = (menuName: string): IconType => {
   const iconMap: { [key: string]: IconType } = {
@@ -159,37 +143,113 @@ export const getMenuIcon = (menuName: string): IconType => {
   return iconMap[menuName] || MdSpaceDashboard;
 };
 
-// Get icon by icon component name dynamically from react-icons
+// Keep navigation icons immediately available. Custom families load only when used.
+const coreIcons: Record<string, IconType> = {
+  MdGroup,
+  MdTranslate,
+  MdVpnKey,
+  MdAccountBalanceWallet,
+  MdAddShoppingCart,
+  MdAdminPanelSettings,
+  MdArchive,
+  MdAssessment,
+  MdAttachMoney,
+  MdBarChart,
+  MdBuild,
+  MdCardGiftcard,
+  MdChecklist,
+  MdDeliveryDining,
+  MdDescription,
+  MdEventAvailable,
+  MdExtension,
+  MdFeedback,
+  MdFilePresent,
+  MdFolder,
+  MdImage,
+  MdInventory2,
+  MdLink,
+  MdListAlt,
+  MdLocalOffer,
+  MdLocalShipping,
+  MdLocationOn,
+  MdLock,
+  MdMenuBook,
+  MdNotifications,
+  MdPerson,
+  MdPlaylistAddCheck,
+  MdPointOfSale,
+  MdReceipt,
+  MdSchedule,
+  MdSchool,
+  MdSettings,
+  MdShoppingBag,
+  MdShoppingCart,
+  MdSort,
+  MdSpaceDashboard,
+  MdSportsEsports,
+  MdStorefront,
+  MdSummarize,
+  MdSupervisorAccount,
+  MdTableRestaurant,
+  MdTimer,
+  MdTrendingUp,
+  MdVerifiedUser,
+  MdWarning
+};
+
+const iconLoaders: Record<string, () => Promise<Record<string, unknown>>> = {
+  Ai: () => import("react-icons/ai"),
+  Bi: () => import("react-icons/bi"),
+  Bs: () => import("react-icons/bs"),
+  Cg: () => import("react-icons/cg"),
+  Di: () => import("react-icons/di"),
+  Fa: () => import("react-icons/fa"),
+  Fc: () => import("react-icons/fc"),
+  Fi: () => import("react-icons/fi"),
+  Gi: () => import("react-icons/gi"),
+  Go: () => import("react-icons/go"),
+  Gr: () => import("react-icons/gr"),
+  Hi: () => import("react-icons/hi"),
+  Im: () => import("react-icons/im"),
+  Io: () => import("react-icons/io"),
+  Md: () => import("react-icons/md"),
+  Ri: () => import("react-icons/ri"),
+  Si: () => import("react-icons/si"),
+  Sl: () => import("react-icons/sl"),
+  Tb: () => import("react-icons/tb"),
+  Ti: () => import("react-icons/ti"),
+};
+const familyRequests = new Map<string, Promise<Record<string, unknown>>>();
+const customIcons = new Map<string, IconType>();
+
 export const getIconByName = (iconName: string): IconType => {
-  // Default icon if not found
-  const defaultIcon = MdIcons.MdSpaceDashboard;
+  if (coreIcons[iconName]) return coreIcons[iconName];
+  const prefix = /^[A-Z][a-z]+/.exec(iconName)?.[0] || "";
+  const loader = iconLoaders[prefix];
+  if (!loader) return MdSpaceDashboard;
+  const cached = customIcons.get(iconName);
+  if (cached) return cached;
 
-  if (!iconName) return defaultIcon;
-
-  // Combine all icon libraries
-  const allIcons = {
-    ...MdIcons,
-    ...FaIcons,
-    ...AiIcons,
-    ...BsIcons,
-    ...BiIcons,
-    ...DiIcons,
-    ...FiIcons,
-    ...FcIcons,
-    ...GiIcons,
-    ...GoIcons,
-    ...GrIcons,
-    ...HiIcons,
-    ...ImIcons,
-    ...IoIcons,
-    ...RiIcons,
-    ...SiIcons,
-    ...SlIcons,
-    ...TbIcons,
-    ...TiIcons,
-    ...CgIcons,
+  const DeferredIcon = (props: IconBaseProps) => {
+    const [Icon, setIcon] = useState<IconType>(() => MdSpaceDashboard);
+    useEffect(() => {
+      let active = true;
+      let request = familyRequests.get(prefix);
+      if (!request) {
+        request = loader();
+        familyRequests.set(prefix, request);
+      }
+      request.then((family) => {
+        const resolved = family[iconName];
+        if (active && typeof resolved === "function") setIcon(() => resolved as IconType);
+      }).catch(() => {
+        // Keep a useful icon if the optional chunk is unavailable; allow a retry.
+        familyRequests.delete(prefix);
+      });
+      return () => { active = false; };
+    }, []);
+    return <Icon {...props} />;
   };
-
-  // Return the icon if it exists, otherwise return default
-  return (allIcons as any)[iconName] || defaultIcon;
+  customIcons.set(iconName, DeferredIcon);
+  return DeferredIcon;
 };
