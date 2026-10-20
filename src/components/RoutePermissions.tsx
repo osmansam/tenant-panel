@@ -18,9 +18,12 @@ import {
 import DataTable from "./panelComponents/Tables/DataTable";
 import SwitchButton from "./panelComponents/common/SwitchButton";
 import type { ColumnType } from "./panelComponents/shared/types";
+import { Button } from "./ui";
 import { RouteAccessPolicyEditor } from "./route-access/RouteAccessPolicyEditor";
 import {
   isRecordAccessRoute,
+  normalizeRecordAccessPolicy,
+  routeAllowsAssignments,
   summarizeRecordAccessPolicy,
 } from "./route-access/recordAccessPolicy";
 
@@ -46,6 +49,11 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
   const { t } = useTranslation();
   const [isEnableEdit, setIsEnableEdit] = useState(false);
   const [policyRouteName, setPolicyRouteName] = useState<string | null>(null);
+  const [bulkPolicyRoutes, setBulkPolicyRoutes] = useState<RouteRow[] | null>(null);
+
+  useEffect(() => {
+    setBulkPolicyRoutes(null);
+  }, [containerId]);
 
   // Fetch roles and container data
   const { data: roleItems = [] } = useRoleItems();
@@ -149,6 +157,11 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
     return rows;
   }, [container?.routes, editableRoutes]);
 
+  const policyRoutes = useMemo(
+    () => routeRows.filter((route) => route.supportsAccessPolicy),
+    [routeRows],
+  );
+
   const handleAllRoutesToggle = useCallback(
     (flag: RouteBooleanFlag, value: boolean) => {
       if (!container?.routes) return;
@@ -238,6 +251,44 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
       setPolicyRouteName(null);
     },
     [commitRoutes, policyRouteName],
+  );
+
+  const handleBulkAccessPolicySave = useCallback(
+    (policy: RecordAccessPolicy | undefined, routeNames: string[] = []) => {
+      const selected = new Set(routeNames);
+      if (selected.size === 0) return;
+
+      const updatedRoutes = Object.fromEntries(
+        Object.entries(editableRoutesRef.current).map(([routeName, route]) => {
+          if (
+            !selected.has(routeName) ||
+            !isContainerRouteAvailable(routeName) ||
+            !isRecordAccessRoute(routeName)
+          ) {
+            return [routeName, route];
+          }
+
+          const access = normalizeRecordAccessPolicy(
+            policy
+              ? {
+                  any: policy.any,
+                  ...(routeAllowsAssignments(routeName)
+                    ? { assign: policy.assign }
+                    : {}),
+                }
+              : undefined,
+          );
+          return [
+            routeName,
+            { ...route, access, ...(access ? { isAuthenticated: true } : {}) },
+          ];
+        }),
+      );
+
+      commitRoutes(updatedRoutes);
+      setBulkPolicyRoutes(null);
+    },
+    [commitRoutes],
   );
 
   // Handle isAuthorized toggle
@@ -473,8 +524,26 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
           <SwitchButton checked={isEnableEdit} onChange={setIsEnableEdit} />
         ),
       },
+      ...(isEnableEdit && policyRoutes.length > 0
+        ? [
+            {
+              label: "",
+              isUpperSide: true,
+              node: (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkPolicyRoutes(policyRoutes)}
+                >
+                  {t("Bulk edit policies")}
+                </Button>
+              ),
+            },
+          ]
+        : []),
     ],
-    [t, isEnableEdit]
+    [t, isEnableEdit, policyRoutes]
   );
 
   if (!container) {
@@ -500,6 +569,16 @@ const RoutePermissions = ({ containerId }: RoutePermissionsProps) => {
           policy={editableRoutes[policyRouteName]?.access}
           onClose={() => setPolicyRouteName(null)}
           onSave={handleAccessPolicySave}
+        />
+      )}
+      {bulkPolicyRoutes && (
+        <RouteAccessPolicyEditor
+          open
+          bulkRoutes={bulkPolicyRoutes}
+          fields={container.fields ?? []}
+          authFields={authFields}
+          onClose={() => setBulkPolicyRoutes(null)}
+          onSave={handleBulkAccessPolicySave}
         />
       )}
     </div>

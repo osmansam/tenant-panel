@@ -449,4 +449,208 @@ describe("RoutePermissions access policies", () => {
       }),
     ).not.toBeDisabled();
   });
+
+  async function openBulkEditor() {
+    render(<RoutePermissions containerId="container-1" />);
+    const user = await enableEditing();
+    await user.click(screen.getByRole("button", { name: "Bulk edit policies" }));
+    return user;
+  }
+
+  async function addOwnerRule(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Add allow rule" }));
+    fireEvent.change(screen.getByLabelText("Rule value 1"), {
+      target: { value: "{{auth.user.id}}" },
+    });
+  }
+
+  it("replaces policies on all supported routes in one update", async () => {
+    render(<RoutePermissions containerId="container-1" />);
+    expect(screen.queryByRole("button", { name: "Bulk edit policies" })).not.toBeInTheDocument();
+    const user = await enableEditing();
+    await user.click(screen.getByRole("button", { name: "Bulk edit policies" }));
+
+    expect(screen.getByRole("checkbox", { name: "Select all supported routes" })).toBeChecked();
+    expect(screen.queryByRole("checkbox", { name: /Get Pipeline/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/replaces existing policies/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add allow rule" }));
+    fireEvent.change(screen.getByLabelText("Rule value 1"), {
+      target: { value: "new-owner" },
+    });
+    await user.click(screen.getByRole("button", { name: "Apply to 2 routes" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.CreateDynamicModelItem).toEqual({
+      isActive: true,
+      isAuthenticated: true,
+      isAuthorized: false,
+      authorizeRole: [],
+      method: "POST",
+      access: { any: [{ field: "ownerId", operator: "eq", value: "new-owner" }] },
+    });
+    expect(savedRoutes.UpdateDynamicModelItem.access).toEqual({
+      any: [{ field: "ownerId", operator: "eq", value: "new-owner" }],
+    });
+    expect(savedRoutes.GetPipeline).toEqual((state.container.routes as any).GetPipeline);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("updates only selected routes and supports clearing and restoring the selection", async () => {
+    const user = await openBulkEditor();
+    const selectAll = screen.getByRole("checkbox", { name: "Select all supported routes" });
+    await user.click(selectAll);
+    expect(screen.getByRole("button", { name: "Apply to 0 routes" })).toBeDisabled();
+    await user.click(selectAll);
+    await user.click(screen.getByRole("checkbox", { name: "Apply policy to Update Dynamic Model Item" }));
+    expect(selectAll).toBePartiallyChecked();
+    await addOwnerRule(user);
+    await user.click(screen.getByRole("button", { name: "Apply to 1 route" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.CreateDynamicModelItem.access).toEqual({
+      any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }],
+    });
+    expect(savedRoutes.UpdateDynamicModelItem).toEqual((state.container.routes as any).UpdateDynamicModelItem);
+  });
+
+  it("applies trusted assignments only to create routes", async () => {
+    const user = await openBulkEditor();
+    await user.click(screen.getByRole("button", { name: "Add assignment" }));
+    fireEvent.change(screen.getByLabelText("Assignment value 1"), {
+      target: { value: "{{auth.user.id}}" },
+    });
+    await addOwnerRule(user);
+    await user.click(screen.getByRole("button", { name: "Apply to 2 routes" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.CreateDynamicModelItem.access).toEqual({
+      assign: { ownerId: "{{auth.user.id}}" },
+      any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }],
+    });
+    expect(savedRoutes.UpdateDynamicModelItem.access).toEqual({
+      any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }],
+    });
+  });
+
+  it("requires allow rules when non-create routes are selected", async () => {
+    const user = await openBulkEditor();
+    await user.click(screen.getByRole("button", { name: "Add assignment" }));
+    fireEvent.change(screen.getByLabelText("Assignment value 1"), {
+      target: { value: "{{auth.user.id}}" },
+    });
+    await user.click(screen.getByRole("button", { name: "Apply to 2 routes" }));
+    expect(state.updateContainerAsync).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/allow rule.*non-create routes/i);
+
+    await user.click(screen.getByRole("checkbox", { name: "Apply policy to Update Dynamic Model Item" }));
+    await user.click(screen.getByRole("button", { name: "Apply to 1 route" }));
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    expect(state.updateContainerAsync.mock.calls[0][0].payload.routes.CreateDynamicModelItem.access).toEqual({
+      assign: { ownerId: "{{auth.user.id}}" },
+    });
+  });
+
+  it("does not send assignments when only non-create routes remain selected", async () => {
+    const user = await openBulkEditor();
+    await user.click(screen.getByRole("button", { name: "Add assignment" }));
+    fireEvent.change(screen.getByLabelText("Assignment value 1"), {
+      target: { value: "{{auth.user.id}}" },
+    });
+    await addOwnerRule(user);
+    await user.click(screen.getByRole("checkbox", { name: "Apply policy to Create Dynamic Model Item" }));
+    expect(screen.queryByRole("button", { name: "Add assignment" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Apply to 1 route" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.CreateDynamicModelItem).toEqual((state.container.routes as any).CreateDynamicModelItem);
+    expect(savedRoutes.UpdateDynamicModelItem.access).toEqual({
+      any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }],
+    });
+  });
+
+  it("removes selected policies without disabling authentication", async () => {
+    const user = await openBulkEditor();
+    await user.click(screen.getByRole("checkbox", { name: "Apply policy to Create Dynamic Model Item" }));
+    await user.click(screen.getByRole("button", { name: "Remove policies" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.UpdateDynamicModelItem.access).toBeUndefined();
+    expect(savedRoutes.UpdateDynamicModelItem.isAuthenticated).toBe(true);
+    expect(savedRoutes.CreateDynamicModelItem).toEqual((state.container.routes as any).CreateDynamicModelItem);
+  });
+
+  it("loads a shared existing policy for editing", async () => {
+    (state.container.routes as any).CreateDynamicModelItem.access = {
+      any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }],
+    };
+    const user = await openBulkEditor();
+    expect(screen.getByLabelText("Rule value 1")).toHaveValue("{{auth.user.id}}");
+    fireEvent.change(screen.getByLabelText("Rule value 1"), {
+      target: { value: "changed-owner" },
+    });
+    await user.click(screen.getByRole("button", { name: "Apply to 2 routes" }));
+
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    const savedRoutes = state.updateContainerAsync.mock.calls[0][0].payload.routes;
+    expect(savedRoutes.CreateDynamicModelItem.access.any[0].value).toBe("changed-owner");
+    expect(savedRoutes.UpdateDynamicModelItem.access.any[0].value).toBe("changed-owner");
+  });
+
+  it("cancels bulk editing without saving", async () => {
+    const user = await openBulkEditor();
+    await addOwnerRule(user);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(state.updateContainerAsync).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the draft and selected targets during a container refresh", async () => {
+    const { rerender } = render(<RoutePermissions containerId="container-1" />);
+    const user = await enableEditing();
+    await user.click(screen.getByRole("button", { name: "Bulk edit policies" }));
+    await user.click(screen.getByRole("checkbox", { name: "Apply policy to Update Dynamic Model Item" }));
+    await addOwnerRule(user);
+
+    state.container = {
+      ...state.container,
+      routes: {
+        ...state.container.routes,
+        CreateDynamicModelItem: {
+          ...(state.container.routes as any).CreateDynamicModelItem,
+          isAuthorized: true,
+          authorizeRole: ["editor"],
+        },
+      },
+    } as any;
+    rerender(<RoutePermissions containerId="container-1" />);
+
+    expect(screen.getByRole("checkbox", { name: "Apply policy to Update Dynamic Model Item" })).not.toBeChecked();
+    expect(screen.getByLabelText("Rule value 1")).toHaveValue("{{auth.user.id}}");
+    await user.click(screen.getByRole("button", { name: "Apply to 1 route" }));
+    await waitFor(() => expect(state.updateContainerAsync).toHaveBeenCalledTimes(1));
+    expect(state.updateContainerAsync.mock.calls[0][0].payload.routes.CreateDynamicModelItem).toMatchObject({
+      isAuthorized: true,
+      authorizeRole: ["editor"],
+      access: { any: [{ field: "ownerId", operator: "eq", value: "{{auth.user.id}}" }] },
+    });
+  });
+
+  it("restores existing route policies when a bulk update fails", async () => {
+    state.updateContainerAsync.mockRejectedValueOnce(new Error("Update failed"));
+    const user = await openBulkEditor();
+    await user.click(screen.getByRole("button", { name: "Add allow rule" }));
+    fireEvent.change(screen.getByLabelText("Rule value 1"), {
+      target: { value: "new-owner" },
+    });
+    await user.click(screen.getByRole("button", { name: "Apply to 2 routes" }));
+
+    await waitFor(() => expect(screen.getByText("No policy")).toBeInTheDocument());
+    expect(screen.getByText("Allow ownerId equals current user ID")).toBeInTheDocument();
+    expect(screen.queryByText("Allow ownerId equals new-owner")).not.toBeInTheDocument();
+  });
 });
