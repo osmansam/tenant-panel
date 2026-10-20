@@ -4,7 +4,7 @@ import type {
   RecordAccessPolicy,
   RecordAccessRule,
 } from "../../utils/api/container";
-import { Button, Input, Select, WorkspaceDialog } from "../ui";
+import { Button, Checkbox, Input, Select, WorkspaceDialog } from "../ui";
 import {
   AUTH_CONTEXT_OPTIONS,
   RECORD_ACCESS_OPERATORS,
@@ -15,17 +15,23 @@ import {
   parseAccessValue,
   recordRuleFieldOptions,
   routeAllowsAssignments,
+  summarizeRecordAccessPolicy,
   validateRecordAccessPolicy,
 } from "./recordAccessPolicy";
 
 interface RouteAccessPolicyEditorProps {
   open: boolean;
-  routeName: string;
+  routeName?: string;
+  bulkRoutes?: {
+    routeName: string;
+    method?: string;
+    access?: RecordAccessPolicy;
+  }[];
   fields: Field[];
   authFields?: Field[];
   policy?: RecordAccessPolicy;
   onClose: () => void;
-  onSave: (policy: RecordAccessPolicy | undefined) => void;
+  onSave: (policy: RecordAccessPolicy | undefined, routeNames?: string[]) => void;
 }
 
 interface AssignmentDraft {
@@ -59,20 +65,56 @@ const policyDraft = (policy?: RecordAccessPolicy) => ({
 
 export function RouteAccessPolicyEditor({
   open,
-  routeName,
+  routeName = "",
+  bulkRoutes,
   fields,
   authFields = [],
   policy,
   onClose,
   onSave,
 }: RouteAccessPolicyEditorProps) {
-  const initial = useMemo(() => policyDraft(policy), [policy]);
+  const initial = useMemo(() => {
+    if (!bulkRoutes) return policyDraft(policy);
+
+    const any = bulkRoutes[0]?.access?.any ?? [];
+    const createRoutes = bulkRoutes.filter((route) =>
+      routeAllowsAssignments(route.routeName),
+    );
+    const assign = createRoutes[0]?.access?.assign ?? {};
+    return policyDraft({
+      any: bulkRoutes.every(
+        (route) => JSON.stringify(route.access?.any ?? []) === JSON.stringify(any),
+      )
+        ? any
+        : [],
+      assign: createRoutes.every(
+        (route) => JSON.stringify(route.access?.assign ?? {}) === JSON.stringify(assign),
+      )
+        ? assign
+        : {},
+    });
+  }, [policy, bulkRoutes]);
+  const [selectedRouteNames, setSelectedRouteNames] = useState(
+    () => bulkRoutes?.map((route) => route.routeName) ?? [],
+  );
   const [assignments, setAssignments] = useState<AssignmentDraft[]>(
     initial.assignments,
   );
   const [rules, setRules] = useState<RuleDraft[]>(initial.rules);
   const [errors, setErrors] = useState<string[]>([]);
-  const allowAssignments = routeAllowsAssignments(routeName);
+  const selectedRoutes = bulkRoutes?.filter((route) =>
+    selectedRouteNames.includes(route.routeName),
+  );
+  const allowAssignments = selectedRoutes
+    ? selectedRoutes.some((route) => routeAllowsAssignments(route.routeName))
+    : routeAllowsAssignments(routeName);
+  const requireAllowRules = selectedRoutes?.some(
+    (route) => !routeAllowsAssignments(route.routeName),
+  );
+  const hasExistingPolicy = selectedRoutes
+    ? selectedRoutes.some((route) => route.access)
+    : !!policy;
+  const noRoutesSelected = !!bulkRoutes && selectedRouteNames.length === 0;
   const assignmentFields = assignmentFieldOptions(fields);
   const ruleFields = recordRuleFieldOptions(fields);
   const contextOptions = useMemo(
@@ -87,9 +129,14 @@ export function RouteAccessPolicyEditor({
     setErrors([]);
   }, [initial, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    setSelectedRouteNames(bulkRoutes?.map((route) => route.routeName) ?? []);
+  }, [bulkRoutes, open]);
+
   const buildPolicy = (): RecordAccessPolicy | undefined =>
     normalizeRecordAccessPolicy({
-      ...(assignments.length > 0
+      ...(allowAssignments && assignments.length > 0
         ? {
             assign: Object.fromEntries(
               assignments.map((assignment) => [
@@ -114,6 +161,12 @@ export function RouteAccessPolicyEditor({
         : {}),
     });
 
+  const submitPolicy = (nextPolicy: RecordAccessPolicy | undefined) => {
+    if (noRoutesSelected) return;
+    if (bulkRoutes) onSave(nextPolicy, selectedRouteNames);
+    else onSave(nextPolicy);
+  };
+
   const save = () => {
     const nextPolicy = buildPolicy();
     const nextErrors = validateRecordAccessPolicy(
@@ -122,16 +175,19 @@ export function RouteAccessPolicyEditor({
       allowAssignments,
       contextOptions,
     );
+    if (requireAllowRules && !nextPolicy?.any?.length) {
+      nextErrors.push("Add at least one allow rule for non-create routes");
+    }
     setErrors(nextErrors);
-    if (nextErrors.length === 0) onSave(nextPolicy);
+    if (nextErrors.length === 0) submitPolicy(nextPolicy);
   };
 
   const footer = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        {policy && (
-          <Button type="button" variant="destructive" onClick={() => onSave(undefined)}>
-            Remove policy
+        {hasExistingPolicy && (
+          <Button type="button" variant="destructive" onClick={() => submitPolicy(undefined)}>
+            {bulkRoutes ? "Remove policies" : "Remove policy"}
           </Button>
         )}
       </div>
@@ -139,8 +195,10 @@ export function RouteAccessPolicyEditor({
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="button" onClick={save}>
-          Save policy
+        <Button type="button" onClick={save} disabled={noRoutesSelected}>
+          {bulkRoutes
+            ? `Apply to ${selectedRouteNames.length} ${selectedRouteNames.length === 1 ? "route" : "routes"}`
+            : "Save policy"}
         </Button>
       </div>
     </div>
@@ -150,8 +208,16 @@ export function RouteAccessPolicyEditor({
     <WorkspaceDialog
       open={open}
       onClose={onClose}
-      title={`Access Policy: ${routeName.replace(/([A-Z])/g, " $1").trim()}`}
-      description="Trusted identity values are evaluated by the server and cannot be supplied by the request body."
+      title={
+        bulkRoutes
+          ? "Bulk edit access policies"
+          : `Access Policy: ${routeName.replace(/([A-Z])/g, " $1").trim()}`
+      }
+      description={
+        bulkRoutes
+          ? "Apply the same allow rules to all selected routes in this container."
+          : "Trusted identity values are evaluated by the server and cannot be supplied by the request body."
+      }
       footer={footer}
       className="max-w-4xl"
     >
@@ -162,6 +228,75 @@ export function RouteAccessPolicyEditor({
       </datalist>
 
       <div className="space-y-6">
+        {bulkRoutes && (
+          <section className="space-y-3" aria-label="Routes to update">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold">Routes to update</h3>
+              <span className="text-sm text-ui-muted">
+                {selectedRouteNames.length} of {bulkRoutes.length} routes selected
+              </span>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <Checkbox
+                aria-label="Select all supported routes"
+                checked={
+                  bulkRoutes.length > 0 &&
+                  selectedRouteNames.length === bulkRoutes.length
+                }
+                ref={(node) => {
+                  if (node) {
+                    node.indeterminate =
+                      selectedRouteNames.length > 0 &&
+                      selectedRouteNames.length < bulkRoutes.length;
+                  }
+                }}
+                onChange={(event) => {
+                  setSelectedRouteNames(
+                    event.target.checked
+                      ? bulkRoutes.map((route) => route.routeName)
+                      : [],
+                  );
+                  setErrors([]);
+                }}
+              />
+              Select all supported routes
+            </label>
+            <div className="max-h-56 overflow-y-auto rounded-ui-md border border-ui-border divide-y divide-ui-border">
+              {bulkRoutes.map((route) => {
+                const displayName = route.routeName.replace(/([A-Z])/g, " $1").trim();
+                return (
+                  <label
+                    key={route.routeName}
+                    className="flex cursor-pointer items-start gap-3 p-3 hover:bg-ui-surface-subtle"
+                  >
+                    <Checkbox
+                      className="mt-0.5"
+                      aria-label={`Apply policy to ${displayName}`}
+                      checked={selectedRouteNames.includes(route.routeName)}
+                      onChange={(event) => {
+                        setSelectedRouteNames((current) =>
+                          event.target.checked
+                            ? [...current, route.routeName]
+                            : current.filter((name) => name !== route.routeName),
+                        );
+                        setErrors([]);
+                      }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{displayName}</span>
+                      <span className="block text-xs text-ui-muted">{summarizeRecordAccessPolicy(route.access)}</span>
+                    </span>
+                    <span className="rounded bg-ui-surface-subtle px-2 py-1 text-xs font-medium">{route.method}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-sm text-ui-muted">
+              Applying this policy replaces existing policies on the selected routes and requires authentication.
+              Trusted assignments apply only to selected create routes.
+            </p>
+          </section>
+        )}
         {allowAssignments && (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
