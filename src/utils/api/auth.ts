@@ -141,6 +141,7 @@ export function useTenantLogin(
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { setUser } = useUserContext();
+  const queryClient = useQueryClient();
   const { mutate: tenantLogin } = useMutation<
     TenantLoginResponse,
     LoginError,
@@ -150,6 +151,8 @@ export function useTenantLogin(
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
       const { user, tenant, allTenants, roles } = data;
+      queryClient.clear();
+      localStorage.removeItem("currentProject");
       localStorage.setItem("loggedIn", "true");
       toast.success(t("Logged in successfully"));
 
@@ -167,6 +170,7 @@ export function useTenantLogin(
           tenantId: tenant.id,
           tenantName: tenant.name,
           tenantSlug: tenant.slug,
+          roleScope: "tenant",
           roles,
           allTenants,
         };
@@ -198,6 +202,7 @@ export function useTenantRegister(
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { setUser } = useUserContext();
+  const queryClient = useQueryClient();
   const { mutate: tenantRegister } = useMutation<
     TenantLoginResponse,
     LoginError,
@@ -207,6 +212,8 @@ export function useTenantRegister(
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
       const { user, tenant, allTenants, roles } = data;
+      queryClient.clear();
+      localStorage.removeItem("currentProject");
       toast.success(t("Account created and logged in successfully"));
       localStorage.setItem("loggedIn", "true");
 
@@ -224,6 +231,7 @@ export function useTenantRegister(
           tenantId: tenant.id,
           tenantName: tenant.name,
           tenantSlug: tenant.slug,
+          roleScope: "tenant",
           roles,
           allTenants,
         };
@@ -281,6 +289,7 @@ export function useGoogleCallback(
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { setUser } = useUserContext();
+  const queryClient = useQueryClient();
   const { mutate: handleGoogleCallback } = useMutation<
     TenantLoginResponse,
     LoginError,
@@ -290,6 +299,8 @@ export function useGoogleCallback(
     onSuccess: async (response: TenantLoginResponse) => {
       const { data } = response;
       const { user, tenant, allTenants, roles } = data;
+      queryClient.clear();
+      localStorage.removeItem("currentProject");
       toast.success(t("Logged in with Google successfully"));
       localStorage.setItem("loggedIn", "true");
 
@@ -307,6 +318,7 @@ export function useGoogleCallback(
           tenantId: tenant.id,
           tenantName: tenant.name,
           tenantSlug: tenant.slug,
+          roleScope: "tenant",
           roles,
           allTenants,
         };

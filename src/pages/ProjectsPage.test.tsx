@@ -15,10 +15,14 @@ const state = vi.hoisted(() => ({
   createProject: vi.fn(),
   switchToProject: vi.fn(),
   updateProjectTemplate: vi.fn(),
+  deleteProject: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (value: string) => value }),
+  useTranslation: () => ({
+    t: (value: string, options?: Record<string, unknown>) =>
+      value.replace(/\{\{(\w+)\}\}/g, (match, key) => (options && key in options ? String(options[key]) : match)),
+  }),
 }));
 vi.mock("react-toastify", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("../hooks/useTenant", () => ({
@@ -35,6 +39,7 @@ vi.mock("../utils/api/project", () => ({
   useProjectsQuery: () => ({ data: state.projects, isLoading: state.isLoading, isError: state.isError, refetch: state.refetch }),
   useProjectTemplates: () => state.templates,
   useCreateProject: () => ({ createProject: state.createProject, isCreating: false }),
+  useDeleteProject: () => ({ deleteProject: state.deleteProject, isDeleting: false }),
   useUpdateProjectTemplate: () => ({
     updateProjectTemplate: state.updateProjectTemplate,
     isUpdatingTemplate: false,
@@ -117,7 +122,7 @@ describe("ProjectsPage", () => {
     state.projects = [project(), project({ id: "project-2", name: "Disabled", isActive: false })];
     render(<ProjectsPage />);
 
-    await user.click(screen.getByRole("button", { name: /Operations Workspace/ }));
+    await user.click(screen.getByRole("button", { name: /Switch to Operations Workspace/ }));
     expect(state.switchToProject).toHaveBeenCalledWith({ projectId: "project-1" });
     expect(screen.getByRole("button", { name: /Disabled/ })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Make Template" })).not.toBeInTheDocument();
@@ -193,6 +198,33 @@ describe("ProjectsPage", () => {
     await user.type(screen.getByLabelText(/Project Slug/), "customer-workspace");
     fireEvent.submit(screen.getByLabelText(/Project Slug/).closest("form")!);
     await waitFor(() => expect(state.createProject).toHaveBeenCalledWith({ name: "Customer workspace", slug: "customer-workspace" }));
+  });
+
+  it("deletes a project only after typing its name to confirm", async () => {
+    const user = userEvent.setup();
+    state.deleteProject.mockResolvedValueOnce({});
+    state.projects = [project()];
+    render(<ProjectsPage />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Operations Workspace" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete project" });
+    expect(dialog).toBeInTheDocument();
+    const confirmButton = screen.getByRole("button", { name: "Delete project" });
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/Type .* to confirm/), "Operations Workspace");
+    expect(confirmButton).toBeEnabled();
+    await user.click(confirmButton);
+
+    expect(state.deleteProject).toHaveBeenCalledWith("project-1");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("hides project deletion for non-owners", () => {
+    state.canManageTemplates = false;
+    state.projects = [project()];
+    render(<ProjectsPage />);
+    expect(screen.queryByRole("button", { name: /Delete Operations/ })).not.toBeInTheDocument();
   });
 
 });
