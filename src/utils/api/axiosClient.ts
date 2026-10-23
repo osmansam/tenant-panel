@@ -19,7 +19,7 @@ export const axiosClient = axios.create({
 });
 
 export const ACCESS_TOKEN = "jwt";
-let refreshPromise: Promise<unknown> | null = null;
+const refreshRequests = new Map<string, Promise<unknown>>();
 
 export function selectManagementRefreshPath(requestUrl?: string): string | null {
   if (!requestUrl) return null;
@@ -34,6 +34,10 @@ export function selectManagementRefreshPath(requestUrl?: string): string | null 
   if (pathname.startsWith(`${apiPrefix}/`)) pathname = pathname.slice(apiPrefix.length);
   const segments = pathname.split("/").filter(Boolean);
   if (segments.includes("refresh") || segments.length === 0) return null;
+  // Sign-in, registration, OAuth and logout failures are not expired access
+  // sessions. Return those errors to their forms without attempting refresh.
+  if (segments[0] === "tenant" && segments[1] === "auth" &&
+      !["session", "me", "switch-project"].includes(segments[2])) return null;
   if (segments[0] === "tenant") return "/tenant/auth/refresh";
   if (segments.length >= 3 && segments[2] !== "auth" && segments[2] !== "tenant-auth") {
     return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
@@ -69,15 +73,21 @@ axiosClient.interceptors.response.use(
     }
     request._retry = true;
     try {
-      refreshPromise ??= axios.post(
-        `${import.meta.env.VITE_API_URL}${refreshPath}`,
-        undefined,
-        { withCredentials: true },
-      ).finally(() => { refreshPromise = null; });
-      await refreshPromise;
+      // Axios joins baseURL and relative paths correctly, including a trailing
+      // slash. Deduplicate only requests for the same tenant/project identity.
+      const refreshKey = axiosClient.getUri({ url: refreshPath, baseURL: request.baseURL });
+      let refreshRequest = refreshRequests.get(refreshKey);
+      if (!refreshRequest) {
+        refreshRequest = axiosClient.post(refreshPath, undefined, { baseURL: request.baseURL })
+          .finally(() => { refreshRequests.delete(refreshKey); });
+        refreshRequests.set(refreshKey, refreshRequest);
+      }
+      await refreshRequest;
       return axiosClient(request);
     } catch (refreshError: any) {
-      if (refreshError?.response?.status === 401) logout(true, "Session expired");
+      if (refreshError?.response?.status === 401 && refreshPath === "/tenant/auth/refresh") {
+        logout(true, "Session expired");
+      }
       return Promise.reject(refreshError);
     }
   },

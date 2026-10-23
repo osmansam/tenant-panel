@@ -242,12 +242,38 @@ export function useUpdateProject(onError?: (error: unknown) => void) {
   };
 }
 
-export function useDeleteProject(onError?: (error: unknown) => void) {
-  const { deleteItem, deleteMutation } = useProjectMutations();
+// Direct delete implementation: the backend also drops all collections belonging to the project.
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await axiosClient.delete(`${BASE_QUERY}/${id}`);
+      return response.data;
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      const message = response?.message || "Project deleted successfully";
+      toast.success(t(message));
+    },
+    onError: (error: any) => {
+      console.error("Project deletion failed:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to delete project";
+      toast.error(t(errorMessage));
+    },
+  });
 
   return {
     deleteProject: (id: string) => {
-      deleteItem(id);
+      if (!id || id === "undefined" || id === "[object Object]") {
+        toast.error(t("Invalid project ID"));
+        return Promise.reject(new Error("Invalid project ID"));
+      }
+      return deleteMutation.mutateAsync(id);
     },
     isDeleting: deleteMutation.isPending,
   };

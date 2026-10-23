@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiArrowUpRight, FiFolder, FiSearch, FiX } from "react-icons/fi";
+import { FiArrowUpRight, FiFolder, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { GenericButton } from "../components/panelComponents/FormElements/GenericButton";
 import {
@@ -25,6 +25,7 @@ import {
   getProjectId,
   getProjectStatusDisplay,
   useCreateProject,
+  useDeleteProject,
   useProjectTemplates,
   useProjectsQuery,
   useUpdateProjectTemplate,
@@ -35,6 +36,9 @@ const ProjectsPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateProjectPayload>({ name: "", slug: "" });
   const [templateChoiceProject, setTemplateChoiceProject] = useState<{ id: string; name: string } | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const deleteInputRef = useRef<HTMLInputElement>(null);
 
   const { data: projects, isLoading, isError, refetch } = useProjectsQuery(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,9 +64,35 @@ const ProjectsPage: React.FC = () => {
   const { createProject, isCreating } = useCreateProject();
   const { updateProjectTemplate, isUpdatingTemplate } = useUpdateProjectTemplate();
   const { switchToProject, isSwitching } = useSwitchToProject();
+  const { deleteProject, isDeleting } = useDeleteProject();
   const { currentTenant, hasRole, isTenantOwner } = useTenant();
   const canManageTenantTemplates =
     isTenantOwner(currentTenant?.id) || hasRole("tenant_owner") || hasRole("tenant_admin");
+  // Backend restricts project deletion to tenant owners.
+  const canDeleteProjects = isTenantOwner(currentTenant?.id) || hasRole("tenant_owner");
+
+  const openDeleteDialog = (projectId: string, name: string) => {
+    setDeleteConfirmText("");
+    setProjectToDelete({ id: projectId, name });
+  };
+
+  const closeDeleteDialog = () => {
+    if (isDeleting) return;
+    setProjectToDelete(null);
+    setDeleteConfirmText("");
+  };
+
+  const handleDeleteProject = async (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (!projectToDelete || isDeleting || deleteConfirmText.trim() !== projectToDelete.name) return;
+    try {
+      await deleteProject(projectToDelete.id);
+      setProjectToDelete(null);
+      setDeleteConfirmText("");
+    } catch {
+      // Error toast is shown by the mutation; keep the dialog open so the user can retry.
+    }
+  };
 
   useEffect(() => {
     if (!isCreateModalOpen) { setCreateForm({ name: "", slug: "" }); setCreateError(""); setFieldErrors({}); }
@@ -273,9 +303,23 @@ const ProjectsPage: React.FC = () => {
                         </button>
                       )}
                     </div>
-                    <time className="text-[11px] font-medium text-ui-muted" dateTime={project.createdAt}>
-                      {new Date(project.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </time>
+                    <div className="flex items-center gap-2">
+                      <time className="text-[11px] font-medium text-ui-muted" dateTime={project.createdAt}>
+                        {new Date(project.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </time>
+                      {canDeleteProjects && project.templateScope !== "global" && (
+                        <button
+                          type="button"
+                          aria-label={t("Delete {{name}}", { name: project.name })}
+                          title={t("Delete project")}
+                          disabled={isDeleting}
+                          onClick={() => openDeleteDialog(projectId, project.name)}
+                          className="ui-focus-ring inline-flex size-8 items-center justify-center rounded-ui-sm text-ui-muted transition-colors hover:bg-ui-danger-subtle hover:text-ui-danger disabled:opacity-50 sm:size-6"
+                        >
+                          <FiTrash2 aria-hidden="true" size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </article>
               );
@@ -345,6 +389,49 @@ const ProjectsPage: React.FC = () => {
         }
       >
         <p className="text-sm text-ui-muted">{t("Choose whether this template should include the current data records by default.")}</p>
+      </WorkspaceDialog>
+
+      <WorkspaceDialog
+        open={!!projectToDelete}
+        initialFocusRef={deleteInputRef}
+        className="max-w-md"
+        onClose={closeDeleteDialog}
+        title={t("Delete project")}
+        description={projectToDelete?.name}
+        footer={
+          <ResponsiveActionBar>
+            <GenericButton variant="ghost" onClick={closeDeleteDialog} disabled={isDeleting}>{t("Cancel")}</GenericButton>
+            <GenericButton
+              variant="danger"
+              type="submit"
+              form="delete-project-form"
+              disabled={isDeleting || deleteConfirmText.trim() !== projectToDelete?.name}
+              isLoading={isDeleting}
+            >
+              {isDeleting ? t("Deleting...") : t("Delete project")}
+            </GenericButton>
+          </ResponsiveActionBar>
+        }
+      >
+        <form id="delete-project-form" noValidate onSubmit={handleDeleteProject} aria-busy={isDeleting} className="space-y-4">
+          <p role="alert" className="rounded-ui-md border border-ui-danger/20 bg-ui-danger-subtle p-3 text-sm text-ui-danger">
+            {t("This permanently deletes the project and all of its collections, data, pages, translations, and credentials. This cannot be undone.")}
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="delete-project-confirm">
+              {t("Type {{name}} to confirm", { name: projectToDelete?.name ?? "" })}
+            </Label>
+            <Input
+              ref={deleteInputRef}
+              id="delete-project-confirm"
+              autoComplete="off"
+              disabled={isDeleting}
+              value={deleteConfirmText}
+              onChange={(event) => setDeleteConfirmText(event.target.value)}
+              placeholder={projectToDelete?.name}
+            />
+          </div>
+        </form>
       </WorkspaceDialog>
     </PageShell>
   );
