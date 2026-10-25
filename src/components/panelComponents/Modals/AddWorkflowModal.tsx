@@ -31,6 +31,8 @@ const defaultWorkflow: Partial<DynamicWorkflow> = {
   timeoutSec: 30,
   stopOnError: true,
   runInTransaction: false,
+  isRedisCached: false,
+  cacheTime: 0,
   payload: {},
   conditions: [],
   steps: [],
@@ -56,6 +58,11 @@ const modeOptions: OptionType[] = [
 const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 const formatJsonArray = (value: unknown) =>
   JSON.stringify(Array.isArray(value) ? value : [], null, 2);
+
+// Largest whole-minute TTL supported by the backend's Go time.Duration.
+const MAX_WORKFLOW_CACHE_MINUTES = 153_722_867;
+const isValidCacheTime = (value: number) =>
+  Number.isSafeInteger(value) && value >= 0 && value <= MAX_WORKFLOW_CACHE_MINUTES;
 
 export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
   isOpen,
@@ -128,15 +135,20 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
     const payloadResult = parseJson("Payload", payloadJson, "object");
     const conditionsResult = parseJson("Conditions", conditionsJson, "array");
     const stepsResult = parseJson("Steps", stepsJson, "array");
+    const cacheTime = workflowData.cacheTime ?? 0;
+    const cacheTimeError = workflowData.isRedisCached && !isValidCacheTime(cacheTime)
+      ? t("Enter a whole number of minutes between 0 and 153722867. Zero uses the server default.")
+      : undefined;
     const errors = {
       ...(payloadResult.error ? { payload: payloadResult.error } : {}),
       ...(conditionsResult.error ? { conditions: conditionsResult.error } : {}),
       ...(stepsResult.error ? { steps: stepsResult.error } : {}),
+      ...(cacheTimeError ? { cacheTime: cacheTimeError } : {}),
     };
     setJsonErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      toast.error(t("Please fix JSON errors before saving"));
+      toast.error(cacheTimeError || t("Please fix JSON errors before saving"));
       return;
     }
 
@@ -167,6 +179,8 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
       returnStep: workflowData.returnStep?.trim() || undefined,
       outputFields: (workflowData.outputFields || []).filter(Boolean),
       runInTransaction: workflowData.runInTransaction || false,
+      isRedisCached: workflowData.isRedisCached ?? false,
+      cacheTime,
     };
 
     const saved = await onAddWorkflow(workflow);
@@ -303,6 +317,54 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
               }
               placeholder="30"
             />
+
+            <div className="space-y-3 rounded-lg bg-ui-surface-subtle p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <label className="text-sm font-medium text-ui-foreground">{t("Cache Results")}</label>
+                  <p className="text-xs text-ui-muted">
+                    {t("Only public, read-only manual workflows are eligible. Other executions bypass caching.")}
+                  </p>
+                </div>
+                <CheckSwitch
+                  ariaLabel={t("Cache Results")}
+                  checked={Boolean(workflowData.isRedisCached)}
+                  onChange={() => {
+                    setWorkflowData({
+                      ...workflowData,
+                      isRedisCached: !workflowData.isRedisCached,
+                      cacheTime: isValidCacheTime(workflowData.cacheTime ?? 0) ? workflowData.cacheTime ?? 0 : 0,
+                    });
+                    setJsonErrors((previous) => {
+                      const next = { ...previous };
+                      delete next.cacheTime;
+                      return next;
+                    });
+                  }}
+                />
+              </div>
+              {workflowData.isRedisCached && (
+                <div>
+                  <TextInput
+                    key={`workflow-cache-time-${formKey}`}
+                    label={t("Cache Duration (minutes)")}
+                    type="number"
+                    value={workflowData.cacheTime?.toString() ?? "0"}
+                    isMinNumber={false}
+                    onChange={(value: string | number) => {
+                      setWorkflowData({ ...workflowData, cacheTime: Number(value) });
+                      setJsonErrors((previous) => {
+                        const next = { ...previous };
+                        delete next.cacheTime;
+                        return next;
+                      });
+                    }}
+                    error={jsonErrors.cacheTime}
+                  />
+                  <p className="mt-1 text-xs text-ui-muted">{t("0 uses the server default.")}</p>
+                </div>
+              )}
+            </div>
 
             {[
               ["Active", "Enable or disable this workflow", "isActive"],

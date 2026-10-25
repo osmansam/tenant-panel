@@ -883,6 +883,11 @@ export const ContainerDetailsModal: React.FC<ContainerDetailsModalProps> = ({
 {t("Role Check")}
 </Badge>
                             )}
+                            {workflow.isRedisCached && (
+                              <Badge variant="info">
+                                {t("Cache enabled")} ({workflow.cacheTime ? `${workflow.cacheTime} ${t("min")}` : t("server default")})
+                              </Badge>
+                            )}
                             {!!workflow.outputFields?.length && (
                               <Badge variant="info">
 {workflow.outputFields.length} {t("Output Fields")}
