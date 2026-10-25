@@ -95,6 +95,26 @@ describe("ContainerDetailsModal", () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it.each([
+    [5, "Cache enabled (5 min)"],
+    [0, "Cache enabled (server default)"],
+  ])("shows the configured workflow cache duration %s in the Workflows tab", async (cacheTime, label) => {
+    const user = userEvent.setup();
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{ ...stock, workflows: [
+          { name: "loadPublicPage", isActive: true, isRedisCached: true, cacheTime },
+          { name: "legacyWorkflow", isActive: true },
+        ] }}
+      />,
+    );
+    await user.click(screen.getByRole("tab", { name: "Workflows" }));
+    expect(screen.getAllByText(/Cache enabled/)).toHaveLength(1);
+    expect(screen.getByText(label)).toBeVisible();
+  });
+
   it("omits paused function routes from the overview and its route count", async () => {
     const user = userEvent.setup();
     const route = {

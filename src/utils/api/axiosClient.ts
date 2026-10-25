@@ -2,11 +2,17 @@ import axios from "axios";
 import { camelCase, isArray, isPlainObject, transform } from "lodash";
 import { logout } from "../auth";
 
-function toCamelCase(obj: any): any {
-  if (isArray(obj)) return obj.map(toCamelCase);
+function toCamelCase(obj: any, inWorkflow = false): any {
+  if (isArray(obj)) return obj.map((value) => toCamelCase(value, inWorkflow));
   if (isPlainObject(obj)) {
     return transform(obj, (result: any, value: any, key: string) => {
-      result[key === "_id" ? "_id" : camelCase(key)] = toCamelCase(value);
+      const normalizedKey = key === "_id" ? "_id" : camelCase(key);
+      // These workflow fields contain authored JSON, including Mongo operators
+      // and case-sensitive field paths. Only normalize their metadata key.
+      const preserveValue = inWorkflow && ["config", "payload", "value"].includes(normalizedKey);
+      result[normalizedKey] = preserveValue
+        ? value
+        : toCamelCase(value, inWorkflow || normalizedKey === "workflows");
     });
   }
   return obj;

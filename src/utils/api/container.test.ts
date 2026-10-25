@@ -117,6 +117,18 @@ describe("container API normalization", () => {
     });
   });
 
+  it.each([
+    [{ isRedisCached: true, cacheTime: 5 }, true, 5],
+    [{ isRedisCached: false, cacheTime: 0 }, false, 0],
+    [{ IsRedisCached: false, CacheTime: 0, isRedisCached: true, cacheTime: 5 }, false, 0],
+    [{}, false, 0],
+  ])("retains workflow cache preferences and legacy defaults: %j", (fields, enabled, minutes) => {
+    expect(normalizeDynamicWorkflow({ name: "loadPage", ...fields })).toMatchObject({
+      isRedisCached: enabled,
+      cacheTime: minutes,
+    });
+  });
+
   it("normalizes Dynamic Workflows returned with Go field names", () => {
     expect(
       normalizeDynamicWorkflow({
@@ -140,6 +152,8 @@ describe("container API normalization", () => {
         ReturnStep: "send",
         OutputFields: ["messageId"],
         RunInTransaction: true,
+        IsRedisCached: true,
+        CacheTime: 5,
       })
     ).toEqual({
       id: "workflow-1",
@@ -162,6 +176,8 @@ describe("container API normalization", () => {
       returnStep: "send",
       outputFields: ["messageId"],
       runInTransaction: true,
+      isRedisCached: true,
+      cacheTime: 5,
     });
   });
 });
@@ -179,7 +195,7 @@ describe("useUpdateWorkflows", () => {
     useUpdateWorkflows();
 
     const payload = {
-      Workflows: [{ name: "notify", isActive: true }],
+      Workflows: [{ name: "notify", isActive: true, isRedisCached: true, cacheTime: 5 }],
     };
 
     expect(mocks.mutationFn).toBeTypeOf("function");
@@ -188,7 +204,7 @@ describe("useUpdateWorkflows", () => {
     expect(mocks.axiosPatch).toHaveBeenCalledWith(
       "/acme/retail/container/workflows/container-1",
       {
-        Workflows: [{ name: "notify", isActive: true }],
+        Workflows: [{ name: "notify", isActive: true, isRedisCached: true, cacheTime: 5 }],
       }
     );
   });

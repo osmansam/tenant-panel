@@ -158,6 +158,8 @@ export interface DynamicWorkflow {
   returnStep?: string;
   outputFields?: string[];
   runInTransaction?: boolean;
+  isRedisCached?: boolean;
+  cacheTime?: number; // Minutes; zero uses the server default.
 }
 
 export interface WorkflowCondition {
@@ -448,6 +450,8 @@ export function normalizeDynamicWorkflow(workflow: any): DynamicWorkflow {
     outputFields: workflow.OutputFields || workflow.outputFields || [],
     runInTransaction:
       workflow.RunInTransaction ?? workflow.runInTransaction ?? false,
+    isRedisCached: workflow.IsRedisCached ?? workflow.isRedisCached ?? false,
+    cacheTime: workflow.CacheTime ?? workflow.cacheTime ?? 0,
   };
 }
 
