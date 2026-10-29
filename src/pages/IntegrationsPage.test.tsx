@@ -138,4 +138,12 @@ describe("IntegrationsPage", () => {
     await user.click(confirmButton);
     expect(state.revokeExternal).toHaveBeenCalledWith("cred_123");
   });
+
+it("identifies shared keys and prevents project controls from globally revoking them", () => {
+  state.externalCredentials = [{ id: "shared", name: "Shared vendor", scope: "tenant", authType: "bearer", allowedDomains: ["api.vendor.com"] }];
+  render(<IntegrationsPage />);
+  expect(screen.getByText("Tenant shared")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Revoke Shared vendor")).not.toBeInTheDocument();
+});
+
 });

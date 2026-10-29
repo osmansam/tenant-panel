@@ -52,6 +52,7 @@ export const Sidebar = () => {
   // Filter routes based on current context (tenant vs project)
   const getVisibleRoutes = () => {
     return routes.filter((route) => {
+      if (route.path === "/external-apis" && (user?.roleScope === "project" || user?.projectId)) return false;
       // Always show dashboard
       if (route.path === "/dashboard") return true;
 
@@ -61,6 +62,7 @@ export const Sidebar = () => {
         // not imply project access.
         if (route.path === "/project-management") return false;
         if (route.path === "/projects") return false;
+        if (route.path === "/external-apis") return false;
 
         if (route.requiredRoles) {
           const userRoles = user?.roles || [];

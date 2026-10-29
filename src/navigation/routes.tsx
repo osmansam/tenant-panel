@@ -13,6 +13,7 @@ const RegisterPage = lazy(() => import("../pages/RegisterPage"));
 const ProjectsPage = lazy(() => import("../pages/ProjectsPage"));
 const CollectionsPage = lazy(() => import("../pages/CollectionsPage"));
 const PagesPage = lazy(() => import("../pages/PagesPage"));
+const ExternalAPIsPage = lazy(() => import("../pages/ExternalAPIsPage"));
 const IntegrationsPage = lazy(() => import("../pages/IntegrationsPage"));
 const LocalizationPage = lazy(() => import("../pages/LocalizationPage"));
 const TenantBrandingPage = lazy(() => import("../pages/TenantBrandingPage"));
@@ -80,6 +81,7 @@ const RouterContainer = () => {
           path={ProtectedRoutes.Integrations}
           element={<IntegrationsPage />}
         />
+        <Route path={ProtectedRoutes.ExternalAPIs} element={<ExternalAPIsPage />} />
         {/* <Route path={ProtectedRoutes.Users} element={<UsersPage />} /> */}
         <Route path={ProtectedRoutes.Settings} element={<TenantBrandingPage />} />
         {/* <Route path={ProtectedRoutes.Profile} element={<ProfilePage />} /> */}

@@ -42,7 +42,9 @@ export type ExternalAPIAuthType = "bearer" | "header";
 export interface ExternalAPICredential {
   id: string;
   tenantId: string;
-  projectId: string;
+  projectId?: string;
+  scope?: "tenant" | "project";
+  grantedProjectIds?: string[];
   name: string;
   authType: ExternalAPIAuthType;
   headerName?: string;
@@ -278,4 +280,65 @@ export function useRevokeExternalAPICredential() {
       toast.error(message);
     },
   });
+}
+
+// Tenant identity is supplied by the tenant management session, never a project path.
+const TENANT_EXTERNAL_API_PATH = "/tenant/integrations/external-api-credentials";
+export function useTenantExternalAPICredentials(enabled = true) {
+  const { currentTenant } = useTenant();
+  return useQuery({
+    queryKey: ["tenantExternalAPICredentials", currentTenant?.id || currentTenant?.slug],
+    enabled: enabled && !!currentTenant,
+    queryFn: async () => {
+      const response = await axiosClient.get<GeneralResponse<{ credentials: ExternalAPICredential[] }>>(TENANT_EXTERNAL_API_PATH);
+      return response.data.data?.credentials || [];
+    },
+  });
+}
+function useInvalidateExternalCredentials() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ["tenantExternalAPICredentials"] });
+    queryClient.invalidateQueries({ queryKey: ["externalAPICredentials"] });
+  };
+}
+export function useCreateTenantExternalAPICredential() {
+  const invalidate = useInvalidateExternalCredentials();
+  return useMutation({
+    mutationFn: async (payload: CreateExternalAPICredentialPayload) => {
+      const response = await axiosClient.post<GeneralResponse<{ credential: ExternalAPICredential }>>(TENANT_EXTERNAL_API_PATH, payload);
+      return response.data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+export type TenantCredentialAction = {
+  action: "promote" | "revoke" | "grant" | "disconnect";
+  credentialId: string;
+  projectId?: string;
+};
+export function useTenantExternalAPICredentialAction() {
+  const invalidate = useInvalidateExternalCredentials();
+  return useMutation({
+    mutationFn: async ({ action, credentialId, projectId }: TenantCredentialAction) => {
+      const base = `${TENANT_EXTERNAL_API_PATH}/${encodeURIComponent(credentialId)}`;
+      if (action === "grant" || action === "disconnect") {
+        if (!projectId) throw new Error("Choose a project");
+        const path = `${base}/projects/${encodeURIComponent(projectId)}`;
+        return action === "grant" ? axiosClient.put(path) : axiosClient.delete(path);
+      }
+      return axiosClient.post(`${base}/${action}`, {});
+    },
+    onSuccess: invalidate,
+  });
+}
+export function isExternalAPICredentialUsable(credential: ExternalAPICredential) {
+  return !credential.revokedAt && (!credential.expiresAt || credential.expiresAt === "0001-01-01T00:00:00Z" || new Date(credential.expiresAt).getTime() > Date.now());
+}
+export function externalAPIError(error: unknown, fallback: string): string {
+  const failure = error as { response?: { data?: { data?: { error?: unknown }; message?: unknown; error?: unknown } }; message?: unknown } | null;
+  const response = failure?.response?.data;
+  const message = [response?.data?.error, response?.error, response?.message, failure?.message]
+    .find((value): value is string => typeof value === "string" && !!value.trim());
+  return message ? message.trim().slice(0, 1000) : fallback;
 }

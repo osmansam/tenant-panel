@@ -20,6 +20,8 @@ vi.mock("../../hooks/useCurrentProject", () => ({
 }));
 
 import {
+  externalAPIError,
+  isExternalAPICredentialUsable,
   buildExternalAPICredentialPath,
   normalizeExternalAPICredentialPayload,
   useIntegrationCredentials,
@@ -90,4 +92,19 @@ describe("external API credential API helpers", () => {
       expiresAt: new Date("2026-08-01T12:00").toISOString(),
     });
   });
+});
+
+it("treats Go zero expiry as unset while rejecting malformed, revoked, and expired credentials", () => {
+ const credential = { id: "key", tenantId: "tenant", name: "Vendor", authType: "bearer" as const, allowedDomains: ["api.vendor.com"], createdAt: "", updatedAt: "" };
+ expect(isExternalAPICredentialUsable({ ...credential, expiresAt: "0001-01-01T00:00:00Z" })).toBe(true);
+ expect(isExternalAPICredentialUsable({ ...credential, expiresAt: "not-a-date" })).toBe(false);
+ expect(isExternalAPICredentialUsable({ ...credential, expiresAt: "2020-01-01T00:00:00Z" })).toBe(false);
+ expect(isExternalAPICredentialUsable({ ...credential, revokedAt: "2026-01-01T00:00:00Z" })).toBe(false);
+});
+
+it("shows the actionable nested backend cause instead of a generic management response message", () => {
+ expect(externalAPIError({ response: { data: { status: 400, message: "Failed to create project", data: { error: "Credential is revoked; choose an active shared credential" } } } }, "Try again")).toBe("Credential is revoked; choose an active shared credential");
+ expect(externalAPIError({ response: { data: { data: { error: { secret: "private" } }, message: "Not allowed" } } }, "Try again")).toBe("Not allowed");
+ expect(externalAPIError(null, "Try again")).toBe("Try again");
+ expect(externalAPIError({ message: "x".repeat(2000) }, "Try again")).toHaveLength(1000);
 });

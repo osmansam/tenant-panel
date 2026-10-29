@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { axiosClient } from "./axiosClient";
@@ -36,6 +36,8 @@ export interface CreateProjectPayload {
   slug: string;
   templateProjectId?: string;
   includeTemplateItems?: boolean;
+  externalAPICredentialIds?: string[];
+  externalAPICredentialBindings?: Record<string, string>;
 }
 
 export interface UpdateProjectPayload {
@@ -291,4 +293,21 @@ export function getProjectStatusDisplay(
   };
 
   return statusMap[status as keyof typeof statusMap] || statusMap.active;
+}
+
+export interface TemplateExternalAPIRequirement {
+  sourceCredentialId: string;
+  name: string;
+  hosts: string[];
+  usages: string[];
+}
+export function useTemplateExternalAPIRequirements(templateId?: string) {
+  return useQuery({
+    queryKey: ["projects", "templates", templateId, "external-api-requirements"],
+    enabled: !!templateId,
+    queryFn: async () => {
+      const response = await axiosClient.get<{ data: { requirements: TemplateExternalAPIRequirement[] } }>(`/tenant/projects/templates/${encodeURIComponent(templateId!)}/external-api-requirements`);
+      return response.data.data.requirements;
+    },
+  });
 }
