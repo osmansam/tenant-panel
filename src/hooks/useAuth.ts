@@ -12,8 +12,30 @@ const useAuth = () => {
   const location = useLocation();
 
   useEffect(() => {
+    let cancelled = false;
     const getUser = async (): Promise<void> => {
-      if (user) return;
+      if (user) {
+        // Repair tenant workspaces saved by the old switch-back flow, which
+        // retained project roles and exposed links that could only redirect.
+        const staleTenantRoles = user.roleScope === "tenant" && !user.projectId &&
+          user.roles?.some(role => role.startsWith("project_"));
+        if (!staleTenantRoles) return;
+        try {
+          const { data } = await axiosClient.get("/tenant/auth/session");
+          if (cancelled) return;
+          if (!data?.authenticated || data.tenantId !== user.tenantId ||
+              data.user?.id !== (user.id || user._id) || !Array.isArray(data.roles) ||
+              !data.roles.every((role: unknown) => typeof role === "string")) {
+            throw new Error("The tenant session does not match this workspace");
+          }
+          const updatedUser = { ...user, roles: data.roles };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        } catch {
+          if (!cancelled) navigate(PublicRoutes.Login, { replace: true, state: { from: location } });
+        }
+        return;
+      }
 
       try {
         const { data } = await axiosClient.get("/tenant/auth/session");
@@ -74,6 +96,7 @@ const useAuth = () => {
     getUser();
 
     return () => {
+      cancelled = true;
       window.removeEventListener("storage", handleStorageEvent);
     };
   }, [user, setUser, navigate, location]);

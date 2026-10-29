@@ -14,6 +14,7 @@ import { getIconByName, getMenuIcon } from "../utils/menuIcons";
 import SidebarTooltip from "./SidebarTooltip";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import { hasManagementPermission } from "../utils/managementPermissions";
 
 export const Sidebar = () => {
   const { t } = useTranslation();
@@ -21,7 +22,7 @@ export const Sidebar = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, setUser } = useUserContext();
-  const { currentProject, clearCurrentProject, isInProject } =
+  const { currentProject, isInProject } =
     useCurrentProject();
   const { switchBackToTenant } = useSwitchBackToTenant();
   const { isSidebarOpen, setIsSidebarOpen, resetGeneralContext } =
@@ -52,6 +53,12 @@ export const Sidebar = () => {
   // Filter routes based on current context (tenant vs project)
   const getVisibleRoutes = () => {
     return routes.filter((route) => {
+      if (route.path === "/integrations") {
+        const projectIdentity = isInProject || user?.roleScope === "project" || !!user?.projectId;
+        return projectIdentity
+          ? isInProject && hasManagementPermission(user?.roles, "project.integrations.read")
+          : hasManagementPermission(user?.roles, "tenant.integrations.read");
+      }
       if (route.path === "/external-apis" && (user?.roleScope === "project" || user?.projectId)) return false;
       // Always show dashboard
       if (route.path === "/dashboard") return true;
@@ -102,21 +109,8 @@ export const Sidebar = () => {
   };
 
   const handleSwitchBackToTenant = () => {
-    // Clear project context locally first for immediate UI feedback
-    clearCurrentProject();
-    if (user) {
-      const updatedUser = {
-        ...user,
-        projectId: undefined,
-        projectName: undefined,
-        projectSlug: undefined,
-        roleScope: "tenant" as const,
-      };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      setUser(updatedUser);
-    }
-    // Use the API hook to handle the token refresh and navigation
-    switchBackToTenant();
+    // The hook verifies the tenant session before changing workspace identity.
+    void switchBackToTenant();
   };
 
   return (

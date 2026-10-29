@@ -19,6 +19,8 @@ export type ManagementPermission =
   | "tenant.projects.create"
   | "tenant.projects.update"
   | "tenant.projects.delete"
+  | "tenant.integrations.read"
+  | "tenant.integrations.manage"
   | "tenant.branding.read"
   | "tenant.branding.manage";
 
@@ -43,6 +45,8 @@ const permissionRoles: Record<ManagementPermission, readonly string[]> = {
   "tenant.projects.create": ["tenant_owner", "tenant_admin"],
   "tenant.projects.update": ["tenant_owner", "tenant_admin"],
   "tenant.projects.delete": ["tenant_owner"],
+  "tenant.integrations.read": ["tenant_owner", "tenant_admin"],
+  "tenant.integrations.manage": ["tenant_owner", "tenant_admin"],
   "tenant.branding.read": ["tenant_owner", "tenant_admin", "tenant_billing", "tenant_auditor"],
   "tenant.branding.manage": ["tenant_owner", "tenant_admin"],
 };
