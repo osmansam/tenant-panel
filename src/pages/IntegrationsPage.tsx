@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import ExternalAPIsPage from "./ExternalAPIsPage";
 import { toast } from "react-toastify";
 import {
   FiArrowDownLeft,
@@ -974,6 +975,10 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
 const IntegrationsPage: React.FC = () => {
   const { currentProject, isInProject } = useCurrentProject();
   const { user } = useUserContext();
+
+  if (!isInProject && !currentProject && user?.roleScope !== "project" && !user?.projectId) {
+    return <ExternalAPIsPage />;
+  }
 
   if (
     !isInProject ||

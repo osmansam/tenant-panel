@@ -492,6 +492,20 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         const currentUser = JSON.parse(currentUserData);
         const currentTenant = JSON.parse(currentTenantData);
 
+        const session = await get<{
+          authenticated: boolean;
+          tenantId: string;
+          user: { id: string };
+          roles: string[];
+        }>({ path: "/tenant/auth/session" });
+        if (localStorage.getItem("user") !== currentUserData ||
+            localStorage.getItem("currentTenant") !== currentTenantData) return;
+        if (!session.authenticated || session.tenantId !== currentTenant.id ||
+            session.user?.id !== (currentUser.id || currentUser._id) ||
+            !Array.isArray(session.roles) || !session.roles.every(role => typeof role === "string")) {
+          throw new Error("The tenant session does not match this workspace");
+        }
+
         // Update user context to remove project information and restore tenant context
         const updatedUser = {
           id: currentUser.id || currentUser._id,
@@ -508,7 +522,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
           projectId: undefined,
           projectName: undefined,
           projectSlug: undefined,
-          roles: currentUser.roles || [],
+          roles: session.roles,
           roleScope: "tenant" as const,
           allTenants: currentUser.allTenants || [],
         };
@@ -522,7 +536,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         toast.success(t("Switched back to tenant context"));
         navigate("/projects");
       } catch (parseError) {
-        console.error("Error parsing user/tenant data:", parseError);
+        console.error("Unable to restore tenant workspace:", parseError);
         toast.error(t("Failed to switch back to tenant context"));
         if (onError) onError(parseError);
       }

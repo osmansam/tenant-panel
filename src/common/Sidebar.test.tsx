@@ -124,15 +124,9 @@ describe("Sidebar", () => {
 
     await user.click(screen.getByRole("button", { name: "Back to Tenant" }));
 
-    expect(state.clearCurrentProject).toHaveBeenCalledOnce();
-    expect(state.setUser).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: "developer@example.com",
-        roleScope: "tenant",
-        projectId: undefined,
-      }),
-    );
     expect(state.switchBackToTenant).toHaveBeenCalledOnce();
+    expect(state.clearCurrentProject).not.toHaveBeenCalled();
+    expect(state.setUser).not.toHaveBeenCalled();
   });
 
   it("does not treat a tenant owner role as project membership", () => {
@@ -233,8 +227,17 @@ describe("Sidebar", () => {
 
 });
 
-it("shows External APIs only in an authorized tenant session", () => {
+it("opens Integrations from Projects for an authorized tenant without a duplicate menu item", async () => {
  state.user.roles = ["tenant_admin"]; state.user.roleScope = "tenant"; state.isInProject = false;
- const { rerender } = render(<Sidebar />); expect(screen.getByRole("button", { name: "External APIs" })).toBeInTheDocument();
- state.user.roleScope = "project"; rerender(<Sidebar />); expect(screen.queryByRole("button", { name: "External APIs" })).not.toBeInTheDocument();
+ state.path = "/projects";
+ render(<Sidebar />);
+ await userEvent.click(screen.getByRole("button", { name: "Integrations" }));
+ expect(state.navigate).toHaveBeenCalledWith("/integrations");
+ expect(screen.queryByRole("button", { name: "External APIs" })).not.toBeInTheDocument();
+});
+
+it("hides project-only Integrations when project roles remain in a tenant workspace", () => {
+ state.user.roles = ["project_developer"]; state.user.roleScope = "tenant"; state.isInProject = false;
+ render(<Sidebar />);
+ expect(screen.queryByRole("button", { name: "Integrations" })).not.toBeInTheDocument();
 });

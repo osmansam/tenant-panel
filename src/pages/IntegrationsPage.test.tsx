@@ -8,6 +8,7 @@ import IntegrationsPage from "./IntegrationsPage";
 const state = vi.hoisted(() => ({
   inProject: true,
   roles: ["project_developer"] as string[],
+  roleScope: "project" as "project" | "tenant",
   credentials: [] as Array<Record<string, any>>,
   externalCredentials: [] as Array<Record<string, any>>,
   loading: false,
@@ -31,8 +32,9 @@ vi.mock("../hooks/useCurrentProject", () => ({
   }),
 }));
 vi.mock("../context/User.context", () => ({
-  useUserContext: () => ({ user: { roles: state.roles } }),
+  useUserContext: () => ({ user: { roles: state.roles, roleScope: state.roleScope } }),
 }));
+vi.mock("./ExternalAPIsPage", () => ({ default: () => <h1>Tenant shared integrations</h1> }));
 vi.mock("../utils/api/container", () => ({
   useContainers: () => [{ schemaName: "orders", workflows: [{ name: "sync" }], dynamicApis: [], pipelines: [] }],
 }));
@@ -53,6 +55,7 @@ describe("IntegrationsPage", () => {
   beforeEach(() => {
     state.inProject = true;
     state.roles = ["project_developer"];
+    state.roleScope = "project";
     state.credentials = [];
     state.externalCredentials = [];
     state.loading = false;
@@ -109,6 +112,15 @@ describe("IntegrationsPage", () => {
     state.inProject = false;
     render(<IntegrationsPage />);
     expect(screen.getByText("Redirect to /projects")).toBeInTheDocument();
+  });
+
+  it("opens shared integrations for a tenant workspace instead of returning to projects", () => {
+    state.inProject = false;
+    state.roleScope = "tenant";
+    state.roles = ["tenant_admin"];
+    render(<IntegrationsPage />);
+    expect(screen.getByRole("heading", { name: "Tenant shared integrations" })).toBeInTheDocument();
+    expect(screen.queryByText("Redirect to /projects")).not.toBeInTheDocument();
   });
 
   it("rejects project members without integration permission", () => {
