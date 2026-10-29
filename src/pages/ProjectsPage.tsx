@@ -17,6 +17,8 @@ import {
   Skeleton,
   WorkspaceDialog,
 } from "../components/ui";
+import { ProjectExternalAPIs, ProjectExternalAPISelection } from "../components/integrations/ProjectExternalAPIs";
+import { externalAPIError } from "../utils/api/integration";
 import { createUrlSlug } from "../utils/urlSlug";
 import { useTenant } from "../hooks/useTenant";
 import { useSwitchToProject } from "../utils/api/auth";
@@ -45,6 +47,8 @@ const ProjectsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [createError, setCreateError] = useState("");
+  const [externalAPISelection, setExternalAPISelection] = useState<ProjectExternalAPISelection>({ ids: [], bindings: {}, ready: true });
+  const [savingCredential, setSavingCredential] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; slug?: string }>({});
   const nameRef = useRef<HTMLInputElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
@@ -95,12 +99,12 @@ const ProjectsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isCreateModalOpen) { setCreateForm({ name: "", slug: "" }); setCreateError(""); setFieldErrors({}); }
+    if (!isCreateModalOpen) { setCreateForm({ name: "", slug: "" }); setCreateError(""); setFieldErrors({}); setExternalAPISelection({ ids: [], bindings: {}, ready: true }); setSavingCredential(false); }
   }, [isCreateModalOpen]);
 
   const handleCreateProject = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isCreating) return;
+    if (isCreating || savingCredential || !externalAPISelection.ready) return;
     const slug = createForm.slug.trim() || createUrlSlug(createForm.name);
     const errors: typeof fieldErrors = {};
     if (!createForm.name.trim()) errors.name = t("Project name is required");
@@ -117,15 +121,18 @@ const ProjectsPage: React.FC = () => {
       await createProject({
         name: createForm.name.trim(),
         slug,
+        ...(externalAPISelection.ids.length ? { externalAPICredentialIds: externalAPISelection.ids } : {}),
+        ...(Object.keys(externalAPISelection.bindings).length ? { externalAPICredentialBindings: externalAPISelection.bindings } : {}),
         ...(createForm.templateProjectId ? { templateProjectId: createForm.templateProjectId, includeTemplateItems: !!createForm.includeTemplateItems } : {}),
       });
       setIsCreateModalOpen(false);
-    } catch {
-      setCreateError(t("Your project could not be created. Your details are saved here. Please try again."));
+    } catch (failure) {
+      setCreateError(`${t("Your project could not be created. Your details are saved here. Please try again.")} ${externalAPIError(failure, "")}`.trim());
     }
   };
 
   const handleTemplateSelection = (templateProjectId: string) => {
+    setExternalAPISelection(previous => ({ ...previous, bindings: {}, ready: !templateProjectId }));
     const selectedTemplate = projectTemplates.find((item) => getProjectId(item) === templateProjectId);
     setCreateForm((previous) => ({
       ...previous,
@@ -332,13 +339,13 @@ const ProjectsPage: React.FC = () => {
         open={isCreateModalOpen}
         initialFocusRef={nameRef}
         className="max-w-xl"
-        onClose={() => { if (!isCreating) setIsCreateModalOpen(false); }}
+        onClose={() => { if (!isCreating && !savingCredential) setIsCreateModalOpen(false); }}
         title={t("Create New Project")}
         description={t("Set up a new project for your team")}
         footer={
           <ResponsiveActionBar>
-            <GenericButton variant="ghost" onClick={() => setIsCreateModalOpen(false)} disabled={isCreating}>{t("Cancel")}</GenericButton>
-            <GenericButton variant="primary" type="submit" form="create-project-form" disabled={isCreating} isLoading={isCreating}>
+            <GenericButton variant="ghost" onClick={() => setIsCreateModalOpen(false)} disabled={isCreating || savingCredential}>{t("Cancel")}</GenericButton>
+            <GenericButton variant="primary" type="submit" form="create-project-form" disabled={isCreating || savingCredential || !externalAPISelection.ready} isLoading={isCreating}>
               {isCreating ? t("Creating...") : t("Create Project")}
             </GenericButton>
           </ResponsiveActionBar>
@@ -360,7 +367,7 @@ const ProjectsPage: React.FC = () => {
           {projectTemplates.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="project-template">{t("Template Project")} ({t("optional")})</Label>
-              <Select id="project-template" value={createForm.templateProjectId || ""} onChange={(event) => handleTemplateSelection(event.target.value)} className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus">
+              <Select id="project-template" disabled={isCreating || savingCredential} value={createForm.templateProjectId || ""} onChange={(event) => handleTemplateSelection(event.target.value)} className="h-9 w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus">
                 <option value="">{t("Start from scratch")}</option>
                 {projectTemplates.map((template) => <option key={getProjectId(template)} value={getProjectId(template)}>{template.name}{template.templateScope === "global" ? ` (${t("Global")})` : ""}</option>)}
               </Select>
@@ -372,6 +379,7 @@ const ProjectsPage: React.FC = () => {
               <span><span className="block font-medium text-ui-foreground">{t("Include template items")}</span><span className="mt-0.5 block text-xs text-ui-muted">{t("Copy existing data records with new IDs")}</span></span>
             </label>
           )}
+          {isCreateModalOpen && canManageTenantTemplates && <ProjectExternalAPIs templateId={createForm.templateProjectId} disabled={isCreating} onChange={setExternalAPISelection} onSavingChange={setSavingCredential} />}
         </form>
       </WorkspaceDialog>
 
@@ -415,7 +423,7 @@ const ProjectsPage: React.FC = () => {
       >
         <form id="delete-project-form" noValidate onSubmit={handleDeleteProject} aria-busy={isDeleting} className="space-y-4">
           <p role="alert" className="rounded-ui-md border border-ui-danger/20 bg-ui-danger-subtle p-3 text-sm text-ui-danger">
-            {t("This permanently deletes the project and all of its collections, data, pages, translations, and credentials. This cannot be undone.")}
+            {t("This permanently deletes the project and all of its collections, data, pages, translations, and project-owned credentials. Tenant shared credentials remain available. This cannot be undone.")}
           </p>
           <div className="space-y-2">
             <Label htmlFor="delete-project-confirm">

@@ -232,3 +232,9 @@ describe("Sidebar", () => {
   });
 
 });
+
+it("shows External APIs only in an authorized tenant session", () => {
+ state.user.roles = ["tenant_admin"]; state.user.roleScope = "tenant"; state.isInProject = false;
+ const { rerender } = render(<Sidebar />); expect(screen.getByRole("button", { name: "External APIs" })).toBeInTheDocument();
+ state.user.roleScope = "project"; rerender(<Sidebar />); expect(screen.queryByRole("button", { name: "External APIs" })).not.toBeInTheDocument();
+});

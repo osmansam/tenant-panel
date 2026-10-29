@@ -18,6 +18,7 @@ export enum Routes {
   Pages = "/pages",
   Localization = "/localization",
   Integrations = "/integrations",
+  ExternalAPIs = "/external-apis",
   Settings = "/settings",
   Users = "/users",
   Profile = "/profile",
@@ -93,6 +94,13 @@ export const systemRoutes: RouteConfig[] = [
     isOnSidebar: true,
     icon: "MdVpnKey",
     requiredRoles: ["project_admin", "project_developer"],
+  },
+  {
+    name: "External APIs",
+    path: Routes.ExternalAPIs,
+    isOnSidebar: true,
+    icon: "MdVpnKey",
+    requiredRoles: ["tenant_owner", "tenant_admin"],
   },
   {
     name: "Users",

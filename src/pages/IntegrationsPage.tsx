@@ -43,6 +43,7 @@ import {
   IntegrationPermission,
   IntegrationPermissionKind,
   normalizeExternalAPICredentialPayload,
+  isExternalAPICredentialUsable,
   useCreateExternalAPICredential,
   useCreateIntegrationCredential,
   useExternalAPICredentials,
@@ -96,7 +97,7 @@ function toApiDate(localDateTime: string) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "-";
+  if (!value || value === "0001-01-01T00:00:00Z") return "-";
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -118,8 +119,7 @@ function getExternalCredentialStatus(credential: ExternalAPICredential) {
     return { label: "Revoked", variant: "danger" as const };
   }
   if (
-    credential.expiresAt &&
-    new Date(credential.expiresAt).getTime() <= Date.now()
+    !isExternalAPICredentialUsable(credential)
   ) {
     return { label: "Expired", variant: "warning" as const };
   }
@@ -346,7 +346,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
   };
 
   const revokeExternal = (credential: ExternalAPICredential) => {
-    if (credential.revokedAt) return;
+    if (credential.revokedAt || credential.scope === "tenant") return;
     setRevokeTarget({
       type: "external",
       id: credential.id,
@@ -781,6 +781,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                           {credential.name}
                         </h3>
                         <Badge variant={status.variant}>{status.label}</Badge>
+                        <Badge variant="info">{credential.scope === "tenant" ? "Tenant shared" : "Project only"}</Badge>
                         <Badge variant="neutral">
                           {credential.authType === "header"
                             ? credential.headerName
@@ -788,7 +789,7 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                         </Badge>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button
+                        {credential.scope !== "tenant" && <button
                           type="button"
                           onClick={() => revokeExternal(credential)}
                           disabled={!!credential.revokedAt}
@@ -798,10 +799,11 @@ const IntegrationsContent: React.FC<{ currentProject: { name: string } }> = ({
                         >
                           <FiTrash2 className="h-3.5 w-3.5" />
                           <span>Revoke</span>
-                        </button>
+                        </button>}
                       </div>
                     </div>
 
+                    {credential.scope === "tenant" && <p className="mt-2 text-xs text-ui-muted">Tenant administrators manage shared access in External APIs.</p>}
                     <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ui-muted">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-ui-muted select-none">

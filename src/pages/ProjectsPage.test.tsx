@@ -8,6 +8,9 @@ import ProjectsPage from "./ProjectsPage";
 const state = vi.hoisted(() => ({
   projects: [] as Array<Record<string, any>>,
   templates: [] as Array<Record<string, any>>,
+  externalCredentials: [] as any[],
+  requirements: [] as any[],
+  createExternal: vi.fn(),
   canManageTemplates: true,
   isLoading: false,
   isError: false,
@@ -38,6 +41,7 @@ vi.mock("../utils/api/auth", () => ({
 vi.mock("../utils/api/project", () => ({
   useProjectsQuery: () => ({ data: state.projects, isLoading: state.isLoading, isError: state.isError, refetch: state.refetch }),
   useProjectTemplates: () => state.templates,
+  useTemplateExternalAPIRequirements: (id: string) => ({ data: id ? state.requirements : [], isLoading: false, isError: false }),
   useCreateProject: () => ({ createProject: state.createProject, isCreating: false }),
   useDeleteProject: () => ({ deleteProject: state.deleteProject, isDeleting: false }),
   useUpdateProjectTemplate: () => ({
@@ -49,6 +53,8 @@ vi.mock("../utils/api/project", () => ({
     label: status === "active" ? "Active" : "Inactive",
   }),
 }));
+
+vi.mock("../utils/api/integration", async original => ({ ...await original<any>(), useTenantExternalAPICredentials: () => ({ data: state.externalCredentials, isLoading: false, isError: false }), useCreateTenantExternalAPICredential: () => ({ mutateAsync: state.createExternal, isPending: false }) }));
 
 const project = (overrides: Record<string, any> = {}) => ({
   id: "project-1",
@@ -64,6 +70,8 @@ describe("ProjectsPage", () => {
   beforeEach(() => {
     state.projects = [];
     state.templates = [];
+    state.externalCredentials = [];
+    state.requirements = [];
     state.canManageTemplates = true;
     state.isLoading = false;
     state.isError = false;
@@ -226,5 +234,25 @@ describe("ProjectsPage", () => {
     render(<ProjectsPage />);
     expect(screen.queryByRole("button", { name: /Delete Operations/ })).not.toBeInTheDocument();
   });
+
+
+it("retains saved key selection and template bindings after a failed project submission without resending secrets", async () => {
+ const key = { id: "shared-1", scope: "tenant", name: "New vendor", authType: "bearer", allowedDomains: ["api.vendor.com"] };
+ state.createExternal.mockResolvedValueOnce({ credential: key });
+ state.createProject.mockRejectedValueOnce({ response: { data: { message: "Slug already exists" } } }).mockResolvedValueOnce({});
+ state.templates = [project({ id: "template", name: "Store starter" })];
+ state.requirements = [{ sourceCredentialId: "source-key", name: "Checkout", hosts: ["api.vendor.com"], usages: ["checkout / pay"] }];
+ const user = userEvent.setup(); render(<ProjectsPage />);
+ await user.click(screen.getByRole("button", { name: "New Project" })); await user.type(screen.getByLabelText(/Project Name/), "Store"); await user.click(screen.getByLabelText(/Template Project/)); await user.click(screen.getByRole("option", { name: "Store starter" }));
+ expect(screen.getByRole("button", { name: "Create Project" })).toBeDisabled();
+ await user.click(screen.getByRole("button", { name: "Add new credential" })); await user.type(screen.getByLabelText("Credential name"), "New vendor"); await user.type(screen.getByLabelText("External API token"), "transient-secret"); await user.type(screen.getByLabelText("Allowed domains"), "api.vendor.com"); await user.click(screen.getByRole("button", { name: "Save shared credential" }));
+ await user.click(screen.getByLabelText("Credential for Checkout")); await user.click(screen.getByRole("option", { name: "New vendor" })); await user.click(screen.getByRole("button", { name: "Create Project" }));
+ await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Slug already exists"));
+ expect(screen.getByLabelText(/Project Name/)).toHaveValue("Store"); expect(screen.getByRole("checkbox", { name: "New vendor" })).toBeChecked();
+ await user.click(screen.getByRole("button", { name: "Create Project" }));
+ await waitFor(() => expect(state.createProject).toHaveBeenCalledTimes(2));
+ expect(state.createProject).toHaveBeenLastCalledWith({ name: "Store", slug: "store", templateProjectId: "template", includeTemplateItems: false, externalAPICredentialIds: ["shared-1"], externalAPICredentialBindings: { "source-key": "shared-1" } });
+ expect(state.createExternal).toHaveBeenCalledOnce(); expect(JSON.stringify(state.createProject.mock.calls)).not.toContain("transient-secret");
+});
 
 });
