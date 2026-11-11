@@ -28,7 +28,7 @@ function App() {
   const isPublicRoute = Object.values(PublicRoutes).includes(
     location.pathname as any
   );
-  const showSidebar = !isPublicRoute && !!localStorage.getItem("user");
+  const showSidebar = location.pathname.replace(/\/$/, "") !== "/pages/visual-builder" && !isPublicRoute && !!localStorage.getItem("user");
 
   return (
     <div className="App">

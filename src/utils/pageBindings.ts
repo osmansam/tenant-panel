@@ -1,3 +1,6 @@
+import { removeRetiredVisualConnections } from "../visual-engine/model/retiredData";
+import { validatePageRequests } from "./pageRequests";
+import { validatePageRequestGraph } from "./pageRequestGraph";
 import type {
   ComponentBlock,
   ComponentOutputDefinition,
@@ -461,9 +464,10 @@ function normalizePageFilters(
 export function normalizePageRuntimeConfig<T extends RuntimeConfigPage>(page: T): T {
   const visit = (current: RuntimeConfigPage): RuntimeConfigPage => {
     const filters = normalizePageFilters(current.filters, collectCellIds(current));
+    const sections = mapArray(current.sections, section => mapSection(section, removeRetiredVisualConnections));
     const subPage = current.subPage ? visit(current.subPage) : current.subPage;
-    if (filters === current.filters && subPage === current.subPage) return current;
-    return { ...current, filters, subPage };
+    if (filters === current.filters && sections === current.sections && subPage === current.subPage) return current;
+    return { ...current, filters, sections, subPage };
   };
   return visit(page) as T;
 }
@@ -1056,6 +1060,7 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
     }
     throw error;
   }
+  issues.push(...validatePageRequests(page), ...validatePageRequestGraph(page));
   const variables = variablePages.flatMap(
     ({ variables: pageVariables, path }) =>
       pageVariables.map((variable, index) => ({
@@ -1401,7 +1406,7 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
         | undefined;
       let expected: RuntimeValueType | undefined;
       let tableSource = false;
-      if (!VALUE_TYPES.has(output.type)) {
+      if ((!VALUE_TYPES.has(output.type) && output.type !== "record") || (output.type === "record" && output.source?.kind !== "tableSelectedRecord")) {
         issues.push(
           issue("invalid_output_type", "Output type is invalid.", outputPath, {
             componentId: component.id,
@@ -1437,6 +1442,9 @@ export function validatePageBindings(page: PageModel): PageBindingIssue[] {
             ),
           );
         } else expected = outputTypeForFilter(filter);
+      } else if (source.kind === "tableSelectedRecord") {
+        tableSource = true;
+        expected = "record";
       } else if (source.kind === "tableSelectedIds") {
         tableSource = true;
         expected = "stringArray";

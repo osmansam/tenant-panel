@@ -1,3 +1,10 @@
+import { validatePageRequests } from "../../../utils/pageRequests";
+import { validatePageRequestGraph } from "../../../utils/pageRequestGraph";
+import PageRequestsEditor from "../../PageDesigner/PageRequestsEditor";
+import VisualSectionPickerDialog, { appendVisualSection } from "../../../visualBuilder/VisualSectionPickerDialog";
+import { extractPage, listVisualBlocks } from "../../../visualBuilder/pageAdapter";
+import { VisualBuilderPageLink, visualBuilderURL } from "../../../visualBuilder/pageLinks";
+import { designerGridSections, mergeDesignerGridSections } from "../../../visualBuilder/gridSections";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -53,6 +60,8 @@ const pageEditorSnapshot = (page: PageModel) => JSON.stringify({
   icon: page.icon || "MdSpaceDashboard",
   sections: page.sections || [],
   filters: page.filters || [],
+  requests: page.requests || [],
+  subPage: page.subPage || null,
   pageNavigator: page.pageNavigator || null,
 });
 
@@ -71,25 +80,27 @@ export const PagesSection: React.FC = () => {
   const [savedEditorSnapshot, setSavedEditorSnapshot] = useState("");
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const [hasNestedEditor, setHasNestedEditor] = useState(false);
+  const [showVisualSectionPicker, setShowVisualSectionPicker] = useState(false);
+  const [focusedVisualId, setFocusedVisualId] = useState<string | null>(null);
   const [isSavingPage, setIsSavingPage] = useState(false);
   const savingPageRef = useRef(false);
   const [saveError, setSaveError] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
   const hasUnsavedChanges = Boolean(showDesigner && editingPage && pageEditorSnapshot(editingPage) !== savedEditorSnapshot);
-  const [editorTab, setEditorTab] = useState<"content" | "navigation" | "settings">("content");
+  const [editorTab, setEditorTab] = useState<"content" | "navigation" | "settings" | "requests">("content");
   const { updatePage, updatePageAsync, isUpdating } = useUpdatePage();
   const { createPageAsync, isCreating } = useCreatePage();
 
   useEffect(() => {
-    if (!showDesigner || (!hasUnsavedChanges && !hasNestedEditor && !isSavingPage)) return;
+    if (!showDesigner || (!hasUnsavedChanges && !hasNestedEditor && !showVisualSectionPicker && !isSavingPage)) return;
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeUnload);
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [showDesigner, hasUnsavedChanges, hasNestedEditor, isSavingPage]);
+  }, [showDesigner, hasUnsavedChanges, hasNestedEditor, showVisualSectionPicker, isSavingPage]);
 
   const { data: pages, isLoading, error, refetch } = useGetTenantPagesQuery();
 
@@ -152,6 +163,7 @@ export const PagesSection: React.FC = () => {
     isAuthorized: page.isAuthorized,
     authorizeRole: page.authorizeRole,
     filters: page.filters,
+    requests: page.requests,
     sections: page.sections,
     subPage: page.subPage,
     pageNavigator: page.pageNavigator,
@@ -232,6 +244,7 @@ export const PagesSection: React.FC = () => {
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
         filters: page.filters,
+    requests: page.requests,
         sections: page.sections,
         subPage: page.subPage,
         pageNavigator: page.pageNavigator,
@@ -249,6 +262,8 @@ export const PagesSection: React.FC = () => {
       // Use flat structure (backward compatible with Go model)
       const sections = gridSections;
       const filters = editingPage.filters ?? [];
+      const requestIssues = [...validatePageRequests(editingPage), ...validatePageRequestGraph(editingPage)];
+      if (requestIssues.length) throw new Error(requestIssues[0].message);
 
       await updatePageAsync({
         id: editingPage._id || editingPage.id!,
@@ -265,6 +280,8 @@ export const PagesSection: React.FC = () => {
           isAuthorized: editingPage.isAuthorized,
           authorizeRole: editingPage.authorizeRole,
           filters,
+          requests: editingPage.requests ?? [],
+          subPage: editingPage.subPage,
           sections: sections,
           pageNavigator: editingPage.pageNavigator,
         },
@@ -307,6 +324,7 @@ export const PagesSection: React.FC = () => {
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
         filters: page.filters,
+    requests: page.requests,
         sections: page.sections,
         subPage: page.subPage,
         pageNavigator: page.pageNavigator,
@@ -333,6 +351,7 @@ export const PagesSection: React.FC = () => {
         isAuthorized: page.isAuthorized,
         authorizeRole: page.authorizeRole,
         filters: page.filters,
+    requests: page.requests,
         sections: page.sections,
         subPage: page.subPage,
         pageNavigator: page.pageNavigator,
@@ -345,6 +364,8 @@ export const PagesSection: React.FC = () => {
     setEditingPage(null);
     setEditorTab("content");
     setIsDiscardDialogOpen(false);
+    setShowVisualSectionPicker(false);
+    setFocusedVisualId(null);
     setHasNestedEditor(false);
     setSaveError("");
   };
@@ -626,6 +647,7 @@ export const PagesSection: React.FC = () => {
 
                   {/* Actions Group: Edit (subtle outline), ⋯ (icon-only borderless) */}
                   <div className="flex items-center gap-1">
+                    <VisualBuilderPageLink page={page} canEdit={canCreatePages} />
                     {canCreatePages && (
                       <GenericButton
                         variant="outline"
@@ -767,7 +789,7 @@ export const PagesSection: React.FC = () => {
                   <div role="tablist" aria-label={t("Page editor sections")} onKeyDown={handleEditorTabKeyDown} className="order-3 flex w-full min-w-0 items-center gap-1 overflow-x-auto sm:order-none sm:w-auto sm:flex-1">
                   {([[
                     "content", "Content", FiLayout,
-                  ], ["navigation", "Navigation", FiNavigation], ["settings", "Page settings", FiSettings]] as const).map(([value, label, Icon]) => (
+                  ], ["requests", "Page Requests", FiLayout], ["navigation", "Navigation", FiNavigation], ["settings", "Page settings", FiSettings]] as const).map(([value, label, Icon]) => (
                     <button key={value} type="button" role="tab" id={`page-editor-tab-${value}`} aria-controls={`page-editor-panel-${value}`} aria-selected={editorTab === value} tabIndex={editorTab === value ? 0 : -1} onClick={() => setEditorTab(value)} className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-ui-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${editorTab === value ? "bg-ui-subtle text-ui-foreground" : "text-ui-muted hover:bg-ui-subtle/70 hover:text-ui-foreground"}`}>
                       <Icon className="h-3.5 w-3.5" aria-hidden="true" />{label}
                     </button>
@@ -783,6 +805,7 @@ export const PagesSection: React.FC = () => {
 
             {saveError && <p role="alert" className="border-b border-ui-danger/20 bg-ui-danger-subtle px-4 py-3 text-sm text-ui-danger">{saveError}</p>}
             <div className="min-h-0 flex-1 overflow-hidden">
+              {editorTab === "requests" && <div role="tabpanel" id="page-editor-panel-requests" aria-labelledby="page-editor-tab-requests" className="h-full overflow-y-auto p-4 sm:p-6"><PageRequestsEditor page={editingPage} disabled={isSavingPage} onChange={setEditingPage} /></div>}
               {editorTab === "navigation" && (
               <div role="tabpanel" id="page-editor-panel-navigation" aria-labelledby="page-editor-tab-navigation" className="h-full overflow-y-auto p-4 sm:p-6">
                 <div className="mx-auto max-w-5xl">
@@ -844,38 +867,24 @@ export const PagesSection: React.FC = () => {
               )}
               {editorTab === "content" && (
               <div role="tabpanel" id="page-editor-panel-content" aria-labelledby="page-editor-tab-content" className="h-full">
+              <div className="px-4 py-2"><VisualBuilderPageLink page={editingPage} canEdit={canCreatePages} /></div>
               <PageDesigner
-                sections={
-                  (editingPage.sections
-                    ?.map((s) => {
-                      // Handle nested structure (type: "grid", grid: {...})
-                      if (s.type === "grid" && s.grid) {
-                        return s.grid;
-                      }
-                      // Handle flat structure (columns, cells directly on section)
-                      if (s.columns && s.cells) {
-                        return {
-                          columns: s.columns,
-                          gap: s.gap,
-                          cells: s.cells,
-                        };
-                      }
-                      return null;
-                    })
-                    .filter((g) => g !== null) || []) as any
-                }
+                sections={designerGridSections(editingPage.sections || []) as any}
+                pageSections={editingPage.sections || []}
+                onReorderPageSections={(sections) => setEditingPage(current => current && { ...current, sections })}
+                focusedVisualId={focusedVisualId}
+                editableVisualIds={pages.filter(page => getPageId(page) === getPageId(editingPage)).flatMap(page => listVisualBlocks(extractPage(page)).map(block => block.id))}
+                onAddVisualSection={editingPage.isGroupOnly ? undefined : () => setShowVisualSectionPicker(true)}
+                onDeleteVisualSection={(componentId) => setEditingPage(current => current && { ...current, sections: (current.sections || []).filter(section => section.component?.id !== componentId) })}
                 filters={editingPage.filters || []}
                 onChange={(gridSections) => {
-                  // Use flat structure for compatibility
-                  const sections = gridSections.map((gridSection) => ({
-                    ...gridSection,
-                  }));
                   setEditingPage((currentPage) => currentPage && {
                     ...currentPage,
-                    sections,
+                    sections: mergeDesignerGridSections(currentPage.sections || [], gridSections),
                   });
                 }}
-                onComponentSave={handleSavePageStructure}
+                onVisualComponentEdit={(componentId) => { window.location.assign(visualBuilderURL(editingPage._id || editingPage.id || "", componentId)); }}
+                onComponentSave={(grids) => handleSavePageStructure(mergeDesignerGridSections(editingPage.sections || [], grids))}
                 onNestedEditorChange={setHasNestedEditor}
                 onFiltersChange={(filters) => {
                   setEditingPage((currentPage) => currentPage && {
@@ -892,11 +901,18 @@ export const PagesSection: React.FC = () => {
         document.body,
       )}
 
+      {showVisualSectionPicker && editingPage && <VisualSectionPickerDialog onClose={() => setShowVisualSectionPicker(false)} onAdd={selection => {
+        const sections = appendVisualSection(editingPage.sections || [], selection);
+        setEditingPage(current => current && { ...current, sections });
+        setFocusedVisualId(sections.at(-1)?.component?.id || null);
+        setShowVisualSectionPicker(false);
+      }} />}
+
       <WorkspaceDialog open={isDiscardDialogOpen} onClose={() => setIsDiscardDialogOpen(false)} layer="nested" className="max-w-md" initialFocusRef={keepEditingRef} title={t("Discard unsaved changes?")} footer={<ResponsiveActionBar><GenericButton ref={keepEditingRef} variant="outline" onClick={() => setIsDiscardDialogOpen(false)}>{t("Keep editing")}</GenericButton><GenericButton variant="danger" onClick={handleCancelDesigner}>{t("Discard changes")}</GenericButton></ResponsiveActionBar>}>
         <p className="text-sm leading-6 text-ui-muted">{t("Your page has changes that have not been saved. Keep editing to save them, or discard them to return to the page list.")}</p>
       </WorkspaceDialog>
 
-      <UnsavedChangesGuard when={showDesigner && (hasUnsavedChanges || hasNestedEditor || isSavingPage)} saving={isSavingPage} />
+      <UnsavedChangesGuard when={showDesigner && (hasUnsavedChanges || hasNestedEditor || showVisualSectionPicker || isSavingPage)} saving={isSavingPage} />
 
       {/* Page Details Modal */}
       <PageDetailsModal

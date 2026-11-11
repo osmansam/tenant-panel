@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PagesSection } from "./PagesSection";
 
+let mockSubPage: import("../../../utils/api/page").PageModel | undefined;
+let mockSections: import("../../../utils/api/page").Section[] | undefined;
 let mockLoading = false;
 let mockError = false;
 const mockRefetch = vi.fn();
@@ -22,14 +24,15 @@ vi.mock("../../../utils/api/page", () => ({
     name: "Happy Friday",
     slug: "happy-friday",
     icon: "MdCardGiftcard",
-    sections: [{ columns: 1, gap: 16, cells: [] }],
+    sections: mockSections || [{ columns: 1, gap: 16, cells: [] }],
     filters: [],
+    subPage: mockSubPage,
   }] }),
   useUpdatePage: () => ({ updatePage: vi.fn(), updatePageAsync: mockSave, isUpdating: false }),
   useCreatePage: () => ({ createPage: vi.fn(), isCreating: false }),
 }));
 vi.mock("../../PageDesigner/PageDesigner", () => ({
-  PageDesigner: () => <div data-testid="designer-content">Canvas workspace</div>,
+  PageDesigner: ({ sections, pageSections, onChange, onReorderPageSections }: { sections: import("../../../types/page").GridSection[]; pageSections: import("../../../utils/api/page").Section[]; onChange: (sections: import("../../../types/page").GridSection[]) => void; onReorderPageSections?: (sections: import("../../../utils/api/page").Section[]) => void }) => <div data-testid="designer-content">Canvas workspace<button onClick={() => onChange(sections.slice(1))}>Delete first grid</button><button onClick={() => onReorderPageSections?.([...pageSections].reverse().map((section, order) => ({ ...section, order })))}>Move last section first</button></div>,
 }));
 vi.mock("../../PageDesigner/PageNavigatorEditor", () => ({
   PageNavigatorEditor: () => <div data-testid="navigation-settings">Breadcrumb settings</div>,
@@ -39,7 +42,49 @@ vi.mock("../Modals/CreateWithJsonModal", () => ({ CreateWithJsonModal: () => nul
 vi.mock("../Modals/PageDetailsModal", () => ({ PageDetailsModal: () => null }));
 
 describe("PagesSection designer workspace", () => {
-  beforeEach(() => { mockLoading = false; mockError = false; mockRefetch.mockClear(); mockSave.mockReset().mockResolvedValue({}); });
+  it("sends nested request edits through Save Page", async () => {
+    mockSubPage = { name: "Nested", sections: [], requests: [{ id: "nested", name: "Nested request", source: { transport: "list", schemaName: "products" }, result: { kind: "records" } }] };
+    render(<PagesSection />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Page Requests" }));
+    await userEvent.clear(screen.getByLabelText("Request name"));
+    await userEvent.type(screen.getByLabelText("Request name"), "Changed nested request");
+    await userEvent.click(screen.getByRole("button", { name: "Save Page" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledOnce());
+    expect(mockSave.mock.calls[0][0].payload.subPage.requests[0].name).toBe("Changed nested request");
+  });
+
+  beforeEach(() => { mockSubPage = undefined; mockSections = undefined; mockLoading = false; mockError = false; mockRefetch.mockClear(); mockSave.mockReset().mockResolvedValue({}); });
+  it("marks section reordering dirty and saves the full reordered page through Save Page", async () => {
+    mockSections = [{ id: "grid", columns: 1, gap: 16, cells: [], order: 0 }, { id: "visual", type: "component", order: 1, component: { id: "hero", type: "custom", props: { visualBuilder: { document: { name: "Preserve" } } } } }];
+    render(<PagesSection />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Move last section first" }));
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(mockSave).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Save Page" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledOnce());
+    const payload = mockSave.mock.calls[0][0].payload;
+    expect(payload.sections).toEqual([{ ...mockSections[1], order: 0 }, { ...mockSections[0], order: 1 }]);
+    expect(payload.name).toBe("Happy Friday");
+  });
+
+  it("keeps a surviving grid after an intervening visual section when an earlier grid is deleted", async () => {
+    mockSections = [
+      { id: "grid-a", type: "grid", grid: { columns: 1, cells: [] } },
+      { id: "visual-section", type: "component", component: { id: "visual", type: "custom", props: { visualBuilder: { document: { name: "Keep me" } } } } },
+      { id: "grid-b", type: "grid", grid: { columns: 2, cells: [] } },
+    ];
+    render(<PagesSection />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete first grid" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save Page" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    expect(mockSave.mock.calls[0][0].payload.sections).toEqual([
+      { ...mockSections[1], order: 0 }, { ...mockSections[2], order: 1 },
+    ]);
+  });
+
   it("separates content, navigation, and page settings into accessible tabs", async () => {
     const user = userEvent.setup();
     const { container } = render(<PagesSection />);

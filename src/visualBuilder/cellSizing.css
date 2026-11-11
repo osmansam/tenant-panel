@@ -1,0 +1,68 @@
+/* Only placed visuals that explicitly fill a cell participate in its remaining space. */
+[data-visual-cell-sizing="fill"] {
+ display: flex;
+ flex-direction: column;
+ flex: 1 1 auto;
+ align-self: stretch;
+ width: 100%;
+ min-width: 0;
+ min-height: 0;
+ overflow: auto;
+}
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme {
+ display: grid;
+ flex: 1 1 auto;
+ width: 100%;
+ min-width: 0;
+ min-height: 0;
+}
+/* VisualRenderer's outer node wrapper, and optional root animation wrapper. */
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div {
+ display: grid;
+ min-width: 0;
+ min-height: 0;
+}
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-anim {
+ display: grid;
+ min-width: 0;
+ min-height: 0;
+}
+
+/* Root background/overlay effects insert their own host and content wrapper. */
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-effect-host,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-anim > .ve-effect-host,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-effect-host > .relative.z-10,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-anim > .ve-effect-host > .relative.z-10 {
+ display: grid;
+ min-width: 0;
+ min-height: 0;
+}
+
+/* Keep long root content reachable even inside an effect's clipping host. */
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > section,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-anim > section,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-effect-host > .relative.z-10 > section,
+[data-visual-cell-sizing="fill"] > .ozmi-site-theme > div > .ve-anim > .ve-effect-host > .relative.z-10 > section {
+ min-width: 0;
+ min-height: 0;
+ overflow: auto;
+}
+
+/* Only the host-designated main frame participates; nested authored frames are untouched. */
+[data-visual-cell-sizing="fill"] [data-ve-fill-slot="true"],
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"],
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-anim,
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-effect-host,
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-anim > .ve-effect-host,
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-effect-host > .relative.z-10,
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-anim > .ve-effect-host > .relative.z-10 {
+ display: grid;
+ height: 100%;
+ min-width: 0;
+ min-height: 0;
+}
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"],
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-effect-host > .relative.z-10,
+[data-visual-cell-sizing="fill"] [data-ve-fill-container="true"] > .ve-anim > .ve-effect-host > .relative.z-10 {
+ overflow: auto;
+}

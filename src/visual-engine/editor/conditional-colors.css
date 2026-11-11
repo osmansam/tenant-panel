@@ -1,0 +1,4 @@
+.vb-conditional-rule { min-width: 0; margin: 12px 0; padding: 10px; border: 1px solid var(--vb-border); border-radius: 8px; }
+.vb-conditional-rule legend { padding: 0 5px; font-weight: 600; font-size: 12px; }
+.vb-conditional-rule__actions { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+.vb-conditional-rule__color { display: grid; gap: 6px; margin-top: 10px; }

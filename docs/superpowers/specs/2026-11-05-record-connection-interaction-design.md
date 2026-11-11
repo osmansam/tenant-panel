@@ -1,0 +1,11 @@
+# Optional record connection settings and direct table interaction
+
+User requests: remove the persistent red connection panel from the visual designer; keep connections optional; connected details should work without activating bulk row selection. User chose: show the first visible row immediately, then switch on ordinary row clicks.
+
+Use the existing page-runtime selected-record output and item parameter binding. Move RecordConnectionEditor behind a compact Data connection button in the placed visual editor header, opening the existing neutral WorkspaceDialog. No connection is a normal state. Closing/cancel discards draft configuration; save still preserves the placement baseline and unrelated page values. Errors stay local in the dialog. Permit direct removal of existing malformed item bindings as part of optional disconnect behavior. Unsaved canvas changes prevent configuration saves without blocking viewing settings.
+
+In connected-output tables, separate the active details record from existing bulk selectedRows. The active record defaults to the first visible valid uniquely identified data row. Normal row click or Enter/Space on a focused row activates it, with a subtle row highlight. Buttons, links, checkbox cells, edit/delete actions and expand controls retain their current behavior and do not activate a record. Bulk selection remains opt-in through existing configured bulk actions; it neither drives nor clears details.
+
+Fresh table data re-resolves the same active ID when visible; if hidden/deleted/off-page, default to the first visible valid row. Empty/invalid/unavailable data clears details. Keep the existing visible-ID callback and resolve from original source data before UI decoration. No extra request, output schema or backend model change; same record snapshot and actions/hidden IDs as before. Unconnected/unexposed tables keep existing behavior.
+
+Approaches: auto-enable bulk checkboxes (does not satisfy normal row interaction); separate direct active-record interaction using existing outputs (chosen); new visual state store (unnecessary). Connection settings use the existing application dialog rather than a new floating editor shell. Preserve dirty checkouts and inline execution; no git mutations.

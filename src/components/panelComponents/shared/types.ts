@@ -1,3 +1,4 @@
+import type { SelectFilterBinding } from "../../../types/selectFilters";
 import { Dispatch, SetStateAction } from "react";
 
 export interface Tab {
@@ -151,6 +152,17 @@ export interface GenericInputType {
   disabledCondition?: string;
   requiredCondition?: string;
   sourceRequestFilters?: Record<string, unknown>;
+  sourceFilterBindings?: SelectFilterBinding[];
+  optionsSource?: "schema" | "static";
+  sourceSchemaName?: string;
+  sourceValueField?: string;
+  sourceLabelField?: string;
+  sourceDataFields?: string[];
+  optionDisplay?: { leftTemplate?: string; rightTemplate?: string };
+  selectionRequestSlot?: string;
+  selectionStatus?: "waiting" | "loading" | "error";
+  selectionMessage?: string;
+  retrySelection?: () => void;
   sourceFilterCondition?: string;
   isReadOnly?: boolean;
   invalidateKeys?: {

@@ -16,6 +16,7 @@ type RowClassRule = {
 };
 type ActionFormFieldConfig = NonNullable<TableActionConfig["formFields"]>[number];
 type RawActionFormFieldConfig = Partial<ActionFormFieldConfig> & {
+  ID?: string;
   FormKey?: string;
   Type?: ActionFormFieldConfig["type"];
   FormKeyType?: ActionFormFieldConfig["formKeyType"];
@@ -33,7 +34,10 @@ type RawActionFormFieldConfig = Partial<ActionFormFieldConfig> & {
   SourceSchemaName?: string;
   SourceValueField?: string;
   SourceLabelField?: string;
+  SourceDataFields?: string[];
+  OptionDisplay?: ActionFormFieldConfig["optionDisplay"];
   SourceRequestFilters?: Record<string, unknown>;
+  SourceFilterBindings?: ActionFormFieldConfig["sourceFilterBindings"];
   SourceFilterCondition?: string;
   InvalidateKeys?: string[];
   DefaultValue?: ActionFormFieldConfig["defaultValue"];
@@ -253,6 +257,7 @@ export type RawContainer = {
 const normalizeActionFormFieldConfig = (
   field: RawActionFormFieldConfig,
 ): ActionFormFieldConfig => ({
+  id: field.id ?? field.ID,
   formKey: field.formKey ?? field.FormKey ?? "",
   type: (field.type ?? field.Type ?? "text") as ActionFormFieldConfig["type"],
   formKeyType: field.formKeyType ?? field.FormKeyType,
@@ -271,7 +276,10 @@ const normalizeActionFormFieldConfig = (
   sourceSchemaName: field.sourceSchemaName ?? field.SourceSchemaName,
   sourceValueField: field.sourceValueField ?? field.SourceValueField,
   sourceLabelField: field.sourceLabelField ?? field.SourceLabelField,
+  sourceDataFields: field.sourceDataFields ?? field.SourceDataFields,
+  optionDisplay: field.optionDisplay ?? field.OptionDisplay,
   sourceRequestFilters: field.sourceRequestFilters ?? field.SourceRequestFilters,
+  sourceFilterBindings: field.sourceFilterBindings ?? field.SourceFilterBindings,
   sourceFilterCondition:
     field.sourceFilterCondition ?? field.SourceFilterCondition,
   invalidateKeys: field.invalidateKeys ?? field.InvalidateKeys,

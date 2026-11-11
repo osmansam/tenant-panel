@@ -90,6 +90,8 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
       source: { kind: "tableSelectedIds" },
     });
 
+  const addSelectedRecord = () => addOutput({ id: createRuntimeId("out"), key: uniqueOutputKey(component, "selectedRecord"), type: "record", source: { kind: "tableSelectedRecord" } });
+
   const addInfoBlockOutput = (valueKey: string, value: unknown) =>
     addOutput({
       id: createRuntimeId("out"),
@@ -118,6 +120,7 @@ export const ComponentOutputsEditor: React.FC<ComponentOutputsEditorProps> = ({
 
         {component.type === "table" && (
           <div className="flex flex-wrap items-center gap-2">
+            <button type="button" disabled={exposedSources.has("tableSelectedRecord")} onClick={addSelectedRecord} className="rounded border border-ui-border px-3 py-1 text-xs">Expose selected record</button>
             <button
               type="button"
               disabled={exposedSources.has("tableSearch")}

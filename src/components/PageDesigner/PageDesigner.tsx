@@ -1,3 +1,12 @@
+import { SectionOrderControls } from "./SectionOrderControls";
+import { movePageSection, orderedPageSections } from "../../visualBuilder/gridSections";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui";
+import { lazy, Suspense } from "react";
+import type { Section as DesignerPageSection } from "../../utils/api/page";
+import VisualComponentPicker from "../../visualBuilder/VisualComponentPicker";
+import { copyVisualDesign, type VisualDesignSelection } from "../../visualBuilder/componentLibrary";
+import { readVisualBlock } from "../../visualBuilder/pageAdapter";
+import { readStoredProject } from "../../utils/persistedContext";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModalFocus } from "../../hooks/useModalFocus";
@@ -135,13 +144,32 @@ import FieldEditorTabs from "./FieldEditorTabs";
 import EditorSectionTabs from "./EditorSectionTabs";
 import PageFilterModal from "./PageFilterModal";
 import ParameterBindingsEditor from "./ParameterBindingsEditor";
+import type { SelectFilterBinding } from "../../types/selectFilters";
+import {
+  cleanSourceRequestFilters,
+  formatRequestFiltersInput,
+  parseRequestFiltersInput,
+  type RequestFilterFieldContext,
+} from "../../utils/requestFilterTemplates";
+import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
+
+const VisualSectionPreview = lazy(() => import("../../visualBuilder/VisualSectionPreview"));
+
+type StructureItem = { kind: "grid"; index: number; position: number } | { kind: "visual"; component: NonNullable<DesignerPageSection["component"]>; position: number } | { kind: "other"; section: DesignerPageSection; position: number };
 
 interface PageDesignerProps {
   sections: GridSection[];
+  pageSections?: DesignerPageSection[];
+  onReorderPageSections?: (sections: DesignerPageSection[]) => void;
+  onAddVisualSection?: () => void;
+  onDeleteVisualSection?: (componentId: string) => void;
+  editableVisualIds?: readonly string[];
+  focusedVisualId?: string | null;
   onChange: (sections: GridSection[]) => void;
   /** Persists and applies committed sections in the parent workspace. */
   onComponentSave?: (sections: GridSection[]) => Promise<void> | void;
+  onVisualComponentEdit?: (componentId: string) => void;
   filters?: PageFilterDefinition[];
   onFiltersChange?: (filters: PageFilterDefinition[]) => void;
   onNestedEditorChange?: (open: boolean) => void;
@@ -1176,10 +1204,37 @@ const cleanTableActions = (
                   ...(field.sourceLabelField?.trim()
                     ? { sourceLabelField: field.sourceLabelField.trim() }
                     : {}),
-                  ...(cleanConstantFilters(field.sourceRequestFilters)
+                  ...(field.sourceDataFields?.filter((key) => key.trim()).length
+                    ? {
+                        sourceDataFields: field.sourceDataFields
+                          .map((key) => key.trim())
+                          .filter(Boolean),
+                      }
+                    : {}),
+                  ...(field.optionDisplay &&
+                  (field.optionDisplay.leftTemplate?.trim() ||
+                    field.optionDisplay.rightTemplate?.trim())
+                    ? {
+                        optionDisplay: {
+                          leftTemplate:
+                            field.optionDisplay.leftTemplate?.trim() || "",
+                          rightTemplate:
+                            field.optionDisplay.rightTemplate?.trim() || "",
+                        },
+                      }
+                    : {}),
+                  ...(cleanConstantFilters(field.sourceRequestFilters, field)
                     ? {
                         sourceRequestFilters: cleanConstantFilters(
                           field.sourceRequestFilters,
+                          field,
+                        ),
+                      }
+                    : {}),
+                  ...(cleanSelectFilterBindings(field.sourceFilterBindings)
+                    ? {
+                        sourceFilterBindings: cleanSelectFilterBindings(
+                          field.sourceFilterBindings,
                         ),
                       }
                     : {}),
@@ -1334,11 +1389,47 @@ const cleanFilterPanelInputs = (
       ...(field.sourceLabelField?.trim()
         ? { sourceLabelField: field.sourceLabelField.trim() }
         : {}),
-      ...(cleanConstantFilters(field.sourceRequestFilters)
-        ? { sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters) }
+      ...(field.sourceDataFields?.filter((key) => key.trim()).length
+        ? {
+            sourceDataFields: field.sourceDataFields
+              .map((key) => key.trim())
+              .filter(Boolean),
+          }
+        : {}),
+      ...(field.optionDisplay &&
+      (field.optionDisplay.leftTemplate?.trim() ||
+        field.optionDisplay.rightTemplate?.trim())
+        ? {
+            optionDisplay: {
+              leftTemplate: field.optionDisplay.leftTemplate?.trim() || "",
+              rightTemplate: field.optionDisplay.rightTemplate?.trim() || "",
+            },
+          }
+        : {}),
+      ...(cleanConstantFilters(field.sourceRequestFilters, field)
+        ? {
+            sourceRequestFilters: cleanConstantFilters(
+              field.sourceRequestFilters,
+              field,
+            ),
+          }
+        : {}),
+      ...(cleanSelectFilterBindings(field.sourceFilterBindings)
+        ? {
+            sourceFilterBindings: cleanSelectFilterBindings(
+              field.sourceFilterBindings,
+            ),
+          }
         : {}),
       ...(field.sourceFilterCondition?.trim()
         ? { sourceFilterCondition: field.sourceFilterCondition.trim() }
+        : {}),
+      ...(field.invalidateKeys?.filter((key) => key.trim()).length
+        ? {
+            invalidateKeys: field.invalidateKeys
+              .map((key) => key.trim())
+              .filter(Boolean),
+          }
         : {}),
       ...(field.defaultValue !== undefined && field.defaultValue !== ""
         ? { defaultValue: field.defaultValue }
@@ -1353,44 +1444,47 @@ const cleanFilterPanelInputs = (
         : {}),
     }));
 
+const cleanSelectFilterBindings = (
+  bindings?: SelectFilterBinding[],
+): SelectFilterBinding[] | undefined => {
+  if (!Array.isArray(bindings)) return undefined;
+  const cleaned = bindings
+    .filter((rule) => rule && rule.id?.trim() && rule.field?.trim())
+    .map((rule) => {
+      const value = rule.value;
+      const cleanedValue: SelectFilterBinding["value"] =
+        value.source === "literal"
+          ? { source: "literal", value: value.value }
+          : value.source === "record"
+            ? {
+                source: "record",
+                fieldKey: value.fieldKey.trim(),
+                path: (value.path || []).map((part) => part.trim()).filter(Boolean),
+              }
+            : { source: "field", fieldKey: value.fieldKey.trim() };
+      return {
+        id: rule.id.trim(),
+        field: rule.field.trim(),
+        operator: rule.operator === "in" ? ("in" as const) : ("eq" as const),
+        value: cleanedValue,
+      };
+    });
+  return cleaned.length ? cleaned : undefined;
+};
+
 const cleanConstantFilters = (
   filters?: Record<string, unknown>,
-): Record<string, unknown> | undefined => {
-  const entries = Object.entries(filters || {})
-    .map(
-      ([key, value]) =>
-        [
-          key.trim(),
-          typeof value === "string" ? value.trim() : value,
-        ] as const,
-    )
-    .filter(
-      ([key, value]) =>
-        key && value !== undefined && value !== null && value !== "",
-    );
-
-  return entries.length ? Object.fromEntries(entries) : undefined;
-};
+  context?: RequestFilterFieldContext,
+): Record<string, unknown> | undefined =>
+  cleanSourceRequestFilters(filters, context);
 
 const formatSourceRequestFilters = (filters?: Record<string, unknown>) =>
-  filters && Object.keys(filters).length
-    ? JSON.stringify(filters, null, 2)
-    : "";
+  formatRequestFiltersInput(filters);
 
-const parseSourceRequestFiltersInput = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-      return undefined;
-    }
-    return cleanConstantFilters(parsed as Record<string, unknown>);
-  } catch {
-    return undefined;
-  }
-};
+const parseSourceRequestFiltersInput = (
+  value: string,
+  context?: RequestFilterFieldContext,
+) => parseRequestFiltersInput(value, context);
 
 const cleanConstantSort = (
   sort?: TableComponentConfig["constantSort"],
@@ -1684,7 +1778,11 @@ export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig
       area: field.area || "main",
       width: field.width || "full",
       order: Number(field.order ?? index + 1),
-      sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters),
+      sourceRequestFilters: cleanConstantFilters(
+        field.sourceRequestFilters,
+        field,
+      ),
+      sourceFilterBindings: cleanSelectFilterBindings(field.sourceFilterBindings),
       invalidateKeys: field.invalidateKeys
         ?.map((key) => key.trim())
         .filter(Boolean),
@@ -1856,13 +1954,57 @@ const ActionFormLayoutEditor = ({
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({
   sections,
+  pageSections,
+  onReorderPageSections,
+  onAddVisualSection,
+  onDeleteVisualSection,
+  editableVisualIds,
+  focusedVisualId,
   onChange,
   onComponentSave,
+  onVisualComponentEdit,
   filters = [],
   onFiltersChange,
   onNestedEditorChange,
 }) => {
   const [selectedSection, setSelectedSection] = useState<number | null>(null);
+  const [selectedVisualId, setSelectedVisualId] = useState<string | null>(null);
+  useEffect(() => { if (focusedVisualId) { setSelectedVisualId(focusedVisualId); setSelectedSection(null); } }, [focusedVisualId]);
+  const structure = useMemo<StructureItem[]>(() => {
+    let gridIndex = 0;
+    const source: readonly (DesignerPageSection | GridSection)[] = pageSections ? orderedPageSections(pageSections) : sections;
+    return source.flatMap<StructureItem>((section, index) => {
+      const item = section as DesignerPageSection;
+      if ((item.type === "grid" && item.grid) || (item.columns && item.cells)) return [{ kind: "grid" as const, index: gridIndex++, position: index }];
+      if (item.component?.type === "custom" && item.component.props?.visualBuilder) return [{ kind: "visual" as const, component: item.component, position: index }];
+      return [{ kind: "other" as const, section: item, position: index }];
+    });
+  }, [pageSections, sections]);
+  const structureNavRef = useRef<HTMLElement>(null);
+  const orderFocus = useRef<{ position: number; direction: -1 | 1 } | null>(null);
+  useEffect(() => {
+    const request = orderFocus.current; if (!request) return;
+    const row = structureNavRef.current?.querySelector<HTMLElement>(`[data-page-section-position="${request.position}"]`);
+    const target = row?.querySelector<HTMLElement>(`button[data-order-direction="${request.direction}"]:not(:disabled)`) || row?.querySelector<HTMLElement>("button[aria-current]") || row;
+    target?.focus(); orderFocus.current = null;
+  }, [structure]);
+  const canReorderSections = !pageSections || !!onReorderPageSections;
+  const moveSection = (from: number, direction: -1 | 1) => {
+    const to = from + direction;
+    if (!canReorderSections || to < 0 || to >= structure.length) return;
+    const selectedPosition = structure.find(entry => entry.kind === "grid" && entry.index === selectedSection)?.position;
+    const movedPositions = moveArrayItem(structure.map(entry => entry.position), from, direction);
+    if (selectedPosition !== undefined) {
+      const gridPositions = new Set(structure.filter(entry => entry.kind === "grid").map(entry => entry.position));
+      const newPosition = movedPositions.indexOf(selectedPosition);
+      setSelectedSection(movedPositions.slice(0, newPosition).filter(position => gridPositions.has(position)).length);
+    }
+    orderFocus.current = { position: to, direction };
+    if (pageSections) onReorderPageSections?.(movePageSection(pageSections, from, to));
+    else onChange(moveArrayItem(sections, from, direction));
+  };
+  const selectedVisual = structure.find(item => item.kind === "visual" && item.component.id === selectedVisualId);
+  const visual = selectedVisual?.kind === "visual" ? selectedVisual.component : null;
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [editingComponent, setEditingComponent] =
@@ -1949,6 +2091,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
 
   // Add new section
   const addSection = () => {
+    setSelectedVisualId(null);
     const newSection: GridSection = {
       columns: 1,
       gap: 16,
@@ -2135,6 +2278,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
       className="flex h-full min-h-0 flex-col bg-ui-page lg:flex-row"
     >
       <nav
+        ref={structureNavRef}
         aria-label="Page structure"
         className="flex w-full shrink-0 flex-col border-b border-ui-border bg-ui-surface lg:w-64 lg:border-b-0 lg:border-r"
       >
@@ -2142,64 +2286,56 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ui-foreground">Structure</h2>
             <p className="mt-0.5 text-xs text-ui-muted">
-              {sections.length} section{sections.length !== 1 ? "s" : ""}
+              {structure.length} section{structure.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <GenericButton
+          {onAddVisualSection ? <DropdownMenu><DropdownMenuTrigger aria-label="Add section" className="inline-flex items-center gap-1 rounded-ui-md bg-ui-primary px-3 py-2 text-sm text-white"><FiPlus size={15} />Add</DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onClick={addSection}>Grid section</DropdownMenuItem><DropdownMenuItem onClick={onAddVisualSection}>Visual section</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <GenericButton
             onClick={addSection}
             size="sm"
             aria-label="Add section"
             iconLeft={<FiPlus size={15} />}
           >
             Add
-          </GenericButton>
+          </GenericButton>}
         </div>
 
         <div className="flex gap-1.5 overflow-x-auto p-2 lg:block lg:flex-1 lg:space-y-1 lg:overflow-y-auto">
-          {sections.map((section, index) => (
-            <div
-              key={index}
-              className="group relative flex min-w-52 items-center lg:min-w-0"
-            >
-              <button
-                type="button"
-                aria-label={`Section ${index + 1}, ${section.columns} column${section.columns !== 1 ? "s" : ""}, ${section.cells.length} cell${section.cells.length !== 1 ? "s" : ""}`}
-                aria-current={selectedSection === index ? "true" : "false"}
-                onClick={() => setSelectedSection(index)}
-                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-ui-md px-3 py-2.5 pr-9 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${
-                  selectedSection === index
-                    ? "bg-ui-subtle text-ui-foreground"
-                    : "text-ui-muted hover:bg-ui-subtle hover:text-ui-foreground"
-                }`}
-              >
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${selectedSection === index ? "bg-ui-foreground text-ui-surface" : "border border-ui-border bg-ui-surface"}`}>
-                  {index + 1}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">Section {index + 1}</span>
-                  <span className="block truncate text-xs text-ui-muted">
-                    {section.columns} col · {section.cells.length} cell{section.cells.length !== 1 ? "s" : ""}
-                  </span>
-                </span>
+          {structure.map(entry => {
+            const orderControls = canReorderSections ? <SectionOrderControls position={entry.position} count={structure.length} onMove={direction => moveSection(entry.position, direction)} /> : null;
+            if (entry.kind === "visual") {
+              const block = entry.component;
+              const title = block.title || "Visual section";
+              return <div key={block.id} data-page-section-position={entry.position} tabIndex={-1} className="group relative flex min-w-52 items-center lg:min-w-0">
+                <button type="button" aria-label={`${title}, visual section`} aria-current={selectedVisualId === block.id ? "true" : "false"} onClick={() => { setSelectedVisualId(block.id); setSelectedSection(null); }} className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-ui-md px-3 py-2.5 text-left ${selectedVisualId === block.id ? "bg-ui-subtle text-ui-foreground" : "text-ui-muted hover:bg-ui-subtle"}`}>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-ui-border text-[11px]">{entry.position + 1}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{title}</span><span className="block text-xs text-ui-muted">Visual section</span></span>
+                </button>
+                {orderControls}
+                {onDeleteVisualSection && <button type="button" aria-label={`Delete visual section ${title}`} onClick={() => onDeleteVisualSection(block.id)} className="shrink-0 rounded-md p-1.5 text-ui-muted hover:text-ui-danger"><FiTrash2 size={13} /></button>}
+              </div>;
+            }
+            if (entry.kind === "other") {
+              const title = entry.section.component?.title || (entry.section.type === "tabs" ? "Tabs" : entry.section.component?.type || `Section ${entry.position + 1}`);
+              return <div key={entry.section.id || `section-${entry.position}`} data-page-section-position={entry.position} tabIndex={-1} className="flex min-w-52 items-center lg:min-w-0"><div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-ui-border text-[11px]">{entry.position + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{title}</span><span className="block text-xs text-ui-muted">{entry.section.type === "tabs" ? "Tabs section" : "Component section"}</span></span></div>{orderControls}</div>;
+            }
+            const index = entry.index, section = sections[index];
+            if (!section) return null;
+            return <div key={`grid-${entry.position}`} data-page-section-position={entry.position} tabIndex={-1} className="group relative flex min-w-52 items-center lg:min-w-0">
+              <button type="button" aria-label={`Section ${entry.position + 1}, ${section.columns} column${section.columns !== 1 ? "s" : ""}, ${section.cells.length} cell${section.cells.length !== 1 ? "s" : ""}`} aria-current={selectedSection === index ? "true" : "false"} onClick={() => { setSelectedVisualId(null); setSelectedSection(index); }} className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-ui-md px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${selectedSection === index ? "bg-ui-subtle text-ui-foreground" : "text-ui-muted hover:bg-ui-subtle hover:text-ui-foreground"}`}>
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${selectedSection === index ? "bg-ui-foreground text-ui-surface" : "border border-ui-border bg-ui-surface"}`}>{entry.position + 1}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">Section {entry.position + 1}</span><span className="block truncate text-xs text-ui-muted">{section.columns} col · {section.cells.length} cell{section.cells.length !== 1 ? "s" : ""}</span></span>
               </button>
-              <button
-                type="button"
-                aria-label={`Delete section ${index + 1}`}
-                onClick={() => deleteSection(index)}
-                className="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded-md text-ui-muted opacity-100 transition hover:bg-ui-danger-subtle hover:text-ui-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
-              >
-                <FiTrash2 size={13} />
-              </button>
-            </div>
-          ))}
+              {orderControls}
+              <button type="button" aria-label={`Delete section ${entry.position + 1}`} onClick={() => deleteSection(index)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ui-muted hover:bg-ui-danger-subtle hover:text-ui-danger"><FiTrash2 size={13} /></button>
+            </div>;
+          })}
         </div>
       </nav>
 
       <main aria-label="Page canvas" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        {selectedSection !== null && sections[selectedSection] ? (
+        {visual ? <section className="space-y-4 p-4"><div className="flex items-start justify-between gap-4 rounded-ui-lg border border-ui-border bg-ui-surface p-4"><div><p className="text-xs text-ui-muted">Visual section</p><h3 className="text-base font-semibold text-ui-foreground">{visual.title || "Visual section"}</h3>{editableVisualIds && !editableVisualIds.includes(visual.id) && <p className="mt-1 text-xs text-ui-muted">Save the page before opening this copy in the visual editor.</p>}</div>{onVisualComponentEdit && <GenericButton variant="outline" disabled={!!editableVisualIds && !editableVisualIds.includes(visual.id)} onClick={() => onVisualComponentEdit(visual.id)}>Edit visual section</GenericButton>}</div><div className="overflow-hidden rounded-ui-lg border border-ui-border bg-white p-3"><Suspense fallback={<p role="status">Loading section preview…</p>}><VisualSectionPreview component={visual} /></Suspense></div></section> : selectedSection !== null && sections[selectedSection] ? (
           <SectionEditor
             section={sections[selectedSection]}
-            sectionIndex={selectedSection}
+            sectionIndex={structure.find(entry => entry.kind === "grid" && entry.index === selectedSection)?.position ?? selectedSection}
+            onVisualComponentEdit={onVisualComponentEdit}
             onEditorOpenChange={setIsComponentEditorOpen}
             schemas={schemas}
             containerOptions={containerOptions}
@@ -2246,10 +2382,10 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
                 <FiLayout size={22} />
               </div>
               <h3 className="text-base font-semibold text-ui-foreground">
-                {sections.length === 0 ? "Start with a section" : "Choose a section"}
+                {structure.length === 0 ? "Start with a section" : "Choose a section"}
               </h3>
               <p className="mt-1 text-sm text-ui-muted">
-                {sections.length === 0
+                {structure.length === 0
                   ? "Add the first section to define the page grid."
                   : "Select a section in the structure panel to edit its layout and components."}
               </p>
@@ -2282,6 +2418,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
 interface SectionEditorProps {
   section: GridSection;
   sectionIndex: number;
+  onVisualComponentEdit?: (componentId: string) => void;
   schemas: string[];
   containerOptions: { value: string; label: string }[];
   containers: ContainerModel[];
@@ -2309,6 +2446,7 @@ interface SectionEditorProps {
 const SectionEditor: React.FC<SectionEditorProps> = ({
   section,
   sectionIndex,
+  onVisualComponentEdit,
   schemas,
   containerOptions,
   containers,
@@ -2338,6 +2476,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     useState<ComponentBlock | null>(null);
 
   const openComponentModal = (cellId: string, component?: ComponentBlock) => {
+    if (component?.type === "custom" && component.props?.visualBuilder && onVisualComponentEdit) {
+      onVisualComponentEdit(component.id);
+      return;
+    }
     const editableCellId = getDesignerEditableCellId(cellId);
     if (editableCellId !== cellId) {
       onUpdateCell(cellId, { id: editableCellId });
@@ -2755,7 +2897,7 @@ const CellEditor: React.FC<CellEditorProps> = ({
                     </div>
                   )}
                   <span className="text-xs font-semibold text-ui-foreground capitalize">
-                    {component.type}
+                    {component.type === "custom" && component.props?.visualBuilder ? "Visual component" : component.type}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -2888,6 +3030,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [componentType, setComponentType] = useState<string>(
     fixedComponentType || "table",
   );
+  const [visualSelection, setVisualSelection] = useState<VisualDesignSelection | null>(null);
   const [schemaName, setSchemaName] = useState<string>("");
   const [tableSourceType, setTableSourceType] = useState<
     "schema" | "pipeline" | "workflow"
@@ -2919,7 +3062,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   const [tableEditorTarget, setTableEditorTarget] = useState<{
     tabIndex: number;
     componentId?: string;
-    componentType?: "table" | "relationMatrix";
+    componentType?: "table" | "relationMatrix" | "custom";
   } | null>(null);
 
   const [tableConfig, setTableConfig] = useState<TableComponentConfig>({
@@ -3185,6 +3328,12 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   useEffect(() => {
     if (editingComponent) {
       setComponentType(editingComponent.type);
+      if (editingComponent.type === "custom" && editingComponent.props?.visualBuilder) {
+        try {
+          const project = readStoredProject();
+          setVisualSelection({ currentCopy: true, name: editingComponent.title || "Visual component", value: readVisualBlock(editingComponent), scope: { tenant: project?.tenantSlug || "", project: project?.slug || "" } });
+        } catch { setVisualSelection(null); }
+      }
       setTitle(editingComponent.title || "");
       setRuntimeOutputs(editingComponent.outputs || []);
       setStructuredParameters(
@@ -3812,7 +3961,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const applyRuntimeBindings = (component: ComponentBlock): ComponentBlock => {
-    const requestedStateKey = stateKey.trim() || title || componentType;
+    const requestedStateKey = componentType === "custom" && !stateKeyTouched && !editingComponent?.stateKey
+      ? component.id
+      : stateKey.trim() || title || componentType;
     const next: ComponentBlock = {
       ...component,
       id: isSafeRuntimeName(component.id)
@@ -3897,7 +4048,31 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       order: editingComponent?.order || 1,
     };
 
-    if (componentType === "table") {
+    const validateTableFilterRules = (table?: ComponentBlock["table"]): string[] => [
+      ...validateSelectFilterBindings(table?.filterPanel?.inputs || []),
+      ...validateSelectFilterBindings(table?.addButton?.formFields || []),
+      ...(table?.actions || []).flatMap((action) =>
+        validateSelectFilterBindings(action.formFields || []),
+      ),
+      ...validateSelectFilterBindings(
+        table?.bulkActions?.edit?.formFields || [],
+      ),
+    ];
+
+    if (componentType === "custom") {
+      const project = readStoredProject();
+      if (!visualSelection || visualSelection.scope.tenant !== project?.tenantSlug || visualSelection.scope.project !== project?.slug) {
+        setSaveError("Choose a visual design from the current project before adding it.");
+        return;
+      }
+      if (visualSelection.currentCopy && editingComponent) {
+        component.props = structuredClone(editingComponent.props);
+      } else {
+        const copied = copyVisualDesign(visualSelection.value, title || visualSelection.name);
+        component = { ...component, ...copied, props: { ...component.props, ...copied.props } };
+        if (editingComponent) component.id = editingComponent.id;
+      }
+    } else if (componentType === "table") {
       let parsedParams = undefined;
       if (params.trim()) {
         try {
@@ -3915,16 +4090,33 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         ...(parsedParams && { params: parsedParams }),
       };
       component.table = cleanTableConfig(tableConfig);
+      const tableErrors = validateTableFilterRules(component.table);
+      if (tableErrors.length) {
+        setSaveError(tableErrors[0]);
+        return;
+      }
     } else if (componentType === "relationMatrix") {
       component.relationMatrix = cleanRelationMatrixConfig(
         relationMatrixConfig,
       );
+      const matrixErrors = validateSelectFilterBindings(
+        component.relationMatrix?.filterPanel?.inputs || [],
+      );
+      if (matrixErrors.length) {
+        setSaveError(matrixErrors[0]);
+        return;
+      }
     } else if (componentType === "form") {
       const cleanedForm = cleanFormConfig({
         ...formConfig,
         title: formConfig.title || title,
         schemaName: formConfig.schemaName || schemaName,
       });
+      const formErrors = validateSelectFilterBindings(cleanedForm.fields || []);
+      if (formErrors.length) {
+        setSaveError(formErrors[0]);
+        return;
+      }
       component.dataBinding = {
         kind: "schema",
         schemaName: cleanedForm.schemaName,
@@ -3967,6 +4159,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
           comp.table ? { ...comp, table: cleanTableConfig(comp.table) } : comp,
         ),
       }));
+      const tabTableErrors = cleanedTabs.flatMap((tab) =>
+        (tab.components || []).flatMap((comp) =>
+          validateTableFilterRules(comp.table),
+        ),
+      );
+      if (tabTableErrors.length) {
+        setSaveError(tabTableErrors[0]);
+        return;
+      }
       component.tabs = cleanedTabs;
       if (
         cleanGroupBy.groupedSchemaName &&
@@ -5486,7 +5687,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
   };
 
   const showStandardComponentFields = ![
-    "tabPanel", "infoBlocks", "distributionBlocks", "relationMatrix",
+    "tabPanel", "infoBlocks", "distributionBlocks", "relationMatrix", "custom",
   ].includes(componentType);
 
   const currentAddButton = {
@@ -5515,7 +5716,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     >
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={isSaving} tabIndex={-1} className="bg-ui-surface rounded-2xl border border-ui-border shadow-ui-lg w-[min(96vw,1440px)] max-h-[94vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ui-border bg-ui-surface">
+        <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-ui-border bg-ui-surface">
           <div>
             <h3 id={titleId} className="text-base font-semibold text-ui-foreground">
               {fixedComponentType === "table"
@@ -5553,8 +5754,16 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <fieldset ref={(element) => element?.toggleAttribute("inert", isSaving)} disabled={isSaving} className="min-h-0 min-w-0 flex-1 overflow-y-auto border-0 px-6 py-5 bg-ui-surface-subtle/50">
-          <div className="space-y-5">
+        <div
+          data-testid="component-modal-body"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-5 bg-ui-surface-subtle/50"
+        >
+          <fieldset
+            ref={(element) => element?.toggleAttribute("inert", isSaving)}
+            disabled={isSaving}
+            className="min-w-0 border-0 p-0 m-0"
+          >
+            <div className="space-y-5">
             {bindingIssues.some((issue) => !issue.parameter) && (
               <div className="space-y-1 rounded-lg border border-ui-danger/30 bg-ui-danger-subtle p-3">
                 {bindingIssues
@@ -5570,6 +5779,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
               </div>
             )}
 
+            {componentType === "custom" && <VisualComponentPicker selection={visualSelection} onChange={setVisualSelection} />}
             {/* Component Type */}
             <EditorSectionTabs
               label="Component settings"
@@ -5595,6 +5805,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                         <option value="table">Table</option>
                         <option value="relationMatrix">Relation Matrix</option>
                         <option value="form">Form</option>
+                        <option value="custom">Visual component</option>
                         <option value="tabPanel">Tab Panel</option>
                         <option value="infoBlocks">Information Blocks</option>
                         <option value="distributionBlocks">
@@ -6162,6 +6373,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 <RelationMatrixFilterEditor
                   value={relationMatrixConfig}
                   rowFields={relationRowContainer?.fields || []}
+                  containers={containers}
                   onChange={setRelationMatrixConfig}
                 />
               </div>
@@ -10200,6 +10412,23 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                               defaultValue={formatSourceRequestFilters(
                                                 field.sourceRequestFilters,
                                               )}
+                                              onChange={(e) => {
+                                                const raw = e.target.value;
+                                                const parsed =
+                                                  parseSourceRequestFiltersInput(
+                                                    raw,
+                                                    field,
+                                                  );
+                                                if (!raw.trim() || parsed) {
+                                                  updateFilterPanelInput(
+                                                    fieldIndex,
+                                                    {
+                                                      sourceRequestFilters:
+                                                        parsed,
+                                                    },
+                                                  );
+                                                }
+                                              }}
                                               onBlur={(e) =>
                                                 updateFilterPanelInput(
                                                   fieldIndex,
@@ -10207,12 +10436,15 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                     sourceRequestFilters:
                                                       parseSourceRequestFiltersInput(
                                                         e.target.value,
+                                                        field,
                                                       ),
                                                   },
                                                 )
                                               }
                                               className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                              placeholder={'{"active": true}'}
+                                              placeholder={
+                                                '{{product.item._id}}=item._id or {"active": true}'
+                                              }
                                             />
                                           </label>
                                           <SelectInput
@@ -11095,6 +11327,27 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                               defaultValue={formatSourceRequestFilters(
                                                                 field.sourceRequestFilters,
                                                               )}
+                                                              onChange={(e) => {
+                                                                const raw =
+                                                                  e.target.value;
+                                                                const parsed =
+                                                                  parseSourceRequestFiltersInput(
+                                                                    raw,
+                                                                    field,
+                                                                  );
+                                                                if (
+                                                                  !raw.trim() ||
+                                                                  parsed
+                                                                ) {
+                                                                  updateAddButtonFormField(
+                                                                    fieldIndex,
+                                                                    {
+                                                                      sourceRequestFilters:
+                                                                        parsed,
+                                                                    },
+                                                                  );
+                                                                }
+                                                              }}
                                                               onBlur={(e) =>
                                                                 updateAddButtonFormField(
                                                                   fieldIndex,
@@ -11102,13 +11355,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                                     sourceRequestFilters:
                                                                       parseSourceRequestFiltersInput(
                                                                         e.target.value,
+                                                                        field,
                                                                       ),
                                                                   },
                                                                 )
                                                               }
                                                               className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
                                                               placeholder={
-                                                                '{"active": true}'
+                                                                '{{product.item._id}}=item._id or {"active": true}'
                                                               }
                                                             />
                                                           </label>
@@ -12186,6 +12440,28 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                                 defaultValue={formatSourceRequestFilters(
                                                                   field.sourceRequestFilters,
                                                                 )}
+                                                                onChange={(e) => {
+                                                                  const raw =
+                                                                    e.target.value;
+                                                                  const parsed =
+                                                                    parseSourceRequestFiltersInput(
+                                                                      raw,
+                                                                      field,
+                                                                    );
+                                                                  if (
+                                                                    !raw.trim() ||
+                                                                    parsed
+                                                                  ) {
+                                                                    updateActionFormField(
+                                                                      actionIndex,
+                                                                      fieldIndex,
+                                                                      {
+                                                                        sourceRequestFilters:
+                                                                          parsed,
+                                                                      },
+                                                                    );
+                                                                  }
+                                                                }}
                                                                 onBlur={(e) =>
                                                                   updateActionFormField(
                                                                     actionIndex,
@@ -12194,13 +12470,14 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                                       sourceRequestFilters:
                                                                         parseSourceRequestFiltersInput(
                                                                           e.target.value,
+                                                                          field,
                                                                         ),
                                                                     },
                                                                   )
                                                                 }
                                                                 className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
                                                                 placeholder={
-                                                                  '{"active": true}'
+                                                                  '{{product.item._id}}=item._id or {"active": true}'
                                                                 }
                                                               />
                                                             </label>
@@ -12863,6 +13140,209 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                             <FiTrash2 size={14} />
                                                           </button>
                                                         </div>
+                                                        {field.type ===
+                                                          "select" && (
+                                                          <div className="col-span-full space-y-2 rounded-lg border border-ui-border bg-ui-surface-subtle p-3">
+                                                            <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                                                              <label className="space-y-1">
+                                                                <span className="text-xs font-medium text-ui-muted">
+                                                                  Options source
+                                                                </span>
+                                                                <Select
+                                                                  value={
+                                                                    field.optionsSource ||
+                                                                    "static"
+                                                                  }
+                                                                  onChange={(
+                                                                    e,
+                                                                  ) =>
+                                                                    updateBulkEditFormField(
+                                                                      fieldIndex,
+                                                                      {
+                                                                        optionsSource:
+                                                                          e
+                                                                            .target
+                                                                            .value as
+                                                                            | "static"
+                                                                            | "schema",
+                                                                      },
+                                                                    )
+                                                                  }
+                                                                  className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white"
+                                                                >
+                                                                  <option value="static">
+                                                                    Static
+                                                                  </option>
+                                                                  <option value="schema">
+                                                                    Schema
+                                                                  </option>
+                                                                </Select>
+                                                              </label>
+                                                              <label className="space-y-1">
+                                                                <span className="text-xs font-medium text-ui-muted">
+                                                                  Source schema
+                                                                </span>
+                                                                <Select
+                                                                  value={
+                                                                    field.sourceSchemaName ||
+                                                                    ""
+                                                                  }
+                                                                  disabled={
+                                                                    field.optionsSource !==
+                                                                    "schema"
+                                                                  }
+                                                                  onChange={(
+                                                                    e,
+                                                                  ) =>
+                                                                    updateBulkEditFormField(
+                                                                      fieldIndex,
+                                                                      {
+                                                                        sourceSchemaName:
+                                                                          e
+                                                                            .target
+                                                                            .value,
+                                                                        sourceValueField:
+                                                                          "_id",
+                                                                        sourceLabelField:
+                                                                          "",
+                                                                      },
+                                                                    )
+                                                                  }
+                                                                  className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white"
+                                                                >
+                                                                  <option value="">
+                                                                    Source schema...
+                                                                  </option>
+                                                                  {containers.map(
+                                                                    (
+                                                                      container,
+                                                                    ) => (
+                                                                      <option
+                                                                        key={
+                                                                          container.schemaName
+                                                                        }
+                                                                        value={
+                                                                          container.schemaName
+                                                                        }
+                                                                      >
+                                                                        {
+                                                                          container.schemaName
+                                                                        }
+                                                                      </option>
+                                                                    ),
+                                                                  )}
+                                                                </Select>
+                                                              </label>
+                                                              <label className="space-y-1">
+                                                                <span className="text-xs font-medium text-ui-muted">
+                                                                  Value field
+                                                                </span>
+                                                                <Input
+                                                                  value={
+                                                                    field.sourceValueField ||
+                                                                    "_id"
+                                                                  }
+                                                                  disabled={
+                                                                    field.optionsSource !==
+                                                                    "schema"
+                                                                  }
+                                                                  onChange={(
+                                                                    e,
+                                                                  ) =>
+                                                                    updateBulkEditFormField(
+                                                                      fieldIndex,
+                                                                      {
+                                                                          sourceValueField:
+                                                                            e
+                                                                              .target
+                                                                              .value,
+                                                                      },
+                                                                    )
+                                                                  }
+                                                                />
+                                                              </label>
+                                                              <label className="space-y-1">
+                                                                <span className="text-xs font-medium text-ui-muted">
+                                                                  Label field
+                                                                </span>
+                                                                <Input
+                                                                  value={
+                                                                    field.sourceLabelField ||
+                                                                    ""
+                                                                  }
+                                                                  disabled={
+                                                                    field.optionsSource !==
+                                                                    "schema"
+                                                                  }
+                                                                  onChange={(
+                                                                    e,
+                                                                  ) =>
+                                                                    updateBulkEditFormField(
+                                                                      fieldIndex,
+                                                                      {
+                                                                        sourceLabelField:
+                                                                          e
+                                                                            .target
+                                                                            .value,
+                                                                      },
+                                                                    )
+                                                                  }
+                                                                />
+                                                              </label>
+                                                            </div>
+                                                            <label className="space-y-1">
+                                                              <span className="text-xs font-medium text-ui-muted">
+                                                                Request filters
+                                                              </span>
+                                                              <Textarea
+                                                                defaultValue={formatSourceRequestFilters(
+                                                                  field.sourceRequestFilters,
+                                                                )}
+                                                                disabled={
+                                                                  field.optionsSource !==
+                                                                  "schema"
+                                                                }
+                                                                onChange={(e) => {
+                                                                  const raw =
+                                                                    e.target.value;
+                                                                  const parsed =
+                                                                    parseSourceRequestFiltersInput(
+                                                                      raw,
+                                                                      field,
+                                                                    );
+                                                                  if (
+                                                                    !raw.trim() ||
+                                                                    parsed
+                                                                  ) {
+                                                                    updateBulkEditFormField(
+                                                                      fieldIndex,
+                                                                      {
+                                                                        sourceRequestFilters:
+                                                                          parsed,
+                                                                      },
+                                                                    );
+                                                                  }
+                                                                }}
+                                                                onBlur={(e) =>
+                                                                  updateBulkEditFormField(
+                                                                    fieldIndex,
+                                                                    {
+                                                                      sourceRequestFilters:
+                                                                        parseSourceRequestFiltersInput(
+                                                                          e.target.value,
+                                                                          field,
+                                                                        ),
+                                                                    },
+                                                                  )
+                                                                }
+                                                                className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
+                                                                placeholder={
+                                                                  '{{product.item._id}}=item._id or {"active": true}'
+                                                                }
+                                                              />
+                                                            </label>
+                                                          </div>
+                                                        )}
                                                       </div>
                                                     )}
                                                   </FieldEditorTabs>
@@ -13365,6 +13845,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                 <FiPlus size={15} strokeWidth={2.5} />
                                 Add Relation Matrix
                               </button>
+                              <button type="button" onClick={() => setTableEditorTarget({ tabIndex: index, componentType: "custom" })} className="w-full px-3 py-2 text-sm font-medium text-ui-foreground border border-dashed border-ui-border rounded-lg hover:bg-ui-active-subtle flex items-center justify-center gap-2"><FiPlus size={15} />Add Visual component</button>
                             </div>
                           )}
 
@@ -13396,7 +13877,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                         })
                                       }
                                       className="p-1 text-ui-foreground bg-ui-active-subtle hover:bg-ui-active-subtle rounded transition-colors"
-                                      title={`Edit ${comp.type === "relationMatrix" ? "relation matrix" : "table"}`}
+                                      title={`Edit ${comp.type === "custom" ? "visual component" : comp.type === "relationMatrix" ? "relation matrix" : "table"}`}
                                     >
                                       <FiEdit2 size={13} strokeWidth={2} />
                                     </button>
@@ -13422,12 +13903,13 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                 )}
               </div>
             )}
-          </div>
-        </fieldset>
+            </div>
+          </fieldset>
+        </div>
 
-        {saveError && <p role="alert" className="border-t border-ui-danger/20 bg-ui-danger-subtle px-6 py-3 text-sm text-ui-danger">{saveError}</p>}
+        {saveError && <p role="alert" className="shrink-0 border-t border-ui-danger/20 bg-ui-danger-subtle px-6 py-3 text-sm text-ui-danger">{saveError}</p>}
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-ui-border bg-ui-surface">
+        <div className="flex shrink-0 items-center justify-end gap-3 px-6 py-4 border-t border-ui-border bg-ui-surface">
           <button
             onClick={requestClose}
             disabled={isSaving}
@@ -13439,6 +13921,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
             onClick={handleAdd}
             disabled={
               isSaving ||
+              (componentType === "custom" && !visualSelection) ||
               (requiresComponentSchemaName(componentType) && !schemaName) ||
               (componentType === "table" &&
                 tableSourceType === "pipeline" &&

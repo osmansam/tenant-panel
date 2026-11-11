@@ -11,7 +11,8 @@ import { Input, Select, type SelectOption } from "../ui";
 
 interface ParameterBindingsEditorProps {
   page: PageModel;
-  componentId: string;
+  componentId?: string;
+  ownerRequestId?: string;
   value: Record<string, ParameterBinding>;
   detectedParameterNames?: string[];
   issues?: { parameter?: string; message: string }[];

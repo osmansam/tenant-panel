@@ -1,0 +1,17 @@
+.ve-expandable-card { position: relative; min-width: 0; isolation: isolate; }
+.ve-expandable-card__trigger { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; border-radius: inherit; z-index: 1; cursor: zoom-in; }
+.ve-expandable-card__trigger:focus-visible { outline: 2px solid var(--theme-primary, currentColor); outline-offset: 4px; }
+.ve-expandable-card__face { position: relative; z-index: 2; pointer-events: none; }
+.ve-expandable-card__face :is(a, button, label, input, textarea, select, video, audio, iframe, summary, [tabindex], [contenteditable="true"]) { pointer-events: auto; }
+.ve-expandable-card__hint { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.75rem; font-size: 13px; color: var(--theme-text-muted, #787874); pointer-events: none; }
+.ve-expandable-card__hint span { transition: transform 180ms ease; }
+.ve-expandable-card:hover .ve-expandable-card__hint span { transform: translate(2px, -2px); }
+.ve-expandable-card__edit { margin-top: 0.75rem; font-size: 12px; border: 1px dashed currentColor; padding: 0.4rem 0.75rem; border-radius: 9999px; background: transparent; color: inherit; }
+.ve-project-dialog { position: fixed; inset: auto; top: 0; left: 0; margin: 0; padding: 0; border: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; box-sizing: border-box; overflow: auto; overscroll-behavior: contain; background: var(--theme-background, #fff); color: var(--theme-text, #575757); }
+.ve-project-dialog::backdrop { background: rgb(0 0 0 / 28%); }
+.ve-project-dialog__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; position: sticky; top: 0; z-index: 10; padding: 1rem clamp(1rem, 4vw, 4rem); background: var(--theme-background, #fff); border-bottom: 1px solid var(--theme-border, #eaeae6); font-size: 13px; }
+.ve-project-dialog__close { display: inline-flex; align-items: center; gap: 1rem; flex-shrink: 0; border: 1px solid var(--theme-border, #eaeae6); background: var(--theme-surface, #fff); color: inherit; padding: 0.5rem 1rem; border-radius: 9999px; cursor: pointer; }
+.ve-project-dialog__close:focus-visible { outline: 2px solid var(--theme-primary, currentColor); outline-offset: 3px; }
+.ve-project-dialog__close span { font-size: 20px; line-height: 1; }
+.ve-project-dialog__content { max-width: 1120px; margin-inline: auto; padding: clamp(1.5rem, 5vw, 5rem) clamp(1rem, 4vw, 3rem) 5rem; }
+@media (prefers-reduced-motion: reduce) { .ve-expandable-card__hint span { transition: none; } }

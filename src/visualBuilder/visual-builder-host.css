@@ -1,0 +1,22 @@
+.vb-host { min-height: 100dvh; background: #f3f4f6; color: #18212f; font: 13px/1.5 system-ui, sans-serif; }
+.vb-host__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #dce1e8; }
+.vb-host__identity { display: grid; margin-right: 8px; }
+.vb-host__identity strong { font-size: 15px; }
+.vb-host__identity span { color: #667085; font-size: 11px; }
+.vb-host__bar label { display: flex; align-items: center; gap: 6px; color: #475467; }
+.vb-host select { min-height: 34px; max-width: 220px; padding: 4px 24px 4px 8px; border: 1px solid #cbd2dd; border-radius: 5px; background: #fff; }
+.vb-host__bar button, .vb-host__empty button { padding: 7px 11px; border: 1px solid #cbd2dd; border-radius: 5px; background: #fff; font-weight: 600; }
+.vb-host button:disabled { opacity: .5; cursor: not-allowed; }
+.vb-host__bar a { color: #3449a8; text-decoration: underline; }
+.vb-host__state { margin-left: auto; color: #475467; font-size: 12px; }
+.vb-host__notice { margin: 12px; padding: 12px 16px; border: 1px solid #f4b4b4; border-radius: 6px; color: #912018; background: #fff2f1; }
+.vb-host__empty { max-width: 640px; margin: 64px auto; padding: 24px; text-align: center; }
+.vb-host__empty h1 { font: 600 24px/1.3 system-ui, sans-serif; margin: 0 0 12px; }
+.vb-host__empty p { margin-bottom: 18px; color: #667085; }
+.vb-host__local-note { padding: 6px 16px; font-size: 11px; color: #667085; border-top: 1px solid #e2e6ed; }
+.vb-host__editor { min-width: 0; }
+.vb-host__editor .visual-builder { min-height: 0; }
+.vb-host :focus-visible { outline: 2px solid #465cdb; outline-offset: 3px; }
+@media (max-width: 600px) { .vb-host__bar { padding: 8px; gap: 8px; } .vb-host__bar label { flex: 1; } .vb-host select { max-width: 160px; width: 100%; } .vb-host__state { width: 100%; margin: 0; } .vb-host__empty { margin: 24px auto; } }
+
+.vb-host__bar input { min-height: 34px; max-width: 220px; padding: 4px 8px; border: 1px solid #cbd2dd; border-radius: 5px; background: #fff; color: #18212f; }

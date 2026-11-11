@@ -71,3 +71,11 @@ export default defineConfig([
   },
 ])
 ```
+
+## Visual components
+
+Select a project and open **Visual components** to design and save reusable
+components without selecting a page. In **Pages → Edit**, use
+**Structure → + Add → Visual section**, choose a design, and save the page.
+Cell and Tab Panel insertion also use the shared library. Each placement is an
+independent copy rendered by react-template. See [usage and setup](docs/visual-builder.md).

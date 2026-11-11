@@ -23,6 +23,16 @@ const openComponent = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe("component editor draft protection", () => {
+  it("opens a saved visual component in the visual workspace instead of the generic modal", async () => {
+    const user = userEvent.setup();
+    const openVisual = vi.fn();
+    const visualSections: GridSection[] = [{ columns: 1, cells: [{ id: "visual-cell", row: 1, column: 1, components: [{ id: "visual-block", type: "custom", title: "Visual card", props: { visualBuilder: { document: {} } } }] }] }];
+    render(<PageDesigner sections={visualSections} onChange={vi.fn()} onVisualComponentEdit={openVisual} />);
+    await openComponent(user);
+    expect(openVisual).toHaveBeenCalledWith("visual-block");
+    expect(screen.queryByRole("dialog", { name: "Edit Component" })).not.toBeInTheDocument();
+  });
+
   it("dismisses only the component when Escape is pressed inside a page editor", async () => {
     const closePage = vi.fn();
     const user = userEvent.setup();
@@ -64,5 +74,17 @@ describe("component editor draft protection", () => {
     await act(async () => { finish(); });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog", { name: "Edit Component" })).not.toBeInTheDocument();
+  });
+
+  it("renders a scrollable div container around the fieldset in the component editor modal", async () => {
+    const user = userEvent.setup();
+    render(<PageDesigner sections={sections} onChange={vi.fn()} />);
+    await openComponent(user);
+    const modalBody = screen.getByTestId("component-modal-body");
+    expect(modalBody.tagName).toBe("DIV");
+    expect(modalBody.className).toContain("overflow-y-auto");
+    expect(modalBody.className).toContain("min-h-0");
+    expect(modalBody.className).toContain("flex-1");
+    expect(modalBody.querySelector("fieldset")).not.toBeNull();
   });
 });

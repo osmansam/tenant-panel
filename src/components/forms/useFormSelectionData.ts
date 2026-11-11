@@ -2,6 +2,10 @@ import { useQueries } from "@tanstack/react-query";
 import { FormComponentConfig } from "../../types/page";
 import { get } from "../../utils/api";
 import { FormSelectionDataMap } from "../../utils/formConfig";
+import {
+  hasDependentSelectFilters,
+  referencedSelectRecordFields,
+} from "../../utils/selectFilters";
 import { getSelectionQueryConfig } from "../../utils/selectionQuery";
 import { getEffectiveSelectDataFields } from "../../utils/selectOptionConfig";
 
@@ -15,9 +19,11 @@ type SelectionResponse =
 export const useFormSelectionData = (
   form: FormComponentConfig,
 ): FormSelectionDataMap => {
-  const fields = (form.fields || []).filter(
+  const allFields = form.fields || [];
+  const fields = allFields.filter(
     (field) =>
       field.type === "select" &&
+      !hasDependentSelectFilters(field) &&
       field.optionsSource === "schema" &&
       field.sourceSchemaName,
   );
@@ -25,7 +31,12 @@ export const useFormSelectionData = (
     queries: fields.map((field) => {
       const fieldName = field.sourceLabelField || field.sourceValueField || "_id";
       const mappings = (form.objectLists || []).flatMap((list) => list.fieldMappings || []);
-      const dataFields = getEffectiveSelectDataFields(field, mappings).filter(
+      const dataFields = Array.from(
+        new Set([
+          ...getEffectiveSelectDataFields(field, mappings),
+          ...referencedSelectRecordFields(allFields, field.formKey),
+        ]),
+      ).filter(
         (name) => name !== fieldName && name !== (field.sourceValueField || "_id"),
       );
       const { path, queryKey } = getSelectionQueryConfig({

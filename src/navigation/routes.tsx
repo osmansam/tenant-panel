@@ -12,6 +12,7 @@ const LoginPage = lazy(() => import("../pages/LoginPage"));
 const RegisterPage = lazy(() => import("../pages/RegisterPage"));
 const ProjectsPage = lazy(() => import("../pages/ProjectsPage"));
 const CollectionsPage = lazy(() => import("../pages/CollectionsPage"));
+const VisualBuilderPage = lazy(() => import("../pages/VisualBuilderPage"));
 const PagesPage = lazy(() => import("../pages/PagesPage"));
 const ExternalAPIsPage = lazy(() => import("../pages/ExternalAPIsPage"));
 const IntegrationsPage = lazy(() => import("../pages/IntegrationsPage"));
@@ -63,6 +64,7 @@ const RouterContainer = () => {
           element={<Navigate to={ProtectedRoutes.Dashboard} replace />}
         />
 
+        <Route path="/pages/visual-builder" element={<VisualBuilderPage />} />
         <Route path={ProtectedRoutes.Projects} element={<ProjectsPage />} />
         <Route
           path={ProtectedRoutes.Collections}

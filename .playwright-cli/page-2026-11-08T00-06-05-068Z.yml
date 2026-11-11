@@ -1,0 +1,100 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - strong [ref=e6]: Edit placed visual section
+      - generic [ref=e7]: qa / demo · Product/Item sources
+    - button "Reload copy" [ref=e8] [cursor=pointer]
+    - button "Save copy to library" [ref=e9] [cursor=pointer]
+    - button "Page request connections" [ref=e10] [cursor=pointer]
+    - button "Data connection" [ref=e12] [cursor=pointer]
+    - button "Cell sizing" [ref=e14] [cursor=pointer]
+    - link "Visual components" [ref=e16] [cursor=pointer]:
+      - /url: /pages/visual-builder
+    - link "Back to Pages" [ref=e17] [cursor=pointer]:
+      - /url: /pages
+    - status
+  - main [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - paragraph [ref=e22]: Visual component engine
+        - heading "Product card" [level=1] [ref=e23]
+      - generic [ref=e24]:
+        - group "Preview breakpoint" [ref=e25]:
+          - button "Mobile preview" [ref=e26] [cursor=pointer]: Mobile
+          - button "Tablet preview" [ref=e27] [cursor=pointer]: Tablet
+          - button "Desktop preview" [pressed] [ref=e28] [cursor=pointer]: Desktop
+        - generic [aria-hidden] [ref=e29]: 1280px
+      - generic [ref=e30]:
+        - button "Motion" [ref=e31] [cursor=pointer]
+        - button "Styles" [ref=e32] [cursor=pointer]
+        - button "Design style" [ref=e34] [cursor=pointer]: Aa
+        - group "Theme preview" [ref=e35]:
+          - button "Preview Light theme" [pressed] [ref=e36] [cursor=pointer]: Light
+          - button "Preview Dark theme" [ref=e37] [cursor=pointer]: Dark
+        - status "Document status" [ref=e38]: Saved
+        - generic [ref=e40]:
+          - button "Undo" [disabled] [ref=e41]
+          - button "Redo" [disabled] [ref=e45]
+        - button "Copy styles" [disabled] [ref=e49]
+        - button "Save" [ref=e52] [cursor=pointer]
+        - button "Preview" [ref=e53] [cursor=pointer]
+        - button "Hide inspector" [pressed] [ref=e54] [cursor=pointer]
+        - button "More actions" [ref=e59] [cursor=pointer]
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - button "Datasets & relationships" [ref=e66] [cursor=pointer]
+        - generic [ref=e68]: 2 named datasets · match records locally using shared page requests.
+      - generic [ref=e69]:
+        - button "Repeat with data" [disabled] [ref=e70]
+        - button "Sample records" [disabled] [ref=e72]
+        - generic [ref=e74]: Select a Card, Stack or Flex in Layers to repeat it.
+        - generic [ref=e75]:
+          - text: Design one item. Use
+          - code [ref=e76]: "{{item.name}}"
+          - text: or
+          - code [ref=e77]: "Price: {{item.price}}"
+          - text: in its content fields. Preview sample records before publishing.
+      - button "Configure button action" [disabled] [ref=e79]
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - tablist "Sidebar" [ref=e84]:
+          - tab "Layers" [selected] [ref=e85] [cursor=pointer]
+          - tab "Add" [ref=e86] [cursor=pointer]
+        - tabpanel [ref=e87]:
+          - navigation "Layers" [ref=e88]:
+            - tree "Layer tree" [ref=e89]:
+              - treeitem [expanded] [level=1] [ref=e90]:
+                - generic [ref=e91]:
+                  - button "Collapse root" [ref=e92] [cursor=pointer]
+                  - button "Section · root" [ref=e95] [cursor=pointer]
+                  - button "Actions for root" [ref=e100] [cursor=pointer]
+                - group [ref=e105]:
+                  - treeitem [expanded] [level=2] [ref=e106]:
+                    - generic [ref=e107]:
+                      - button "Collapse card" [ref=e108] [cursor=pointer]
+                      - 'button "Card · {{item.name}}" [ref=e111] [cursor=pointer]'
+                      - button "Actions for card" [ref=e117] [cursor=pointer]
+                    - group [ref=e122]:
+                      - treeitem [level=3] [ref=e123]:
+                        - generic [ref=e124]:
+                          - 'button "Heading · {{item.name}}" [ref=e125] [cursor=pointer]'
+                          - button "Actions for title" [ref=e130] [cursor=pointer]
+        - group [ref=e136]:
+          - generic "Keyboard shortcuts" [ref=e137] [cursor=pointer]
+      - region "Canvas" [ref=e139]:
+        - generic [ref=e140]:
+          - generic "Select section root" [ref=e144]:
+            - generic "Select card card" [ref=e147]:
+              - article [ref=e148]:
+                - generic "Select heading title" [ref=e150]:
+                  - heading [level=2] [ref=e151]:
+                    - code [ref=e152]: "{{item.name}}"
+          - group "Canvas zoom" [ref=e153]:
+            - button "Zoom out" [ref=e154] [cursor=pointer]: −
+            - button "Reset zoom to 100%" [ref=e155] [cursor=pointer]: 50%
+            - button "Zoom in" [ref=e156] [cursor=pointer]: +
+            - button "Fit to screen" [pressed] [ref=e157] [cursor=pointer]: Fit
+      - generic [ref=e158]:
+        - separator "Resize inspector" [ref=e159]
+        - complementary "Properties" [ref=e160]:
+          - paragraph [ref=e162]: Select an element on the canvas or in Layers to edit its properties.

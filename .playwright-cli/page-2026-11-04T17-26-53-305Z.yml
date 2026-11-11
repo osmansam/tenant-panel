@@ -1,0 +1,408 @@
+- generic [ref=e5]:
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - strong [ref=e8]: Visual components
+      - generic [ref=e9]: fixture / inventory
+    - button "Browse designs" [ref=e10] [cursor=pointer]
+    - button "New design" [ref=e11] [cursor=pointer]
+    - generic [ref=e12]:
+      - text: Design name
+      - textbox "Design name" [ref=e13]: Untitled design
+    - button "Reload designs" [ref=e14] [cursor=pointer]
+    - link "Back to Pages" [ref=e15] [cursor=pointer]:
+      - /url: /pages
+    - status [ref=e16]: Unsaved changes
+  - main [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Visual component engine
+        - heading "Untitled design" [level=1] [ref=e22]
+      - generic [ref=e23]:
+        - group "Preview breakpoint" [ref=e24]:
+          - button "Mobile preview" [ref=e25] [cursor=pointer]: Mobile
+          - button "Tablet preview" [ref=e26] [cursor=pointer]: Tablet
+          - button "Desktop preview" [pressed] [ref=e27] [cursor=pointer]: Desktop
+        - generic [aria-hidden] [ref=e28]: 1280px
+      - generic [ref=e29]:
+        - button "Motion" [ref=e30] [cursor=pointer]
+        - button "Styles" [ref=e31] [cursor=pointer]
+        - button "Design style" [ref=e33] [cursor=pointer]: Aa
+        - group "Theme preview" [ref=e34]:
+          - button "Preview Light theme" [pressed] [ref=e35] [cursor=pointer]: Light
+          - button "Preview Dark theme" [ref=e36] [cursor=pointer]: Dark
+        - status "Document status" [ref=e37]: Saved
+        - generic [ref=e39]:
+          - button "Undo" [disabled] [ref=e40]
+          - button "Redo" [disabled] [ref=e44]
+        - button "Copy styles" [ref=e48] [cursor=pointer]
+        - button "Save" [ref=e51] [cursor=pointer]
+        - button "Preview" [ref=e52] [cursor=pointer]
+        - button "Hide inspector" [pressed] [ref=e53] [cursor=pointer]
+        - button "More actions" [ref=e58] [cursor=pointer]
+    - generic [ref=e63]:
+      - button "Repeat with data" [disabled] [ref=e64]
+      - button "Sample records" [disabled] [ref=e66]
+      - generic [ref=e68]: Select a Card, Stack or Flex in Layers to repeat it.
+      - generic [ref=e69]:
+        - text: Design one item. Use
+        - code [ref=e70]: "{{item.name}}"
+        - text: or
+        - code [ref=e71]: "Price: {{item.price}}"
+        - text: in its content fields. Preview sample records before publishing.
+    - generic [ref=e73]:
+      - generic [ref=e74]:
+        - tablist "Sidebar" [ref=e75]:
+          - tab "Layers" [ref=e76] [cursor=pointer]
+          - tab "Add" [selected] [ref=e77] [cursor=pointer]
+        - tabpanel [ref=e78]:
+          - complementary "Component library" [ref=e218]:
+            - searchbox "Search components" [active] [ref=e224]
+            - status "Insertion target" [ref=e225]:
+              - text: Adding into
+              - strong [ref=e226]: Section · c8ede661-9955-4181-b915-26b5e170af39
+            - paragraph [ref=e227]: "Tip: drop on the left or right edge of an element to place components side by side."
+            - region "Layout components" [ref=e228]:
+              - heading "Layout" [level=3] [ref=e229]
+              - button "Add Section" [disabled] [ref=e230]:
+                - generic [ref=e233]:
+                  - generic [ref=e234]: Section
+                  - generic [ref=e235]: Full-width page band
+              - button "Add Grid" [ref=e236] [cursor=pointer]:
+                - generic [ref=e242]:
+                  - generic [ref=e243]: Grid
+                  - generic [ref=e244]: 12-column responsive grid
+              - button "Add Stack" [ref=e245] [cursor=pointer]:
+                - generic [ref=e249]:
+                  - generic [ref=e250]: Stack
+                  - generic [ref=e251]: Vertical or horizontal stack
+              - button "Add Flex" [ref=e252] [cursor=pointer]:
+                - generic [ref=e256]:
+                  - generic [ref=e257]: Flex
+                  - generic [ref=e258]: Flexible inline row
+              - button "Add Card" [ref=e259] [cursor=pointer]:
+                - generic [ref=e263]:
+                  - generic [ref=e264]: Card
+                  - generic [ref=e265]: Semantic content container
+              - button "Add Overlay" [ref=e266] [cursor=pointer]:
+                - generic [ref=e270]:
+                  - generic [ref=e271]: Overlay
+                  - generic [ref=e272]: Layer content over a background
+            - region "Interactive components" [ref=e273]:
+              - heading "Interactive" [level=3] [ref=e274]
+              - button "Add Disclosure" [ref=e275] [cursor=pointer]:
+                - generic [ref=e279]:
+                  - generic [ref=e280]: Disclosure
+                  - generic [ref=e281]: Expandable content
+              - button "Add Accordion" [ref=e282] [cursor=pointer]:
+                - generic [ref=e286]:
+                  - generic [ref=e287]: Accordion
+                  - generic [ref=e288]: Grouped disclosures
+              - button "Add Tabs" [ref=e289] [cursor=pointer]:
+                - generic [ref=e292]:
+                  - generic [ref=e293]: Tabs
+                  - generic [ref=e294]: Switch between related content panels
+              - button "Add Sidebar" [ref=e295] [cursor=pointer]:
+                - generic [ref=e299]:
+                  - generic [ref=e300]: Sidebar
+                  - generic [ref=e301]: Left navigation with independently designed content panels
+              - button "Add Infinite Slider" [ref=e302] [cursor=pointer]:
+                - generic [ref=e306]:
+                  - generic [ref=e307]: Infinite Slider
+                  - generic [ref=e308]: Continuously looping, draggable slides
+              - button "Add Expandable Card" [ref=e309] [cursor=pointer]:
+                - generic [ref=e313]:
+                  - generic [ref=e314]: Expandable Card
+                  - generic [ref=e315]: A card that opens separate full-screen project details
+              - button "Add Image Comparison" [ref=e316] [cursor=pointer]:
+                - generic [ref=e321]:
+                  - generic [ref=e322]: Image Comparison
+                  - generic [ref=e323]: Drag a divider to compare before and after images
+              - button "Add Scroll Story" [ref=e324] [cursor=pointer]:
+                - generic [ref=e329]:
+                  - generic [ref=e330]: Scroll Story
+                  - generic [ref=e331]: Pinned scenes driven by page scroll
+              - button "Add Repeater" [ref=e332] [cursor=pointer]:
+                - generic [ref=e336]:
+                  - generic [ref=e337]: Repeater
+                  - generic [ref=e338]: AutoTable-backed items
+            - region "Forms components" [ref=e339]:
+              - heading "Forms" [level=3] [ref=e340]
+              - button "Add Form" [ref=e341] [cursor=pointer]:
+                - generic [ref=e345]:
+                  - generic [ref=e346]: Form
+                  - generic [ref=e347]: Submit visitor information
+              - button "Add Input" [disabled] [ref=e348]:
+                - generic [ref=e351]:
+                  - generic [ref=e352]: Input
+                  - generic [ref=e353]: Single-line form field
+              - button "Add Textarea" [disabled] [ref=e354]:
+                - generic [ref=e358]:
+                  - generic [ref=e359]: Textarea
+                  - generic [ref=e360]: Multi-line form field
+              - button "Add Select" [disabled] [ref=e361]:
+                - generic [ref=e365]:
+                  - generic [ref=e366]: Select
+                  - generic [ref=e367]: Choose from authored options
+              - button "Add Checkbox" [disabled] [ref=e368]:
+                - generic [ref=e372]:
+                  - generic [ref=e373]: Checkbox
+                  - generic [ref=e374]: Consent or boolean choice
+            - region "Content components" [ref=e375]:
+              - heading "Content" [level=3] [ref=e376]
+              - button "Add Heading" [ref=e377] [cursor=pointer]:
+                - generic [ref=e380]:
+                  - generic [ref=e381]: Heading
+                  - generic [ref=e382]: Title text, h1–h6
+              - button "Add Text" [ref=e383] [cursor=pointer]:
+                - generic [ref=e386]:
+                  - generic [ref=e387]: Text
+                  - generic [ref=e388]: Paragraph copy
+              - button "Add Code Block" [ref=e389] [cursor=pointer]:
+                - generic [ref=e392]:
+                  - generic [ref=e393]: Code Block
+                  - generic [ref=e394]: Plain-text code example
+              - button "Add Image" [ref=e395] [cursor=pointer]:
+                - generic [ref=e400]:
+                  - generic [ref=e401]: Image
+                  - generic [ref=e402]: Picture with alt text
+              - button "Add Button" [ref=e403] [cursor=pointer]:
+                - generic [ref=e406]:
+                  - generic [ref=e407]: Button
+                  - generic [ref=e408]: Call-to-action link
+              - button "Add Icon" [ref=e409] [cursor=pointer]:
+                - generic [ref=e412]:
+                  - generic [ref=e413]: Icon
+                  - generic [ref=e414]: Decorative or accessible symbol
+              - button "Add Badge" [ref=e415] [cursor=pointer]:
+                - generic [ref=e418]:
+                  - generic [ref=e419]: Badge
+                  - generic [ref=e420]: Compact label or status
+              - button "Add Link" [ref=e421] [cursor=pointer]:
+                - generic [ref=e424]:
+                  - generic [ref=e425]: Link
+                  - generic [ref=e426]: Inline navigation link
+              - button "Add Avatar" [ref=e427] [cursor=pointer]:
+                - generic [ref=e431]:
+                  - generic [ref=e432]: Avatar
+                  - generic [ref=e433]: Profile image with fallback
+              - button "Add List" [ref=e434] [cursor=pointer]:
+                - generic [ref=e440]:
+                  - generic [ref=e441]: List
+                  - generic [ref=e442]: Bullets, numbers, checks, or icons
+              - button "Add Stat" [ref=e443] [cursor=pointer]:
+                - generic [ref=e446]:
+                  - generic [ref=e447]: Stat
+                  - generic [ref=e448]: Metric value and label
+              - button "Add Rating" [ref=e449] [cursor=pointer]:
+                - generic [ref=e452]:
+                  - generic [ref=e453]: Rating
+                  - generic [ref=e454]: Read-only star rating
+              - button "Add Quote" [ref=e455] [cursor=pointer]:
+                - generic [ref=e458]:
+                  - generic [ref=e459]: Quote
+                  - generic [ref=e460]: Quote with author attribution
+              - button "Add Divider" [ref=e461] [cursor=pointer]:
+                - generic [ref=e463]:
+                  - generic [ref=e464]: Divider
+                  - generic [ref=e465]: Horizontal separator line
+              - button "Add Video" [ref=e466] [cursor=pointer]:
+                - generic [ref=e470]:
+                  - generic [ref=e471]: Video
+                  - generic [ref=e472]: Video player for hosted media
+              - button "Add Audio" [ref=e473] [cursor=pointer]:
+                - generic [ref=e478]:
+                  - generic [ref=e479]: Audio
+                  - generic [ref=e480]: Audio player episode widget
+              - button "Add Embed" [ref=e481] [cursor=pointer]:
+                - generic [ref=e485]:
+                  - generic [ref=e486]: Embed
+                  - generic [ref=e487]: Iframe for YouTube, maps, and more
+              - button "Add Table" [ref=e488] [cursor=pointer]:
+                - generic [ref=e492]:
+                  - generic [ref=e493]: Table
+                  - generic [ref=e494]: Rows and columns of data
+              - button "Add Progress" [ref=e495] [cursor=pointer]:
+                - generic [ref=e499]:
+                  - generic [ref=e500]: Progress
+                  - generic [ref=e501]: Completion or loading bar
+              - button "Add Steps" [ref=e502] [cursor=pointer]:
+                - generic [ref=e508]:
+                  - generic [ref=e509]: Steps
+                  - generic [ref=e510]: Progress through numbered stages
+              - button "Add Timeline" [ref=e511] [cursor=pointer]:
+                - generic [ref=e516]:
+                  - generic [ref=e517]: Timeline
+                  - generic [ref=e518]: Dated entries with descriptions
+              - button "Add Alert" [ref=e519] [cursor=pointer]:
+                - generic [ref=e523]:
+                  - generic [ref=e524]: Alert
+                  - generic [ref=e525]: Highlighted note, warning, or error
+              - button "Add Tags" [ref=e526] [cursor=pointer]:
+                - generic [ref=e530]:
+                  - generic [ref=e531]: Tags
+                  - generic [ref=e532]: Compact keyword chips
+              - button "Add Keyboard Shortcut" [ref=e533] [cursor=pointer]:
+                - generic [ref=e537]:
+                  - generic [ref=e538]: Keyboard Shortcut
+                  - generic [ref=e539]: Chord of key names like Ctrl + K
+              - button "Add Bar Chart" [ref=e540] [cursor=pointer]:
+                - generic [ref=e543]:
+                  - generic [ref=e544]: Bar Chart
+                  - generic [ref=e545]: Labelled bars with values
+              - button "Add Sparkline" [ref=e546] [cursor=pointer]:
+                - generic [ref=e549]:
+                  - generic [ref=e550]: Sparkline
+                  - generic [ref=e551]: Compact trend line from values
+            - region "Site components" [ref=e552]:
+              - heading "Site" [level=3] [ref=e553]
+              - button "Add Theme Switcher" [ref=e554] [cursor=pointer]:
+                - generic [ref=e557]:
+                  - generic [ref=e558]: Theme Switcher
+                  - generic [ref=e559]: Let visitors choose Light, Dark, or System
+        - group [ref=e97]:
+          - generic "Keyboard shortcuts" [ref=e98] [cursor=pointer]
+      - region "Canvas" [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e103]:
+            - generic:
+              - generic "Select section c8ede661-9955-4181-b915-26b5e170af39"
+            - button "Style controls" [ref=e104] [cursor=pointer]:
+              - text: Style
+              - generic [ref=e105]: +
+            - generic [aria-hidden]:
+              - generic: Section · c8ede661-9955-4181-b915-26b5e170af39
+          - group "Canvas zoom" [ref=e106]:
+            - button "Zoom out" [ref=e107] [cursor=pointer]: −
+            - button "Reset zoom to 100%" [ref=e108] [cursor=pointer]: 50%
+            - button "Zoom in" [ref=e109] [cursor=pointer]: +
+            - button "Fit to screen" [pressed] [ref=e110] [cursor=pointer]: Fit
+      - generic [ref=e111]:
+        - separator "Resize inspector" [ref=e112]
+        - complementary "Properties" [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e118]:
+              - generic [ref=e119]: Selected element
+              - heading "Section" [level=2] [ref=e120]
+              - code [ref=e121]: c8ede661-9955-4181-b915-26b5e170af39
+            - tablist "Property categories" [ref=e122]:
+              - tab "All" [selected] [ref=e123] [cursor=pointer]
+              - tab "Content" [ref=e124] [cursor=pointer]
+              - tab "Design" [ref=e125] [cursor=pointer]
+              - tab "Advanced" [ref=e126] [cursor=pointer]
+            - generic [ref=e127]:
+              - searchbox "Filter properties" [ref=e129]
+              - generic [ref=e130]:
+                - button "Collapse all sections" [ref=e131] [cursor=pointer]
+                - button "Expand all sections" [ref=e134] [cursor=pointer]
+          - tabpanel "All" [ref=e137]:
+            - region "Typography properties" [ref=e138]:
+              - button "Typography" [ref=e140] [cursor=pointer]
+            - region "Spacing properties" [ref=e144]:
+              - button "Spacing" [ref=e146] [cursor=pointer]
+            - region "Color properties" [ref=e150]:
+              - button "Color" [ref=e152] [cursor=pointer]
+            - region "Border & shadow properties" [ref=e156]:
+              - button "Border & shadow" [ref=e158] [cursor=pointer]
+            - region "Sizing properties" [ref=e162]:
+              - button "Sizing" [ref=e164] [cursor=pointer]
+            - region "Transform properties" [ref=e168]:
+              - button "Transform" [ref=e170] [cursor=pointer]
+            - region "Paint properties" [ref=e174]:
+              - button "Paint" [ref=e176] [cursor=pointer]
+            - region "Effects properties" [ref=e180]:
+              - button "Effects" [expanded] [ref=e182] [cursor=pointer]
+              - generic [ref=e187]:
+                - generic [ref=e188]:
+                  - generic [ref=e189]: Search effects
+                  - searchbox "Search effects" [ref=e190]
+                - generic [ref=e191]:
+                  - generic "Effect runtime" [ref=e192]
+                  - combobox "Effect runtime" [ref=e193] [cursor=pointer]:
+                    - option "All runtimes" [selected]
+                    - option "CSS"
+                    - option "DOM"
+                    - option "Canvas"
+                    - option "WebGL"
+                    - option "Three.js"
+                    - option "OGL"
+                - generic [ref=e194]:
+                  - generic "Effect to add" [ref=e195]
+                  - combobox "Effect to add" [ref=e196] [cursor=pointer]:
+                    - option "Acid Squares"
+                    - option "Aero Shards"
+                    - option "Animated gradient" [selected]
+                    - option "Aurora"
+                    - option "Aurora mesh"
+                    - option "Balatro"
+                    - option "Ballpit"
+                    - option "Beams"
+                    - option "Color Bends"
+                    - option "CRT Warp"
+                    - option "Dark Veil"
+                    - option "Dither"
+                    - option "Dot Field"
+                    - option "Dot Grid"
+                    - option "Evil Eye"
+                    - option "Faulty Terminal"
+                    - option "Ferrofluid"
+                    - option "Floating bubbles"
+                    - option "Floating Lines"
+                    - option "Galaxy"
+                    - option "Ghost Fibers"
+                    - option "Gradient Blinds"
+                    - option "Gradient Waves"
+                    - option "Grainient"
+                    - option "Grid & orbit glow"
+                    - option "Grid Distortion"
+                    - option "Grid Motion"
+                    - option "Grid Scan"
+                    - option "HUD scan"
+                    - option "Hyperspeed"
+                    - option "Iridescence"
+                    - option "Letter Glitch"
+                    - option "Light haze"
+                    - option "Light Pillar"
+                    - option "Light Rays"
+                    - option "Light Tunnel"
+                    - option "Lightfall"
+                    - option "Lightning"
+                    - option "Line Waves"
+                    - option "Liquid Chrome"
+                    - option "Liquid Ether"
+                    - option "Molten Metal"
+                    - option "Neural mesh"
+                    - option "Orb"
+                    - option "Orbit rings"
+                    - option "Particles"
+                    - option "Pixel Blast"
+                    - option "Pixel Snow"
+                    - option "Plasma"
+                    - option "Plasma Wave"
+                    - option "Prism"
+                    - option "Prismatic Burst"
+                    - option "Radar"
+                    - option "Ripple Grid"
+                    - option "Scanner"
+                    - option "Scroll lanes"
+                    - option "Shape Grid"
+                    - option "Side Rays"
+                    - option "Silk"
+                    - option "Sliced Waves"
+                    - option "Soft Aurora"
+                    - option "Spotlight grid"
+                    - option "Squares"
+                    - option "Threads"
+                    - option "Topography"
+                    - option "Traveling dots"
+                    - option "Vector horizon"
+                    - option "Waves"
+                    - option "Web Threads"
+                - generic [ref=e197]: Low cost · DOM
+                - button "Add effect" [ref=e198] [cursor=pointer]
+            - region "Positioning & Sticky properties" [ref=e199]:
+              - button "Positioning & Sticky" [ref=e201] [cursor=pointer]
+            - region "Animation properties" [ref=e205]:
+              - button "Animation" [ref=e207] [cursor=pointer]
+            - region "Responsive properties" [ref=e211]:
+              - button "Responsive" [ref=e213] [cursor=pointer]
+  - contentinfo [ref=e217]: Designs are saved to this project. Templates and versions stay in this browser.

@@ -1,0 +1,150 @@
+.ve-scroll-story {
+  position: relative;
+  width: 100%;
+}
+
+.ve-scroll-story__viewport {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.ve-scroll-story__stage,
+.ve-scroll-story__scene,
+.ve-scroll-story__static-scene {
+  position: relative;
+  overflow: hidden;
+}
+
+.ve-scroll-story__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ve-scroll-story__scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.ve-scroll-story__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ve-scroll-story__scene-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: clamp(1.5rem, 5vw, 4rem);
+}
+
+.ve-scroll-story__scene[data-layout="split-right"],
+.ve-scroll-story__static-scene[data-layout="split-right"] {
+  align-items: stretch;
+}
+
+.ve-scroll-story__static-scene[data-layout="split-right"] {
+  display: block;
+}
+
+.ve-scroll-story__split {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: 100%;
+  min-height: 100%;
+}
+
+.ve-scroll-story__scene[data-layout="split-right"] .ve-scroll-story__scene-content {
+  display: flex;
+  align-items: center;
+}
+
+.ve-scroll-story__scene-media {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ve-scroll-story__scene-media .ve-scroll-story__media {
+  position: absolute;
+  inset: 0;
+}
+
+.ve-scroll-story__static-scene {
+  display: flex;
+  align-items: flex-end;
+  isolation: isolate;
+}
+
+.ve-scroll-story__stage-static {
+  position: relative;
+  z-index: 2;
+}
+
+.ve-scroll-story__progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  height: 3px;
+  background: rgb(255 255 255 / 0.9);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.ve-scroll-story__control {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  color: white;
+  background: rgb(15 23 42 / 0.72);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.ve-scroll-story__control:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ve-scroll-story[data-transition="fade"] .ve-scroll-story__scene,
+  .ve-scroll-story[data-transition="slide-up"] .ve-scroll-story__scene {
+    transition: opacity 260ms ease;
+  }
+}
+
+@media (max-width: 767px) {
+  .ve-scroll-story__scene-content {
+    padding: 1.25rem;
+  }
+
+  .ve-scroll-story__split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(220px, 45svh);
+  }
+
+  .ve-scroll-story__scene[data-layout="split-right"] .ve-scroll-story__scene-content {
+    align-items: flex-start;
+  }
+}

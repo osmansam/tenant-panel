@@ -16,6 +16,7 @@ export enum Routes {
   ProjectManagement = "/project-management",
   Collections = "/collections",
   Pages = "/pages",
+  VisualComponents = "/pages/visual-builder",
   Localization = "/localization",
   Integrations = "/integrations",
   ExternalAPIs = "/external-apis",
@@ -74,6 +75,13 @@ export const systemRoutes: RouteConfig[] = [
       "project_viewer",
       "project_support",
     ],
+  },
+  {
+    name: "Visual components",
+    path: Routes.VisualComponents,
+    isOnSidebar: true,
+    icon: "MdWidgets",
+    requiredRoles: ["project_admin", "project_developer", "project_editor"],
   },
   {
     name: "Localization",

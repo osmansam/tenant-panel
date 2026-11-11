@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="472" viewBox="0 0 840 472">
+<rect width="840" height="472" fill="#eff1ed"/>
+<rect x="62" y="42" width="716" height="402" rx="13" fill="#fff" stroke="#dedfd9"/>
+<path d="M218 42v402" stroke="#e8e9e2"/>
+<text x="89" y="81" fill="#444840" font-family="Arial,sans-serif" font-size="19" font-weight="600">forma</text>
+<g fill="#92968a" font-family="Arial,sans-serif" font-size="11"><text x="89" y="137">Overview</text><text x="89" y="172">Your projects</text><text x="89" y="207">Calendar</text><text x="89" y="242">Notes</text></g>
+<rect x="78" y="118" width="126" height="30" rx="6" fill="#e9eee3"/>
+<text x="90" y="137" fill="#454e3e" font-family="Arial,sans-serif" font-size="11">Overview</text>
+<text x="249" y="88" fill="#454a40" font-family="Arial,sans-serif" font-size="23">A little room to focus.</text>
+<text x="249" y="112" fill="#999c92" font-family="Arial,sans-serif" font-size="11">MONDAY, OCTOBER 12</text>
+<g fill="#fafbf8" stroke="#e9ebe3"><rect x="249" y="143" width="151" height="75" rx="8"/><rect x="414" y="143" width="151" height="75" rx="8"/><rect x="579" y="143" width="169" height="75" rx="8"/></g>
+<g fill="#989e8d" font-family="Arial,sans-serif" font-size="10"><text x="265" y="165">IN PROGRESS</text><text x="431" y="165">THIS WEEK</text><text x="595" y="165">ROOM TO GROW</text></g>
+<g fill="#4c5542" font-family="Georgia,serif" font-size="27"><text x="265" y="199">08</text><text x="431" y="199">24</text><text x="595" y="199">92%</text></g>
+<rect x="249" y="238" width="499" height="170" rx="9" fill="#fbfcf9" stroke="#e9ebe3"/>
+<g stroke="#eceee7"><path d="M269 280h459M269 325h459M269 370h459"/></g>
+<g fill="#cad5bb"><rect x="292" y="331" width="29" height="50" rx="4"/><rect x="349" y="304" width="29" height="77" rx="4"/><rect x="406" y="318" width="29" height="63" rx="4"/><rect x="463" y="277" width="29" height="104" rx="4"/><rect x="520" y="295" width="29" height="86" rx="4"/><rect x="577" y="267" width="29" height="114" rx="4"/><rect x="634" y="285" width="29" height="96" rx="4"/></g>
+</svg>

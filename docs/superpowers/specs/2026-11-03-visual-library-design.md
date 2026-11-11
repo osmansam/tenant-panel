@@ -1,0 +1,11 @@
+# Standalone visual designs and page sections
+
+User correction: designs must be created independently of pages; the builder must not require a page selection. Native Structure +Add must offer a visual section and show the resulting section alongside grids. Existing cell/tab insertion remains supported. All placements remain independent copies, as explicitly chosen earlier.
+
+The previous page-block-as-library implementation is superseded. A project-scoped backend visual-components resource stores named document/theme values with optimistic revisions. Standalone builder selects a design, creates one without any page, and saves it to that resource. Existing placed copies can still be opened by a fixed page/component target, with no page selector or page creation action. No automatic migration or live data mutation: existing placed visual content stays intact; a placed-copy editor can explicitly save a copy into the library.
+
+Native page editor displays both grid and top-level visual sections in Structure, preserving their order and independent editing/deletion. Structure +Add offers Grid section and Visual section; choosing a visual design appends its validated independent copy as a component section. Preview is scoped and read-only. Page Save persists the complete mixed structure. Cell/tab pickers read the standalone library. A dedicated Visual components navigation entry opens standalone authoring.
+
+Backend uses existing strict management authentication and project config-read/page-write permissions. Library values are opaque authored JSON, with basic envelope validation, body limits, project collection isolation and revision conflict checks. Runtime remains read-only, rendering the existing copied envelope without library lookups. No new dependency. Existing native drafts, navigation guards and save failure recovery remain.
+
+The screenshot's pending state cannot be inspected in the user's Chrome because computer-use permission is unavailable. Code shows page-detail dependency and unbounded Axios requests. Standalone authoring removes page reads; management requests and refreshes receive bounded timeouts and actionable retry errors. This avoids an indefinite spinner without claiming the underlying live network cause was observed.

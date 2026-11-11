@@ -1,0 +1,11 @@
+# Complete supported visual collection comparisons
+
+User sees only Equals/One of in repeater Data filters and requests the remaining AutoTable operators, including gt/gte. Inspected actual table-source → DynamicRequestParser.ParsePaginatedItemsParams → BuildFilterFromQuery → ConvertQueryValueToFieldType. Supported query comparisons are eq, gt, gte, lt, lte for int/float/double/date; comma-separated membership supports existing string/enum/number/bool list types. No ne/nin/contains query operator exists on this endpoint; do not expose workflow-expression operators as list filters.
+
+Extend both visual document parsers/models additively with gt/gte/lt/lte, retaining eq/in. Inspector offers operators appropriate to field metadata; unknown metadata can stage configuration but runtime still requires verified field types. Preserve manually typed negative decimals through buffered input/blur commit. Date values use real YYYY-MM-DD UTC calendar days, matching backend normalization; eq dates use explicit eq- prefix rather than backend's plain-date regex. Do not imply timestamp precision or support date in-lists.
+
+Permit one lower and one upper comparison for a field. Reject duplicate directions, equality/membership mixed with bounds, reversed/empty ranges, malformed values and unsafe/reserved/nested field names. Encode bounds as repeated query parameters; canonical query identity includes field types and stable operator ordering. Keep original source key for renderer lookup. Existing eq/in payloads keep their wire form; numbers zero and booleans false remain typed. No new network layer or client filtering.
+
+Backend's range contradiction check currently adds/subtracts 0.0001 for strict bounds, which turns valid narrow decimal ranges into OR. Correct that comparison to exact bound values/inclusivity, retaining existing wraparound behavior for truly reversed numeric bounds. Cover numeric/date types and existing ranges through real parser tests. No new query operators/backends policy introduced.
+
+No new dependencies or git mutations. Preserve existing dirty checkouts. Test model roundtrip, UI type-aware operators/negative keyboard values, URL encoding/repeated bounds/cache identities, rejection paths, actual backend BSON filters and browser authoring + runtime request filtering.
