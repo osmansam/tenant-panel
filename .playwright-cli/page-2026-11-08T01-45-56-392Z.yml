@@ -1,0 +1,248 @@
+- generic [ref=e5]:
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - strong [ref=e8]: Edit placed visual section
+      - generic [ref=e9]: fixture / inventory · Inventory
+    - button "Reload copy" [ref=e10] [cursor=pointer]
+    - button "Save copy to library" [ref=e11] [cursor=pointer]
+    - button "Page request connections" [ref=e12] [cursor=pointer]
+    - button "Data connection" [ref=e14] [cursor=pointer]
+    - button "Cell sizing" [ref=e16] [cursor=pointer]
+    - link "Visual components" [ref=e18] [cursor=pointer]:
+      - /url: /pages/visual-builder
+    - link "Back to Pages" [ref=e19] [cursor=pointer]:
+      - /url: /pages
+    - status
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - paragraph [ref=e24]: Visual component engine
+        - heading "Inventory visual" [level=1] [ref=e25]
+      - generic [ref=e26]:
+        - group "Preview breakpoint" [ref=e27]:
+          - button "Mobile preview" [ref=e28] [cursor=pointer]: Mobile
+          - button "Tablet preview" [ref=e29] [cursor=pointer]: Tablet
+          - button "Desktop preview" [pressed] [ref=e30] [cursor=pointer]: Desktop
+        - generic [aria-hidden] [ref=e31]: 1280px
+      - generic [ref=e32]:
+        - button "Motion" [ref=e33] [cursor=pointer]
+        - button "Styles" [ref=e34] [cursor=pointer]
+        - button "Design style" [ref=e36] [cursor=pointer]: Aa
+        - group "Theme preview" [ref=e37]:
+          - button "Preview Light theme" [pressed] [ref=e38] [cursor=pointer]: Light
+          - button "Preview Dark theme" [ref=e39] [cursor=pointer]: Dark
+        - status "Document status" [ref=e40]: Saved
+        - generic [ref=e42]:
+          - button "Undo" [disabled] [ref=e43]
+          - button "Redo" [disabled] [ref=e47]
+        - button "Copy styles" [ref=e51] [cursor=pointer]
+        - button "Save" [ref=e54] [cursor=pointer]
+        - button "Preview" [ref=e55] [cursor=pointer]
+        - button "Hide inspector" [pressed] [ref=e56] [cursor=pointer]
+        - button "More actions" [ref=e61] [cursor=pointer]
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - button "Repeat with data" [ref=e68] [cursor=pointer]
+        - button "Sample records" [disabled] [ref=e70]
+        - generic [ref=e73]:
+          - text: Design one item. Use
+          - code [ref=e74]: "{{item.name}}"
+          - text: or
+          - code [ref=e75]: "Price: {{item.price}}"
+          - text: in its content fields. Preview sample records before publishing.
+      - button "Configure button action" [disabled] [ref=e77]
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - tablist "Sidebar" [ref=e82]:
+          - tab "Layers" [selected] [ref=e83] [cursor=pointer]
+          - tab "Add" [ref=e84] [cursor=pointer]
+        - tabpanel [ref=e85]:
+          - navigation "Layers" [ref=e86]:
+            - tree "Layer tree" [ref=e87]:
+              - treeitem [expanded] [level=1] [ref=e88]:
+                - generic [ref=e89]:
+                  - button "Collapse fixture-root" [ref=e90] [cursor=pointer]
+                  - button "Section · fixture-root" [ref=e93] [cursor=pointer]
+                  - button "Actions for fixture-root" [ref=e98] [cursor=pointer]
+                - group [ref=e103]:
+                  - treeitem [level=2] [ref=e104]:
+                    - generic [ref=e105]:
+                      - button "Heading · Fixture products" [ref=e106] [cursor=pointer]
+                      - button "Actions for fixture-heading" [ref=e111] [cursor=pointer]
+                  - treeitem [expanded] [level=2] [selected] [ref=e116]:
+                    - generic [ref=e117]:
+                      - button "Collapse fixture-card" [ref=e118] [cursor=pointer]
+                      - button "Card · One reusable card design" [active] [pressed] [ref=e121] [cursor=pointer]
+                      - button "Actions for fixture-card" [ref=e127] [cursor=pointer]
+                    - group [ref=e132]:
+                      - treeitem [level=3] [ref=e133]:
+                        - generic [ref=e134]:
+                          - button "Text · One reusable card design" [ref=e135] [cursor=pointer]
+                          - button "Actions for fixture-text" [ref=e140] [cursor=pointer]
+                      - treeitem [level=3] [ref=e145]:
+                        - generic [ref=e146]:
+                          - button "Image · Fixture product" [ref=e147] [cursor=pointer]
+                          - button "Actions for fixture-image" [ref=e154] [cursor=pointer]
+        - group [ref=e160]:
+          - generic "Keyboard shortcuts" [ref=e161] [cursor=pointer]
+      - region "Canvas" [ref=e163]:
+        - generic [ref=e164]:
+          - generic [ref=e166]:
+            - generic "Select section fixture-root" [ref=e168]:
+              - generic [ref=e169]:
+                - generic "Select heading fixture-heading" [ref=e171]:
+                  - heading "Fixture products" [level=2] [ref=e172]
+                - generic "Select card fixture-card" [ref=e174]:
+                  - article [ref=e175]:
+                    - generic "Select text fixture-text" [ref=e177]:
+                      - paragraph [ref=e178]: One reusable card design
+                    - generic "Select image fixture-image" [ref=e180]:
+                      - img "Fixture product" [ref=e181]
+            - button "Style controls" [ref=e192] [cursor=pointer]:
+              - text: Style
+              - generic [ref=e193]: +
+            - generic:
+              - generic: Card · One reusable card design
+              - slider "Resize width" [ref=e194]
+              - slider "Resize height" [ref=e195]
+          - group "Canvas zoom" [ref=e182]:
+            - button "Zoom out" [ref=e183] [cursor=pointer]: −
+            - button "Reset zoom to 100%" [ref=e184] [cursor=pointer]: 50%
+            - button "Zoom in" [ref=e185] [cursor=pointer]: +
+            - button "Fit to screen" [pressed] [ref=e186] [cursor=pointer]: Fit
+      - generic [ref=e187]:
+        - separator "Resize inspector" [ref=e188]
+        - complementary "Properties" [ref=e196]:
+          - generic [ref=e197]:
+            - generic [ref=e202]:
+              - generic [ref=e203]: Selected element
+              - heading "Card" [level=2] [ref=e204]
+              - code [ref=e205]: fixture-card
+            - tablist "Property categories" [ref=e206]:
+              - tab "All" [selected] [ref=e207] [cursor=pointer]
+              - tab "Content" [ref=e208] [cursor=pointer]
+              - tab "Design" [ref=e209] [cursor=pointer]
+              - tab "Advanced" [ref=e210] [cursor=pointer]
+            - generic [ref=e211]:
+              - searchbox "Filter properties" [ref=e213]
+              - generic [ref=e214]:
+                - button "Collapse all sections" [ref=e215] [cursor=pointer]
+                - button "Expand all sections" [ref=e218] [cursor=pointer]
+          - tabpanel "All" [ref=e221]:
+            - region "Content properties" [ref=e222]:
+              - button "Content" [expanded] [ref=e224] [cursor=pointer]
+              - generic [ref=e229]:
+                - generic "Element" [ref=e230]
+                - combobox "Card element" [ref=e231] [cursor=pointer]:
+                  - option "Article" [selected]
+                  - option "Div"
+            - region "Typography properties" [ref=e232]:
+              - button "Typography" [ref=e234] [cursor=pointer]
+            - region "Spacing properties" [ref=e238]:
+              - button "Spacing" [ref=e240] [cursor=pointer]
+            - region "Color properties" [ref=e244]:
+              - button "Color" [ref=e246] [cursor=pointer]
+            - region "Border & shadow properties" [ref=e250]:
+              - button "Border & shadow" [ref=e252] [cursor=pointer]
+            - region "Sizing properties" [ref=e256]:
+              - button "Sizing" [ref=e258] [cursor=pointer]
+            - region "Transform properties" [ref=e262]:
+              - button "Transform" [ref=e264] [cursor=pointer]
+            - region "Paint properties" [ref=e268]:
+              - button "Paint" [ref=e270] [cursor=pointer]
+            - region "Effects properties" [ref=e274]:
+              - button "Effects" [expanded] [ref=e276] [cursor=pointer]
+              - generic [ref=e281]:
+                - generic [ref=e282]:
+                  - generic [ref=e283]: Search effects
+                  - searchbox "Search effects" [ref=e284]
+                - generic [ref=e285]:
+                  - generic "Effect runtime" [ref=e286]
+                  - combobox "Effect runtime" [ref=e287] [cursor=pointer]:
+                    - option "All runtimes" [selected]
+                    - option "CSS"
+                    - option "DOM"
+                    - option "Canvas"
+                    - option "WebGL"
+                    - option "Three.js"
+                    - option "OGL"
+                - generic [ref=e288]:
+                  - generic "Effect to add" [ref=e289]
+                  - combobox "Effect to add" [ref=e290] [cursor=pointer]:
+                    - option "Acid Squares"
+                    - option "Aero Shards"
+                    - option "Animated gradient" [selected]
+                    - option "Aurora"
+                    - option "Aurora mesh"
+                    - option "Balatro"
+                    - option "Ballpit"
+                    - option "Beams"
+                    - option "Color Bends"
+                    - option "CRT Warp"
+                    - option "Dark Veil"
+                    - option "Dither"
+                    - option "Dot Field"
+                    - option "Dot Grid"
+                    - option "Evil Eye"
+                    - option "Faulty Terminal"
+                    - option "Ferrofluid"
+                    - option "Floating bubbles"
+                    - option "Floating Lines"
+                    - option "Galaxy"
+                    - option "Ghost Fibers"
+                    - option "Gradient Blinds"
+                    - option "Gradient Waves"
+                    - option "Grainient"
+                    - option "Grid & orbit glow"
+                    - option "Grid Distortion"
+                    - option "Grid Motion"
+                    - option "Grid Scan"
+                    - option "HUD scan"
+                    - option "Hyperspeed"
+                    - option "Iridescence"
+                    - option "Letter Glitch"
+                    - option "Light haze"
+                    - option "Light Pillar"
+                    - option "Light Rays"
+                    - option "Light Tunnel"
+                    - option "Lightfall"
+                    - option "Lightning"
+                    - option "Line Waves"
+                    - option "Liquid Chrome"
+                    - option "Liquid Ether"
+                    - option "Molten Metal"
+                    - option "Neural mesh"
+                    - option "Orb"
+                    - option "Orbit rings"
+                    - option "Particles"
+                    - option "Pixel Blast"
+                    - option "Pixel Snow"
+                    - option "Plasma"
+                    - option "Plasma Wave"
+                    - option "Prism"
+                    - option "Prismatic Burst"
+                    - option "Radar"
+                    - option "Ripple Grid"
+                    - option "Scanner"
+                    - option "Scroll lanes"
+                    - option "Shape Grid"
+                    - option "Side Rays"
+                    - option "Silk"
+                    - option "Sliced Waves"
+                    - option "Soft Aurora"
+                    - option "Spotlight grid"
+                    - option "Squares"
+                    - option "Threads"
+                    - option "Topography"
+                    - option "Traveling dots"
+                    - option "Vector horizon"
+                    - option "Waves"
+                    - option "Web Threads"
+                - generic [ref=e291]: Low cost · DOM
+                - button "Add effect" [ref=e292] [cursor=pointer]
+            - region "Positioning & Sticky properties" [ref=e293]:
+              - button "Positioning & Sticky" [ref=e295] [cursor=pointer]
+            - region "Animation properties" [ref=e299]:
+              - button "Animation" [ref=e301] [cursor=pointer]
+            - region "Responsive properties" [ref=e305]:
+              - button "Responsive" [ref=e307] [cursor=pointer]

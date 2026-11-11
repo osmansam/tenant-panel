@@ -1,0 +1,14 @@
+import type { PageRequestSource } from "../../types/pageRequests";
+const cls = "w-full rounded-ui-md border border-ui-border bg-ui-surface px-3 py-2 text-sm";
+export default function PageRequestSourceEditor({ value, onChange }: { value: PageRequestSource; onChange: (value: PageRequestSource) => void }) {
+  return <div className="grid gap-3 sm:grid-cols-2">
+    <label className="space-y-1 text-sm">Data source<select className={cls} aria-label="Data source" value={value.transport} onChange={event => onChange({ schemaName: value.schemaName, transport: event.target.value as PageRequestSource["transport"], ...(event.target.value === "table-source" ? { kind: "schema" as const } : {}) })}>
+      <option value="table-source">Table data</option><option value="list">All schema records</option><option value="page">Schema record page</option><option value="pipeline">Pipeline result</option><option value="workflow">Workflow data</option><option value="selection">Dropdown options</option>
+    </select></label>
+    <label className="space-y-1 text-sm">Schema<input className={cls} aria-label="Schema" value={value.schemaName} onChange={event => onChange({ ...value, schemaName: event.target.value })} /></label>
+    {value.transport === "table-source" && <label className="space-y-1 text-sm">Table source<select className={cls} aria-label="Table source" value={value.kind || "schema"} onChange={event => onChange({ ...value, kind: event.target.value as PageRequestSource["kind"] })}><option value="schema">Schema</option><option value="pipeline">Pipeline</option><option value="workflow">Workflow data</option></select></label>}
+    {(value.transport === "pipeline" || value.transport === "table-source" && value.kind === "pipeline") && <label className="space-y-1 text-sm">Pipeline<input className={cls} aria-label="Pipeline" value={value.pipelineName || ""} onChange={event => onChange({ ...value, pipelineName: event.target.value })} /></label>}
+    {(value.transport === "workflow" || value.transport === "table-source" && value.kind === "workflow") && <label className="space-y-1 text-sm">Workflow<input className={cls} aria-label="Workflow" value={value.workflowName || ""} onChange={event => onChange({ ...value, workflowName: event.target.value })} /><span className="block text-xs text-ui-muted">Use a workflow intended to read data. Actions remain separate.</span></label>}
+    {value.transport === "selection" && <><label className="space-y-1 text-sm">Label field<input className={cls} aria-label="Label field" value={value.fieldName || ""} onChange={event => onChange({ ...value, fieldName: event.target.value })} /></label><label className="space-y-1 text-sm">Value field<input className={cls} aria-label="Value field" value={value.valueField || "_id"} onChange={event => onChange({ ...value, valueField: event.target.value })} /></label></>}
+  </div>;
+}

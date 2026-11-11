@@ -1,0 +1,52 @@
+// Run after verify-visual-data-editor.js. All responses are in-memory fixtures.
+async (page) => {
+ const fixture = page.__visualFixture;
+ const target = "http://127.0.0.1:3015/t/fixture/p/inventory/catalog";
+ await page.emulateMedia({ colorScheme: "dark" });
+ await page.goto(target);
+ await page.getByRole("heading", { name: "Live product 5", exact: true }).waitFor();
+ if (await page.locator("[data-repeater-instance]").count() !== 5 || fixture.collectionCalls.length !== 1) throw new Error("Five records were not rendered from one request");
+ if (await page.locator('.ozmi-site-theme:not([data-theme="light"])').count()) throw new Error("Runtime changed to dark mode");
+ await page.screenshot({ path: "/private/tmp/visual-data/runtime-products.png", fullPage: true });
+ const source = fixture.library[0].value;
+ const placed = fixture.pages[0].sections[1].component;
+ if (placed.props.visualBuilder.document.id === source.document.id) throw new Error("Placement shares source identity");
+ fixture.pages[0].sections[0].grid.cells[0].components = [{ id: "cell-visual", type: "custom", title: "Cell catalog", props: { visualBuilder: structuredClone(source) } }];
+ fixture.pages[0].sections.push({ id: "tabs-section", type: "component", order: 2, component: { id: "catalog-tabs", type: "tabPanel", tabs: [{ title: "Catalog tab", components: [{ id: "tab-visual", type: "custom", props: { visualBuilder: structuredClone(source) } }] }] } });
+ fixture.collectionCalls = [];
+ await page.reload();
+ await page.waitForFunction(() => document.querySelectorAll("[data-repeater-instance]").length === 15);
+ if (fixture.collectionCalls.length !== 1) throw new Error(`Three placements fetched ${fixture.collectionCalls.length} times`);
+ const ids = await page.locator("[data-visual-block] [id]").evaluateAll(elements => elements.map(element => element.id));
+ if (new Set(ids).size !== ids.length) throw new Error("Repeated placements have duplicate DOM ids");
+ await page.screenshot({ path: "/private/tmp/visual-data/runtime-cell-tab.png", fullPage: true });
+ // Narrow back to one placement to verify local query states and retry behavior.
+ fixture.pages[0].sections = [fixture.pages[0].sections[1]];
+ fixture.products = []; fixture.collectionCalls = [];
+ await page.reload();
+ await page.getByRole("status").filter({ hasText: "No items to display." }).waitFor();
+ if (await page.locator("[data-repeater-instance]").count()) throw new Error("Empty results rendered example records");
+ fixture.sourceStatus = 403; fixture.collectionCalls = [];
+ await page.reload();
+ await page.getByRole("alert").filter({ hasText: "You do not have access" }).waitFor();
+ if (fixture.collectionCalls.length !== 1) throw new Error("Authorization error retried automatically");
+ fixture.sourceStatus = 200; fixture.products = [{ _id: "restored", name: "Restored product", price: 99, imageUrl: "/visual-builder/placeholder.svg" }];
+ await page.getByRole("button", { name: "Try again", exact: true }).click();
+ await page.getByRole("heading", { name: "Restored product", exact: true }).waitFor();
+ fixture.malformed = true; fixture.collectionCalls = [];
+ await page.reload();
+ await page.getByRole("alert").filter({ hasText: "could not be read" }).waitFor();
+ if (fixture.collectionCalls.length !== 1) throw new Error("Malformed response retried automatically");
+ fixture.malformed = false; fixture.sourceDelay = 750;
+ await page.reload();
+ await page.getByRole("status").filter({ hasText: "Loading…" }).waitFor();
+ await page.getByRole("heading", { name: "Restored product", exact: true }).waitFor();
+ fixture.sourceDelay = 0; fixture.sourceStatus = 503; fixture.collectionCalls = [];
+ await page.reload();
+ await page.getByRole("alert").filter({ hasText: "service had a problem" }).waitFor();
+ if (fixture.collectionCalls.length !== 2) throw new Error("Transient failure did not get exactly one retry");
+ await page.screenshot({ path: "/private/tmp/visual-data/runtime-retry.png", fullPage: true });
+ fixture.sourceStatus = 200;
+ await page.getByRole("button", { name: "Try again", exact: true }).click();
+ await page.getByRole("heading", { name: "Restored product", exact: true }).waitFor();
+}

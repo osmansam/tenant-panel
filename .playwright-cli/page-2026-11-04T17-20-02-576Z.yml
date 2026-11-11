@@ -1,0 +1,210 @@
+- generic [ref=e5]:
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - strong [ref=e8]: Visual components
+      - generic [ref=e9]: fixture / inventory
+    - button "Browse designs" [ref=e10] [cursor=pointer]
+    - button "New design" [active] [ref=e11] [cursor=pointer]
+    - generic [ref=e27]:
+      - text: Design name
+      - textbox "Design name" [ref=e28]: Untitled design
+    - button "Reload designs" [ref=e12] [cursor=pointer]
+    - link "Back to Pages" [ref=e13] [cursor=pointer]:
+      - /url: /pages
+    - status [ref=e29]: Unsaved changes
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - paragraph [ref=e34]: Visual component engine
+        - heading "Untitled design" [level=1] [ref=e35]
+      - generic [ref=e36]:
+        - group "Preview breakpoint" [ref=e37]:
+          - button "Mobile preview" [ref=e38] [cursor=pointer]: Mobile
+          - button "Tablet preview" [ref=e39] [cursor=pointer]: Tablet
+          - button "Desktop preview" [pressed] [ref=e40] [cursor=pointer]: Desktop
+        - generic [aria-hidden] [ref=e41]: 1280px
+      - generic [ref=e42]:
+        - button "Motion" [ref=e43] [cursor=pointer]
+        - button "Styles" [ref=e44] [cursor=pointer]
+        - button "Design style" [ref=e46] [cursor=pointer]: Aa
+        - group "Theme preview" [ref=e47]:
+          - button "Preview Light theme" [pressed] [ref=e48] [cursor=pointer]: Light
+          - button "Preview Dark theme" [ref=e49] [cursor=pointer]: Dark
+        - status "Document status" [ref=e50]: Saved
+        - generic [ref=e52]:
+          - button "Undo" [disabled] [ref=e53]
+          - button "Redo" [disabled] [ref=e57]
+        - button "Copy styles" [ref=e61] [cursor=pointer]
+        - button "Save" [ref=e64] [cursor=pointer]
+        - button "Preview" [ref=e65] [cursor=pointer]
+        - button "Hide inspector" [pressed] [ref=e66] [cursor=pointer]
+        - button "More actions" [ref=e71] [cursor=pointer]
+    - generic [ref=e76]:
+      - button "Repeat with data" [disabled] [ref=e77]
+      - button "Sample records" [disabled] [ref=e79]
+      - generic [ref=e81]:
+        - text: Design one item. Use
+        - code [ref=e82]: "{{item.name}}"
+        - text: or
+        - code [ref=e83]: "Price: {{item.price}}"
+        - text: in its content fields. Preview sample records before publishing.
+    - generic [ref=e85]:
+      - generic [ref=e86]:
+        - tablist "Sidebar" [ref=e87]:
+          - tab "Layers" [selected] [ref=e88] [cursor=pointer]
+          - tab "Add" [ref=e89] [cursor=pointer]
+        - tabpanel [ref=e90]:
+          - navigation "Layers" [ref=e91]:
+            - tree "Layer tree" [ref=e92]:
+              - treeitem [expanded] [level=1] [selected] [ref=e93]:
+                - generic [ref=e94]:
+                  - button "Collapse b29512bd-b8f2-4fc3-bc2e-06a1c7691129" [ref=e95] [cursor=pointer]
+                  - button "Section · b29512bd-b8f2-4fc3-bc2e-06a1c7691129" [pressed] [ref=e98] [cursor=pointer]
+                  - button "Actions for b29512bd-b8f2-4fc3-bc2e-06a1c7691129" [ref=e103] [cursor=pointer]
+        - group [ref=e109]:
+          - generic "Keyboard shortcuts" [ref=e110] [cursor=pointer]
+      - region "Canvas" [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e115]:
+            - generic:
+              - generic "Select section b29512bd-b8f2-4fc3-bc2e-06a1c7691129"
+            - button "Style controls" [ref=e116] [cursor=pointer]:
+              - text: Style
+              - generic [ref=e117]: +
+            - generic [aria-hidden]:
+              - generic: Section · b29512bd-b8f2-4fc3-bc2e-06a1c7691129
+          - group "Canvas zoom" [ref=e118]:
+            - button "Zoom out" [ref=e119] [cursor=pointer]: −
+            - button "Reset zoom to 100%" [ref=e120] [cursor=pointer]: 50%
+            - button "Zoom in" [ref=e121] [cursor=pointer]: +
+            - button "Fit to screen" [pressed] [ref=e122] [cursor=pointer]: Fit
+      - generic [ref=e123]:
+        - separator "Resize inspector" [ref=e124]
+        - complementary "Properties" [ref=e125]:
+          - generic [ref=e126]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: Selected element
+              - heading "Section" [level=2] [ref=e132]
+              - code [ref=e133]: b29512bd-b8f2-4fc3-bc2e-06a1c7691129
+            - tablist "Property categories" [ref=e134]:
+              - tab "All" [selected] [ref=e135] [cursor=pointer]
+              - tab "Content" [ref=e136] [cursor=pointer]
+              - tab "Design" [ref=e137] [cursor=pointer]
+              - tab "Advanced" [ref=e138] [cursor=pointer]
+            - generic [ref=e139]:
+              - searchbox "Filter properties" [ref=e141]
+              - generic [ref=e142]:
+                - button "Collapse all sections" [ref=e143] [cursor=pointer]
+                - button "Expand all sections" [ref=e146] [cursor=pointer]
+          - tabpanel "All" [ref=e149]:
+            - region "Typography properties" [ref=e150]:
+              - button "Typography" [ref=e152] [cursor=pointer]
+            - region "Spacing properties" [ref=e156]:
+              - button "Spacing" [ref=e158] [cursor=pointer]
+            - region "Color properties" [ref=e162]:
+              - button "Color" [ref=e164] [cursor=pointer]
+            - region "Border & shadow properties" [ref=e168]:
+              - button "Border & shadow" [ref=e170] [cursor=pointer]
+            - region "Sizing properties" [ref=e174]:
+              - button "Sizing" [ref=e176] [cursor=pointer]
+            - region "Transform properties" [ref=e180]:
+              - button "Transform" [ref=e182] [cursor=pointer]
+            - region "Paint properties" [ref=e186]:
+              - button "Paint" [ref=e188] [cursor=pointer]
+            - region "Effects properties" [ref=e192]:
+              - button "Effects" [expanded] [ref=e194] [cursor=pointer]
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - generic [ref=e201]: Search effects
+                  - searchbox "Search effects" [ref=e202]
+                - generic [ref=e203]:
+                  - generic "Effect runtime" [ref=e204]
+                  - combobox "Effect runtime" [ref=e205] [cursor=pointer]:
+                    - option "All runtimes" [selected]
+                    - option "CSS"
+                    - option "DOM"
+                    - option "Canvas"
+                    - option "WebGL"
+                    - option "Three.js"
+                    - option "OGL"
+                - generic [ref=e206]:
+                  - generic "Effect to add" [ref=e207]
+                  - combobox "Effect to add" [ref=e208] [cursor=pointer]:
+                    - option "Acid Squares"
+                    - option "Aero Shards"
+                    - option "Animated gradient" [selected]
+                    - option "Aurora"
+                    - option "Aurora mesh"
+                    - option "Balatro"
+                    - option "Ballpit"
+                    - option "Beams"
+                    - option "Color Bends"
+                    - option "CRT Warp"
+                    - option "Dark Veil"
+                    - option "Dither"
+                    - option "Dot Field"
+                    - option "Dot Grid"
+                    - option "Evil Eye"
+                    - option "Faulty Terminal"
+                    - option "Ferrofluid"
+                    - option "Floating bubbles"
+                    - option "Floating Lines"
+                    - option "Galaxy"
+                    - option "Ghost Fibers"
+                    - option "Gradient Blinds"
+                    - option "Gradient Waves"
+                    - option "Grainient"
+                    - option "Grid & orbit glow"
+                    - option "Grid Distortion"
+                    - option "Grid Motion"
+                    - option "Grid Scan"
+                    - option "HUD scan"
+                    - option "Hyperspeed"
+                    - option "Iridescence"
+                    - option "Letter Glitch"
+                    - option "Light haze"
+                    - option "Light Pillar"
+                    - option "Light Rays"
+                    - option "Light Tunnel"
+                    - option "Lightfall"
+                    - option "Lightning"
+                    - option "Line Waves"
+                    - option "Liquid Chrome"
+                    - option "Liquid Ether"
+                    - option "Molten Metal"
+                    - option "Neural mesh"
+                    - option "Orb"
+                    - option "Orbit rings"
+                    - option "Particles"
+                    - option "Pixel Blast"
+                    - option "Pixel Snow"
+                    - option "Plasma"
+                    - option "Plasma Wave"
+                    - option "Prism"
+                    - option "Prismatic Burst"
+                    - option "Radar"
+                    - option "Ripple Grid"
+                    - option "Scanner"
+                    - option "Scroll lanes"
+                    - option "Shape Grid"
+                    - option "Side Rays"
+                    - option "Silk"
+                    - option "Sliced Waves"
+                    - option "Soft Aurora"
+                    - option "Spotlight grid"
+                    - option "Squares"
+                    - option "Threads"
+                    - option "Topography"
+                    - option "Traveling dots"
+                    - option "Vector horizon"
+                    - option "Waves"
+                    - option "Web Threads"
+                - generic [ref=e209]: Low cost · DOM
+                - button "Add effect" [ref=e210] [cursor=pointer]
+            - region "Positioning & Sticky properties" [ref=e211]:
+              - button "Positioning & Sticky" [ref=e213] [cursor=pointer]
+            - region "Animation properties" [ref=e217]:
+              - button "Animation" [ref=e219] [cursor=pointer]
+            - region "Responsive properties" [ref=e223]:
+              - button "Responsive" [ref=e225] [cursor=pointer]
+  - contentinfo [ref=e26]: Designs are saved to this project. Templates and versions stay in this browser.

@@ -1,0 +1,82 @@
+/* Visual engine animation presets. Presets are renderer-neutral in the
+   document; this stylesheet is the CSS translation used by VisualRenderer. */
+
+.ve-anim {
+  animation-delay: var(--ve-delay, 0ms);
+  animation-duration: var(--ve-duration, 500ms);
+  animation-fill-mode: both;
+  animation-timing-function: var(--ve-easing, ease-out);
+}
+
+.ve-anim[data-anim-state="idle"] {
+  opacity: 0;
+}
+
+.ve-anim[data-anim-state="play"],
+.ve-anim--hover:hover {
+  animation-name: var(--ve-keyframes);
+}
+
+@keyframes ve-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ve-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ve-fade-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ve-fade-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ve-fade-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ve-scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ve-slide-up {
+  from { opacity: 1; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ve-slide-left {
+  from { opacity: 1; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ve-slide-right {
+  from { opacity: 1; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Reduced motion: keep content visible and remove non-essential movement. */
+.ve-anim--reduced,
+.ve-anim--reduced[data-anim-state="idle"] {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-anim,
+  .ve-anim[data-anim-state="idle"],
+  .ve-anim[data-anim-state="play"],
+  .ve-anim--hover:hover {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

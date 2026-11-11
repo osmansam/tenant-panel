@@ -1,0 +1,38 @@
+import type { ComponentType } from "react";
+
+type Loader = () => Promise<{ default: ComponentType<any> }>;
+
+export const OFFICIAL_TEXT_LOADERS: Record<string, Loader> = {
+  "ascii-text": () => import("./text/ASCIIText/ASCIIText"),
+  "blur-text": () => import("./text/BlurText/BlurText"),
+  "circular-text": () => import("./text/CircularText/CircularText"),
+  "count-up": () => import("./text/CountUp/CountUp"),
+  "curved-loop": () => import("./text/CurvedLoop/CurvedLoop"),
+  "decrypted-text": () => import("./text/DecryptedText/DecryptedText"),
+  "depth-text": () => import("./text/DepthText/DepthText"),
+  "echo-text": () => import("./text/EchoText/EchoText"),
+  "falling-text": () => import("./text/FallingText/FallingText"),
+  "fold-text": () => import("./text/FoldText/FoldText"),
+  "fuzzy-text": () => import("./text/FuzzyText/FuzzyText"),
+  "glitch-text": () => import("./text/GlitchText/GlitchText"),
+  "gradient-text": () => import("./text/GradientText/GradientText"),
+  "masked-heading": () => import("./text/MaskedHeading/MaskedHeading"),
+  "particle-text": () => import("./text/ParticleText/ParticleText"),
+  "rotating-text": () => import("./text/RotatingText/RotatingText"),
+  "scrambled-text": () => import("./text/ScrambledText/ScrambledText"),
+  "scroll-float": () => import("./text/ScrollFloat/ScrollFloat"),
+  "scroll-reveal": () => import("./text/ScrollReveal/ScrollReveal"),
+  "scroll-velocity": () => import("./text/ScrollVelocity/ScrollVelocity").then(module => ({ default: module.ScrollVelocity })),
+  "shiny-text": () => import("./text/ShinyText/ShinyText"),
+  "shuffle": () => import("./text/Shuffle/Shuffle"),
+  "split-flap-text": () => import("./text/SplitFlapText/SplitFlapText"),
+  "split-text": () => import("./text/SplitText/SplitText"),
+  "stroke-text": () => import("./text/StrokeText/StrokeText"),
+  "text-cursor": () => import("./text/TextCursor/TextCursor"),
+  "text-loop": () => import("./text/TextLoop/TextLoop"),
+  "text-pressure": () => import("./text/TextPressure/TextPressure"),
+  "text-type": () => import("./text/TextType/TextType"),
+  "true-focus": () => import("./text/TrueFocus/TrueFocus"),
+  "variable-proximity": () => import("./text/VariableProximity/VariableProximity"),
+  "warp-text": () => import("./text/WarpText/WarpText"),
+};

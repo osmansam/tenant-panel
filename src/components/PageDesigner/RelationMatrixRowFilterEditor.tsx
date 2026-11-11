@@ -5,18 +5,24 @@ import type {
   TableActionInputType,
   TableFilterPanelInputConfig,
 } from "../../types/page";
-import type { Field } from "../../utils/api/container";
+import type { ContainerModel, Field } from "../../utils/api/container";
 import {
   addRelationMatrixFilterInput,
   buildRelationMatrixFilterInputs,
   removeRelationMatrixFilterInput,
   updateRelationMatrixFilterInput,
 } from "./relationMatrixFilterEditor";
+import {
+  formatRequestFiltersInput,
+  parseRequestFiltersInput,
+} from "../../utils/requestFilterTemplates";
+import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { Checkbox, Input, Select, type SelectOption } from "../ui";
 
 interface RelationMatrixFilterEditorProps {
   value: RelationMatrixConfig;
   rowFields: Field[];
+  containers?: ReadonlyArray<Pick<ContainerModel, "schemaName" | "fields">>;
   onChange: (value: RelationMatrixConfig) => void;
 }
 
@@ -46,30 +52,19 @@ const inputTypes: Array<{ value: TableActionInputType; label: string }> = [
   { value: "checkbox", label: "Checkbox" },
 ];
 
-const parseRequestFilters = (
-  text: string,
-): Record<string, unknown> | undefined => {
-  if (!text.trim()) return undefined;
-  try {
-    const value = JSON.parse(text) as unknown;
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 const FilterRow = ({
   input,
+  inputs,
   index,
   rowFields,
   onUpdate,
   onRemove,
 }: {
   input: TableFilterPanelInputConfig;
+  inputs: TableFilterPanelInputConfig[];
   index: number;
   rowFields: Field[];
+  containers?: ReadonlyArray<Pick<ContainerModel, "schemaName" | "fields">>;
   onUpdate: (updates: Partial<TableFilterPanelInputConfig>) => void;
   onRemove: () => void;
 }) => {
@@ -80,6 +75,12 @@ const FilterRow = ({
       : undefined;
     onUpdate(generated || { formKey: fieldName });
   };
+  const filterValidationErrors =
+    input.type === "select"
+      ? validateSelectFilterBindings(inputs).filter((message) =>
+          message.startsWith(`${input.formKey}:`),
+        )
+      : [];
 
   return (
     <div className="rounded-xl border border-ui-border bg-ui-surface-subtle/70 p-4">
@@ -134,8 +135,38 @@ const FilterRow = ({
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Source schema</span><Input value={input.sourceSchemaName || ""} onChange={(event) => onUpdate({ sourceSchemaName: event.target.value })} /></label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Value field</span><Input value={input.sourceValueField || ""} onChange={(event) => onUpdate({ sourceValueField: event.target.value })} /></label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Label field</span><Input value={input.sourceLabelField || ""} onChange={(event) => onUpdate({ sourceLabelField: event.target.value })} /></label>
-                  <label className="space-y-1 md:col-span-2"><span className="text-xs font-medium text-ui-muted">Request filters (JSON)</span><Input defaultValue={input.sourceRequestFilters ? JSON.stringify(input.sourceRequestFilters) : ""} onBlur={(event) => onUpdate({ sourceRequestFilters: parseRequestFilters(event.target.value) })} placeholder='{"active":true}' /></label>
+                  <label className="space-y-1 md:col-span-2">
+                    <span className="text-xs font-medium text-ui-muted">Request filters</span>
+                    <Input
+                      defaultValue={formatRequestFiltersInput(input.sourceRequestFilters)}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        const parsed = parseRequestFiltersInput(raw, input);
+                        if (!raw.trim() || parsed) {
+                          onUpdate({ sourceRequestFilters: parsed });
+                        }
+                      }}
+                      onBlur={(event) =>
+                        onUpdate({
+                          sourceRequestFilters: parseRequestFiltersInput(
+                            event.target.value,
+                            input,
+                          ),
+                        })
+                      }
+                      placeholder='{{product.item._id}}=item._id or {"active":true}'
+                    />
+                  </label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Source condition</span><Input value={input.sourceFilterCondition || ""} onChange={(event) => onUpdate({ sourceFilterCondition: event.target.value })} /></label>
+                  {filterValidationErrors.map((error) => (
+                    <p
+                      key={error}
+                      role="alert"
+                      className="rounded-md border border-ui-danger/30 bg-ui-danger-subtle px-3 py-2 text-xs text-ui-danger md:col-span-3"
+                    >
+                      {error}
+                    </p>
+                  ))}
                 </>
               ) : (
                 <label className="space-y-1 md:col-span-2"><span className="text-xs font-medium text-ui-muted">Static options (JSON)</span><Input value={input.staticOptionsJson || "[]"} onChange={(event) => onUpdate({ staticOptionsJson: event.target.value })} /></label>
@@ -151,7 +182,7 @@ const FilterRow = ({
   );
 };
 
-const RelationMatrixFilterEditor = ({ value, rowFields, onChange }: RelationMatrixFilterEditorProps) => {
+const RelationMatrixFilterEditor = ({ value, rowFields, containers, onChange }: RelationMatrixFilterEditorProps) => {
   const inputs = value.filterPanel?.inputs || [];
   const defaults = buildRelationMatrixFilterInputs(rowFields);
   const defaultsEnabled = defaults.length > 0 && inputs.length === defaults.length && defaults.every((item) => inputs.some((input) => input.formKey === item.formKey));
@@ -171,7 +202,7 @@ const RelationMatrixFilterEditor = ({ value, rowFields, onChange }: RelationMatr
       </label>
       <div className="mt-4 space-y-3">
         {inputs.length ? inputs.map((input, index) => (
-          <FilterRow key={`${input.formKey}-${index}`} input={input} index={index} rowFields={rowFields} onUpdate={(updates) => onChange(updateRelationMatrixFilterInput(value, index, updates))} onRemove={() => onChange(removeRelationMatrixFilterInput(value, index))} />
+          <FilterRow key={`${input.formKey}-${index}`} input={input} inputs={inputs} index={index} rowFields={rowFields} containers={containers} onUpdate={(updates) => onChange(updateRelationMatrixFilterInput(value, index, updates))} onRemove={() => onChange(removeRelationMatrixFilterInput(value, index))} />
         )) : <div className="rounded-lg border border-dashed border-ui-border px-4 py-5 text-center text-sm text-ui-muted">No row filters configured.</div>}
       </div>
     </div>

@@ -2,17 +2,26 @@ import axios from "axios";
 import { camelCase, isArray, isPlainObject, transform } from "lodash";
 import { logout } from "../auth";
 
-function toCamelCase(obj: any, inWorkflow = false): any {
-  if (isArray(obj)) return obj.map((value) => toCamelCase(value, inWorkflow));
+function toCamelCase(obj: any, inWorkflow = false, insideProps = false): any {
+  if (isArray(obj)) return obj.map((value) => toCamelCase(value, inWorkflow, insideProps));
   if (isPlainObject(obj)) {
     return transform(obj, (result: any, value: any, key: string) => {
       const normalizedKey = key === "_id" ? "_id" : camelCase(key);
+      // Slot IDs and authored filter field paths are dictionary keys, not API metadata. Preserve punctuation and case.
+      if (normalizedKey === "requestBindings" && isPlainObject(value)) {
+        result[normalizedKey] = Object.fromEntries(Object.entries(value).map(([slot, connection]) => [slot, toCamelCase(connection, inWorkflow)]));
+        return;
+      }
+      if (normalizedKey === "sourceRequestFilters" && isPlainObject(value)) {
+        result[normalizedKey] = { ...value };
+        return;
+      }
       // These workflow fields contain authored JSON, including Mongo operators
       // and case-sensitive field paths. Only normalize their metadata key.
-      const preserveValue = inWorkflow && ["config", "payload", "value"].includes(normalizedKey);
+      const preserveValue = (inWorkflow && ["config", "payload", "value"].includes(normalizedKey)) || (insideProps && normalizedKey === "visualBuilder");
       result[normalizedKey] = preserveValue
         ? value
-        : toCamelCase(value, inWorkflow || normalizedKey === "workflows");
+        : toCamelCase(value, inWorkflow || normalizedKey === "workflows", normalizedKey === "props");
     });
   }
   return obj;

@@ -8,12 +8,17 @@ import {
   TableActionOptionsSource,
 } from "../../types/page";
 import { ContainerModel, Field } from "../../utils/api/container";
+import {
+  formatRequestFiltersInput,
+  parseRequestFiltersInput,
+} from "../../utils/requestFilterTemplates";
+import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { Checkbox, Input, Select, Textarea, type SelectOption } from "../ui";
 
 type Props = {
   field: FormFieldConfig;
   index: number;
-  containers: ContainerModel[];
+  containers: Array<Pick<ContainerModel, "schemaName" | "fields">>;
   formFields: FormFieldConfig[];
   onChange: (updates: Partial<FormFieldConfig>) => void;
   onRemove: () => void;
@@ -79,35 +84,6 @@ const flattenFields = (fields: Field[]): Field[] =>
     field.children?.length ? flattenFields(field.children) : [field],
   );
 
-const formatRequestFilters = (filters?: Record<string, unknown>) =>
-  filters && Object.keys(filters).length
-    ? JSON.stringify(filters, null, 2)
-    : "";
-
-const parseRequestFilters = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-      return undefined;
-    }
-
-    const entries = Object.entries(parsed as Record<string, unknown>).filter(
-      ([key, entryValue]) =>
-        key.trim() &&
-        entryValue !== undefined &&
-        entryValue !== null &&
-        entryValue !== "",
-    );
-
-    return entries.length ? Object.fromEntries(entries) : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 const Control = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="space-y-1.5">
     <span className="block text-xs font-medium text-ui-muted">{label}</span>
@@ -148,6 +124,11 @@ const FormFieldEditor = ({
   const isNumber = field.type === "number";
   const isSelect = field.type === "select";
   const staticOptions = field.staticOptions || [];
+  const filterValidationErrors = isSelect
+    ? validateSelectFilterBindings(formFields).filter((message) =>
+        message.startsWith(`${field.formKey}:`),
+      )
+    : [];
 
   const updateDefaultValue = (rawValue: string) => {
     if (field.isMultiple) {
@@ -329,20 +310,37 @@ const FormFieldEditor = ({
               <Control label="Source filter condition"><Input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} placeholder={'tenantId = {{tenantId}}'} /></Control>
               <Control label="Request filters">
                 <Textarea
-                  defaultValue={formatRequestFilters(field.sourceRequestFilters)}
+                  defaultValue={formatRequestFiltersInput(field.sourceRequestFilters)}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    const parsed = parseRequestFiltersInput(raw, field);
+                    if (!raw.trim() || parsed) {
+                      onChange({ sourceRequestFilters: parsed });
+                    }
+                  }}
                   onBlur={(event) =>
                     onChange({
-                      sourceRequestFilters: parseRequestFilters(
+                      sourceRequestFilters: parseRequestFiltersInput(
                         event.target.value,
+                        field,
                       ),
                     })
                   }
                   disabled={field.optionsSource !== "schema"}
                   className="min-h-[84px] font-mono"
-                  placeholder={'{"active": true}'}
+                  placeholder={'{{product.item._id}}=item._id or {"active": true}'}
                 />
               </Control>
             </div>
+            {filterValidationErrors.map((error) => (
+              <p
+                key={error}
+                role="alert"
+                className="rounded-md border border-ui-danger/30 bg-ui-danger-subtle px-3 py-2 text-xs text-ui-danger"
+              >
+                {error}
+              </p>
+            ))}
 
             {(field.optionsSource || "static") === "static" && (
               <div className="space-y-2">

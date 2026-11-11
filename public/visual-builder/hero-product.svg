@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Product analytics dashboard preview</title>
+  <desc id="desc">A stylized dashboard with sales cards, a line chart, and recent orders.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#eef2ff"/><stop offset="1" stop-color="#f8fafc"/></linearGradient>
+    <linearGradient id="chart" x1="0" x2="1"><stop stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+  </defs>
+  <rect width="800" height="520" rx="32" fill="url(#background)"/>
+  <rect x="34" y="34" width="732" height="452" rx="22" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="34" y="34" width="166" height="452" rx="22" fill="#0f172a"/>
+  <circle cx="76" cy="78" r="17" fill="#818cf8"/><rect x="108" y="68" width="55" height="12" rx="6" fill="#e2e8f0"/>
+  <rect x="62" y="134" width="110" height="12" rx="6" fill="#818cf8"/><rect x="62" y="175" width="94" height="10" rx="5" fill="#475569"/><rect x="62" y="214" width="78" height="10" rx="5" fill="#475569"/><rect x="62" y="253" width="102" height="10" rx="5" fill="#475569"/>
+  <rect x="230" y="70" width="146" height="82" rx="14" fill="#eef2ff"/><rect x="398" y="70" width="146" height="82" rx="14" fill="#ecfdf5"/><rect x="566" y="70" width="146" height="82" rx="14" fill="#fff7ed"/>
+  <text x="250" y="104" fill="#64748b" font-family="Arial, sans-serif" font-size="15">Revenue</text><text x="250" y="132" fill="#1e1b4b" font-family="Arial, sans-serif" font-size="24" font-weight="700">$48,240</text>
+  <text x="418" y="104" fill="#64748b" font-family="Arial, sans-serif" font-size="15">Orders</text><text x="418" y="132" fill="#064e3b" font-family="Arial, sans-serif" font-size="24" font-weight="700">1,248</text>
+  <text x="586" y="104" fill="#64748b" font-family="Arial, sans-serif" font-size="15">Conversion</text><text x="586" y="132" fill="#7c2d12" font-family="Arial, sans-serif" font-size="24" font-weight="700">6.82%</text>
+  <rect x="230" y="180" width="482" height="186" rx="14" fill="#f8fafc"/><text x="254" y="214" fill="#0f172a" font-family="Arial, sans-serif" font-size="17" font-weight="700">Sales performance</text>
+  <path d="M258 328 C292 300 319 320 350 281 S409 302 443 257 S510 290 546 238 S619 268 684 219" fill="none" stroke="url(#chart)" stroke-linecap="round" stroke-width="8"/><path d="M258 337H684" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5 8"/>
+  <rect x="230" y="390" width="482" height="64" rx="14" fill="#f8fafc"/><circle cx="264" cy="422" r="15" fill="#ddd6fe"/><rect x="292" y="408" width="104" height="10" rx="5" fill="#334155"/><rect x="292" y="429" width="74" height="8" rx="4" fill="#94a3b8"/><rect x="625" y="414" width="62" height="17" rx="8.5" fill="#dcfce7"/>
+</svg>

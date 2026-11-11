@@ -1,0 +1,11 @@
+.ve-image-comparison { position: relative; min-width: 0; isolation: isolate; }
+.ve-image-comparison__frame { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; background: var(--theme-surface-muted, #f1f1ed); isolation: isolate; }
+.ve-image-comparison__image { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; user-select: none; pointer-events: none; }
+.ve-image-comparison__before { position: absolute; inset: 0; background: var(--theme-surface-muted, #f1f1ed); pointer-events: none; }
+.ve-image-comparison__range { position: absolute; inset: 0; z-index: 4; display: block; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: col-resize; touch-action: pan-y; }
+.ve-image-comparison__divider { position: absolute; top: 0; bottom: 0; z-index: 3; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 12%); transform: translateX(-50%); pointer-events: none; }
+.ve-image-comparison__handle { position: absolute; top: 50%; left: 50%; display: grid; place-items: center; width: 44px; height: 44px; transform: translate(-50%, -50%); border-radius: 9999px; background: #fff; color: #242424; box-shadow: 0 2px 12px rgb(0 0 0 / 20%); }
+.ve-image-comparison__handle svg { width: 24px; height: 24px; }
+.ve-image-comparison__range:focus-visible ~ .ve-image-comparison__divider .ve-image-comparison__handle { outline: 3px solid var(--theme-primary, #4d5ed0); outline-offset: 4px; }
+.ve-image-comparison__labels { position: absolute; top: clamp(10px, 3%, 24px); right: clamp(10px, 3%, 24px); left: clamp(10px, 3%, 24px); z-index: 2; display: flex; justify-content: space-between; gap: 1rem; pointer-events: none; }
+.ve-image-comparison__labels span { border: 1px solid rgb(255 255 255 / 25%); border-radius: 9999px; background: rgb(20 20 20 / 78%); color: #fff; padding: 0.35rem 0.75rem; font-size: 12px; font-weight: 600; line-height: 1.3; }

@@ -1,3 +1,5 @@
+import type { SelectFilterBinding } from "../../types/selectFilters";
+import type { PageRequestDefinition, PageRequestConnection } from "../../types/pageRequests";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
@@ -24,7 +26,8 @@ export type RuntimeValueType =
   | "monthYear"
   | "dateRange"
   | "stringArray"
-  | "numberArray";
+  | "numberArray"
+  | "record";
 
 export interface PageVariableDefinition {
   id: string;
@@ -63,6 +66,7 @@ export interface PageFilterDefinition {
 export type ComponentOutputSource =
   | { kind: "tableFilter"; filterId: string }
   | { kind: "tableSelectedIds" }
+  | { kind: "tableSelectedRecord" }
   | { kind: "tableSearch" }
   | { kind: "infoBlockSelection"; valueKey: string };
 
@@ -276,6 +280,7 @@ export interface PageTableActionFormFieldConfig {
     rightTemplate?: string;
   };
   sourceRequestFilters?: Record<string, unknown>;
+  sourceFilterBindings?: SelectFilterBinding[];
   sourceFilterCondition?: string;
   invalidateKeys?: string[];
   defaultValue?: string | number | boolean | string[] | number[];
@@ -537,6 +542,7 @@ export interface PageFormComponentConfig {
 }
 
 export type ComponentType =
+  | "relationMatrix"
   | "table"
   | "tabPanel"
   | "form"
@@ -568,6 +574,7 @@ export interface TabPanelTab {
 }
 
 export interface ComponentBlock {
+  requestBindings?: Record<string, PageRequestConnection>;
   id: string;
   stateKey?: string;
   type: ComponentType;
@@ -629,6 +636,7 @@ export interface Section {
 }
 
 export interface PageModel {
+  requests?: PageRequestDefinition[];
   id?: string;
   _id?: string; // For factory compatibility
   name: string;
@@ -650,6 +658,7 @@ export interface PageModel {
 }
 
 export interface CreatePagePayload {
+  requests?: PageRequestDefinition[];
   name: string;
   variables?: PageVariableDefinition[];
   filters?: PageFilterDefinition[];
@@ -669,6 +678,7 @@ export interface CreatePagePayload {
 }
 
 export interface UpdatePagePayload {
+  requests?: PageRequestDefinition[];
   name?: string;
   variables?: PageVariableDefinition[];
   filters?: PageFilterDefinition[];
