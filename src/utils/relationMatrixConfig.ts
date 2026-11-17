@@ -35,6 +35,11 @@ const trimmed = (value: string | undefined): string | undefined =>
 
 const cleanRequestFilters = (
   value: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined => {
+  if (!value) return undefined;
+  const entries = Object.entries(value).filter(([key]) => key.trim());
+  return entries.length ? Object.fromEntries(entries) : undefined;
+};
   context?: RequestFilterFieldContext,
 ): Record<string, unknown> | undefined =>
   cleanSourceRequestFilters(value, context);
@@ -84,6 +89,8 @@ const cleanFilterInput = (
       ? { sourceDataFields: input.sourceDataFields.map((field) => field.trim()).filter(Boolean) }
       : {}),
     ...(input.optionDisplay ? { optionDisplay: { ...input.optionDisplay } } : {}),
+    ...(cleanRequestFilters(input.sourceRequestFilters)
+      ? { sourceRequestFilters: cleanRequestFilters(input.sourceRequestFilters) }
     ...(cleanRequestFilters(input.sourceRequestFilters, input)
       ? { sourceRequestFilters: cleanRequestFilters(input.sourceRequestFilters, input) }
       : {}),

@@ -18,6 +18,7 @@ import {
 } from "../../utils/requestFilterTemplates";
 import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { Checkbox, Input, Select, type SelectOption } from "../ui";
+import SelectFilterBindingsEditor from "./SelectFilterBindingsEditor";
 
 interface RelationMatrixFilterEditorProps {
   value: RelationMatrixConfig;
@@ -52,11 +53,26 @@ const inputTypes: Array<{ value: TableActionInputType; label: string }> = [
   { value: "checkbox", label: "Checkbox" },
 ];
 
+const parseRequestFilters = (
+  text: string,
+): Record<string, unknown> | undefined => {
+  if (!text.trim()) return undefined;
+  try {
+    const value = JSON.parse(text) as unknown;
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const FilterRow = ({
   input,
   inputs,
   index,
   rowFields,
+  containers,
   onUpdate,
   onRemove,
 }: {
@@ -135,6 +151,7 @@ const FilterRow = ({
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Source schema</span><Input value={input.sourceSchemaName || ""} onChange={(event) => onUpdate({ sourceSchemaName: event.target.value })} /></label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Value field</span><Input value={input.sourceValueField || ""} onChange={(event) => onUpdate({ sourceValueField: event.target.value })} /></label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Label field</span><Input value={input.sourceLabelField || ""} onChange={(event) => onUpdate({ sourceLabelField: event.target.value })} /></label>
+                  <label className="space-y-1 md:col-span-2"><span className="text-xs font-medium text-ui-muted">Request filters (JSON)</span><Input defaultValue={input.sourceRequestFilters ? JSON.stringify(input.sourceRequestFilters) : ""} onBlur={(event) => onUpdate({ sourceRequestFilters: parseRequestFilters(event.target.value) })} placeholder='{"active":true}' /></label>
                   <label className="space-y-1 md:col-span-2">
                     <span className="text-xs font-medium text-ui-muted">Request filters</span>
                     <Input
@@ -158,6 +175,14 @@ const FilterRow = ({
                     />
                   </label>
                   <label className="space-y-1"><span className="text-xs font-medium text-ui-muted">Source condition</span><Input value={input.sourceFilterCondition || ""} onChange={(event) => onUpdate({ sourceFilterCondition: event.target.value })} /></label>
+                  <div className="md:col-span-3">
+                    <SelectFilterBindingsEditor
+                      field={input}
+                      fields={inputs}
+                      containers={containers}
+                      onChange={(sourceFilterBindings) => onUpdate({ sourceFilterBindings })}
+                    />
+                  </div>
                   {filterValidationErrors.map((error) => (
                     <p
                       key={error}

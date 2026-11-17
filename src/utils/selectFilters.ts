@@ -34,11 +34,21 @@ const own = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
 
 const object = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const blocked = new Set(["__proto__", "prototype", "constructor"]);
 
 const pathOK = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= 16 &&
+  value.every(
+    (part) =>
+      typeof part === "string" &&
+      /^[A-Za-z_][A-Za-z0-9_$-]{0,127}$/.test(part) &&
+      !blocked.has(part),
+  );
   Array.isArray(value) && isSafeRequestFilterPath(value);
 
 const nameOK = (value: unknown): value is string =>
@@ -48,6 +58,8 @@ const scalar = (value: unknown): value is SelectFilterScalar =>
   (typeof value === "string" && value.length > 0) ||
   (typeof value === "number" && Number.isFinite(value)) ||
   typeof value === "boolean";
+const refs = (field: SelectFilterField): string[] =>
+  Array.isArray(field.sourceFilterBindings)
 
 export const hasDependentSelectFilters = (
   field: Pick<SelectFilterField, "sourceFilterBindings" | "sourceRequestFilters">,
@@ -97,16 +109,25 @@ export const getSelectFilterDependencies = (
 export function validateSelectFilterBindings(
   fields: readonly SelectFilterField[],
 ): string[] {
+  const errors: string[] = [],
+    byKey = new Map(fields.map((field) => [field.formKey, field]));
   const errors: string[] = [];
   const byKey = new Map(fields.map((field) => [field.formKey, field]));
 
   for (const field of fields) {
+    if (field.sourceFilterBindings === undefined) continue;
     const hasBindings = field.sourceFilterBindings !== undefined;
     const hasRequestFilters = field.sourceRequestFilters !== undefined;
     if (!hasBindings && !hasRequestFilters) continue;
 
     const fail = (message: string) =>
       errors.push(`${field.formKey}: ${message}`);
+    if (
+      !Array.isArray(field.sourceFilterBindings) ||
+      field.sourceFilterBindings.length > 32
+    ) {
+      fail("Use at most 32 dependent filters.");
+      continue;
     const targets = new Set<string>();
     const ids = new Set<string>();
 
@@ -172,15 +193,27 @@ export function validateSelectFilterBindings(
         }
       }
     }
+    const targets = new Set(Object.keys(field.sourceRequestFilters || {})),
+      ids = new Set<string>();
+    for (const rule of field.sourceFilterBindings) {
 
     if (hasBindings) {
       if (
+        !object(rule) ||
+        !nameOK(rule.id) ||
+        !nameOK(rule.field) ||
+        !["eq", "in"].includes(rule.operator) ||
+        !object(rule.value)
         !Array.isArray(field.sourceFilterBindings) ||
         field.sourceFilterBindings.length > 32
       ) {
+        fail("Invalid dependent filter.");
         fail("Use at most 32 dependent filters.");
         continue;
       }
+      if (targets.has(rule.field) || ids.has(rule.id))
+        fail(
+          "Dependent filters need unique targets and IDs, including fixed request filters.",
       for (const rule of field.sourceFilterBindings) {
         if (
           !object(rule) ||
@@ -197,7 +230,29 @@ export function validateSelectFilterBindings(
           field,
           true,
         );
+      targets.add(rule.field);
+      ids.add(rule.id);
+      const value = rule.value;
+      if (value.source === "literal") {
         if (
+          rule.operator === "eq"
+            ? !scalar(value.value)
+            : !Array.isArray(value.value) ||
+              !value.value.length ||
+              !value.value.every(scalar)
+        )
+          fail("Choose a valid fixed value for this comparison.");
+      } else if (value.source === "field" || value.source === "record") {
+        if (!nameOK(value.fieldKey) || !byKey.has(value.fieldKey))
+          fail("The referenced input no longer exists.");
+        else if (value.fieldKey === field.formKey)
+          fail("An input cannot depend on itself.");
+        if (
+          value.source === "record" &&
+          (!pathOK(value.path) || byKey.get(value.fieldKey)?.type !== "select")
+        )
+          fail("Choose a safe record field from a select input.");
+      } else fail("Choose a supported value source.");
           targets.has(rule.field) ||
           targets.has(normalizedTarget) ||
           ids.has(rule.id)
@@ -244,6 +299,10 @@ export function validateSelectFilterBindings(
       key === field.formKey ||
       (!seen.has(key) &&
         (seen.add(key),
+        refs(byKey.get(key) || { formKey: key }).some((next) =>
+          visit(next, seen),
+        )));
+    if (refs(field).some((key) => visit(key, new Set())))
         getSelectFilterDependencies(
           byKey.get(key) || { formKey: key },
           fields,
@@ -262,6 +321,7 @@ export function validateSelectFilterBindings(
 
 const readPath = (value: unknown, path: readonly string[]): unknown => {
   for (const part of path) {
+    if (!object(value) || !own(value, part) || blocked.has(part))
     if (!object(value) || !own(value, part) || blocked.has(part)) {
       return undefined;
     }
@@ -402,6 +462,7 @@ export function resolveSelectFilters(
     message.startsWith(`${field.formKey}:`),
   );
   if (invalid) return { ready: false, filters: {}, message: invalid };
+  const filters: Record<string, unknown> = { ...field.sourceRequestFilters };
 
   const filters: Record<string, unknown> = {};
 
@@ -493,6 +554,34 @@ export function resolveSelectFilters(
 
   for (const rule of field.sourceFilterBindings || []) {
     const reference = rule.value;
+    let value: unknown;
+    if (reference.source === "literal") value = reference.value;
+    else {
+      const current = own(values, reference.fieldKey)
+        ? values[reference.fieldKey]
+        : undefined;
+      if (reference.source === "field") value = current;
+      else {
+        const parent = fields.find(
+          (candidate) => candidate.formKey === reference.fieldKey,
+        );
+        const options =
+          optionsByField.get(reference.fieldKey) || parent?.options || [];
+        const selected = Array.isArray(current) ? current : [current];
+        const records = selected.map((id) => {
+          if (object(id)) return readPath(id, reference.path);
+          if (!scalar(id)) return undefined;
+          const record = options.find(
+            (option) =>
+              option.value === id || String(option.value) === String(id),
+          )?.sourceItem;
+          return (
+            readPath(record, reference.path) ??
+            (reference.path.length === 1 &&
+            reference.path[0] === "_id" &&
+            (!parent?.sourceValueField || parent.sourceValueField === "_id")
+              ? id
+              : undefined)
     const target = normalizeRequestFilterTargetField(rule.field, field, true);
     const value =
       reference.source === "literal"
@@ -504,13 +593,33 @@ export function resolveSelectFilters(
             optionsByField,
             false,
           );
+        });
+        value = Array.isArray(current) ? records : records[0];
+      }
+    }
     if (rule.operator === "in") {
       const list = Array.isArray(value) ? value.flat() : [value];
+      if (!list.length || !list.every(scalar))
+        return {
+          ready: false,
+          filters: {},
+          message:
+            "Choose the referenced input value first; its selected record field must be available.",
+        };
+      filters[rule.field] = [...new Set(list)];
       if (!list.length || !list.every(scalar)) {
         return { ready: false, filters: {}, message: missingRefMessage };
       }
       filters[target] = [...new Set(list)];
     } else {
+      if (!scalar(value))
+        return {
+          ready: false,
+          filters: {},
+          message:
+            "Choose the referenced input value first; its selected record field must be available.",
+        };
+      filters[rule.field] = value;
       if (!scalar(value)) {
         return { ready: false, filters: {}, message: missingRefMessage };
       }
@@ -525,6 +634,19 @@ export function referencedSelectRecordFields(
   fields: readonly SelectFilterField[],
   key: string,
 ): string[] {
+  return [
+    ...new Set(
+      fields.flatMap((field) =>
+        Array.isArray(field.sourceFilterBindings)
+          ? field.sourceFilterBindings.flatMap((rule) =>
+              rule.value?.source === "record" &&
+              rule.value.fieldKey === key &&
+              pathOK(rule.value.path)
+                ? [rule.value.path.join(".")]
+                : [],
+            )
+          : [],
+      ),
   const fromBindings = fields.flatMap((field) =>
     Array.isArray(field.sourceFilterBindings)
       ? field.sourceFilterBindings.flatMap((rule) =>
@@ -544,6 +666,7 @@ export function referencedSelectRecordFields(
         ? [template.path.join(".")]
         : [],
     ),
+  ].sort();
   );
   return [...new Set([...fromBindings, ...fromTemplates])].sort();
 }
@@ -558,16 +681,20 @@ export function clearDependentSelectValues<T extends Record<string, unknown>>(
       (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
     ),
   );
+  for (const key of Object.keys(previous))
   for (const key of Object.keys(previous)) {
     if (!own(next, key)) changed.add(key);
   }
   const cleared = new Set<string>();
   let result = next;
+  for (let pass = 0; pass < fields.length; pass++) {
   for (let pass = 0; pass < fields.length; pass += 1) {
     let added = false;
+    for (const field of fields)
     for (const field of fields) {
       if (
         !cleared.has(field.formKey) &&
+        refs(field).some((key) => changed.has(key))
         getSelectFilterDependencies(field, fields).some((key) =>
           changed.has(key),
         )
