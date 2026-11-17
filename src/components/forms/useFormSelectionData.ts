@@ -19,7 +19,6 @@ type SelectionResponse =
 export const useFormSelectionData = (
   form: FormComponentConfig,
 ): FormSelectionDataMap => {
-  const fields = (form.fields || []).filter(
   const allFields = form.fields || [];
   const fields = allFields.filter(
     (field) =>
@@ -32,7 +31,6 @@ export const useFormSelectionData = (
     queries: fields.map((field) => {
       const fieldName = field.sourceLabelField || field.sourceValueField || "_id";
       const mappings = (form.objectLists || []).flatMap((list) => list.fieldMappings || []);
-      const dataFields = getEffectiveSelectDataFields(field, mappings).filter(
       const dataFields = Array.from(
         new Set([
           ...getEffectiveSelectDataFields(field, mappings),

@@ -14,7 +14,6 @@ import {
 } from "../../utils/requestFilterTemplates";
 import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { Checkbox, Input, Select, Textarea, type SelectOption } from "../ui";
-import SelectFilterBindingsEditor from "./SelectFilterBindingsEditor";
 
 type Props = {
   field: FormFieldConfig;
@@ -84,35 +83,6 @@ const flattenFields = (fields: Field[]): Field[] =>
   fields.flatMap((field) =>
     field.children?.length ? flattenFields(field.children) : [field],
   );
-
-const formatRequestFilters = (filters?: Record<string, unknown>) =>
-  filters && Object.keys(filters).length
-    ? JSON.stringify(filters, null, 2)
-    : "";
-
-const parseRequestFilters = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-      return undefined;
-    }
-
-    const entries = Object.entries(parsed as Record<string, unknown>).filter(
-      ([key, entryValue]) =>
-        key.trim() &&
-        entryValue !== undefined &&
-        entryValue !== null &&
-        entryValue !== "",
-    );
-
-    return entries.length ? Object.fromEntries(entries) : undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 const Control = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="space-y-1.5">
@@ -340,7 +310,6 @@ const FormFieldEditor = ({
               <Control label="Source filter condition"><Input value={field.sourceFilterCondition || ""} onChange={(event) => onChange({ sourceFilterCondition: event.target.value })} disabled={field.optionsSource !== "schema"} placeholder={'tenantId = {{tenantId}}'} /></Control>
               <Control label="Request filters">
                 <Textarea
-                  defaultValue={formatRequestFilters(field.sourceRequestFilters)}
                   defaultValue={formatRequestFiltersInput(field.sourceRequestFilters)}
                   onChange={(event) => {
                     const raw = event.target.value;
@@ -351,7 +320,6 @@ const FormFieldEditor = ({
                   }}
                   onBlur={(event) =>
                     onChange({
-                      sourceRequestFilters: parseRequestFilters(
                       sourceRequestFilters: parseRequestFiltersInput(
                         event.target.value,
                         field,
@@ -360,20 +328,10 @@ const FormFieldEditor = ({
                   }
                   disabled={field.optionsSource !== "schema"}
                   className="min-h-[84px] font-mono"
-                  placeholder={'{"active": true}'}
                   placeholder={'{{product.item._id}}=item._id or {"active": true}'}
                 />
               </Control>
             </div>
-            <SelectFilterBindingsEditor
-              field={field}
-              fields={formFields}
-              containers={containers}
-              disabled={field.optionsSource !== "schema"}
-              onChange={(sourceFilterBindings) =>
-                onChange({ sourceFilterBindings })
-              }
-            />
             {filterValidationErrors.map((error) => (
               <p
                 key={error}

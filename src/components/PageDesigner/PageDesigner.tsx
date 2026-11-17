@@ -144,7 +144,6 @@ import FieldEditorTabs from "./FieldEditorTabs";
 import EditorSectionTabs from "./EditorSectionTabs";
 import PageFilterModal from "./PageFilterModal";
 import ParameterBindingsEditor from "./ParameterBindingsEditor";
-import SelectFilterBindingsEditor from "./SelectFilterBindingsEditor";
 import type { SelectFilterBinding } from "../../types/selectFilters";
 import {
   cleanSourceRequestFilters,
@@ -1224,7 +1223,6 @@ const cleanTableActions = (
                         },
                       }
                     : {}),
-                  ...(cleanConstantFilters(field.sourceRequestFilters)
                   ...(cleanConstantFilters(field.sourceRequestFilters, field)
                     ? {
                         sourceRequestFilters: cleanConstantFilters(
@@ -1408,8 +1406,6 @@ const cleanFilterPanelInputs = (
             },
           }
         : {}),
-      ...(cleanConstantFilters(field.sourceRequestFilters)
-        ? { sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters) }
       ...(cleanConstantFilters(field.sourceRequestFilters, field)
         ? {
             sourceRequestFilters: cleanConstantFilters(
@@ -1478,50 +1474,17 @@ const cleanSelectFilterBindings = (
 
 const cleanConstantFilters = (
   filters?: Record<string, unknown>,
-): Record<string, unknown> | undefined => {
-  const entries = Object.entries(filters || {})
-    .map(
-      ([key, value]) =>
-        [
-          key.trim(),
-          typeof value === "string" ? value.trim() : value,
-        ] as const,
-    )
-    .filter(
-      ([key, value]) =>
-        key && value !== undefined && value !== null && value !== "",
-    );
   context?: RequestFilterFieldContext,
 ): Record<string, unknown> | undefined =>
   cleanSourceRequestFilters(filters, context);
 
-  return entries.length ? Object.fromEntries(entries) : undefined;
-};
-
 const formatSourceRequestFilters = (filters?: Record<string, unknown>) =>
-  filters && Object.keys(filters).length
-    ? JSON.stringify(filters, null, 2)
-    : "";
   formatRequestFiltersInput(filters);
 
-const parseSourceRequestFiltersInput = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
 const parseSourceRequestFiltersInput = (
   value: string,
   context?: RequestFilterFieldContext,
 ) => parseRequestFiltersInput(value, context);
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-      return undefined;
-    }
-    return cleanConstantFilters(parsed as Record<string, unknown>);
-  } catch {
-    return undefined;
-  }
-};
 
 const cleanConstantSort = (
   sort?: TableComponentConfig["constantSort"],
@@ -1815,7 +1778,6 @@ export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig
       area: field.area || "main",
       width: field.width || "full",
       order: Number(field.order ?? index + 1),
-      sourceRequestFilters: cleanConstantFilters(field.sourceRequestFilters),
       sourceRequestFilters: cleanConstantFilters(
         field.sourceRequestFilters,
         field,
@@ -10480,29 +10442,11 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                 )
                                               }
                                               className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                              placeholder={'{"active": true}'}
                                               placeholder={
                                                 '{{product.item._id}}=item._id or {"active": true}'
                                               }
                                             />
                                           </label>
-                                          <SelectFilterBindingsEditor
-                                            field={field}
-                                            fields={
-                                              tableConfig.filterPanel?.inputs ||
-                                              []
-                                            }
-                                            containers={containers}
-                                            disabled={
-                                              field.optionsSource !== "schema"
-                                            }
-                                            onChange={(sourceFilterBindings) =>
-                                              updateFilterPanelInput(
-                                                fieldIndex,
-                                                { sourceFilterBindings },
-                                              )
-                                            }
-                                          />
                                           <SelectInput
                                             label="Invalidate keys"
                                             options={(
@@ -10873,8 +10817,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
                                                                   isNumberButtonsActive:
                                                                     isActionNumberInput(
                                                                       e.target.value,
-              
-... [truncated for diff preview]
                                                                     )
                                                                       ? field.isNumberButtonsActive
                                                                       : false,
