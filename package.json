@@ -11,7 +11,9 @@
     "test": "vitest run",
     "serve": "vite preview",
     "lint": "eslint .",
-    "build:visual-css": "tailwindcss -c visual-builder.tailwind.cjs -i src/visual-engine/host/utilities.input.css -o src/visual-engine/host/utilities.css --minify"
+    "build:visual-css": "tailwindcss -c visual-builder.tailwind.cjs -i src/visual-engine/host/utilities.input.css -o src/visual-engine/host/utilities.css --minify",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "release:check": "yarn lint && yarn test && yarn build && yarn check:bundle"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",

@@ -8,3 +8,8 @@ declare module "*.svg" {
   const src: string;
   export default src;
 }
+
+declare module "virtual:menu-icon-loaders" {
+  const loaders: Record<string, (() => Promise<Record<string, unknown>>) | undefined>;
+  export default loaders;
+}

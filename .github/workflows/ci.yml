@@ -1,0 +1,27 @@
+name: Verify tenant panel
+
+on:
+  pull_request:
+  push:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    name: Release checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - name: Enable pinned Yarn
+        run: corepack enable
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Lint, test, build and enforce bundle budget
+        run: yarn release:check

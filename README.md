@@ -79,3 +79,25 @@ components without selecting a page. In **Pages → Edit**, use
 **Structure → + Add → Visual section**, choose a design, and save the page.
 Cell and Tab Panel insertion also use the shared library. Each placement is an
 independent copy rendered by react-template. See [usage and setup](docs/visual-builder.md).
+
+## Release checks
+
+Use Node 22.22.0 and the pinned Yarn 4.5.0 (`corepack enable`), then run:
+
+```sh
+yarn install --immutable
+yarn release:check
+```
+
+This runs lint, all Vitest tests, the TypeScript production build, and a
+2,000,000-byte limit on each minified JavaScript chunk. GitHub Actions runs
+the same checks on pushes and pull requests. To block merges, require
+**Release checks** in the repository's branch protection/ruleset. Vercel's
+configured build command also runs these checks before producing a deployment.
+The workflow can be reused with `workflow_call` by other release workflows.
+
+Optional custom menu icons are split into bounded lazy groups at build time
+by `scripts/menu-icon-chunks.ts`; existing names stay supported. The plugin
+fails loudly if a dependency upgrade changes react-icons' generated format.
+The budget prevents a return to multi-megabyte icon-family chunks; it does
+not imply that the total authoring application is below 2 MB.

@@ -26,6 +26,9 @@ const state = vi.hoisted(() => ({
   setIsSidebarOpen: vi.fn(),
   resetGeneralContext: vi.fn(),
   clearQueryClient: vi.fn(),
+  tenantLogout: vi.fn(),
+  isLoggingOut: false,
+  logoutOnError: undefined as undefined | ((error: unknown) => void),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -71,6 +74,10 @@ vi.mock("../hooks/useCurrentProject", () => ({
 
 vi.mock("../utils/api/auth", () => ({
   useSwitchBackToTenant: () => ({ switchBackToTenant: state.switchBackToTenant }),
+  useTenantLogout: (onError: (error: unknown) => void) => {
+    state.logoutOnError = onError;
+    return { tenantLogout: state.tenantLogout, isLoggingOut: state.isLoggingOut };
+  },
 }));
 
 vi.mock("./SidebarTooltip", () => ({
@@ -88,8 +95,11 @@ describe("Sidebar", () => {
     state.project = undefined;
     state.isInProject = false;
     state.isSidebarOpen = true;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
     vi.clearAllMocks();
     localStorage.clear();
+    state.isLoggingOut = false;
+    state.tenantLogout.mockResolvedValue(undefined);
   });
 
   it("shows tenant routes and hides project or unauthorized routes", () => {
@@ -156,17 +166,44 @@ describe("Sidebar", () => {
     expect(state.setIsSidebarOpen).toHaveBeenCalledWith(true);
   });
 
-  it("clears local and query state on logout", async () => {
-    const user = userEvent.setup();
-    localStorage.setItem("token", "secret");
+  it("uses backend tenant logout instead of clearing local state itself", async () => {
+    localStorage.setItem("user", "cached-user");
     render(<Sidebar />);
+    await userEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(state.tenantLogout).toHaveBeenCalledOnce();
+    expect(localStorage.getItem("user")).toBe("cached-user");
+  });
 
-    await user.click(screen.getByRole("button", { name: "Logout" }));
+  it("disables logout while the backend request is pending", () => {
+    state.isLoggingOut = true;
+    render(<Sidebar />);
+    expect(screen.getByRole("button", { name: "Logout" })).toBeDisabled();
+  });
 
-    expect(localStorage.getItem("token")).toBeNull();
-    expect(state.setUser).toHaveBeenCalledWith(undefined);
-    expect(state.clearQueryClient).toHaveBeenCalledOnce();
-    expect(state.navigate).toHaveBeenCalledWith("/login");
+  it("shows a recoverable logout failure and allows another attempt", async () => {
+    state.tenantLogout.mockImplementationOnce(async () => {
+      const error = new Error("Offline");
+      state.logoutOnError?.(error);
+      throw error;
+    });
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Logout could not be completed");
+    await userEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(state.tenantLogout).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps logout failures inside the mobile navigation dialog", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    state.tenantLogout.mockImplementationOnce(async () => {
+      state.logoutOnError?.(new Error("Offline"));
+      throw new Error("Offline");
+    });
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(screen.getByRole("alert").closest('[role="dialog"]')).not.toBeNull();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
   });
 
   it("marks the active route as current", () => {

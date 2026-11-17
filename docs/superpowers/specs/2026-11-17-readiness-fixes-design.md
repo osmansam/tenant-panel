@@ -1,0 +1,9 @@
+# Tenant panel readiness fixes
+
+Repair the reported logout and OAuth failures, introduce repeatable release checks, and reduce oversized production chunks using the existing React, TanStack Query, Vite, Yarn and Vitest setup.
+
+Reuse the existing tenant logout hook from both sidebar layouts. Revoke all known project-management sessions before revoking the tenant session; retain the tenant session/context for retry when project cleanup fails. Clear cached identity and navigate only after all requested scopes succeed. Surface failures and permit retry. Coordinate logout with pending management refresh/sign-in/switch requests so late cookie-setting responses finish before revocation, reject their stale UI results, block new session changes during logout, and include project sessions discovered from pending switches/refreshes. OAuth callback errors (provider denial, absent code, failed exchange) show a sign-in recovery link, and the same one-time code is not exchanged twice by StrictMode or parent renders.
+
+The largest production chunks contain entire dynamically imported react-icons namespaces. Preserve existing icon names and families with a build-time Vite registry that groups icon implementations into bounded lazy chunks. Curating a smaller icon list would remove supported names; manually splitting an unsplit namespace would still download the entire family. The registry preserves functionality and loads only the requested group. Static imports remain tree-shakeable.
+
+Add a GitHub Actions verification workflow using immutable Yarn installs, lint, all tests, production TypeScript/build checks and a 2 MB per-JavaScript-chunk budget. Expose the same checks locally. No deployment credentials or publishing actions are added; hosted branch protection and deployment integration remain repository-owner configuration.

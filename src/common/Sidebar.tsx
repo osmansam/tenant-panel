@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -9,7 +8,7 @@ import { useGeneralContext } from "../context/General.context";
 import { useUserContext } from "../context/User.context";
 import { useCurrentProject } from "../hooks/useCurrentProject";
 import { systemRoutes } from "../navigation/constants";
-import { useSwitchBackToTenant } from "../utils/api/auth";
+import { useTenantLogout, useSwitchBackToTenant } from "../utils/api/auth";
 import { getIconByName, getMenuIcon } from "../utils/menuIcons";
 import SidebarTooltip from "./SidebarTooltip";
 import { useModalFocus } from "../hooks/useModalFocus";
@@ -20,13 +19,14 @@ export const Sidebar = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
-  const { user, setUser } = useUserContext();
+  const { user } = useUserContext();
   const { currentProject, isInProject } =
     useCurrentProject();
   const { switchBackToTenant } = useSwitchBackToTenant();
   const { isSidebarOpen, setIsSidebarOpen, resetGeneralContext } =
     useGeneralContext();
+  const [logoutError, setLogoutError] = useState(false);
+  const { tenantLogout, isLoggingOut } = useTenantLogout(() => setLogoutError(true));
   const currentRoute = location.pathname;
   const [openGroups, setOpenGroups] = useState<{ [group: string]: boolean }>(
     {}
@@ -100,12 +100,11 @@ export const Sidebar = () => {
   }
 
   const logout = () => {
-    localStorage.clear();
-    localStorage.setItem("loggedOut", "true");
-    setTimeout(() => localStorage.removeItem("loggedOut"), 500);
-    setUser(undefined);
-    queryClient.clear();
-    navigate("/login");
+    if (isLoggingOut) return;
+    setLogoutError(false);
+    void tenantLogout().catch(() => {
+      // The mutation's error handler exposes recovery without an unhandled rejection.
+    });
   };
 
   const handleSwitchBackToTenant = () => {
@@ -427,6 +426,11 @@ export const Sidebar = () => {
         </div>
 
         <div className="border-t border-ui-border/60 p-2.5">
+          {logoutError && (
+            <p role="alert" className="absolute bottom-20 left-3 z-[60] w-64 max-w-[calc(100vw-1.5rem)] rounded-ui-md border border-ui-danger/20 bg-ui-surface p-3 text-sm text-ui-danger shadow-ui-sm">
+              {t("Logout could not be completed. Please check your connection and try again.")}
+            </p>
+          )}
           {isSidebarOpen ? (
             <div className="flex items-center gap-2.5 rounded-ui-lg border border-ui-border/70 bg-ui-surface p-2 shadow-ui-sm">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ui-ink text-[11px] font-semibold text-white">
@@ -443,6 +447,8 @@ export const Sidebar = () => {
               <SidebarTooltip content={t("Logout")}>
                 <button
                   aria-label={t("Logout")}
+                  disabled={isLoggingOut}
+                  aria-busy={isLoggingOut}
                   onClick={logout}
                   className="ui-focus-ring flex size-7 shrink-0 items-center justify-center rounded-full text-ui-muted transition-colors hover:bg-ui-danger-subtle hover:text-ui-danger"
                 >
@@ -454,6 +460,8 @@ export const Sidebar = () => {
             <SidebarTooltip content={t("Logout")}>
               <button
                 aria-label={t("Logout")}
+                disabled={isLoggingOut}
+                aria-busy={isLoggingOut}
                 onClick={logout}
                 className="ui-focus-ring flex h-10 w-full items-center justify-center rounded-ui-md text-ui-muted transition-colors hover:bg-ui-danger-subtle hover:text-ui-danger"
               >
