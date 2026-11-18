@@ -1,5 +1,6 @@
 import { useUserContext } from "../context/User.context";
 import { readStoredTenant } from "../utils/persistedContext";
+import { switchManagementTenant } from "../utils/api/auth";
 import { Tenant } from "../types";
 
 export const useTenant = () => {
@@ -11,15 +12,9 @@ export const useTenant = () => {
     return user?.allTenants || [];
   };
 
-  const switchTenant = (tenantId: string) => {
-    if (user && user.allTenants) {
-      const targetTenant = user.allTenants.find((t) => t.id === tenantId);
-      if (targetTenant) {
-        localStorage.setItem("currentTenant", JSON.stringify(targetTenant));
-        // Reload to reset app state for new tenant context
-        window.location.reload();
-      }
-    }
+  const switchTenant = async (tenantId: string) => {
+    await switchManagementTenant(tenantId);
+    window.location.assign('/projects');
   };
 
   const isCurrentTenant = (tenantId: string): boolean => {
@@ -33,14 +28,11 @@ export const useTenant = () => {
 
   const isTenantOwner = (tenantId?: string): boolean => {
     const targetTenantId = tenantId || getCurrentTenant()?.id;
-    if (!targetTenantId || !user?.allTenants) return false;
-
-    const tenant = user.allTenants.find((t) => t.id === targetTenantId);
-    return tenant?.ownerUserId === user._id;
+    return !!targetTenantId && targetTenantId === user?.tenantId && user?.roleScope === "tenant" && !!user?.roles?.includes("tenant_owner");
   };
 
   const hasRole = (role: string): boolean => {
-    return user?.roles?.includes(role) || false;
+    return user?.roleScope !== "project" && (user?.roles?.includes(role) || false);
   };
 
   return {

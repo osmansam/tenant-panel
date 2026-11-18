@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetQuery, useMutationApi } from "./factory";
+import { readStoredUser } from "../persistedContext";
 import type { BrandingOverrides } from "../../types/branding";
 
 // Project types - Updated to match API response
@@ -69,6 +70,7 @@ export function getProjectId(project: Partial<Project>): string {
 // Constants
 const BASE_QUERY = "/tenant/projects";
 const QUERY_KEY = ["projects"];
+const scopedProjectKey = () => [...QUERY_KEY, readStoredUser()?.tenantId || "none"];
 
 // Sort function for projects (by creation date, newest first)
 const projectSortFunction = (a: Partial<Project>, b: Partial<Project>) => {
@@ -87,7 +89,7 @@ export function useProjectsQuery(enabled: boolean = true) {
     status: number;
     message: string;
     data: { projects: Project[] };
-  }>(BASE_QUERY, QUERY_KEY, enabled);
+  }>(BASE_QUERY, scopedProjectKey(), enabled);
 
   // Extract projects array from nested response structure and map id to _id for factory compatibility
   const projects = response.data?.data?.projects || [];
@@ -101,7 +103,7 @@ export function useProjectsQuery(enabled: boolean = true) {
 export function useProject(id: string, enabled: boolean = true) {
   return useGet<Project>(
     `${BASE_QUERY}/${id}`,
-    ["project", id],
+    ["project", ...scopedProjectKey(), id],
     enabled && !!id
   );
 }
@@ -111,7 +113,7 @@ export function useProjectTemplates(enabled: boolean = true) {
     status: number;
     message: string;
     data: { templates: Project[] };
-  }>(`${BASE_QUERY}/templates`, [...QUERY_KEY, "templates"], enabled);
+  }>(`${BASE_QUERY}/templates`, [...scopedProjectKey(), "templates"], enabled);
 
   const templates = response?.data?.templates || [];
   return templates.map((project) => ({
@@ -186,7 +188,7 @@ export function useUpdateProjectTemplate() {
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, "templates"] });
+      queryClient.invalidateQueries({ queryKey: [...scopedProjectKey(), "templates"] });
       const message = response?.message || "Project template updated successfully";
       toast.success(t(message));
     },

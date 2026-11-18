@@ -20,6 +20,8 @@ import {
 import { ProjectExternalAPIs, ProjectExternalAPISelection } from "../components/integrations/ProjectExternalAPIs";
 import { externalAPIError } from "../utils/api/integration";
 import { createUrlSlug } from "../utils/urlSlug";
+import { useUserContext } from "../context/User.context";
+import { useCollaborationCapabilities } from "../utils/api/collaboration";
 import { useTenant } from "../hooks/useTenant";
 import { useSwitchToProject } from "../utils/api/auth";
 import {
@@ -35,6 +37,8 @@ import {
 
 const ProjectsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useUserContext();
+  const capabilities = useCollaborationCapabilities(user);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateProjectPayload>({ name: "", slug: "" });
   const [templateChoiceProject, setTemplateChoiceProject] = useState<{ id: string; name: string } | null>(null);
@@ -63,17 +67,16 @@ const ProjectsPage: React.FC = () => {
       : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [projects, searchQuery, statusFilter, sortBy]);
   const clearFilters = () => { setSearchQuery(""); setStatusFilter("all"); };
-  const projectTemplatesData = useProjectTemplates(true);
+  const { currentTenant, hasRole } = useTenant();
+  const canManageTenantTemplates = hasRole("tenant_owner") || hasRole("tenant_admin");
+  const canDeleteProjects = hasRole("tenant_owner");
+  const projectTemplatesData = useProjectTemplates(canManageTenantTemplates);
   const projectTemplates = Array.isArray(projectTemplatesData) ? projectTemplatesData : [];
   const { createProject, isCreating } = useCreateProject();
   const { updateProjectTemplate, isUpdatingTemplate } = useUpdateProjectTemplate();
   const { switchToProject, isSwitching } = useSwitchToProject();
   const { deleteProject, isDeleting } = useDeleteProject();
-  const { currentTenant, hasRole, isTenantOwner } = useTenant();
-  const canManageTenantTemplates =
-    isTenantOwner(currentTenant?.id) || hasRole("tenant_owner") || hasRole("tenant_admin");
-  // Backend restricts project deletion to tenant owners.
-  const canDeleteProjects = isTenantOwner(currentTenant?.id) || hasRole("tenant_owner");
+
 
   const openDeleteDialog = (projectId: string, name: string) => {
     setDeleteConfirmText("");
@@ -299,6 +302,7 @@ const ProjectsPage: React.FC = () => {
                           {t("Open")}<FiArrowUpRight aria-hidden="true" className="ml-1" />
                         </button>
                       )}
+                      {isActive && canManageTenantTemplates && capabilities.data?.membersEnabled && capabilities.data?.canManageMembers && <a className="ui-focus-ring px-2 text-xs" href={`/projects/${encodeURIComponent(projectId)}/members`}>{t("Members")}</a>}
                       {canManageTenantTemplates && project.templateScope !== "global" && (
                         <button
                           type="button"

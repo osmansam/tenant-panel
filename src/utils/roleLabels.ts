@@ -1,4 +1,5 @@
 const roleLabels: Record<string, string> = {
+  tenant_member: "Tenant member",
   tenant_owner: "Tenant owner",
   tenant_admin: "Tenant administrator",
   tenant_billing: "Billing manager",

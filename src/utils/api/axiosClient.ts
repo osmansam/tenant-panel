@@ -1,3 +1,4 @@
+import { validateManagementWriteURL, watchScopedManagementWrite } from "../managementWriteGuard";
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { camelCase, isArray, isPlainObject, transform } from "lodash";
 import { logout } from "../auth";
@@ -47,7 +48,7 @@ let logoutRequest: Promise<void> | undefined;
 function sessionMutation(config: InternalAxiosRequestConfig): boolean {
   if (config.method?.toLowerCase() !== "post") return false;
   const path = new URL(config.url || "", "http://tenant-panel.local").pathname.replace(/^\/api\/v1(?=\/)/, "");
-  return /^\/tenant\/auth\/(login|register|refresh|switch-project|google\/callback)$/.test(path) ||
+  return /^\/tenant\/auth\/(login|register|refresh|switch-project|switch-tenant|invitations\/accept|google\/callback)$/.test(path) ||
     /^\/[^/]+\/[^/]+\/tenant-auth\/refresh$/.test(path);
 }
 
@@ -71,7 +72,11 @@ export function withManagementLogout(operation: (projectPaths: readonly string[]
   return logoutRequest;
 }
 
+const writeCleanups = new WeakMap<object,()=>void>();
 axiosClient.interceptors.request.use(config => {
+  writeCleanups.get(config)?.();
+  const write = validateManagementWriteURL(config.url,config.method);
+  if(write){const pending=watchScopedManagementWrite(write.scope,write.permission,config.signal);config.signal=pending.signal;writeCleanups.set(config,pending.dispose)}
   if (sessionMutation(config)) {
     if (loggingOut) throw new axios.CanceledError("Session change cancelled during logout");
     let complete!: () => void;
@@ -98,8 +103,9 @@ export function selectManagementRefreshPath(requestUrl?: string): string | null 
   // Sign-in, registration, OAuth and logout failures are not expired access
   // sessions. Return those errors to their forms without attempting refresh.
   if (segments[0] === "tenant" && segments[1] === "auth" &&
-      !["session", "me", "switch-project"].includes(segments[2])) return null;
+      !["session", "me", "switch-project", "switch-tenant"].includes(segments[2])) return null;
   if (segments[0] === "tenant") return "/tenant/auth/refresh";
+  if (segments.length >= 4 && segments[2] === "tenant-auth" && !["refresh", "logout"].includes(segments[3])) return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
   if (segments.length >= 3 && segments[2] !== "auth" && segments[2] !== "tenant-auth") {
     return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
   }
@@ -118,11 +124,13 @@ export function shouldAttemptManagementRefresh(
 
 axiosClient.interceptors.response.use(
   (response) => {
+    writeCleanups.get(response.config)?.();
+    writeCleanups.delete(response.config);
     if (response.data) response.data = toCamelCase(response.data);
     if (sessionCompletions.has(response.config)) {
       const path = new URL(response.config.url || "", "http://tenant-panel.local").pathname.replace(/^\/api\/v1(?=\/)/, "");
       if (path.endsWith("/tenant-auth/refresh")) projectLogoutPaths.add(path.replace(/refresh$/, "logout"));
-      if (path === "/tenant/auth/switch-project") {
+      if (path === "/tenant/auth/switch-project" || path === "/tenant/auth/invitations/accept") {
         const project = response.data?.data?.project;
         if (typeof project?.tenantSlug === "string" && project.tenantSlug && typeof project?.slug === "string" && project.slug) {
           projectLogoutPaths.add(`/${encodeURIComponent(project.tenantSlug)}/${encodeURIComponent(project.slug)}/tenant-auth/logout`);
@@ -134,8 +142,11 @@ axiosClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    writeCleanups.get(error.config)?.();
+    writeCleanups.delete(error.config);
     finishSessionRequest(error.config);
     const request = error.config;
+    if (error?.response?.status === 403 && !/\/(session|me)$/.test(request?.url || "") && !request?.url?.includes("/auth/invitations")) { window.dispatchEvent(new Event("management-access-changed")); }
     const refreshPath = selectManagementRefreshPath(request?.url);
     if (loggingOut || !shouldAttemptManagementRefresh(
       error?.response?.status,

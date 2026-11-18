@@ -10,13 +10,14 @@ let mockLoading = false;
 let mockError = false;
 const mockRefetch = vi.fn();
 const mockSave = vi.fn();
+let mockRoles=["project_developer"];
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (value: string) => value }),
 }));
 vi.mock("react-router-dom", async (importOriginal) => ({ ...await importOriginal<typeof import("react-router-dom")>(), useNavigate: () => vi.fn() }));
 vi.mock("../../../context/User.context", () => ({
-  useUserContext: () => ({ user: { roles: ["project_developer"] } }),
+  useUserContext: () => ({ user: { roles: mockRoles } }),
 }));
 vi.mock("../../../utils/api/page", () => ({
   useGetTenantPagesQuery: () => ({ isLoading: mockLoading, error: mockError ? new Error("Offline") : null, refetch: mockRefetch, data: mockLoading || mockError ? [] : [{
@@ -217,3 +218,5 @@ describe("PagesSection designer workspace", () => {
   });
 
 });
+
+it("closes a mounted page editor after demotion and removes save actions",async()=>{mockRoles=["project_editor"];const {rerender}=render(<PagesSection/>);await userEvent.click(screen.getByRole("button",{name:"Edit"}));expect(screen.getByRole("button",{name:"Save Page"})).toBeInTheDocument();mockRoles=["project_viewer"];rerender(<PagesSection/>);expect(screen.queryByRole("button",{name:"Save Page"})).not.toBeInTheDocument();expect(screen.queryByTestId("designer-content")).not.toBeInTheDocument();mockRoles=["project_developer"]});

@@ -1,3 +1,4 @@
+import {assertScopedManagementWrite,watchScopedManagementWrite} from "../utils/managementWriteGuard";
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import type { ProjectScope } from "./types";
 
@@ -12,18 +13,25 @@ export function createManagementClient(scope: ProjectScope, baseURL = import.met
   const state = refreshes.get(key) ?? { generation: 0 };
   refreshes.set(key, state);
   const client = axios.create({ baseURL, withCredentials: true, timeout: 15000, responseType: "json" });
+  const writeCleanups=new WeakMap<object,()=>void>();
   client.interceptors.request.use(config => {
     const request = config as ManagementRequest;
+    if (!["get","head","options"].includes((request.method || "get").toLowerCase())) assertScopedManagementWrite(scope,request.method?.toLowerCase() === "delete" ? "project.page.delete" : "project.page.write");
+    writeCleanups.get(config)?.();
+    if (!["get","head","options"].includes((request.method || "get").toLowerCase())){const pending=watchScopedManagementWrite(scope,request.method?.toLowerCase()==="delete"?"project.page.delete":"project.page.write",config.signal);config.signal=pending.signal;writeCleanups.set(config,pending.dispose)}
     if (request._managementGeneration !== undefined) return request;
     // This client only accepts its own management resources, never arbitrary URLs.
     if (!(/^\/admin\/(?:page(?:\/|$)|visual-components(?:\/|$))/.test(request.url || "") || (request.method?.toLowerCase() === "get" && /^\/container\/?$/.test(request.url || "")))) throw new Error("Unsupported visual management resource.");
     request.url = `${prefix}${request.url}`;
     request._managementGeneration = state.generation;
     return request;
-  }, undefined, { synchronous: true });
+  });
   client.interceptors.response.use(response => {
+    writeCleanups.get(response.config)?.();writeCleanups.delete(response.config);
     return response;
   }, async error => {
+    if(error.config){writeCleanups.get(error.config)?.();writeCleanups.delete(error.config)}
+    if(error.response?.status===403&&typeof window!=="undefined")window.dispatchEvent(new Event("management-access-changed"));
     const request = error.config as ManagementRequest | undefined;
     if (error.response?.status !== 401 || !request || request._managementRetry) throw error;
     request._managementRetry = true;

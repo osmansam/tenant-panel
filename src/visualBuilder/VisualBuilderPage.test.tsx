@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { BrowserRouter, useNavigate } from "react-router-dom";
 import axios, { AxiosError, AxiosHeaders } from "axios";
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import VisualBuilderPage from "./VisualBuilderPage";
 import { sampleDocument } from "./testFixtures";
 import type { ComponentDocument } from "../visual-engine/model";
@@ -14,6 +14,7 @@ vi.mock("../visual-engine/editor/VisualBuilder", () => ({ VisualBuilder: ({ init
  return <div data-testid="visual-editor"><span>{initialDocument.name}</span><input aria-label="Canvas text" value={text} onChange={event => setText(event.target.value)} /><button onClick={() => void onSaveDocument(initialDocument).catch(() => {})}>Save document</button></div>;
 } }));
 const adapter = axios.defaults.adapter;
+beforeEach(()=>{localStorage.setItem("user",JSON.stringify({id:"u",email:"u@example.test",tenantId:"t",projectId:"p",tenantSlug:"acme",projectSlug:"shop",roleScope:"project",roles:["project_editor"]}))});
 afterEach(() => { axios.defaults.adapter = adapter; onlineManager.setOnline(true); });
 it("creates a library design with zero pages and no page selection", async () => {
  window.history.replaceState(null, "", "/pages/visual-builder");

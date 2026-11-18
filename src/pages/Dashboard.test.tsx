@@ -151,7 +151,7 @@ describe("Dashboard", () => {
     expect(screen.queryByRole("button", { name: /Collections/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Pages/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Integrations/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Settings & Branding/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Settings & Branding/i })).not.toBeInTheDocument();
   });
 
   it("uses collection terminology for project data", () => {
@@ -227,3 +227,5 @@ describe("Dashboard", () => {
   });
 
 });
+
+it("shows an empty Member workspace without tenant configuration destinations",()=>{state.user.roles=["tenant_member"];state.projects=[];render(<Dashboard/>);expect(screen.queryByRole("button",{name:/Settings & Branding/i})).not.toBeInTheDocument();expect(screen.queryByRole("button",{name:/Integrations/i})).not.toBeInTheDocument();expect(screen.getAllByRole("button",{name:/Projects/i}).length).toBeGreaterThan(0)});

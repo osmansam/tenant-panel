@@ -16,7 +16,10 @@ const UserContext = createContext<UserContextType>({
 });
 
 export const UserContextProvider = ({ children }: PropsWithChildren) => {
-  const [user, setUser] = useState<User | undefined>(readStoredUser);
+  const [user, setUser] = useState<User | undefined>(() => {
+    const stored = readStoredUser();
+    return stored ? { ...stored, roles: [] } : undefined;
+  });
 
   const logout = (showMessage: boolean = true) => {
     // Clear user state

@@ -225,3 +225,8 @@ describe("logout ordering", () => {
     await expect(axiosClient.post("/tenant/auth/login")).resolves.toMatchObject({ status: 200 });
   });
 });
+
+it('recovers an expired project session through its project refresh cookie',async()=>{
+ const paths:string[]=[];let attempts=0;useAdapter(async config=>{paths.push(config.url!);if(config.url?.endsWith('/refresh'))return reply(config,200,{});if(attempts++===0)throw unauthorized(config);return reply(config,200,{authenticated:true})});
+ expect((await axiosClient.get('/acme/shop/tenant-auth/session')).data.authenticated).toBe(true);expect(paths).toEqual(['/acme/shop/tenant-auth/session','/acme/shop/tenant-auth/refresh','/acme/shop/tenant-auth/session']);expect(logout).not.toHaveBeenCalled();
+});

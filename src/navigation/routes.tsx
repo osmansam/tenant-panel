@@ -7,6 +7,8 @@ import { RouteLoading } from "../common/RouteLoading";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { systemRoutes } from "./constants";
 
+const AcceptProjectInvitationPage = lazy(() => import("../pages/AcceptProjectInvitationPage"));
+const ProjectMembersPage = lazy(() => import("../pages/ProjectMembersPage"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
 const RegisterPage = lazy(() => import("../pages/RegisterPage"));
@@ -45,6 +47,7 @@ const RouterContainer = () => {
     <Suspense fallback={<RouteLoading />}>
     <Routes>
       {/* Public Routes */}
+      <Route path={PublicRoutes.AcceptInvitation} element={<AcceptProjectInvitationPage />} />
       <Route path={PublicRoutes.Login} element={<LoginPage />} />
       <Route path={PublicRoutes.Register} element={<RegisterPage />} />
       <Route
@@ -58,6 +61,8 @@ const RouterContainer = () => {
           index
           element={<Navigate to={ProtectedRoutes.Dashboard} replace />}
         />
+        <Route path="/members" element={<ProjectMembersPage />} />
+        <Route path="/projects/:projectId/members" element={<ProjectMembersPage />} />
         <Route path={ProtectedRoutes.Dashboard} element={<Dashboard />} />
         <Route
           path={ProtectedRoutes.Home}

@@ -1,136 +1,107 @@
-import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useUserContext } from "../context/User.context";
-import { PublicRoutes } from "../navigation/constants";
-import { Tenant } from "../types";
-import { readStoredTenant, readStoredUser } from "../utils/persistedContext";
-import { axiosClient } from "../utils/api/axiosClient";
-
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useUserContext } from '../context/User.context';
+import { readStoredTenant, readStoredUser } from '../utils/persistedContext';
+import { MANAGEMENT_ACCESS_CHANGED, ManagementContextChangedError, managementWorkspaceKey, refreshManagementContext } from '../utils/managementSession';
+import type { Tenant } from '../types';
+import { switchManagementTenant } from '../utils/api/auth';
 const useAuth = () => {
-  const { user, setUser } = useUserContext();
+  const client = useQueryClient();
+  const {
+    user,
+    setUser
+  } = useUserContext();
   const navigate = useNavigate();
   const location = useLocation();
-
+  const epoch = useRef(0);
+  const [revision, setRevision] = useState(0);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState(false);
+  const identity = [user?.id || user?._id, user?.tenantId, user?.projectId, user?.roleScope].join(':');
   useEffect(() => {
     let cancelled = false;
-    const getUser = async (): Promise<void> => {
-      if (user) {
-        // Repair tenant workspaces saved by the old switch-back flow, which
-        // retained project roles and exposed links that could only redirect.
-        const staleTenantRoles = user.roleScope === "tenant" && !user.projectId &&
-          user.roles?.some(role => role.startsWith("project_"));
-        if (!staleTenantRoles) return;
-        try {
-          const { data } = await axiosClient.get("/tenant/auth/session");
-          if (cancelled) return;
-          if (!data?.authenticated || data.tenantId !== user.tenantId ||
-              data.user?.id !== (user.id || user._id) || !Array.isArray(data.roles) ||
-              !data.roles.every((role: unknown) => typeof role === "string")) {
-            throw new Error("The tenant session does not match this workspace");
-          }
-          const updatedUser = { ...user, roles: data.roles };
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          setUser(updatedUser);
-        } catch {
-          if (!cancelled) navigate(PublicRoutes.Login, { replace: true, state: { from: location } });
-        }
-        return;
-      }
-
+    let running = false;
+    setReady(false);
+    setError(false);
+    const adoptStoredWorkspace = () => {
+      const stored = readStoredUser();
+      if (stored) setUser({ ...stored, roles: [] });
+      client.clear();
+      setReady(false);
+      window.dispatchEvent(new Event('management-context-updated'));
+    };
+    const refresh = async () => {
+      if (running) return;
+      running = true;
+      const generation = epoch.current;
+      const workspace = managementWorkspaceKey();
+      const stored = readStoredUser();
+      const storedIdentity = [stored?.id || stored?._id, stored?.tenantId, stored?.projectId, stored?.roleScope].join(':');
+      if (stored && storedIdentity !== identity) { adoptStoredWorkspace(); running = false; return; }
       try {
-        const { data } = await axiosClient.get("/tenant/auth/session");
-        if (!data?.authenticated) throw new Error("Unauthenticated");
-      } catch {
-        navigate(PublicRoutes.Login, {
-          replace: true,
-          state: { from: location },
-        });
-        return;
-      }
-
-      const storedUser = readStoredUser();
-
-      if (storedUser) {
-        try {
-          // Set user from localStorage if available
-          const parsedUser = storedUser;
-          setUser(parsedUser);
-        } catch (e) {
-          console.error("Failed to parse stored user:", e);
-          // Clear invalid user data and logout
-          logout();
+        const view = await refreshManagementContext(user);
+        if (!cancelled && generation === epoch.current && workspace === managementWorkspaceKey()) {
+          if (JSON.stringify(view.user.roles) !== JSON.stringify(user?.roles)) client.clear();
+          localStorage.setItem('user', JSON.stringify(view.user));
+          setUser(view.user);
+          window.dispatchEvent(new Event('management-context-updated'));
+          setReady(true);
+          setError(false);
         }
-      } else {
-        navigate(PublicRoutes.Login, {
-          replace: true,
-          state: { from: location },
-        });
+      } catch (err) {
+        if (!cancelled && generation === epoch.current) {
+          if (err instanceof ManagementContextChangedError) { adoptStoredWorkspace(); setRevision(value=>value+1); return; }
+          setReady(false);
+          setError(true);
+          const status = (err as any)?.response?.status;
+          if (status !== 503) navigate('/login', {
+            replace: true,
+            state: {
+              from: location
+            }
+          });
+        }
+      } finally {
+        running = false;
       }
     };
-
-    const handleStorageEvent = (event: StorageEvent) => {
-      if (event.key === "loggedOut" && event.newValue === "true") {
+    const storage = (e: StorageEvent) => {
+      if (e.key === 'loggedOut') {
         setUser(undefined);
-        navigate(PublicRoutes.Login, {
-          replace: true,
+        navigate('/login', {
+          replace: true
         });
-      }
-
-      // Handle login from another tab
-      if (event.key === "loggedIn" && event.newValue === "true") {
-        const storedUser = readStoredUser();
-        if (storedUser) {
-          try {
-            setUser(storedUser);
-            // Navigate to dashboard or intended location
-            const intendedPath = location.state?.from?.pathname || "/";
-            navigate(intendedPath, { replace: true });
-          } catch (e) {
-            console.error("Failed to parse user from storage event:", e);
-          }
-        }
-      }
+      } else if (['loggedIn','user','currentTenant','currentProject'].includes(e.key || '')) changed();
     };
-
-    window.addEventListener("storage", handleStorageEvent);
-    getUser();
-
+    const changed = () => { epoch.current++; adoptStoredWorkspace(); setRevision(value=>value+1); };
+    window.addEventListener('currentProjectChange', changed);
+    window.addEventListener('focus', refresh);
+    window.addEventListener(MANAGEMENT_ACCESS_CHANGED, refresh);
+    window.addEventListener('storage', storage);
+    void refresh();
     return () => {
       cancelled = true;
-      window.removeEventListener("storage", handleStorageEvent);
+      epoch.current++;
+      window.removeEventListener('currentProjectChange', changed);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener(MANAGEMENT_ACCESS_CHANGED, refresh);
+      window.removeEventListener('storage', storage);
     };
-  }, [user, setUser, navigate, location]);
-
-  const logout = () => {
-    localStorage.clear();
-    localStorage.setItem("loggedOut", "true");
-    setTimeout(() => localStorage.removeItem("loggedOut"), 500);
-    setUser(undefined);
-    navigate(PublicRoutes.Login, { replace: true });
+    // Refresh on identity changes, not on the role replacement produced by refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity, setUser, navigate, revision]);
+  const switchTenant = async (tenant: Tenant) => {
+    await switchManagementTenant(tenant.id);
+    window.location.assign('/projects');
   };
-
-  const getCurrentTenant = readStoredTenant;
-
-  const switchTenant = (tenant: Tenant) => {
-    if (user && user.allTenants) {
-      const targetTenant = user.allTenants.find(
-        (t: Tenant) => t.id === tenant.id
-      );
-      if (targetTenant) {
-        localStorage.setItem("currentTenant", JSON.stringify(targetTenant));
-        // You might want to refresh the token for the new tenant here
-        window.location.reload(); // Simple approach to reset app state
-      }
-    }
-  };
-
   return {
     setUser,
-    logout,
-    getCurrentTenant,
+    getCurrentTenant: readStoredTenant,
     switchTenant,
-    isAuthenticated: !!user,
+    isAuthenticated: ready && !!user,
+    isLoading: !ready && !error,
+    authError: error
   };
 };
-
 export default useAuth;

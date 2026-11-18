@@ -1,0 +1,9 @@
+// @vitest-environment jsdom
+import {fireEvent,render,screen} from '@testing-library/react';
+import {expect,it,vi} from 'vitest';
+import {ProjectInvitationsList} from './ProjectInvitationsList';
+vi.mock('react-i18next',()=>({useTranslation:()=>({t:(s:string)=>s})}));
+it('distinguishes delivery states without claiming inbox delivery',()=>{render(<ProjectInvitationsList items={['queued','retrying','sent','failed'].map((deliveryState,i)=>({id:String(i),email:`person${i}@example.test`,role:'project_viewer',version:1,status:'pending',deliveryState,expiresAt:new Date().toISOString()}))} busy={false} onResend={()=>{}} onCancel={()=>{}}/>);for(const s of ['queued','retrying','sent','failed'])expect(screen.getByText(new RegExp(s+'$'))).toBeInTheDocument();expect(screen.getByText(/Inbox delivery is not guaranteed/)).toBeInTheDocument()});
+
+it('offers resend for an expired invitation without offering cancellation',()=>{const resend=vi.fn(),cancel=vi.fn();const item={id:'expired',email:'person@example.test',role:'project_viewer',version:4,status:'expired',deliveryState:'failed',expiresAt:new Date(0).toISOString()};render(<ProjectInvitationsList items={[item]} busy={false} onResend={resend} onCancel={cancel}/>);fireEvent.click(screen.getByRole('button',{name:'Resend'}));expect(resend).toHaveBeenCalledWith(item);expect(screen.queryByRole('button',{name:'Cancel invitation'})).not.toBeInTheDocument();expect(cancel).not.toHaveBeenCalled()});
+it.each(['accepted','revoked'])('does not offer resend for %s invitations',status=>{render(<ProjectInvitationsList items={[{id:status,email:'person@example.test',role:'project_viewer',version:1,status,deliveryState:'sent',expiresAt:new Date().toISOString()}]} busy={false} onResend={()=>{}} onCancel={()=>{}}/>);expect(screen.queryByRole('button',{name:'Resend'})).not.toBeInTheDocument()});

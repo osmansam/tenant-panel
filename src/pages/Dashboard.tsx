@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
     });
 
     return items;
-  }, [currentProject, containers.length, pages.length, projects, isInProject, integrations.length, canReadProject, canViewIntegrations, t]);
+  }, [currentProject, containers.length, pages.length, projects, isInProject, integrations.length, canReadProject, canViewIntegrations, t, user?.roles]);
 
   // Quick Action items as actionable destinations
   const quickActions = useMemo(() => [
@@ -171,11 +171,11 @@ const Dashboard: React.FC = () => {
       icon: FiSettings,
     },
   ].filter((action) => {
-    if (!isInProject) return action.scope !== "project";
+    if (!isInProject) return action.scope !== "project" && (action.path !== "/settings" || hasManagementPermission(user?.roles, "tenant.branding.read"));
     if (action.scope === "tenant") return false;
     if (action.path === "/integrations") return canViewIntegrations;
     return canReadProject;
-  }), [projects.length, isInProject, containers.length, pages.length, integrations.length, canReadProject, canViewIntegrations, t]);
+  }), [projects.length, isInProject, containers.length, pages.length, integrations.length, canReadProject, canViewIntegrations, t, user?.roles]);
 
   const metrics = isInProject ? [
     { label: t("Collections"), value: containersQuery.isLoading || containersQuery.error ? "—" : containers.length, description: t("In current project"), icon: FiDatabase, path: "/collections" },

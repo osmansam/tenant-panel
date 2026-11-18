@@ -36,6 +36,11 @@ import { CreateContainerModal } from "../Modals/CreateContainerModal";
 import { CreateWithJsonModal } from "../Modals/CreateWithJsonModal";
 
 export const ContainersSection: React.FC = () => {
+  const {user} = useUserContext();
+  const identity = [user?.tenantId,user?.projectId,user?.roleScope,JSON.stringify(user?.roles)].join(':');
+  return <ContainersSectionWorkspace key={identity} />;
+};
+const ContainersSectionWorkspace: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useUserContext();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

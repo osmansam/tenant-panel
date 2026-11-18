@@ -107,7 +107,7 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Collections" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Pages" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Localization" })).not.toBeInTheDocument();
@@ -278,3 +278,7 @@ it("hides project-only Integrations when project roles remain in a tenant worksp
  render(<Sidebar />);
  expect(screen.queryByRole("button", { name: "Integrations" })).not.toBeInTheDocument();
 });
+
+it("lets a Tenant Member discover projects without tenant settings",()=>{state.user.roles=["tenant_member"];render(<Sidebar/>);expect(screen.getByRole("button",{name:"Projects"})).toBeInTheDocument();expect(screen.queryByRole("button",{name:"Settings"})).not.toBeInTheDocument();expect(screen.queryByRole("button",{name:"Integrations"})).not.toBeInTheDocument()});
+
+vi.mock("../utils/api/collaboration",()=>({useCollaborationCapabilities:()=>({data:{membersEnabled:false,canManageMembers:false}})}));
