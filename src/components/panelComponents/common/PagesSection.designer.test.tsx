@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render as renderUI, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+const render = (ui: React.ReactNode) => renderUI(ui, { wrapper: MemoryRouter });
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PagesSection } from "./PagesSection";

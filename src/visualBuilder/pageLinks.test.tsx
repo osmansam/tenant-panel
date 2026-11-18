@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render as renderUI, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { VisualBuilderPageLink, canOpenVisualBuilder, runtimePageURL } from "./pageLinks";
+const render = (ui: React.ReactNode) => renderUI(ui, { wrapper: MemoryRouter });
 
 describe("Tenant Panel visual authoring entry", () => {
   it("links a writable content page to the panel's own editor", () => {

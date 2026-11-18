@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import VisualDataBuilder from "./VisualDataBuilder";
 import { DEFAULT_SITE_THEME, type SiteTheme } from "../visual-engine/theme";
@@ -115,7 +115,7 @@ export default function LibraryVisualBuilderPage({ scope }: { scope: ProjectScop
    <button type="button" disabled={saving || reloading} onClick={create}>New design</button>
    {session && <label>Design name<input aria-label="Design name" value={name} disabled={saving || reloading} onChange={event => setName(event.target.value)} /></label>}
    <button type="button" disabled={saving || reloading || query.isFetching} onClick={() => void reload()}>Reload designs</button>
-   <a href="/pages">Back to Pages</a>
+   <Link to="/pages">Back to Pages</Link>
    <span role="status" className="vb-host__state">{reloading ? "Reloading…" : saving ? "Saving…" : unsaved ? "Unsaved changes" : message}</span>
   </header>
   {(error || query.error) && <div role="alert" className="vb-host__notice">{error || managementErrorMessage(query.error)}</div>}

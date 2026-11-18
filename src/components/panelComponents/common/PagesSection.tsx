@@ -8,6 +8,7 @@ import { designerGridSections, mergeDesignerGridSections } from "../../../visual
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { FiArrowDown, FiArrowUp, FiCode, FiInfo, FiLayout, FiMoreHorizontal, FiNavigation, FiPlus, FiSearch, FiSettings } from "react-icons/fi";
 import { UnsavedChangesGuard } from "../../../common/UnsavedChangesGuard";
 import { useModalFocus } from "../../../hooks/useModalFocus";
@@ -71,6 +72,7 @@ export const PagesSection: React.FC = () => {
   return <PagesSectionWorkspace key={identity} />;
 };
 const PagesSectionWorkspace: React.FC = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useUserContext();
   const [searchQuery, setSearchQuery] = useState("");
@@ -888,7 +890,7 @@ const PagesSectionWorkspace: React.FC = () => {
                     sections: mergeDesignerGridSections(currentPage.sections || [], gridSections),
                   });
                 }}
-                onVisualComponentEdit={(componentId) => { window.location.assign(visualBuilderURL(editingPage._id || editingPage.id || "", componentId)); }}
+                onVisualComponentEdit={(componentId) => { navigate(visualBuilderURL(editingPage._id || editingPage.id || "", componentId)); }}
                 onComponentSave={(grids) => handleSavePageStructure(mergeDesignerGridSections(editingPage.sections || [], grids))}
                 onNestedEditorChange={setHasNestedEditor}
                 onFiltersChange={(filters) => {

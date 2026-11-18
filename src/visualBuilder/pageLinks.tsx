@@ -1,4 +1,5 @@
 import { hasManagementPermission } from "../utils/managementPermissions";
+import { Link } from "react-router-dom";
 import type { ProjectScope } from "./types";
 export const VISUAL_BUILDER_PATH = "/pages/visual-builder";
 export function canOpenVisualBuilder(roles: readonly string[] | undefined, hasProject: boolean) {
@@ -10,7 +11,7 @@ export function visualBuilderURL(pageId: string, componentId?: string) {
 export function VisualBuilderPageLink({ page, canEdit }: { page: { id?: string; _id?: string; name: string; isGroupOnly?: boolean }; canEdit: boolean }) {
   const id = page._id || page.id;
   if (!canEdit || page.isGroupOnly || !id) return null;
-  return <a className="inline-flex min-h-8 items-center rounded-ui-md border border-ui-border px-3 text-xs font-medium text-ui-foreground hover:bg-ui-surface-subtle" href={visualBuilderURL(id)} aria-label={`Open visual builder: ${page.name}`}>Visual builder</a>;
+  return <Link className="inline-flex min-h-8 items-center rounded-ui-md border border-ui-border px-3 text-xs font-medium text-ui-foreground hover:bg-ui-surface-subtle" to={visualBuilderURL(id)} aria-label={`Open visual builder: ${page.name}`}>Visual builder</Link>;
 }
 export function runtimePageURL(host: string | undefined, scope: ProjectScope, slug: string): string | undefined {
   try {
