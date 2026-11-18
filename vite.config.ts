@@ -1,3 +1,4 @@
+import { menuIconChunks } from "./scripts/menu-icon-chunks";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import svgrPlugin from "vite-plugin-svgr";
@@ -9,5 +10,6 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 3001,
   },
-  plugins: [react(), viteTsconfigPaths(), svgrPlugin()],
+  build: { manifest: true },
+  plugins: [menuIconChunks(), react(), viteTsconfigPaths(), svgrPlugin()],
 });

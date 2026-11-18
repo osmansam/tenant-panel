@@ -1,7 +1,7 @@
 import axios, { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logout } from "../auth";
-import { axiosClient, selectManagementRefreshPath } from "./axiosClient";
+import { axiosClient, selectManagementRefreshPath, withManagementLogout } from "./axiosClient";
 
 vi.mock("../auth", () => ({ logout: vi.fn() }));
 
@@ -143,4 +143,90 @@ describe("management refresh requests", () => {
     await expect(axiosClient.get("/tenant/projects")).rejects.toMatchObject({ response: { status: 401 } });
     expect(logout).toHaveBeenCalledWith(true, "Session expired");
   });
+});
+
+
+describe("logout ordering", () => {
+  it("drains a delayed refresh before clearing cookies and suppresses its result", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(done => { release = done; });
+    const paths: string[] = [];
+    let cookieActive = false;
+    useAdapter(async config => {
+      const path = config.url!;
+      paths.push(path);
+      expect(config.withCredentials).toBe(true);
+      if (path.endsWith("/refresh")) {
+        await gate;
+        cookieActive = true;
+        return reply(config, 200, {});
+      }
+      if (path.endsWith("/logout")) {
+        cookieActive = false;
+        return reply(config, 200, {});
+      }
+      throw unauthorized(config);
+    });
+    const request = axiosClient.get("/tenant/projects").catch(error => error);
+    await vi.waitFor(() => expect(paths).toContain("/tenant/auth/refresh"));
+    const pendingLogout = withManagementLogout(async () => { await axiosClient.post("/tenant/auth/logout"); });
+    try {
+      await Promise.resolve();
+      expect(paths).not.toContain("/tenant/auth/logout");
+    } finally { release(); }
+    await pendingLogout;
+    expect(axios.isCancel(await request)).toBe(true);
+    expect(cookieActive).toBe(false);
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it("blocks new session mutations and refresh attempts while logout is pending", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(done => { release = done; });
+    const paths: string[] = [];
+    useAdapter(async config => {
+      paths.push(config.url!);
+      if (config.url?.endsWith("/logout")) { await gate; return reply(config, 200, {}); }
+      throw unauthorized(config);
+    });
+    const pendingLogout = withManagementLogout(async () => { await axiosClient.post("/tenant/auth/logout"); });
+    await vi.waitFor(() => expect(paths).toContain("/tenant/auth/logout"));
+    try {
+      for (const path of ["/tenant/auth/refresh", "/tenant/auth/switch-project", "/tenant/auth/google/callback"]) {
+        await expect(axiosClient.post(path)).rejects.toMatchObject({ code: "ERR_CANCELED" });
+      }
+      await expect(axiosClient.get("/tenant/projects")).rejects.toMatchObject({ response: { status: 401 } });
+      expect(paths).toEqual(["/tenant/auth/logout", "/tenant/projects"]);
+    } finally { release(); await pendingLogout; }
+  });
+
+  it("includes a project session issued by a pending switch without applying the stale result", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(done => { release = done; });
+    let started = false;
+    useAdapter(async config => {
+      started = true;
+      await gate;
+      return reply(config, 200, { data: { project: { tenant_slug: "acme", slug: "new-project" } } });
+    });
+    const switching = axiosClient.post("/tenant/auth/switch-project").catch(error => error);
+    await vi.waitFor(() => expect(started).toBe(true));
+    const clearSessions = vi.fn(async (_paths: readonly string[]) => {});
+    const pendingLogout = withManagementLogout(clearSessions);
+    release();
+    await pendingLogout;
+    expect(axios.isCancel(await switching)).toBe(true);
+    expect(clearSessions).toHaveBeenCalledWith(expect.arrayContaining(["/acme/new-project/tenant-auth/logout"]));
+  });
+
+  it("permits session requests again after a failed logout so the user can retry", async () => {
+    await expect(withManagementLogout(async () => { throw new Error("Offline"); })).rejects.toThrow("Offline");
+    useAdapter(async config => reply(config, 200, {}));
+    await expect(axiosClient.post("/tenant/auth/login")).resolves.toMatchObject({ status: 200 });
+  });
+});
+
+it('recovers an expired project session through its project refresh cookie',async()=>{
+ const paths:string[]=[];let attempts=0;useAdapter(async config=>{paths.push(config.url!);if(config.url?.endsWith('/refresh'))return reply(config,200,{});if(attempts++===0)throw unauthorized(config);return reply(config,200,{authenticated:true})});
+ expect((await axiosClient.get('/acme/shop/tenant-auth/session')).data.authenticated).toBe(true);expect(paths).toEqual(['/acme/shop/tenant-auth/session','/acme/shop/tenant-auth/refresh','/acme/shop/tenant-auth/session']);expect(logout).not.toHaveBeenCalled();
 });

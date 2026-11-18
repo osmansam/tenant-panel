@@ -15,6 +15,13 @@ export type ManagementPermission =
   | "project.branding.manage"
   | "project.audit.read"
   | "project.audit.configure"
+  | "tenant.account.read"
+  | "tenant.projects.discover"
+  | "tenant.project.read"
+  | "tenant.project.members.read"
+  | "tenant.project.members.manage"
+  | "project.members.read"
+  | "project.members.manage"
   | "tenant.projects.read"
   | "tenant.projects.create"
   | "tenant.projects.update"
@@ -25,6 +32,13 @@ export type ManagementPermission =
   | "tenant.branding.manage";
 
 const permissionRoles: Record<ManagementPermission, readonly string[]> = {
+  "tenant.account.read": ["tenant_owner","tenant_admin","tenant_billing","tenant_auditor","tenant_member"],
+  "tenant.projects.discover": ["tenant_owner","tenant_admin","tenant_billing","tenant_auditor","tenant_member"],
+  "tenant.project.read": ["tenant_owner","tenant_admin","tenant_billing","tenant_auditor","tenant_member"],
+  "tenant.project.members.read": ["tenant_owner","tenant_admin"],
+  "tenant.project.members.manage": ["tenant_owner","tenant_admin"],
+  "project.members.read": ["project_admin"],
+  "project.members.manage": ["project_admin"],
   "project.config.read": ["project_admin", "project_developer", "project_editor", "project_viewer", "project_support"],
   "project.schema.write": ["project_admin", "project_developer"],
   "project.schema.delete": ["project_admin"],

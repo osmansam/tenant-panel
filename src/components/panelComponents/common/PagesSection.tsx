@@ -66,6 +66,11 @@ const pageEditorSnapshot = (page: PageModel) => JSON.stringify({
 });
 
 export const PagesSection: React.FC = () => {
+  const {user} = useUserContext();
+  const identity = [user?.tenantId,user?.projectId,user?.roleScope,JSON.stringify(user?.roles)].join(':');
+  return <PagesSectionWorkspace key={identity} />;
+};
+const PagesSectionWorkspace: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useUserContext();
   const [searchQuery, setSearchQuery] = useState("");

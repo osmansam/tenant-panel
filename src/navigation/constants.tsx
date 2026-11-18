@@ -4,6 +4,7 @@
 export enum PublicRoutes {
   NotFound = "*",
   Login = "/login",
+  AcceptInvitation = "/invitations/accept",
   Register = "/register",
   GoogleCallback = "/auth/google/callback",
 }
@@ -50,6 +51,7 @@ export const systemRoutes: RouteConfig[] = [
     isOnSidebar: true,
     icon: "MdFolder",
   },
+  {name: "Members", path: "/members", isOnSidebar: true, icon: "MdGroup", requiredRoles: ["project_admin"]},
   {
     name: "Collections",
     path: Routes.Collections,

@@ -39,7 +39,7 @@ describe("management client boundary", () => {
   });
   it("returns 403 without refresh or application-session side effects", async () => {
     const client = createManagementClient({ tenant: "forbidden", project: "shop" }, "https://api.test/api/v1");
-    vi.stubGlobal("localStorage", { removeItem() { throw new Error("Application logout must not run"); } });
+    vi.stubGlobal("localStorage", { getItem(){return JSON.stringify({email:"u@example.test",roleScope:"project",projectId:"p",tenantSlug:"forbidden",projectSlug:"shop",roles:["project_editor"]})}, removeItem() { throw new Error("Application logout must not run"); } });
     let count = 0; client.defaults.adapter = async config => { count++; return denied(config, 403); };
     try { await expect(client.patch("/admin/page/p", {})).rejects.toMatchObject({ response: { status: 403 } }); expect(count).toBe(1); }
     finally { vi.unstubAllGlobals(); }

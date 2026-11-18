@@ -20,7 +20,7 @@ vi.mock("react-toastify", () => ({ toast: { success: vi.fn(), error: vi.fn() } }
 vi.mock("../../context/User.context", () => ({ useUserContext: () => ({ setUser: mocks.setUser }) }));
 vi.mock("./index", () => ({ get: vi.fn(), post: vi.fn() }));
 
-import { useGoogleCallback, useTenantLogin, useTenantRegister, useSwitchBackToTenant } from "./auth";
+import { useGoogleCallback, useTenantLogin, useTenantRegister, useSwitchBackToTenant, useSwitchToProject } from "./auth";
 import { get } from "./index";
 
 beforeEach(() => {
@@ -116,3 +116,5 @@ describe("successful tenant sign-in starts a tenant workspace", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/");
   });
 });
+
+it("clears previous workspace queries after switching projects",async()=>{localStorage.setItem("user",JSON.stringify({id:"u",email:"u@example.test",tenantId:"t"}));useSwitchToProject();await mocks.options.onSuccess({data:{project:{id:"p",tenantId:"t",tenantSlug:"tenant",slug:"project"},roles:["project_viewer"]}});expect(mocks.queryClient.getQueryCache().getAll()).toHaveLength(0);expect(mocks.setUser).toHaveBeenCalledWith(expect.objectContaining({projectId:"p",roles:["project_viewer"]}))});

@@ -14,3 +14,15 @@ describe("named menu icons", () => {
     expect(getIconByName("")).toBe(getIconByName("MissingIcon"));
   });
 });
+
+it("loads custom icons from a bounded lazy group", async () => {
+  const Icon = getIconByName("Gi3dGlasses");
+  const { container } = render(<Icon aria-label="Custom icon" />);
+  await waitFor(() => expect(container.querySelector("path")?.getAttribute("d")).toContain("M176 80"));
+});
+
+it("keeps a useful fallback for unknown icon names", () => {
+  const Icon = getIconByName("GiNotARealIcon");
+  const { container } = render(<Icon />);
+  expect(container.querySelector("svg")).not.toBeNull();
+});

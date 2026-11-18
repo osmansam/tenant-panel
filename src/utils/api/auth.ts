@@ -6,6 +6,7 @@ import { useUserContext } from "../../context/User.context";
 import { emitCurrentProjectChange } from "../../hooks/useCurrentProject";
 // import { Routes } from "../../navigation/constants";
 import { get, post } from "./index";
+import { withManagementLogout } from "./axiosClient";
 
 interface LoginError {
   response: {
@@ -337,25 +338,28 @@ export function useGoogleCallback(
 }
 
 async function tenantLogoutMethod() {
-	const currentTenant = localStorage.getItem("currentTenant");
-	const currentProject = localStorage.getItem("currentProject");
-	if (currentTenant && currentProject) {
-		try {
-			const tenant = JSON.parse(currentTenant);
-			const project = JSON.parse(currentProject);
-			if (tenant?.slug && project?.slug) {
-				await post<undefined, { success: boolean }>({
-					path: `/${encodeURIComponent(tenant.slug)}/${encodeURIComponent(project.slug)}/tenant-auth/logout`,
-					payload: undefined,
-				});
-			}
-		} catch {
-			// Root logout still revokes the tenant session and local state is cleared by the caller.
-		}
-	}
-	return post<undefined, { success: boolean }>({
-    path: "/tenant/auth/logout",
-    payload: undefined,
+  return withManagementLogout(async projectPaths => {
+    const paths = new Set(projectPaths);
+    try {
+      const tenant = JSON.parse(localStorage.getItem("currentTenant") || "null");
+      const project = JSON.parse(localStorage.getItem("currentProject") || "null");
+      if (typeof tenant?.slug === "string" && tenant.slug &&
+          typeof project?.slug === "string" && project.slug) {
+        paths.add(`/${encodeURIComponent(tenant.slug)}/${encodeURIComponent(project.slug)}/tenant-auth/logout`);
+      }
+    } catch {
+      // A malformed workspace cache must not prevent tenant logout.
+    }
+
+    // Keep the tenant session available until all project sessions are cleared.
+    // Otherwise a partial logout can trigger automatic tenant expiry handling,
+    // discarding the workspace needed to retry a failed project logout.
+    const results = await Promise.allSettled([...paths].map(path =>
+      post<undefined, { success: boolean }>({ path, payload: undefined })
+    ));
+    const failure = results.find(result => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
+    await post<undefined, { success: boolean }>({ path: "/tenant/auth/logout", payload: undefined });
   });
 }
 
@@ -363,7 +367,7 @@ export function useTenantLogout(onError?: (error: unknown) => void) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { setUser } = useUserContext();
-  const { mutateAsync: tenantLogout } = useMutation({
+  const { mutateAsync: tenantLogout, isPending: isLoggingOut } = useMutation({
     mutationFn: tenantLogoutMethod,
     onSuccess: () => {
       localStorage.clear();
@@ -371,12 +375,13 @@ export function useTenantLogout(onError?: (error: unknown) => void) {
       setTimeout(() => localStorage.removeItem("loggedOut"), 500);
       setUser(undefined);
       queryClient.clear();
-      navigate("/login");
+      emitCurrentProjectChange();
+      navigate("/login", { replace: true });
     },
     onError,
   });
 
-  return { tenantLogout };
+  return { tenantLogout, isLoggingOut };
 }
 
 // Refresh token functionality
@@ -437,6 +442,7 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { setUser } = useUserContext();
+  const queryClient = useQueryClient();
   const { mutate: switchToProject, isPending: isSwitching } = useMutation<
     SwitchToProjectResponse,
     LoginError,
@@ -446,6 +452,7 @@ export function useSwitchToProject(onError?: (error: unknown) => void) {
     onSuccess: async (response: SwitchToProjectResponse) => {
       const { data } = response;
       const { project, roles } = data;
+      queryClient.clear();
 
       // Update user context with project information
       const currentUserData = localStorage.getItem("user");
@@ -482,6 +489,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
   const { t } = useTranslation();
   const { setUser } = useUserContext();
 
+  const queryClient = useQueryClient();
   const switchBackToTenant = async () => {
     // Get the current user and tenant data to reconstruct tenant context
     const currentUserData = localStorage.getItem("user");
@@ -530,6 +538,7 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         // Update localStorage and user context first
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.removeItem("currentProject");
+        queryClient.clear();
         setUser(updatedUser);
         emitCurrentProjectChange();
 
@@ -550,4 +559,13 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
   };
 
   return { switchBackToTenant };
+}
+
+export async function switchManagementTenant(tenantId:string){
+ const response=await post<{tenantId:string},TenantLoginResponse>({path:'/tenant/auth/switch-tenant',payload:{tenantId}});
+ const {user,tenant,roles,allTenants}=response.data;
+ if(tenant.id!==tenantId)throw new Error('Tenant switch mismatch');
+ const context={...user,_id:user.id,tenantId:tenant.id,tenantName:tenant.name,tenantSlug:tenant.slug,roles,role:roles[0],roleScope:'tenant',allTenants};
+ localStorage.removeItem('currentProject');localStorage.setItem('currentTenant',JSON.stringify(tenant));localStorage.setItem('user',JSON.stringify(context));emitCurrentProjectChange();
+ return context;
 }

@@ -17,6 +17,7 @@ export enum InviteScope {
 
 // Tenant role constants
 export const TenantRoles = {
+  MEMBER: "tenant_member",
   OWNER: "tenant_owner",
   ADMIN: "tenant_admin",
   BILLING: "tenant_billing",

@@ -1,4 +1,5 @@
-import axios from "axios";
+import { validateManagementWriteURL, watchScopedManagementWrite } from "../managementWriteGuard";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { camelCase, isArray, isPlainObject, transform } from "lodash";
 import { logout } from "../auth";
 
@@ -36,6 +37,56 @@ export const axiosClient = axios.create({
 export const ACCESS_TOKEN = "jwt";
 const refreshRequests = new Map<string, Promise<unknown>>();
 
+// Session responses set HttpOnly cookies before Axios resolves. Drain those
+// responses before clearing cookies, and reject their stale UI results.
+const sessionRequests = new Set<Promise<void>>();
+const sessionCompletions = new WeakMap<object, () => void>();
+const projectLogoutPaths = new Set<string>();
+let loggingOut = false;
+let logoutRequest: Promise<void> | undefined;
+
+function sessionMutation(config: InternalAxiosRequestConfig): boolean {
+  if (config.method?.toLowerCase() !== "post") return false;
+  const path = new URL(config.url || "", "http://tenant-panel.local").pathname.replace(/^\/api\/v1(?=\/)/, "");
+  return /^\/tenant\/auth\/(login|register|refresh|switch-project|switch-tenant|invitations\/accept|google\/callback)$/.test(path) ||
+    /^\/[^/]+\/[^/]+\/tenant-auth\/refresh$/.test(path);
+}
+
+function finishSessionRequest(config?: object) {
+  if (!config) return;
+  sessionCompletions.get(config)?.();
+  sessionCompletions.delete(config);
+}
+
+export function withManagementLogout(operation: (projectPaths: readonly string[]) => Promise<void>): Promise<void> {
+  if (logoutRequest) return logoutRequest;
+  loggingOut = true;
+  logoutRequest = (async () => {
+    await Promise.all([...sessionRequests]);
+    await operation([...projectLogoutPaths]);
+    projectLogoutPaths.clear();
+  })().finally(() => {
+    loggingOut = false;
+    logoutRequest = undefined;
+  });
+  return logoutRequest;
+}
+
+const writeCleanups = new WeakMap<object,()=>void>();
+axiosClient.interceptors.request.use(config => {
+  writeCleanups.get(config)?.();
+  const write = validateManagementWriteURL(config.url,config.method);
+  if(write){const pending=watchScopedManagementWrite(write.scope,write.permission,config.signal);config.signal=pending.signal;writeCleanups.set(config,pending.dispose)}
+  if (sessionMutation(config)) {
+    if (loggingOut) throw new axios.CanceledError("Session change cancelled during logout");
+    let complete!: () => void;
+    const pending = new Promise<void>(resolve => { complete = resolve; });
+    sessionRequests.add(pending);
+    sessionCompletions.set(config, () => { sessionRequests.delete(pending); complete(); });
+  }
+  return config;
+});
+
 export function selectManagementRefreshPath(requestUrl?: string): string | null {
   if (!requestUrl) return null;
   let pathname: string;
@@ -52,8 +103,9 @@ export function selectManagementRefreshPath(requestUrl?: string): string | null 
   // Sign-in, registration, OAuth and logout failures are not expired access
   // sessions. Return those errors to their forms without attempting refresh.
   if (segments[0] === "tenant" && segments[1] === "auth" &&
-      !["session", "me", "switch-project"].includes(segments[2])) return null;
+      !["session", "me", "switch-project", "switch-tenant"].includes(segments[2])) return null;
   if (segments[0] === "tenant") return "/tenant/auth/refresh";
+  if (segments.length >= 4 && segments[2] === "tenant-auth" && !["refresh", "logout"].includes(segments[3])) return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
   if (segments.length >= 3 && segments[2] !== "auth" && segments[2] !== "tenant-auth") {
     return `/${encodeURIComponent(segments[0])}/${encodeURIComponent(segments[1])}/tenant-auth/refresh`;
   }
@@ -72,13 +124,31 @@ export function shouldAttemptManagementRefresh(
 
 axiosClient.interceptors.response.use(
   (response) => {
+    writeCleanups.get(response.config)?.();
+    writeCleanups.delete(response.config);
     if (response.data) response.data = toCamelCase(response.data);
+    if (sessionCompletions.has(response.config)) {
+      const path = new URL(response.config.url || "", "http://tenant-panel.local").pathname.replace(/^\/api\/v1(?=\/)/, "");
+      if (path.endsWith("/tenant-auth/refresh")) projectLogoutPaths.add(path.replace(/refresh$/, "logout"));
+      if (path === "/tenant/auth/switch-project" || path === "/tenant/auth/invitations/accept") {
+        const project = response.data?.data?.project;
+        if (typeof project?.tenantSlug === "string" && project.tenantSlug && typeof project?.slug === "string" && project.slug) {
+          projectLogoutPaths.add(`/${encodeURIComponent(project.tenantSlug)}/${encodeURIComponent(project.slug)}/tenant-auth/logout`);
+        }
+      }
+      finishSessionRequest(response.config);
+      if (loggingOut) throw new axios.CanceledError("Session change cancelled during logout");
+    }
     return response;
   },
   async (error) => {
+    writeCleanups.get(error.config)?.();
+    writeCleanups.delete(error.config);
+    finishSessionRequest(error.config);
     const request = error.config;
+    if (error?.response?.status === 403 && !/\/(session|me)$/.test(request?.url || "") && !request?.url?.includes("/auth/invitations")) { window.dispatchEvent(new Event("management-access-changed")); }
     const refreshPath = selectManagementRefreshPath(request?.url);
-    if (!shouldAttemptManagementRefresh(
+    if (loggingOut || !shouldAttemptManagementRefresh(
       error?.response?.status,
       error?.response?.data?.statusCode,
       request?.url,
@@ -100,7 +170,7 @@ axiosClient.interceptors.response.use(
       await refreshRequest;
       return axiosClient(request);
     } catch (refreshError: any) {
-      if (refreshError?.response?.status === 401 && refreshPath === "/tenant/auth/refresh") {
+      if (!loggingOut && refreshError?.response?.status === 401 && refreshPath === "/tenant/auth/refresh") {
         logout(true, "Session expired");
       }
       return Promise.reject(refreshError);

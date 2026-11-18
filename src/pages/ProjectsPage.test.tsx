@@ -11,7 +11,9 @@ const state = vi.hoisted(() => ({
   externalCredentials: [] as any[],
   requirements: [] as any[],
   createExternal: vi.fn(),
+  templatesEnabled: vi.fn(),
   canManageTemplates: true,
+  membersEnabled: false,
   isLoading: false,
   isError: false,
   refetch: vi.fn(),
@@ -40,7 +42,7 @@ vi.mock("../utils/api/auth", () => ({
 }));
 vi.mock("../utils/api/project", () => ({
   useProjectsQuery: () => ({ data: state.projects, isLoading: state.isLoading, isError: state.isError, refetch: state.refetch }),
-  useProjectTemplates: () => state.templates,
+  useProjectTemplates: (enabled: boolean) => { state.templatesEnabled(enabled); return enabled ? state.templates : []; },
   useTemplateExternalAPIRequirements: (id: string) => ({ data: id ? state.requirements : [], isLoading: false, isError: false }),
   useCreateProject: () => ({ createProject: state.createProject, isCreating: false }),
   useDeleteProject: () => ({ deleteProject: state.deleteProject, isDeleting: false }),
@@ -73,6 +75,7 @@ describe("ProjectsPage", () => {
     state.externalCredentials = [];
     state.requirements = [];
     state.canManageTemplates = true;
+    state.membersEnabled = false;
     state.isLoading = false;
     state.isError = false;
     state.createProject.mockReset();
@@ -256,3 +259,9 @@ it("retains saved key selection and template bindings after a failed project sub
 });
 
 });
+
+it("does not request templates or show tenant configuration for a Member",()=>{state.canManageTemplates=false;render(<ProjectsPage/>);expect(state.templatesEnabled).toHaveBeenCalledWith(false);expect(screen.queryByRole("button",{name:"New Project"})).not.toBeInTheDocument()});
+
+vi.mock("../utils/api/collaboration",()=>({useCollaborationCapabilities:()=>({data:{membersEnabled:state.membersEnabled,canManageMembers:state.membersEnabled}})}));
+
+it("keeps inactive projects visible without open, switch or member-management actions",()=>{state.canManageTemplates=true;state.membersEnabled=true;state.projects=[project({isActive:false})];render(<ProjectsPage/>);expect(screen.getByRole("button",{name:"Operations Workspace"})).toBeDisabled();expect(screen.queryByRole("button",{name:"Open Operations Workspace in a new tab"})).not.toBeInTheDocument();expect(screen.queryByRole("link",{name:"Members"})).not.toBeInTheDocument()});
