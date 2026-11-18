@@ -87,16 +87,19 @@ function MembersWorkspace({
     }
   };
   if (caps.isPending) return <PageShell><p role="status">{t('Checking collaboration access…')}</p></PageShell>;
-  if (caps.error || !enabled) return <PageShell><p role="alert">{t('Project collaboration is unavailable for this workspace.')}</p></PageShell>;
+  if (caps.error) return <PageShell><PageHeader title={t('Project members')} /><p role="alert">{t('Unable to load collaboration access. Try again.')}</p><GenericButton onClick={() => void caps.refetch()}>{t('Try again')}</GenericButton></PageShell>;
+  if (!caps.data.membersEnabled) return <PageShell><PageHeader title={t('Project members')} description={t('Invite people and manage their project roles.')} /><Section><div className="space-y-4 p-4"><p role="alert">{t('Project collaboration is not enabled for this workspace yet. A workspace administrator must enable it before you can invite people.')}</p><GenericButton disabled>{t('Invite collaborator')}</GenericButton></div></Section></PageShell>;
+  if (!caps.data.canManageMembers) return <PageShell><p role="alert">{t('Project or tenant administrator access is required.')}</p></PageShell>;
   return <PageShell><PageHeader title={t('Project members')} description={scope.authority === 'tenant' ? t('Manage project access with tenant authority. Project configuration access is separate.') : t('Manage access to the current project.')} />
  {notice && <p role="status">{t(notice)}</p>}{error && <p role="alert">{t(error)} <button onClick={() => {
         void members.refetch();
         void invitations.refetch();
       }}>{t('Reload lists')}</button></p>}
- <Section><div className="space-y-4 p-4">{caps.data.canInvite && (!recoveryRequired || scope.authority === 'tenant') && <GenericButton onClick={() => {
+ <Section><div className="space-y-4 p-4">{(!recoveryRequired || scope.authority === 'tenant') && <GenericButton disabled={!caps.data.canInvite} onClick={() => {
           setError('');
           setInvite(true);
         }}>{t('Invite collaborator')}</GenericButton>}
+ {!caps.data.canInvite && <p role="status">{t('Member invitations are not enabled for this workspace yet. Contact your workspace administrator to enable them.')}</p>}
  {members.isPending && <p role="status">{t('Loading members…')}</p>}{members.error && <p role="alert">{api.collaborationError(members.error)}</p>}{!members.isPending && !items.length && <p>{t('No project members.')}</p>}
  {items.map(member => <article key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-ui-lg border border-ui-border p-4"><div><h2>{member.name || member.email}</h2><p>{member.email}</p><p>{member.roles.join(', ')} · {t(member.status)}</p></div><div className="flex gap-2"><GenericButton disabled={busy || recoveryRequired} onClick={() => {
               setError('');

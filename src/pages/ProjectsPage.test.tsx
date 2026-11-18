@@ -265,3 +265,5 @@ it("does not request templates or show tenant configuration for a Member",()=>{s
 vi.mock("../utils/api/collaboration",()=>({useCollaborationCapabilities:()=>({data:{membersEnabled:state.membersEnabled,canManageMembers:state.membersEnabled}})}));
 
 it("keeps inactive projects visible without open, switch or member-management actions",()=>{state.canManageTemplates=true;state.membersEnabled=true;state.projects=[project({isActive:false})];render(<ProjectsPage/>);expect(screen.getByRole("button",{name:"Operations Workspace"})).toBeDisabled();expect(screen.queryByRole("button",{name:"Open Operations Workspace in a new tab"})).not.toBeInTheDocument();expect(screen.queryByRole("link",{name:"Members"})).not.toBeInTheDocument()});
+
+it("shows tenant administrators where to manage members before feature setup",()=>{state.canManageTemplates=true;state.membersEnabled=false;state.projects=[project()];render(<ProjectsPage/>);expect(screen.getByRole("link",{name:"Members"})).toHaveAttribute("href","/projects/project-1/members")});
