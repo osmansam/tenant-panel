@@ -282,3 +282,5 @@ it("hides project-only Integrations when project roles remain in a tenant worksp
 it("lets a Tenant Member discover projects without tenant settings",()=>{state.user.roles=["tenant_member"];render(<Sidebar/>);expect(screen.getByRole("button",{name:"Projects"})).toBeInTheDocument();expect(screen.queryByRole("button",{name:"Settings"})).not.toBeInTheDocument();expect(screen.queryByRole("button",{name:"Integrations"})).not.toBeInTheDocument()});
 
 vi.mock("../utils/api/collaboration",()=>({useCollaborationCapabilities:()=>({data:{membersEnabled:false,canManageMembers:false}})}));
+
+it("shows the Members entry point to a project administrator before feature setup",()=>{state.isInProject=true;state.project={id:"project-1",name:"Demo",slug:"demo"};state.user.roles=["project_admin"];state.user.roleScope="project";state.user.projectId="project-1";render(<Sidebar/>);expect(screen.getByRole("button",{name:"Members"})).toBeInTheDocument()});

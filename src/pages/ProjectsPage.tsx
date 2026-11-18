@@ -20,8 +20,6 @@ import {
 import { ProjectExternalAPIs, ProjectExternalAPISelection } from "../components/integrations/ProjectExternalAPIs";
 import { externalAPIError } from "../utils/api/integration";
 import { createUrlSlug } from "../utils/urlSlug";
-import { useUserContext } from "../context/User.context";
-import { useCollaborationCapabilities } from "../utils/api/collaboration";
 import { useTenant } from "../hooks/useTenant";
 import { useSwitchToProject } from "../utils/api/auth";
 import {
@@ -37,8 +35,6 @@ import {
 
 const ProjectsPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useUserContext();
-  const capabilities = useCollaborationCapabilities(user);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateProjectPayload>({ name: "", slug: "" });
   const [templateChoiceProject, setTemplateChoiceProject] = useState<{ id: string; name: string } | null>(null);
@@ -302,7 +298,7 @@ const ProjectsPage: React.FC = () => {
                           {t("Open")}<FiArrowUpRight aria-hidden="true" className="ml-1" />
                         </button>
                       )}
-                      {isActive && canManageTenantTemplates && capabilities.data?.membersEnabled && capabilities.data?.canManageMembers && <a className="ui-focus-ring px-2 text-xs" href={`/projects/${encodeURIComponent(projectId)}/members`}>{t("Members")}</a>}
+                      {isActive && canManageTenantTemplates && <a className="ui-focus-ring px-2 text-xs" href={`/projects/${encodeURIComponent(projectId)}/members`}>{t("Members")}</a>}
                       {canManageTenantTemplates && project.templateScope !== "global" && (
                         <button
                           type="button"

@@ -13,7 +13,6 @@ import { getIconByName, getMenuIcon } from "../utils/menuIcons";
 import SidebarTooltip from "./SidebarTooltip";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { useIsDesktop } from "../hooks/useIsDesktop";
-import { useCollaborationCapabilities } from "../utils/api/collaboration";
 import { hasManagementPermission } from "../utils/managementPermissions";
 
 export const Sidebar = () => {
@@ -21,7 +20,6 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUserContext();
-  const capabilities = useCollaborationCapabilities(user);
   const { currentProject, isInProject } =
     useCurrentProject();
   const { switchBackToTenant } = useSwitchBackToTenant();
@@ -55,7 +53,7 @@ export const Sidebar = () => {
   // Filter routes based on current context (tenant vs project)
   const getVisibleRoutes = () => {
     return routes.filter((route) => {
-      if (route.path === "/members") return isInProject && hasManagementPermission(user?.roles,"project.members.read") && !!capabilities.data?.membersEnabled && !!capabilities.data?.canManageMembers;
+      if (route.path === "/members") return isInProject && hasManagementPermission(user?.roles,"project.members.read");
       if (route.path === "/settings") return hasManagementPermission(user?.roles, isInProject ? "project.branding.read" : "tenant.branding.read");
       if (route.path === "/integrations") {
         const projectIdentity = isInProject || user?.roleScope === "project" || !!user?.projectId;
