@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import {render,screen} from '@testing-library/react';
+import {render as renderUI,screen} from '@testing-library/react';
+import {MemoryRouter} from 'react-router-dom';
+const render=(ui:React.ReactNode)=>renderUI(ui,{wrapper:MemoryRouter});
 import {expect,it,vi} from 'vitest';
 const state=vi.hoisted(()=>({project:{tenantSlug:'tenant',slug:'project'},roles:['project_editor']}));
 vi.mock('../hooks/useCurrentProject',()=>({useCurrentProject:()=>({currentProject:state.project})}));
