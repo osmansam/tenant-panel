@@ -23,25 +23,42 @@ export type CanonicalContainerRoutes = Record<
 export const isContainerRouteAvailable = (routeName: string): boolean =>
   routeName.toLowerCase() !== "executedynamiccode";
 
+type UnknownRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): UnknownRecord =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : {};
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const asBoolean = (value: unknown): boolean | undefined =>
+  typeof value === "boolean" ? value : undefined;
+
+const asStringArray = (value: unknown): string[] | undefined =>
+  Array.isArray(value) ? value.map((item) => String(item)) : undefined;
+
 const normalizeAccessRule = (
-  rule: Record<string, any>,
+  rule: UnknownRecord,
 ): RecordAccessRule => {
-  const field = rule.field ?? rule.Field;
-  const context = rule.context ?? rule.Context;
+  const field = asString(rule.field ?? rule.Field);
+  const context = asString(rule.context ?? rule.Context);
   const value = Object.prototype.hasOwnProperty.call(rule, "value")
     ? rule.value
     : rule.Value;
+  const operator = asString(rule.operator ?? rule.Operator) ?? "eq";
 
   return {
     ...(field !== undefined ? { field } : {}),
     ...(context !== undefined ? { context } : {}),
-    operator: rule.operator ?? rule.Operator ?? "eq",
+    operator,
     ...(value !== undefined ? { value: value as AccessValue } : {}),
   };
 };
 
 const normalizeRecordAccessPolicy = (
-  policy: Record<string, any>,
+  policy: UnknownRecord,
 ): RecordAccessPolicy => {
   const assign = policy.assign ?? policy.Assign;
   const any = policy.any ?? policy.Any;
@@ -50,41 +67,45 @@ const normalizeRecordAccessPolicy = (
     ...(assign !== undefined
       ? { assign: { ...(assign as Record<string, AccessValue>) } }
       : {}),
-    ...(Array.isArray(any) ? { any: any.map(normalizeAccessRule) } : {}),
+    ...(Array.isArray(any)
+      ? { any: any.map((item) => normalizeAccessRule(asRecord(item))) }
+      : {}),
   };
 };
 
 export function normalizeContainerRouteSpec(
-  routeSpec: Record<string, any> = {},
+  routeSpec: UnknownRecord = {},
 ): CanonicalContainerRouteSpec {
   const access = routeSpec.access ?? routeSpec.Access;
 
   return {
     isAuthenticated:
-      routeSpec.isAuthenticated ?? routeSpec.IsAuthenticated ?? false,
-    isAuthorized: routeSpec.isAuthorized ?? routeSpec.IsAuthorized ?? false,
-    authorizeRole: routeSpec.authorizeRole ?? routeSpec.AuthorizeRole ?? [],
-    isActive: routeSpec.isActive ?? routeSpec.IsActive ?? false,
-    method: routeSpec.method ?? routeSpec.Method ?? "GET",
+      asBoolean(routeSpec.isAuthenticated ?? routeSpec.IsAuthenticated) ?? false,
+    isAuthorized:
+      asBoolean(routeSpec.isAuthorized ?? routeSpec.IsAuthorized) ?? false,
+    authorizeRole:
+      asStringArray(routeSpec.authorizeRole ?? routeSpec.AuthorizeRole) ?? [],
+    isActive: asBoolean(routeSpec.isActive ?? routeSpec.IsActive) ?? false,
+    method: asString(routeSpec.method ?? routeSpec.Method) ?? "GET",
     ...(access !== undefined
-      ? { access: normalizeRecordAccessPolicy(access) }
+      ? { access: normalizeRecordAccessPolicy(asRecord(access)) }
       : {}),
   };
 }
 
 export function normalizeContainerRoutes(
-  routes: Record<string, any> = {},
+  routes: UnknownRecord = {},
 ): CanonicalContainerRoutes {
   return Object.fromEntries(
     Object.entries(routes).map(([routeName, routeSpec]) => [
       routeName,
-      normalizeContainerRouteSpec(routeSpec),
+      normalizeContainerRouteSpec(asRecord(routeSpec)),
     ]),
   );
 }
 
 export function updateContainerRouteSpec(
-  routes: Record<string, any>,
+  routes: UnknownRecord,
   routeName: string,
   updates: Partial<CanonicalContainerRouteSpec>,
 ): CanonicalContainerRoutes {
@@ -93,14 +114,14 @@ export function updateContainerRouteSpec(
   return {
     ...normalizedRoutes,
     [routeName]: normalizeContainerRouteSpec({
-      ...normalizeContainerRouteSpec(normalizedRoutes[routeName]),
+      ...normalizeContainerRouteSpec(asRecord(normalizedRoutes[routeName])),
       ...updates,
     }),
   };
 }
 
 export function toggleContainerRouteFlag(
-  routes: Record<string, any>,
+  routes: UnknownRecord,
   routeName: string,
   flag: "isActive" | "isAuthenticated" | "isAuthorized",
   value: boolean,

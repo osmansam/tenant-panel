@@ -4,12 +4,13 @@ import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthShell } from "../components/auth/AuthShell";
 import { TenantRegisterForm } from "../components/auth/TenantRegisterForm";
+import { logger } from "../utils/logger";
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
 
   const handleError = (error: unknown) => {
-    console.error("Registration error:", error);
+    logger.error("Registration error:", error);
     let message = t("Registration failed. Please try again.");
 
     if (error && typeof error === "object" && "response" in error) {
@@ -27,13 +28,13 @@ const RegisterPage: React.FC = () => {
       footer={
         <>
           {t("By creating an account, you agree to our")}{" "}
-          <a href="#" className="font-medium text-ui-primary hover:underline">
+          <span className="font-medium text-ui-primary">
             {t("Terms of Service")}
-          </a>{" "}
+          </span>{" "}
           {t("and")}{" "}
-          <a href="#" className="font-medium text-ui-primary hover:underline">
+          <span className="font-medium text-ui-primary">
             {t("Privacy Policy")}
-          </a>
+          </span>
         </>
       }
     >

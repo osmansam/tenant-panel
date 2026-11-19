@@ -37,7 +37,31 @@ type RouteEndpointMeta = {
 
 export const DYNAMIC_API_BASE_PATH = "/dynamic";
 
-export const DEFAULT_API_BASE_URL = "https://api-production.autoapi.org/api/v1/";
+const FALLBACK_API_BASE_URL = "https://api-production.autoapi.org/api/v1/";
+
+export const resolveConfiguredApiBaseUrl = (
+  configuredUrl: string | undefined = import.meta.env.VITE_API_URL,
+  origin?: string,
+): string => {
+  const trimmed = configuredUrl?.trim();
+  if (!trimmed) return FALLBACK_API_BASE_URL;
+  try {
+    const baseOrigin =
+      origin ??
+      (typeof window !== "undefined" ? window.location.origin : FALLBACK_API_BASE_URL);
+    const resolved = trimmed.startsWith("/")
+      ? new URL(trimmed, baseOrigin)
+      : new URL(trimmed);
+    const normalizedPath = resolved.pathname.endsWith("/")
+      ? resolved.pathname
+      : `${resolved.pathname}/`;
+    return `${resolved.origin}${normalizedPath}`;
+  } catch {
+    return FALLBACK_API_BASE_URL;
+  }
+};
+
+export const DEFAULT_API_BASE_URL = resolveConfiguredApiBaseUrl();
 
 const schemaNameParam: ContainerEndpointParam = {
   name: "schemaName",
@@ -356,9 +380,17 @@ export const getContainerRouteEndpoints = (
       };
     });
 
-export const getApiBaseUrl = (tenantSlug?: string, projectSlug?: string): string => {
-  if (!tenantSlug || !projectSlug) return DEFAULT_API_BASE_URL;
-  return `${DEFAULT_API_BASE_URL}${encodeURIComponent(tenantSlug)}/${encodeURIComponent(
+export const getApiBaseUrl = (
+  tenantSlug?: string,
+  projectSlug?: string,
+  configuredBaseUrl?: string,
+): string => {
+  const baseUrl =
+    configuredBaseUrl !== undefined
+      ? resolveConfiguredApiBaseUrl(configuredBaseUrl)
+      : resolveConfiguredApiBaseUrl();
+  if (!tenantSlug || !projectSlug) return baseUrl;
+  return `${baseUrl}${encodeURIComponent(tenantSlug)}/${encodeURIComponent(
     projectSlug,
   )}/`;
 };

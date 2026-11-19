@@ -5,6 +5,7 @@ import {
   DEFAULT_API_BASE_URL,
   getApiBaseUrl,
   getContainerRouteEndpoints,
+  resolveConfiguredApiBaseUrl,
 } from "./containerRouteEndpoints";
 
 const spec = (method: string, overrides: Partial<RouteSpec> = {}): RouteSpec => ({
@@ -284,29 +285,42 @@ describe("example payloads", () => {
 });
 
 describe("buildEndpointRequestUrl", () => {
-  it("always uses the production API base", () => {
-    expect(DEFAULT_API_BASE_URL).toBe(
-      "https://api-production.autoapi.org/api/v1/",
-    );
+  it("uses the resolved environment API base", () => {
+    expect(DEFAULT_API_BASE_URL).toMatch(/^https?:\/\/.+\/$/);
     expect(buildEndpointRequestUrl("/dynamic?schemaName=stock")).toBe(
-      "https://api-production.autoapi.org/api/v1/dynamic?schemaName=stock",
+      `${DEFAULT_API_BASE_URL}dynamic?schemaName=stock`,
     );
   });
 
   it("appends the tenant and project slugs to the base URL", () => {
     expect(getApiBaseUrl("acme", "shop")).toBe(
-      "https://api-production.autoapi.org/api/v1/acme/shop/",
+      `${DEFAULT_API_BASE_URL}acme/shop/`,
     );
     expect(
       buildEndpointRequestUrl("/dynamic?schemaName=stock", "acme", "shop"),
     ).toBe(
-      "https://api-production.autoapi.org/api/v1/acme/shop/dynamic?schemaName=stock",
+      `${DEFAULT_API_BASE_URL}acme/shop/dynamic?schemaName=stock`,
     );
   });
 
   it("encodes tenant and project slugs", () => {
     expect(getApiBaseUrl("my tenant", "my/project")).toBe(
-      "https://api-production.autoapi.org/api/v1/my%20tenant/my%2Fproject/",
+      `${DEFAULT_API_BASE_URL}my%20tenant/my%2Fproject/`,
+    );
+  });
+
+  it("uses configured environment API URLs for previews and relative paths", () => {
+    expect(
+      resolveConfiguredApiBaseUrl("https://staging-api.autoapi.org/api/v1"),
+    ).toBe("https://staging-api.autoapi.org/api/v1/");
+    expect(
+      resolveConfiguredApiBaseUrl("/api/v1", "https://preview.autoapi.org"),
+    ).toBe("https://preview.autoapi.org/api/v1/");
+    expect(
+      getApiBaseUrl("acme", "shop", "https://staging-api.autoapi.org/api/v1"),
+    ).toBe("https://staging-api.autoapi.org/api/v1/acme/shop/");
+    expect(resolveConfiguredApiBaseUrl("not-a-valid-url")).toBe(
+      "https://api-production.autoapi.org/api/v1/",
     );
   });
 });

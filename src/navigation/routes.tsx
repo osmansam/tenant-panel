@@ -24,16 +24,6 @@ const GoogleCallbackHandler = lazy(() => import("../components/auth/GoogleCallba
 import { PrivateRoutes } from "./PrivateRoutes";
 import { Routes as ProtectedRoutes, PublicRoutes } from "./constants";
 
-interface RouteConfig {
-  name: string;
-  path?: string;
-  isOnSidebar: boolean;
-  icon?: string;
-  element?: () => JSX.Element;
-  children?: RouteConfig[];
-  link?: string;
-}
-
 const RouterContainer = () => {
   const { pathname } = useLocation();
   const { t } = useTranslation();

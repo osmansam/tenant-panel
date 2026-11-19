@@ -1,11 +1,6 @@
 import { useMemo, type AriaAttributes } from "react";
 import { Select } from "../../ui";
 
-type MonthYearOption = {
-  value: string;
-  label: string;
-};
-
 type MonthYearInputProps = {
   label?: string;
   language?: string;

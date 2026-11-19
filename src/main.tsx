@@ -4,6 +4,9 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import "./utils/i18n";
+import { initializeObservability } from "./observability";
+
+initializeObservability();
 
 const router = createBrowserRouter([{ path: "*", element: <App /> }]);
 

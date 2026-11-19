@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useUserContext } from '../context/User.context';
 import { PageShell, Section, Input, Label } from '../components/ui';
 import { GenericButton } from '../components/panelComponents/FormElements/GenericButton';
-import { InvitationAccountForm } from '../components/collaboration/InvitationAccountForm';
+import { InvitationAccountForm } from '../features/collaboration';
 import * as api from '../utils/api/invitations';
 import { applyAcceptedProjectInvitation } from '../utils/managementSession';
 import { useTenantLogout } from '../utils/api/auth';

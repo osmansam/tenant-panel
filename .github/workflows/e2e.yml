@@ -1,0 +1,87 @@
+name: Browser smoke
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: browser-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-smoke:
+    name: browser-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BACKEND_DIR: ${{ github.workspace }}/backend
+      E2E_MONGO_URI: mongodb://127.0.0.1:27018/?replicaSet=panel-e2e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: panel
+      - uses: actions/checkout@v4
+        with:
+          repository: osmansam/autotable-Go
+          ref: ${{ vars.BACKEND_REF || '9d297229a248200040229ac9c7b83de4fc602f6d' }}
+          token: ${{ secrets.BACKEND_READ_TOKEN || github.token }}
+          path: backend
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Install panel and browser
+        working-directory: panel
+        run: |
+          corepack enable
+          yarn install --immutable
+          yarn playwright install --with-deps chromium
+      - name: Start disposable Mongo replica set
+        run: |
+          docker run --detach --name panel-e2e-mongo --publish 127.0.0.1:27018:27018 mongo:7.0 --port 27018 --replSet panel-e2e --bind_ip_all
+          for i in $(seq 1 60); do
+            if docker exec panel-e2e-mongo mongosh --port 27018 --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'; then break; fi
+            sleep 1
+          done
+          docker exec panel-e2e-mongo mongosh --port 27018 --quiet --eval 'if (!rs.initiate({_id:"panel-e2e",members:[{_id:0,host:"127.0.0.1:27018"}]}).ok) throw Error("Replica initialization failed")'
+          for i in $(seq 1 60); do
+            if docker exec panel-e2e-mongo mongosh --port 27018 --quiet --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'; then exit 0; fi
+            sleep 1
+          done
+          echo '::error::Mongo replica set did not elect a primary'
+          exit 1
+      - name: Install disposable Redis runtime
+        run: sudo apt-get update && sudo apt-get install -y redis-server
+      - name: Run real-backend and axe journeys
+        working-directory: panel
+        run: yarn test:e2e
+      - name: Enforce Lighthouse and interaction budgets
+        working-directory: panel
+        run: yarn test:performance
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-${{ github.sha }}
+          path: |
+            panel/output/performance
+            panel/.lighthouseci
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-failure
+          path: |
+            panel/output/playwright/results
+            panel/output/playwright/report
+          retention-days: 7
+      - name: Stop Mongo
+        if: always()
+        run: docker rm -f panel-e2e-mongo || true

@@ -86,9 +86,12 @@ export function BrandingAssetField({
         </div>
 
         {/* Standardized Dropzone Preview */}
-        <div
+        <button
+          type="button"
+          disabled={readOnly}
+          aria-label={`Upload ${label}`}
           onClick={() => !readOnly && inputRef.current?.click()}
-          className={`group relative mt-3 flex h-32 w-full flex-col items-center justify-center rounded-ui-lg border-2 border-dashed border-ui-border bg-ui-surface-subtle/40 p-4 transition-all ${readOnly ? "cursor-default" : "cursor-pointer hover:border-ui-primary hover:bg-ui-surface-subtle"}`}
+          className={`group relative mt-3 flex h-32 w-full flex-col items-center justify-center rounded-ui-lg border-2 border-dashed border-ui-border bg-ui-surface-subtle/40 p-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${readOnly ? "cursor-default" : "cursor-pointer hover:border-ui-primary hover:bg-ui-surface-subtle"}`}
         >
           {hasValidImage ? (
             <img
@@ -105,7 +108,7 @@ export function BrandingAssetField({
               </span>
             </div>
           )}
-        </div>
+        </button>
 
         {/* Standardized Description Area */}
         <div className="mt-3 min-h-[2.5rem]">

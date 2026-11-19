@@ -1,4 +1,5 @@
 "use client";
+import { engineLogger } from "../../../logger";
 
 import React, { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
@@ -358,7 +359,7 @@ void main() {
         try {
           renderer.render({ scene: meshRef.current });
         } catch (e) {
-          console.error(e);
+          engineLogger.error(e);
         }
       }
     };

@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.yarn/install-state.gz
 dist
 dist-ssr
 *.local
@@ -24,3 +25,19 @@ dist-ssr
 *.sw?
 
 .env
+.env.*
+!.env.example
+.env.sentry-build-plugin
+playwright-report/
+test-results/
+output/bundle-stats.html
+output/playwright/
+
+# Local tool state and generated verification artifacts
+.playwright-cli/
+.superpowers/
+*.tsbuildinfo
+coverage/
+.lighthouseci/
+.vercel/
+output/performance/

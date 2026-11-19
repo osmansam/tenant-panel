@@ -2,14 +2,14 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectsPage from "./ProjectsPage";
 
 const state = vi.hoisted(() => ({
-  projects: [] as Array<Record<string, any>>,
-  templates: [] as Array<Record<string, any>>,
-  externalCredentials: [] as any[],
-  requirements: [] as any[],
+  projects: [] as Array<Record<string, unknown>>,
+  templates: [] as Array<Record<string, unknown>>,
+  externalCredentials: [] as unknown[],
+  requirements: [] as unknown[],
   createExternal: vi.fn(),
   templatesEnabled: vi.fn(),
   canManageTemplates: true,
@@ -50,15 +50,15 @@ vi.mock("../utils/api/project", () => ({
     updateProjectTemplate: state.updateProjectTemplate,
     isUpdatingTemplate: false,
   }),
-  getProjectId: (project: Record<string, any>) => project.id || project._id || "",
+  getProjectId: (project: Record<string, unknown>) => project.id || project._id || "",
   getProjectStatusDisplay: (status: string) => ({
     label: status === "active" ? "Active" : "Inactive",
   }),
 }));
 
-vi.mock("../utils/api/integration", async original => ({ ...await original<any>(), useTenantExternalAPICredentials: () => ({ data: state.externalCredentials, isLoading: false, isError: false }), useCreateTenantExternalAPICredential: () => ({ mutateAsync: state.createExternal, isPending: false }) }));
+vi.mock("../utils/api/integration", async original => ({ ...await original<typeof import("../utils/api/integration")>(), useTenantExternalAPICredentials: () => ({ data: state.externalCredentials, isLoading: false, isError: false }), useCreateTenantExternalAPICredential: () => ({ mutateAsync: state.createExternal, isPending: false }) }));
 
-const project = (overrides: Record<string, any> = {}) => ({
+const project = (overrides: Record<string, unknown> = {}) => ({
   id: "project-1",
   name: "Operations Workspace",
   slug: "operations",
@@ -67,6 +67,8 @@ const project = (overrides: Record<string, any> = {}) => ({
   createdAt: "2026-09-20T00:00:00.000Z",
   ...overrides,
 });
+
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("ProjectsPage", () => {
   beforeEach(() => {
@@ -80,6 +82,13 @@ describe("ProjectsPage", () => {
     state.isError = false;
     state.createProject.mockReset();
     vi.clearAllMocks();
+  });
+
+  it("keeps search controls in place while projects load", () => {
+    state.isLoading = true;
+    render(<ProjectsPage />);
+    expect(screen.getByRole("searchbox", { name: "Search projects" })).toBeVisible();
+    expect(screen.getByRole("status", { name: "Loading projects" })).toBeVisible();
   });
 
   it("renders a single page heading and a useful empty state", () => {
@@ -137,6 +146,24 @@ describe("ProjectsPage", () => {
     expect(state.switchToProject).toHaveBeenCalledWith({ projectId: "project-1" });
     expect(screen.getByRole("button", { name: /Disabled/ })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Make Template" })).not.toBeInTheDocument();
+  });
+
+  it("opens projects using the configured runtime URL and encoded path segments", async () => {
+    vi.stubEnv("VITE_RUNTIME_APP_URL", "https://runtime.example.test/app/?old=value#old");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    state.projects = [project({ slug: "name/with space" })];
+    render(<ProjectsPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Open Operations Workspace in a new tab" }));
+    expect(open).toHaveBeenCalledWith("https://runtime.example.test/app/t/tenant/p/name%2Fwith%20space/login", "_blank", "noopener,noreferrer");
+  });
+
+  it("uses the current origin when no runtime URL is configured", async () => {
+    vi.stubEnv("VITE_RUNTIME_APP_URL", "");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    state.projects = [project()];
+    render(<ProjectsPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Open Operations Workspace in a new tab" }));
+    expect(open).toHaveBeenCalledWith(`${window.location.origin}/t/tenant/p/operations/login`, "_blank", "noopener,noreferrer");
   });
 
   it("uses a wrapping action layout on compact screens", () => {

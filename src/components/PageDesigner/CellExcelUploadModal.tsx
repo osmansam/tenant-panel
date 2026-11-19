@@ -6,6 +6,7 @@ import { useUploadExcel } from "../../utils/api/container";
 import { createRuntimeId } from "../../utils/pageBindings";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 import { Input } from "../ui";
+import { logger } from "../../utils/logger";
 
 interface CellExcelUploadModalProps {
   isOpen: boolean;
@@ -117,7 +118,7 @@ export function CellExcelUploadModal({
       setSchemaName("");
       onClose();
     } catch (error) {
-      console.error("Excel upload failed:", error);
+      logger.error("Excel upload failed:", error);
       alert(t("Failed to upload Excel file. Please try again."));
     }
   };
@@ -162,7 +163,10 @@ export function CellExcelUploadModal({
         <div className="space-y-4">
           {/* File Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+            role="button"
+            tabIndex={0}
+            aria-label={t("Upload Excel file")}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus ${
               isDragging
                 ? "border-ui-primary bg-ui-active-subtle"
                 : "border-ui-border hover:border-ui-border-strong"
@@ -171,6 +175,12 @@ export function CellExcelUploadModal({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
           >
             <Input
               ref={fileInputRef}

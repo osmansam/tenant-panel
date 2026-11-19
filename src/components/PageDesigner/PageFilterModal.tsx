@@ -144,7 +144,7 @@ export const PageFilterModal: React.FC<PageFilterModalProps> = ({
     (presetOptions as readonly string[]).includes(defaultPreset)
       ? defaultPreset
       : presetOptions[0]
-  ) as DefaultPreset;
+  );
 
   return (
     <div data-modal-layer="110" className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">

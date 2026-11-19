@@ -42,7 +42,7 @@ void main() {
 
 const ORIGINAL_QUALITY = 60;
 
-const buildFragment = (iterations: number) => {
+const buildFragment = (_iterations: number) => {
   return `#version 300 es
 precision highp float;
 uniform vec2 iResolution;
@@ -246,7 +246,7 @@ export const Plasma: React.FC<PlasmaProps> = ({
     let lastFrameTime = 0;
 
     const renderStaticFrame = () => {
-      (program.uniforms.iTime as any).value = 0;
+      (program.uniforms.iTime).value = 0;
       renderer.render({ scene: mesh });
     };
 
@@ -277,10 +277,10 @@ export const Plasma: React.FC<PlasmaProps> = ({
         const pingpongTime = isForward
           ? smooth * pingpongDuration
           : (1 - smooth) * pingpongDuration;
-        (program.uniforms.uDirection as any).value = 1.0;
-        (program.uniforms.iTime as any).value = pingpongTime;
+        (program.uniforms.uDirection).value = 1.0;
+        (program.uniforms.iTime).value = pingpongTime;
       } else {
-        (program.uniforms.iTime as any).value = timeValue;
+        (program.uniforms.iTime).value = timeValue;
       }
       renderer.render({ scene: mesh });
       raf = requestAnimationFrame(loop);

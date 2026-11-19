@@ -92,7 +92,7 @@ function ThemeSwitcherControl({ node, context }: { node: ThemeSwitcherNode; cont
 }
 
 export const siteRenderers = {
-  "site-logo": (node, context) => {
+  "site-logo": (_node, context) => {
     const logo = context.site?.logo;
     const siteName = context.site?.siteName ?? "Site";
     const content = logo
@@ -101,7 +101,7 @@ export const siteRenderers = {
     const href = context.site?.homeHref && safeLink(context.site.homeHref);
     return surface(context, href ? <a href={href}>{content}</a> : content);
   },
-  "site-name": (node, context) => surface(context, context.site?.siteName ?? "Site name"),
+  "site-name": (_node, context) => surface(context, context.site?.siteName ?? "Site name"),
   "navigation-menu": (node, context) => {
     const vertical = node.orientation === "vertical";
     return (
@@ -113,7 +113,7 @@ export const siteRenderers = {
       </nav>
     );
   },
-  "language-switcher": (node, context) => surface(context, (
+  "language-switcher": (_node, context) => surface(context, (
     <nav aria-label="Language selector">
       <ul className="flex flex-wrap items-center gap-3">
         {(context.site?.locales ?? []).map((locale) => (
@@ -155,5 +155,5 @@ export const siteRenderers = {
     );
   },
   "footer-links": (node, context) => <nav aria-label="Footer navigation" className={[context.className, node.style?.background?.length ? "relative isolate" : ""].filter(Boolean).join(" ")} style={context.combineNodeStyles(node, node.hoverColor ? { "--ve-link-hover": node.hoverColor } as CSSProperties : undefined)}>{context.backgrounds}<ul className="relative z-10 flex flex-wrap gap-4">{navigationItems(context.site?.navigation ?? [], false, context.site?.pageComponentColors ? "var(--theme-text)" : node.activeColor)}</ul></nav>,
-  copyright: (node, context) => surface(context, context.site?.copyright ?? `© ${new Date().getFullYear()} Site name`),
+  copyright: (_node, context) => surface(context, context.site?.copyright ?? `© ${new Date().getFullYear()} Site name`),
 } satisfies Pick<ComponentRendererMap, "site-logo" | "site-name" | "navigation-menu" | "language-switcher" | "theme-switcher" | "menu-toggle" | "menu-panel" | "footer-links" | "copyright">;

@@ -9,7 +9,7 @@ export type IdFactory = () => string;
 const defaultIdFactory: IdFactory = () => crypto.randomUUID();
 
 export function regenerateNodeIds(node: ComponentNode, idFactory: IdFactory = defaultIdFactory): ComponentNode {
-  const clone = structuredClone(node) as ComponentNode;
+  const clone = structuredClone(node);
   return regenerate(clone, idFactory);
 }
 

@@ -23,6 +23,16 @@ const openComponent = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe("component editor draft protection", () => {
+  it("preserves unsaved edits when the parent refreshes schema metadata", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<PageDesigner sections={sections} onChange={onChange} />);
+    await openComponent(user);
+    await user.type(screen.getByRole("textbox", { name: "Title" }), " draft");
+    rerender(<PageDesigner sections={sections} onChange={onChange} />);
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Orders draft");
+  });
+
   it("opens a saved visual component in the visual workspace instead of the generic modal", async () => {
     const user = userEvent.setup();
     const openVisual = vi.fn();

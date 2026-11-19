@@ -1,0 +1,28 @@
+services:
+  panel:
+    build:
+      context: ..
+      args:
+        APP_RELEASE: ${APP_RELEASE:?Set the verified full git SHA}
+        VITE_API_URL: ${VITE_API_URL:?Set the staging API URL}
+        VITE_RUNTIME_APP_URL: ${VITE_RUNTIME_APP_URL:?Set the staging runtime URL}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_APP_ENV: staging
+    # Place an HTTPS terminator in front; never publish this HTTP listener publicly.
+    ports: ["127.0.0.1:8080:8080"]
+    extra_hosts: ["api.internal:host-gateway"]
+    depends_on: [csp-reports]
+    restart: unless-stopped
+  csp-reports:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.csp
+    restart: unless-stopped
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

@@ -8,9 +8,7 @@ import type { CollaborationScope, Collaborator, InvitationSummary } from '../typ
 import { collaborationBase } from '../types/collaboration';
 import * as api from '../utils/api/collaboration';
 import { axiosClient } from '../utils/api/axiosClient';
-import { InviteCollaboratorDialog } from '../components/collaboration/InviteCollaboratorDialog';
-import { ChangeCollaboratorRoleDialog } from '../components/collaboration/ChangeCollaboratorRoleDialog';
-import { ProjectInvitationsList } from '../components/collaboration/ProjectInvitationsList';
+import { ChangeCollaboratorRoleDialog, InviteCollaboratorDialog, ProjectInvitationsList } from '../features/collaboration';
 export default function ProjectMembersPage() {
   const {
     user

@@ -91,7 +91,7 @@ export function EditorToolbar({
             onClick={() => onThemePaletteChange(palette)}
           >{palette === "light" ? "Light" : "Dark"}</button>)}
         </div> : null}
-        <output className={`vb-status vb-status--${status}`} role="status" aria-label="Document status">
+        <output className={`vb-status vb-status--${status}`} aria-label="Document status">
           <span className="vb-status__dot" aria-hidden="true" />
           {statusLabel(status)}
         </output>

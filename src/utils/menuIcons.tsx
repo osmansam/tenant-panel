@@ -1,4 +1,4 @@
-import iconLoaders from "virtual:menu-icon-loaders";
+import familyLoaders from "virtual:menu-icon-loaders";
 import { useEffect, useState } from "react";
 import type { IconBaseProps, IconType } from "react-icons";
 import {
@@ -199,13 +199,15 @@ const coreIcons: Record<string, IconType> = {
 };
 
 type IconLoader = () => Promise<Record<string, unknown>>;
+const familyRequests = new Map<string, Promise<Record<string, IconLoader | undefined>>>();
 const groupRequests = new Map<IconLoader, Promise<Record<string, unknown>>>();
 const customIcons = new Map<string, IconType>();
 
 export const getIconByName = (iconName: string): IconType => {
   if (coreIcons[iconName]) return coreIcons[iconName];
-  const loader = iconLoaders[iconName];
-  if (!loader) return MdSpaceDashboard;
+  const prefix = iconName.slice(0, 2);
+  const loadFamily = familyLoaders[prefix];
+  if (!loadFamily) return MdSpaceDashboard;
   const cached = customIcons.get(iconName);
   if (cached) return cached;
 
@@ -213,17 +215,24 @@ export const getIconByName = (iconName: string): IconType => {
     const [Icon, setIcon] = useState<IconType>(() => MdSpaceDashboard);
     useEffect(() => {
       let active = true;
-      let request = groupRequests.get(loader);
-      if (!request) {
-        request = loader();
-        groupRequests.set(loader, request);
+      let familyRequest = familyRequests.get(prefix);
+      if (!familyRequest) {
+        familyRequest = loadFamily().then(module => module.default);
+        familyRequests.set(prefix, familyRequest);
       }
-      request.then((family) => {
-        const resolved = family[iconName];
+      void familyRequest.then(async loaders => {
+        const loader = loaders[iconName];
+        if (!loader) return;
+        let request = groupRequests.get(loader);
+        if (!request) {
+          request = loader().catch(error => { groupRequests.delete(loader); throw error; });
+          groupRequests.set(loader, request);
+        }
+        const resolved = (await request)[iconName];
         if (active && typeof resolved === "function") setIcon(() => resolved as IconType);
       }).catch(() => {
         // Keep a useful icon if the optional chunk is unavailable; allow a retry.
-        groupRequests.delete(loader);
+        familyRequests.delete(prefix);
       });
       return () => { active = false; };
     }, []);

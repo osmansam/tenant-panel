@@ -1,18 +1,10 @@
 import { describe, expect, it } from "vitest";
-import * as PageDesignerModule from "./PageDesigner";
-import { FormComponentConfig } from "../../types/page";
+import { cleanFormConfig, cleanTableConfig } from "./designerConfigCleaners";
 
 describe("PageDesigner form save serialization", () => {
   it("keeps product mappings, item calculations, and summaries in the saved form", () => {
-    const cleanFormConfig = (
-      PageDesignerModule as typeof PageDesignerModule & {
-        cleanFormConfig?: (form: FormComponentConfig) => FormComponentConfig;
-      }
-    ).cleanFormConfig;
 
-    expect(cleanFormConfig).toBeTypeOf("function");
-
-    const cleaned = cleanFormConfig!({
+    const cleaned = cleanFormConfig({
       schemaName: "orders",
       fields: [{
         formKey: "productId",
@@ -90,11 +82,6 @@ describe("PageDesigner form save serialization", () => {
   });
 
   it("keeps quantity discount tiers and custom message in the saved form", () => {
-    const cleanFormConfig = (
-      PageDesignerModule as typeof PageDesignerModule & {
-        cleanFormConfig?: (form: FormComponentConfig) => FormComponentConfig;
-      }
-    ).cleanFormConfig!;
     const cleaned = cleanFormConfig({
       schemaName: "orders",
       objectLists: [{
@@ -122,10 +109,10 @@ describe("PageDesigner form save serialization", () => {
 });
 
 it("preserves custom table labels and omits blank overrides", () => {
-  const cleaned = PageDesignerModule.cleanTableConfig({ actionsColumnLabel: "İşlemler", searchPlaceholder: "Ara" });
+  const cleaned = cleanTableConfig({ actionsColumnLabel: "İşlemler", searchPlaceholder: "Ara" });
   expect(cleaned.actionsColumnLabel).toBe("İşlemler");
   expect(cleaned.searchPlaceholder).toBe("Ara");
-  const blank = PageDesignerModule.cleanTableConfig({ actionsColumnLabel: "  ", searchPlaceholder: "" });
+  const blank = cleanTableConfig({ actionsColumnLabel: "  ", searchPlaceholder: "" });
   expect(blank.actionsColumnLabel).toBeUndefined();
   expect(blank.searchPlaceholder).toBeUndefined();
 });

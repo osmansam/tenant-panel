@@ -1,4 +1,5 @@
 'use client';
+import { engineLogger } from "../../../logger";
 
 import React, { useRef, useEffect } from 'react';
 
@@ -27,7 +28,7 @@ const Lightning: React.FC<LightningProps> = ({ hue = 230, xOffset = 0, speed = 1
 
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
     if (!gl) {
-      console.error('WebGL not supported');
+      engineLogger.error('WebGL not supported');
       return;
     }
 
@@ -125,7 +126,7 @@ const Lightning: React.FC<LightningProps> = ({ hue = 230, xOffset = 0, speed = 1
       gl.shaderSource(shader, source);
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+        engineLogger.error('Shader compile error:', gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
       }
@@ -142,7 +143,7 @@ const Lightning: React.FC<LightningProps> = ({ hue = 230, xOffset = 0, speed = 1
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('Program linking error:', gl.getProgramInfoLog(program));
+      engineLogger.error('Program linking error:', gl.getProgramInfoLog(program));
       return;
     }
     gl.useProgram(program);

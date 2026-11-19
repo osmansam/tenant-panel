@@ -401,7 +401,7 @@ export const AddWorkflowModal: React.FC<AddWorkflowModalProps> = ({
                                 ? { authorizeRole: [] }
                                 : {}),
                             }
-                          : { [key]: !Boolean((workflowData as any)[key]) }),
+                          : { [key]: !(workflowData as any)[key] }),
                     })
                   }
                 />

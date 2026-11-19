@@ -139,7 +139,7 @@ export function ComponentLibrary({ documentKind = "section", documentRoot, targe
         disabled={!allowed}
         title={allowed || target === null ? undefined : `${definition.label} cannot be placed inside ${componentRegistry.get(target.parent.type).label}`}
         draggable={allowed}
-        onDragStart={(event) => { setLayerDragPayload(event, { kind: "library", nodeType: type as NodeType }); onDragStart?.(type as NodeType, event); }}
+        onDragStart={(event) => { setLayerDragPayload(event, { kind: "library", nodeType: type }); onDragStart?.(type, event); }}
         onClick={() => addDefinition(definition)}
       >
         <NodeTypeIcon type={editor.icon} className="vb-library__icon" />

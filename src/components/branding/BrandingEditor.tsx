@@ -166,6 +166,7 @@ export function BrandingEditor({ scope, tenantId, projectId, readOnly = false }:
               </span>
               <div className="mt-2 flex items-center gap-2.5">
                 <label className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-ui-md border border-ui-border shadow-ui-sm overflow-hidden transition-all hover:scale-105" title="Pick color">
+                  <span className="sr-only">Pick primary color</span>
                   <span className="absolute inset-0" style={{ backgroundColor: draft.primaryColor }} />
                   <Input
                     type="color"

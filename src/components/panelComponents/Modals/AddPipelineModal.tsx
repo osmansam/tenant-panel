@@ -117,7 +117,7 @@ export const AddPipelineModal: React.FC<AddPipelineModalProps> = ({
     }
 
     const pipeline: PipelineStage = {
-      name: pipelineData.name!,
+      name: pipelineData.name,
       pipelineJson: pipelineData.pipelineJson!,
       isAuthenticated: Boolean(pipelineData.isAuthenticated || pipelineData.isAuthorized),
       isAuthorized: pipelineData.isAuthorized || false,

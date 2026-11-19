@@ -22,7 +22,7 @@ export async function refreshManagementContext(expected: User | undefined = read
   const workspace = managementWorkspaceKey();
   const project = expected?.roleScope === 'project';
   if (project && (!expected.tenantSlug || !expected.projectSlug || !expected.projectId)) throw new Error('Project context unavailable');
-  const path = project ? `/${encodeURIComponent(expected!.tenantSlug!)}/${encodeURIComponent(expected!.projectSlug!)}/tenant-auth/session` : '/tenant/auth/session';
+  const path = project ? `/${encodeURIComponent(expected.tenantSlug!)}/${encodeURIComponent(expected.projectSlug!)}/tenant-auth/session` : '/tenant/auth/session';
   const {
     data: session
   } = await axiosClient.get(path);

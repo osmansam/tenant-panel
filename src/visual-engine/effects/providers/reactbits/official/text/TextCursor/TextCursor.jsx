@@ -51,7 +51,7 @@ const TextCursor = ({
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance >= spacing) {
-          let rawAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+          const rawAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
           const computedAngle = followMouseDirection ? rawAngle : 0;
           const steps = Math.floor(distance / spacing);
 

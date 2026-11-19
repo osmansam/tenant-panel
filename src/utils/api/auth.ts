@@ -20,6 +20,7 @@ interface LoginError {
 export type LoginCredentials = Record<string, any>;
 
 import type { Tenant, User } from "../../types";
+import { logger } from "../logger";
 
 export interface LoginResponse {
   token: string;
@@ -545,13 +546,13 @@ export function useSwitchBackToTenant(onError?: (error: unknown) => void) {
         toast.success(t("Switched back to tenant context"));
         navigate("/projects");
       } catch (parseError) {
-        console.error("Unable to restore tenant workspace:", parseError);
+        logger.error("Unable to restore tenant workspace:", parseError);
         toast.error(t("Failed to switch back to tenant context"));
         if (onError) onError(parseError);
       }
     } else {
       // If no user or tenant data, something is wrong - redirect to login
-      console.warn("Missing user or tenant data when switching back");
+      logger.warn("Missing user or tenant data when switching back");
       localStorage.clear();
       setUser(undefined);
       navigate("/login");

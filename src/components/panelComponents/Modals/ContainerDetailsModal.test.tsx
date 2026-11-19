@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ContainerModel } from "../../../utils/api/container";
+import { getApiBaseUrl } from "../../../utils/containerRouteEndpoints";
 import { ContainerDetailsModal } from "./ContainerDetailsModal";
 
 vi.mock("react-i18next", () => ({
@@ -93,6 +94,40 @@ const stock: ContainerModel = {
 describe("ContainerDetailsModal", () => {
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it.each([
+    { tab: "Pipelines", editor: "Edit Pipeline", deletion: "Delete Pipeline" },
+    { tab: "Workflows", editor: "Edit Workflow", deletion: "Delete Workflow" },
+    { tab: "Dynamic APIs", editor: "Edit Dynamic API", deletion: "Delete Dynamic API" },
+  ])("keeps $tab selection and parent dialog after cancelling item actions", async ({ tab, editor, deletion }) => {
+    const user = userEvent.setup();
+    render(
+      <ContainerDetailsModal
+        isOpen
+        onClose={vi.fn()}
+        container={{
+          ...stock,
+          pipelines: [{ name: "selected-pipeline", pipelineJson: "[]", isActive: true, isAuthenticated: false, isAuthorized: false, authorizeRole: [], isRedisCached: false, cacheTime: 0 }],
+          workflows: [{ name: "selected-workflow", isActive: true }],
+          dynamicApis: [{ name: "selected-api", url: "https://example.com", method: "GET", isActive: true, isAuthenticated: false, isAuthorized: false, authorizeRole: [], isRedisCached: false, cacheTime: 0 }],
+        }}
+      />,
+    );
+    await user.click(screen.getByRole("tab", { name: tab }));
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const editDialog = screen.getByRole("dialog", { name: editor });
+    expect(within(editDialog).getByDisplayValue(/^selected-/)).toBeInTheDocument();
+    await user.click(within(editDialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: editor })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "stock" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: tab })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const confirmation = screen.getByRole("dialog", { name: deletion });
+    await user.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: deletion })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "stock" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: tab })).toHaveAttribute("aria-selected", "true");
   });
 
   it.each([
@@ -277,7 +312,7 @@ describe("ContainerDetailsModal", () => {
     await user.click(screen.getByRole("tab", { name: "Endpoints" }));
 
     expect(
-      screen.getByText("https://api-production.autoapi.org/api/v1/acme/shop/"),
+      screen.getByText(getApiBaseUrl("acme", "shop")),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText("/dynamic?schemaName=stock").length,

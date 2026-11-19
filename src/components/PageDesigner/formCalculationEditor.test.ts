@@ -51,14 +51,14 @@ describe("form calculation editor helpers", () => {
     const updated = updateFieldMapping(added, 0, 0, { sourceFormKey: "productId", sourceField: " price ", targetField: " unitPrice ", required: true });
     const removed = removeFieldMapping(updated, 0, 0);
     expect(original.objectLists![0].fieldMappings).toBeUndefined();
-    expect(updated.objectLists![0].fieldMappings![0].targetField).toBe(" unitPrice ");
-    expect(removed.objectLists![0].fieldMappings).toEqual([]);
+    expect(updated.objectLists[0].fieldMappings![0].targetField).toBe(" unitPrice ");
+    expect(removed.objectLists[0].fieldMappings).toEqual([]);
   });
 
   it("adds operation defaults and preserves zero precision", () => {
     const withMapping = updateFieldMapping(addFieldMapping(form(), 0), 0, 0, { sourceFormKey: "productId", sourceField: "price", targetField: "unitPrice" });
     const calculated = addItemCalculation(withMapping, 0);
-    calculated.objectLists![0].itemCalculations![0].precision = 0;
+    calculated.objectLists[0].itemCalculations![0].precision = 0;
     expect(normalizeDesignerCalculations(calculated).objectLists![0].itemCalculations![0].precision).toBe(0);
   });
 
@@ -86,12 +86,12 @@ describe("form calculation editor helpers", () => {
   });
 
   it("validates quantity-discount thresholds, percentages, outputs, and price comparisons", () => {
-    let configured = updateFieldMapping(addFieldMapping(form(), 0), 0, 0, {
+    const configured = updateFieldMapping(addFieldMapping(form(), 0), 0, 0, {
       sourceFormKey: "productId",
       sourceField: "price",
       targetField: "unitPrice",
     });
-    configured.objectLists![0].itemCalculations = [{
+    configured.objectLists[0].itemCalculations = [{
       operation: "quantityDiscount",
       inputs: ["unitPrice", "quantity"],
       originalTargetField: "lineTotal",
@@ -100,7 +100,7 @@ describe("form calculation editor helpers", () => {
       discountPercentage: 101,
       precision: 2,
     }];
-    configured.objectLists![0].display = {
+    configured.objectLists[0].display = {
       priceComparison: {
         originalField: "missing",
         discountedField: "",
@@ -175,12 +175,12 @@ describe("form calculation editor helpers", () => {
     const updated = updateDiscountTier(added, 0, 0, 1, { minimumQuantity: 12, discountPercentage: 45 });
     const removed = removeDiscountTier(updated, 0, 0, 0);
 
-    expect(original.objectLists![0].itemCalculations![0].discountTiers).toEqual([{ minimumQuantity: 6, discountPercentage: 30 }]);
-    expect(added.objectLists![0].itemCalculations![0].discountTiers).toEqual([
+    expect(original.objectLists![0].itemCalculations[0].discountTiers).toEqual([{ minimumQuantity: 6, discountPercentage: 30 }]);
+    expect(added.objectLists[0].itemCalculations![0].discountTiers).toEqual([
       { minimumQuantity: 6, discountPercentage: 30 },
       { minimumQuantity: 10, discountPercentage: 40 },
     ]);
-    expect(removed.objectLists![0].itemCalculations![0].discountTiers).toEqual([{ minimumQuantity: 12, discountPercentage: 45 }]);
+    expect(removed.objectLists[0].itemCalculations![0].discountTiers).toEqual([{ minimumQuantity: 12, discountPercentage: 45 }]);
   });
 
   it("validates discount tier ordering and ranges", () => {

@@ -301,7 +301,7 @@ const ContainersSectionWorkspace: React.FC = () => {
         <EmptyState role="alert" title={t("Collections could not be loaded")} description={t("Check your connection and try again.")} action={<GenericButton variant="outline" onClick={() => { void refetch(); }}>{t("Try again")}</GenericButton>} />
       ) : containers && containers.length > 0 && collectionPage.items.length > 0 ? (
         <div className="overflow-hidden rounded-ui-xl border border-ui-border bg-ui-surface shadow-ui-card">
-          <ul role="list" className="divide-y divide-ui-border/70">
+          <ul className="divide-y divide-ui-border/70">
             {collectionPage.items.map((container) => (
               <li key={container.id}>
                 <article

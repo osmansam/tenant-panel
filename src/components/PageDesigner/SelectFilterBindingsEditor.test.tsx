@@ -6,7 +6,8 @@ import type { FormFieldConfig, GridSection, RelationMatrixConfig } from "../../t
 import { cleanRelationMatrixConfig } from "../../utils/relationMatrixConfig";
 import { parseRequestFiltersInput } from "../../utils/requestFilterTemplates";
 import FormFieldEditor from "./FormFieldEditor";
-import { cleanFormConfig, cleanTableConfig, PageDesigner } from "./PageDesigner";
+import { PageDesigner } from "./PageDesigner";
+import { cleanFormConfig, cleanTableConfig } from "./designerConfigCleaners";
 import RelationMatrixFilterEditor from "./RelationMatrixRowFilterEditor";
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

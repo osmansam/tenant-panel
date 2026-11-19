@@ -1,0 +1,10 @@
+.git
+node_modules
+dist
+coverage
+output
+.playwright-cli
+.superpowers
+.vercel
+.env*
+*.tsbuildinfo

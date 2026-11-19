@@ -121,7 +121,7 @@ export const SelectField = ({
                 sortOptions={sortOptions}
                 aria-describedby={describedBy}
                 onChange={(selected) =>
-                  onChange(selected as OptionType | readonly OptionType[] | null)
+                  onChange(selected)
                 }
               />
             </div>

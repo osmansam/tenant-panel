@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __APP_RELEASE__: string;
+
 declare module "*.svg" {
   import * as React from "react";
   export const ReactComponent: React.FunctionComponent<
@@ -10,6 +12,7 @@ declare module "*.svg" {
 }
 
 declare module "virtual:menu-icon-loaders" {
-  const loaders: Record<string, (() => Promise<Record<string, unknown>>) | undefined>;
+  type IconLoader = () => Promise<Record<string, unknown>>;
+  const loaders: Record<string, (() => Promise<{ default: Record<string, IconLoader | undefined> }>) | undefined>;
   export default loaders;
 }

@@ -9,7 +9,7 @@ import { axiosClient } from "./axiosClient";
 export interface RoleItem {
   _id: string;
   name: string;
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown; // Allow additional properties
 }
 
 /**

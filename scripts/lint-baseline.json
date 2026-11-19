@@ -1,0 +1,619 @@
+{
+  "version": 1,
+  "files": {
+    "scripts/fixtures/pageRequestsEditor.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "scripts/verify-visual-gallery.js": {
+      "no-unused-vars": 1
+    },
+    "scripts/visual-data-browser-fixture.js": {
+      "no-unused-vars": 1
+    },
+    "scripts/visual-library-browser-fixture.js": {
+      "no-unused-vars": 1
+    },
+    "src/App.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/common/RouteErrorBoundary.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/common/Sidebar.tsx": {
+      "@typescript-eslint/no-floating-promises": 1
+    },
+    "src/components/branding/BrandingEditor.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/components/FieldPermissions.tsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/components/forms/DynamicForm.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/integrations/ProjectExternalAPIs.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 3
+    },
+    "src/components/integrations/SharedCredentialForm.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/components/localization/ProjectLocalizationSection.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 3
+    },
+    "src/components/localization/ProjectLocalizationSection.tsx": {
+      "@typescript-eslint/no-explicit-any": 2,
+      "@typescript-eslint/no-misused-promises": 3,
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/components/PageDesigner/CellExcelUploadModal.tsx": {
+      "@typescript-eslint/await-thenable": 1,
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/PageDesigner/PageNavigatorEditor.tsx": {
+      "react-hooks/exhaustive-deps": 2
+    },
+    "src/components/PageDesigner/PageRequestConnectionEditor.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/components/PageDesigner/PageRequestsEditor.tsx": {
+      "no-restricted-syntax": 3
+    },
+    "src/components/PageDesigner/PageRequestSourceEditor.tsx": {
+      "no-restricted-syntax": 7
+    },
+    "src/components/PageDesigner/PageRequestValuesEditor.tsx": {
+      "no-restricted-syntax": 5
+    },
+    "src/components/PagePermissions.tsx": {
+      "@typescript-eslint/no-unused-vars": 4,
+      "react-hooks/exhaustive-deps": 4
+    },
+    "src/components/panelComponents/common/ContainersSection.tsx": {
+      "jsx-a11y/click-events-have-key-events": 2,
+      "jsx-a11y/no-noninteractive-element-interactions": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/components/panelComponents/common/PagesSection.tsx": {
+      "@typescript-eslint/no-explicit-any": 2,
+      "@typescript-eslint/no-floating-promises": 1,
+      "@typescript-eslint/no-misused-promises": 2,
+      "jsx-a11y/click-events-have-key-events": 2,
+      "jsx-a11y/interactive-supports-focus": 1,
+      "jsx-a11y/no-static-element-interactions": 2
+    },
+    "src/components/panelComponents/FormElements/DateInput.tsx": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/components/panelComponents/FormElements/TabInputScreen.tsx": {
+      "jsx-a11y/no-autofocus": 1
+    },
+    "src/components/panelComponents/FormElements/TextInput.tsx": {
+      "jsx-a11y/click-events-have-key-events": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/components/panelComponents/Modals/AddDynamicApiModal.tsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/components/panelComponents/Modals/AddFieldModal.tsx": {
+      "@typescript-eslint/no-misused-promises": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/components/panelComponents/Modals/AddWorkflowModal.tsx": {
+      "@typescript-eslint/no-explicit-any": 2,
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/panelComponents/Modals/ContainerDetailsModal.tsx": {
+      "@typescript-eslint/no-floating-promises": 1
+    },
+    "src/components/panelComponents/Modals/CreateContainerModal.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/panelComponents/Modals/CreatePageModal.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/panelComponents/Modals/CreateWithJsonModal.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/components/panelComponents/Modals/NestedEditorDialogs.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/components/panelComponents/Modals/PageDetailsModal.tsx": {
+      "jsx-a11y/no-noninteractive-tabindex": 1
+    },
+    "src/components/panelComponents/PageNavigator/PageNavigator.tsx": {
+      "@typescript-eslint/no-floating-promises": 1,
+      "jsx-a11y/click-events-have-key-events": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/components/RoutePermissions.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 12
+    },
+    "src/components/RoutePermissions.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/components/ui/phase1-primitives.test.tsx": {
+      "no-restricted-syntax": 2
+    },
+    "src/components/ui/select.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/components/ui/workspace-dialog.test.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/components/ui/workspace-dialog.tsx": {
+      "jsx-a11y/no-noninteractive-element-interactions": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/context/General.context.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/context/User.context.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/hooks/useAuth.tenantRoles.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/hooks/useAuth.ts": {
+      "@typescript-eslint/no-floating-promises": 2,
+      "@typescript-eslint/no-misused-promises": 4,
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/hooks/useCurrentProject.ts": {
+      "react-hooks/exhaustive-deps": 2
+    },
+    "src/navigation/PrivateRoutes.navigation.test.tsx": {
+      "@typescript-eslint/no-floating-promises": 1
+    },
+    "src/pages/AcceptProjectInvitationPage.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/pages/AcceptProjectInvitationPage.tsx": {
+      "@typescript-eslint/no-floating-promises": 2
+    },
+    "src/pages/Dashboard.tsx": {
+      "@typescript-eslint/no-misused-promises": 6,
+      "@typescript-eslint/no-unnecessary-type-assertion": 1,
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/pages/ExternalAPIsPage.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/pages/IntegrationsPage.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 3
+    },
+    "src/pages/IntegrationsPage.tsx": {
+      "@typescript-eslint/no-floating-promises": 2,
+      "@typescript-eslint/no-misused-promises": 4
+    },
+    "src/pages/LoginPage.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/pages/PageDesignerPage.tsx": {
+      "@typescript-eslint/no-floating-promises": 1,
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/pages/ProjectMembersPage.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/pages/RegisterPage.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/types/index.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/utils/api/auditLogs.ts": {
+      "@typescript-eslint/no-explicit-any": 1,
+      "@typescript-eslint/no-floating-promises": 2
+    },
+    "src/utils/api/auth.logout.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/utils/api/auth.session.test.ts": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/utils/api/auth.ts": {
+      "@typescript-eslint/no-explicit-any": 1,
+      "@typescript-eslint/no-floating-promises": 9
+    },
+    "src/utils/api/branding.ts": {
+      "@typescript-eslint/no-floating-promises": 2
+    },
+    "src/utils/api/collaboration.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/utils/api/container.test.ts": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/utils/api/container.ts": {
+      "@typescript-eslint/no-floating-promises": 16
+    },
+    "src/utils/api/integration.ts": {
+      "@typescript-eslint/no-floating-promises": 6
+    },
+    "src/utils/api/localization.test.ts": {
+      "@typescript-eslint/no-explicit-any": 4
+    },
+    "src/utils/api/page.ts": {
+      "@typescript-eslint/no-explicit-any": 1,
+      "@typescript-eslint/no-floating-promises": 7
+    },
+    "src/utils/api/project.ts": {
+      "@typescript-eslint/no-floating-promises": 4
+    },
+    "src/utils/api/tenantExternalAPI.test.tsx": {
+      "@typescript-eslint/no-explicit-any": 4
+    },
+    "src/utils/containerFieldNormalization.ts": {
+      "@typescript-eslint/no-explicit-any": 2
+    },
+    "src/utils/dynamic.ts": {
+      "@typescript-eslint/no-floating-promises": 2
+    },
+    "src/utils/managementSession.test.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/utils/mockDataGenerator.ts": {
+      "no-case-declarations": 1
+    },
+    "src/utils/validationHelper.ts": {
+      "no-useless-escape": 5,
+      "prefer-const": 1
+    },
+    "src/visual-engine/components/renderers/native/CodeBlockRenderer.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/visual-engine/components/renderers/native/extendedContent.tsx": {
+      "jsx-a11y/media-has-caption": 2,
+      "react-refresh/only-export-components": 2
+    },
+    "src/visual-engine/components/renderers/native/FormRenderer.tsx": {
+      "@typescript-eslint/no-misused-promises": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/components/renderers/native/iconCatalog.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/components/renderers/native/ImageComparisonRenderer.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/components/renderers/native/marketingForms.tsx": {
+      "no-restricted-syntax": 4
+    },
+    "src/visual-engine/components/renderers/ozmishow/site.tsx": {
+      "no-restricted-syntax": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/editor/CanvasStyleHandles.tsx": {
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/visual-engine/editor/CollectionDataInspector.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/ColorPaintControl.tsx": {
+      "no-restricted-syntax": 2
+    },
+    "src/visual-engine/editor/ComponentLibrary.tsx": {
+      "jsx-a11y/no-autofocus": 1,
+      "no-restricted-syntax": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/editor/ConditionalColorsInspector.tsx": {
+      "no-restricted-syntax": 2
+    },
+    "src/visual-engine/editor/DocumentToolsDrawer.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/EffectInspector.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/GradientPaintControl.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/editor/IconPicker.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/InspectorResizeHandle.tsx": {
+      "jsx-a11y/no-noninteractive-element-interactions": 1,
+      "jsx-a11y/no-noninteractive-tabindex": 1
+    },
+    "src/visual-engine/editor/InspectorSection.tsx": {
+      "no-restricted-syntax": 9,
+      "react-hooks/exhaustive-deps": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/editor/MetadataFieldEditor.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/editor/MotionTimeline.tsx": {
+      "jsx-a11y/no-noninteractive-element-interactions": 1,
+      "no-restricted-syntax": 6
+    },
+    "src/visual-engine/editor/PropertiesInspector.tsx": {
+      "no-restricted-syntax": 2
+    },
+    "src/visual-engine/editor/ScrollStoryInspector.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/SidebarInspector.tsx": {
+      "no-restricted-syntax": 2
+    },
+    "src/visual-engine/editor/StyleKitEditor.tsx": {
+      "@typescript-eslint/no-unused-vars": 3,
+      "no-restricted-syntax": 4
+    },
+    "src/visual-engine/editor/StylePainterPanel.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/TemplatePanel.tsx": {
+      "no-restricted-syntax": 5
+    },
+    "src/visual-engine/editor/ThemeEditor.tsx": {
+      "@typescript-eslint/no-misused-promises": 1
+    },
+    "src/visual-engine/editor/useLayerDragState.ts": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/editor/useVisualBuilder.ts": {
+      "react-hooks/exhaustive-deps": 3
+    },
+    "src/visual-engine/editor/VersionsDialog.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visual-engine/editor/VisualBuilder.tsx": {
+      "react-hooks/exhaustive-deps": 16
+    },
+    "src/visual-engine/effects/providers/ozmishow/AnimatedGradientEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/AuroraMeshEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/FloatingBubblesEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/GridOrbitGlowEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/GridSpotlightEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/HudScanEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/LightHazeEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/MagneticLiteEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/NeuralMeshEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/OrbitRingsEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/ScrollLanesEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/TextShimmerEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/TravelingDotsEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/ozmishow/VectorHorizonEffect.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/AcidSquares.tsx": {
+      "@typescript-eslint/no-explicit-any": 3
+    },
+    "src/visual-engine/effects/providers/reactbits/ColorBends.tsx": {
+      "@typescript-eslint/no-explicit-any": 2,
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/ContentEffects.tsx": {
+      "jsx-a11y/click-events-have-key-events": 2,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/Dither.tsx": {
+      "@typescript-eslint/no-explicit-any": 2,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/DotGrid.tsx": {
+      "@typescript-eslint/no-explicit-any": 3
+    },
+    "src/visual-engine/effects/providers/reactbits/EffectRuntime.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/Grainient.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/LazyEffect.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgroundLoaders.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/AcidSquares/AcidSquares.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/AeroShards/AeroShards.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Aurora/Aurora.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Balatro/Balatro.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/EvilEye/EvilEye.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Galaxy/Galaxy.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/GradientWaves/GradientWaves.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Iridescence/Iridescence.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/LightPillar/LightPillar.jsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/LightTunnel/LightTunnel.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/LineWaves/LineWaves.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Plasma/Plasma.jsx": {
+      "@typescript-eslint/no-unused-vars": 1,
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Radar/Radar.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Scanner/Scanner.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/SideRays/SideRays.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/SlicedWaves/SlicedWaves.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/SoftAurora/SoftAurora.jsx": {
+      "prefer-const": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/Topography/Topography.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/backgrounds/WebThreads/WebThreads.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/buttonLoaders.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/buttons/ClickSpark/ClickSpark.jsx": {
+      "jsx-a11y/click-events-have-key-events": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/buttons/PixelTransition/PixelTransition.jsx": {
+      "jsx-a11y/click-events-have-key-events": 1,
+      "jsx-a11y/no-noninteractive-tabindex": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/buttons/ShapeBlur/ShapeBlur.jsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/FallingText/FallingText.jsx": {
+      "jsx-a11y/click-events-have-key-events": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/ParticleText/ParticleText.jsx": {
+      "no-empty": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/SplitFlapText/SplitFlapText.jsx": {
+      "jsx-a11y/aria-role": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/TextPressure/TextPressure.jsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/VariableProximity/VariableProximity.jsx": {
+      "jsx-a11y/click-events-have-key-events": 1,
+      "jsx-a11y/no-static-element-interactions": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/official/text/WarpText/WarpText.jsx": {
+      "prefer-const": 6
+    },
+    "src/visual-engine/effects/providers/reactbits/official/textLoaders.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/Orb.tsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/RippleGrid.tsx": {
+      "@typescript-eslint/no-explicit-any": 1,
+      "react-hooks/exhaustive-deps": 2
+    },
+    "src/visual-engine/effects/providers/reactbits/ShaderBackground.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/effects/providers/reactbits/Silk.tsx": {
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visual-engine/host/react18.d.ts": {
+      "@typescript-eslint/no-unused-vars": 1
+    },
+    "src/visual-engine/host/ThemeProvider.tsx": {
+      "react-refresh/only-export-components": 2
+    },
+    "src/visual-engine/operations/designPreset.ts": {
+      "@typescript-eslint/no-unused-vars": 6
+    },
+    "src/visual-engine/operations/designStyle.ts": {
+      "@typescript-eslint/no-unused-vars": 12
+    },
+    "src/visual-engine/renderer/ExpandableCardRuntime.tsx": {
+      "jsx-a11y/no-noninteractive-element-interactions": 1
+    },
+    "src/visual-engine/renderer/images/VisualImage.tsx": {
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/renderer/InfiniteSliderRuntime.tsx": {
+      "jsx-a11y/no-static-element-interactions": 1,
+      "react-hooks/exhaustive-deps": 2
+    },
+    "src/visual-engine/renderer/InlineTextEditor.tsx": {
+      "jsx-a11y/no-static-element-interactions": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/renderer/ScrollStoryMedia.tsx": {
+      "jsx-a11y/no-interactive-element-to-noninteractive-role": 1
+    },
+    "src/visual-engine/renderer/SlotMediaGrid.tsx": {
+      "react-hooks/exhaustive-deps": 6
+    },
+    "src/visual-engine/renderer/VisualRenderer.tsx": {
+      "jsx-a11y/no-noninteractive-tabindex": 1,
+      "jsx-a11y/no-static-element-interactions": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visual-engine/theme/ThemeScope.tsx": {
+      "react-refresh/only-export-components": 2
+    },
+    "src/visualBuilder/buttonActions.test.ts": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 1
+    },
+    "src/visualBuilder/conditionalColorsInspector.test.tsx": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 1
+    },
+    "src/visualBuilder/LibraryVisualBuilderPage.tsx": {
+      "no-restricted-syntax": 1,
+      "react-hooks/exhaustive-deps": 1
+    },
+    "src/visualBuilder/pageLinks.tsx": {
+      "react-refresh/only-export-components": 3
+    },
+    "src/visualBuilder/PlacedVisualBuilderPage.tsx": {
+      "react-hooks/exhaustive-deps": 3
+    },
+    "src/visualBuilder/VisualBuilderPage.test.tsx": {
+      "@typescript-eslint/no-misused-promises": 1,
+      "no-restricted-syntax": 1
+    },
+    "src/visualBuilder/VisualDataBuilder.tsx": {
+      "react-hooks/exhaustive-deps": 1,
+      "react-refresh/only-export-components": 1
+    },
+    "src/visualBuilder/VisualDataTools.tsx": {
+      "no-restricted-syntax": 1
+    },
+    "src/visualBuilder/VisualDesignGallery.tsx": {
+      "no-restricted-syntax": 3
+    },
+    "src/visualBuilder/VisualSectionPickerDialog.tsx": {
+      "react-refresh/only-export-components": 1
+    }
+  }
+}

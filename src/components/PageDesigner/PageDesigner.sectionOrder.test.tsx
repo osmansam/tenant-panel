@@ -25,7 +25,7 @@ it("reorders page sections, keeps the active grid selected, and applies later ed
  expect(screen.getByTestId("section-layout-toolbar")).toHaveTextContent("Section 3");
  expect(screen.getByRole("spinbutton", { name: "Gap (pixels)" })).toHaveValue(8);
  fireEvent.change(screen.getByRole("spinbutton", { name: "Gap (pixels)" }), { target: { value: "32" } });
- const saved: Section[] = JSON.parse(screen.getByTestId("saved-sections").textContent!);
+ const saved: Section[] = JSON.parse(screen.getByTestId("saved-sections").textContent);
  expect(saved.map(section => section.id)).toEqual(["hero", "grid-b", "grid-a", "tabs", "native"]);
  expect(saved[2].gap).toBe(32); expect(saved[1].grid?.gap).toBe(20);
  expect(saved[0].component?.props?.visualBuilder.document).toEqual(sampleDocument);
@@ -43,7 +43,7 @@ it("keeps the second grid selected when moving it up across the first and restor
  expect(screen.getByRole("spinbutton", { name: "Gap (pixels)" })).toHaveValue(20);
  expect(screen.getByRole("button", { name: /^Section 1,/ })).toHaveFocus();
  fireEvent.change(screen.getByRole("spinbutton", { name: "Gap (pixels)" }), { target: { value: "44" } });
- const saved = JSON.parse(screen.getByTestId("saved-sections").textContent!);
+ const saved = JSON.parse(screen.getByTestId("saved-sections").textContent);
  expect(saved.map((section: Section) => section.id)).toEqual(["b", "a"]);
  expect(saved[0].gap).toBe(44); expect(saved[1].gap).toBe(8);
 });
@@ -53,7 +53,7 @@ it("moves standalone grids up and down by one position with their selection inta
  render(<Harness />);
  await userEvent.click(screen.getByRole("button", { name: /^Section 2,/ }));
  await userEvent.click(screen.getByRole("button", { name: "Move section 2 up" }));
- const gaps = () => JSON.parse(screen.getByTestId("standalone-sections").textContent!).map((section: { gap: number }) => section.gap);
+ const gaps = () => JSON.parse(screen.getByTestId("standalone-sections").textContent).map((section: { gap: number }) => section.gap);
  expect(gaps()).toEqual([20,8,30]);
  await userEvent.click(screen.getByRole("button", { name: "Move section 1 down" })); expect(gaps()).toEqual([8,20,30]);
  await userEvent.click(screen.getByRole("button", { name: "Move section 2 down" })); expect(gaps()).toEqual([8,30,20]);

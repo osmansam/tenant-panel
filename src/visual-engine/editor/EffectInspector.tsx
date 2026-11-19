@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ComponentNode, EffectAttachment, JsonObject, JsonValue } from "../model";
+import type { ComponentNode, EffectAttachment, JsonValue } from "../model";
 import {
   defaultsForEffect,
   resolveNodeEffects,
@@ -153,7 +153,7 @@ function move(onUpdate: EffectInspectorProps["onUpdate"], effects: EffectAttachm
   if (to < 0 || to >= effects.length) return;
   const reordered = [...effects];
   const [attachment] = reordered.splice(from, 1);
-  reordered.splice(to, 0, attachment!);
+  reordered.splice(to, 0, attachment);
   onUpdate({ effects: reordered });
 }
 
@@ -161,8 +161,8 @@ function duplicate(node: ComponentNode, registry: EffectRegistry, onUpdate: Effe
   const copy: EffectAttachment = {
     ...attachment,
     attachmentId: createAttachmentId(),
-    props: structuredClone(attachment.props) as JsonObject,
-    ...(attachment.metadata ? { metadata: structuredClone(attachment.metadata) as JsonObject } : {}),
+    props: structuredClone(attachment.props),
+    ...(attachment.metadata ? { metadata: structuredClone(attachment.metadata) } : {}),
   };
   commitTarget(node, registry, [...effects.slice(0, index + 1), copy, ...effects.slice(index + 1)], copy.attachmentId, onUpdate);
 }

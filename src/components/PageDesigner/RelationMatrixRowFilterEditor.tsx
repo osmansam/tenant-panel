@@ -1,4 +1,3 @@
-import React from "react";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
 import type {
   RelationMatrixConfig,

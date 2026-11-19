@@ -259,7 +259,7 @@ const normalizeActionFormFieldConfig = (
 ): ActionFormFieldConfig => ({
   id: field.id ?? field.ID,
   formKey: field.formKey ?? field.FormKey ?? "",
-  type: (field.type ?? field.Type ?? "text") as ActionFormFieldConfig["type"],
+  type: (field.type ?? field.Type ?? "text"),
   formKeyType: field.formKeyType ?? field.FormKeyType,
   label: field.label ?? field.Label,
   placeholder: field.placeholder ?? field.Placeholder,
@@ -313,7 +313,7 @@ const normalizeActionConfig = (
   action: RawActionConfig,
 ): TableActionConfig => ({
   id: action.id ?? action.ID,
-  kind: (action.kind ?? action.Kind ?? "update") as TableActionConfig["kind"],
+  kind: (action.kind ?? action.Kind ?? "update"),
   label: action.label ?? action.Label,
   buttonName: action.buttonName ?? action.ButtonName,
   icon: action.icon ?? action.Icon,
@@ -385,7 +385,7 @@ export const normalizeField = (f: RawField): Field => {
             actions: (f.frontend.actions || []).map(normalizeActionConfig),
             filterPanel: normalizeFilterPanelConfig(
               f.frontend.filterPanel,
-            ) as Frontend["filterPanel"],
+            ),
           } as Frontend)
         : f.Frontend
           ? ({
@@ -411,7 +411,7 @@ export const normalizeField = (f: RawField): Field => {
               actions: (f.Frontend.Actions || []).map(normalizeActionConfig),
               filterPanel: normalizeFilterPanelConfig(
                 f.Frontend.FilterPanel,
-              ) as Frontend["filterPanel"],
+              ),
             } as Frontend)
           : undefined,
     populationSettings: rawPopSettings
@@ -472,7 +472,7 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
           actions: (c.frontend.actions || []).map(normalizeActionConfig),
           filterPanel: normalizeFilterPanelConfig(
             c.frontend.filterPanel,
-          ) as Frontend["filterPanel"],
+          ),
         } as Frontend)
       : c.Frontend
         ? ({
@@ -485,7 +485,7 @@ export const normalizeContainer = (c: RawContainer): ContainerModel => ({
             actions: (c.Frontend.Actions || []).map(normalizeActionConfig),
             filterPanel: normalizeFilterPanelConfig(
               c.Frontend.FilterPanel,
-            ) as Frontend["filterPanel"],
+            ),
           } as Frontend)
         : undefined,
 });

@@ -58,7 +58,7 @@ export function inspectStyleTransfer(target: ComponentNode, payload: StyleTransf
   const issues: TransferIssue[] = [];
   for (const group of payload.selectedGroups) {
     const reject = (message: string) => issues.push({ group, message: `${STYLE_TRANSFER_LABELS[group] ?? group}: ${message}` });
-    if (payload.excludedGroups?.[group]) { reject(payload.excludedGroups[group]!); continue; }
+    if (payload.excludedGroups?.[group]) { reject(payload.excludedGroups[group]); continue; }
     if (!STYLE_TRANSFER_GROUPS.includes(group) || !supportsStyleGroup(payload.sourceType, group) || !supportsStyleGroup(target.type, group)) {
       reject(`Not supported by ${target.type}`); continue;
     }

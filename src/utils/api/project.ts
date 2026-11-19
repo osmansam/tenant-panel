@@ -5,6 +5,8 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetQuery, useMutationApi } from "./factory";
 import { readStoredUser } from "../persistedContext";
 import type { BrandingOverrides } from "../../types/branding";
+import { apiErrorMessage } from "./errorMessage";
+import { logger } from "../logger";
 
 // Project types - Updated to match API response
 export interface Project {
@@ -29,7 +31,7 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   createdBy?: string; // Not in current API response
-  settings?: Record<string, any>; // Not in current API response
+  settings?: Record<string, unknown>; // Not in current API response
 }
 
 export interface CreateProjectPayload {
@@ -45,7 +47,7 @@ export interface UpdateProjectPayload {
   name?: string;
   description?: string;
   status?: "active" | "inactive" | "archived";
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface UpdateProjectTemplatePayload {
@@ -55,7 +57,7 @@ export interface UpdateProjectTemplatePayload {
 }
 
 export function getProjectId(project: Partial<Project>): string {
-  const rawProject = project as Record<string, any>;
+  const rawProject = project as Record<string, unknown>;
   const rawId = rawProject.id || rawProject._id;
   if (typeof rawId === "string") return rawId;
   if (rawId && typeof rawId === "object" && "hex" in rawId) {
@@ -150,12 +152,9 @@ export function useCreateProject() {
       const message = response?.message || "Project created successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
-      console.error("Project creation failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to create project";
+    onError: (error: unknown) => {
+      logger.error("Project creation failed:", error);
+      const errorMessage = apiErrorMessage(error, "Failed to create project");
       toast.error(t(errorMessage));
     },
   });
@@ -192,12 +191,9 @@ export function useUpdateProjectTemplate() {
       const message = response?.message || "Project template updated successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
-      console.error("Project template update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update project template";
+    onError: (error: unknown) => {
+      logger.error("Project template update failed:", error);
+      const errorMessage = apiErrorMessage(error, "Failed to update project template");
       toast.error(t(errorMessage));
     },
   });
@@ -229,7 +225,7 @@ export function useCreateProjectFactory() {
   };
 }
 
-export function useUpdateProject(onError?: (error: unknown) => void) {
+export function useUpdateProject(_onError?: (error: unknown) => void) {
   const { updateItem, updateMutation } = useProjectMutations();
 
   return {
@@ -261,12 +257,9 @@ export function useDeleteProject() {
       const message = response?.message || "Project deleted successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
-      console.error("Project deletion failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to delete project";
+    onError: (error: unknown) => {
+      logger.error("Project deletion failed:", error);
+      const errorMessage = apiErrorMessage(error, "Failed to delete project");
       toast.error(t(errorMessage));
     },
   });

@@ -14,7 +14,7 @@ it("offers visual sections from Structure Add and displays them beside grids", a
   { id: "visual-section", type: "component", component: { id: "visual", type: "custom", title: "Product hero", props: { visualBuilder: { document: sampleDocument } } } },
  ]} onAddVisualSection={add} onDeleteVisualSection={remove} />);
  const nav = screen.getByRole("navigation", { name: "Page structure" });
- expect(within(nav).getByText("Product hero")).toBeInTheDocument();
+ expect(within(nav).getByRole("button", { name: "Product hero, visual section" })).toBeInTheDocument();
  expect(within(nav).getByText("2 sections")).toBeInTheDocument();
  await userEvent.click(screen.getByRole("button", { name: "Add section" }));
  await userEvent.click(screen.getByRole("menuitem", { name: "Visual section" }));

@@ -1,4 +1,6 @@
 import { Frontend } from "./api/container";
+import { logger } from "./logger";
+import { normalizeLinkUrl } from "../visual-engine/model/urls";
 
 /**
  * Builds a URL from a link template by replacing placeholders with actual values
@@ -15,8 +17,8 @@ import { Frontend } from "./api/container";
  */
 export function buildLinkUrl(
   frontend: Frontend | undefined,
-  fieldValue: any,
-  row: any
+  fieldValue: unknown,
+  row: Record<string, unknown> | undefined
 ): string | null {
   if (!frontend?.linkTemplate) {
     return null;
@@ -35,7 +37,7 @@ export function buildLinkUrl(
 
     // Replace {{row.FIELD_NAME}} with corresponding field values
     const rowFieldPattern = /\{\{row\.([a-zA-Z0-9_]+)\}\}/g;
-    url = url.replace(rowFieldPattern, (match, fieldName) => {
+    url = url.replace(rowFieldPattern, (_match, fieldName) => {
       return String(row?.[fieldName] ?? "");
     });
 
@@ -46,13 +48,14 @@ export function buildLinkUrl(
 
     // Check if there are still unresolved placeholders
     if (url.includes("{{")) {
-      console.warn("Unresolved placeholders in link template:", url);
+      logger.warn("Unresolved placeholders in link template:", url);
       return null;
     }
 
-    return url;
+    const result = normalizeLinkUrl(url);
+    return result.success ? result.value : null;
   } catch (error) {
-    console.error("Error building link URL:", error);
+    logger.error("Error building link URL:", error);
     return null;
   }
 }
@@ -68,8 +71,8 @@ export function buildLinkUrl(
  */
 export function getLinkLabel(
   frontend: Frontend | undefined,
-  fieldValue: any,
-  row: any
+  fieldValue: unknown,
+  row: Record<string, unknown> | undefined
 ): string {
   if (frontend?.linkLabelField && row?.[frontend.linkLabelField]) {
     return String(row[frontend.linkLabelField]);

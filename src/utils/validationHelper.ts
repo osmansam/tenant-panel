@@ -259,7 +259,7 @@ function extractPatternValue(part: string): string | undefined {
  * Returns an error message if validation fails, null if valid
  */
 export function validateField(
-  value: any,
+  value: unknown,
   rules: ValidationRules,
   fieldType: string
 ): string | null {

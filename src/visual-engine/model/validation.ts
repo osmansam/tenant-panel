@@ -326,7 +326,7 @@ function parseNode(input: unknown, path: string, parentType: NodeType | null, is
         type: "disclosure",
         defaultOpen: input.defaultOpen === true,
         transition: input.transition === "height-fade" ? "height-fade" : "none",
-        children: parseChildren(input.children, path, "disclosure", issues) as DisclosureNode["children"],
+        children: parseChildren(input.children, path, "disclosure", issues),
       } satisfies DisclosureNode;
     case "accordion":
       if (input.openMode !== "single" && input.openMode !== "multiple") issues.push(issue(`${path}.openMode`, "accordion.open_mode_invalid", "Accordion open mode is not supported"));
@@ -336,18 +336,18 @@ function parseNode(input: unknown, path: string, parentType: NodeType | null, is
         type: "accordion",
         openMode: input.openMode === "multiple" ? "multiple" : "single",
         collapsible: input.collapsible === true,
-        children: parseChildren(input.children, path, "accordion", issues) as AccordionNode["children"],
+        children: parseChildren(input.children, path, "accordion", issues),
       } satisfies AccordionNode;
     case "tabs":
       return {
         ...base,
         type: "tabs",
-        children: parseChildren(input.children, path, "tabs", issues) as TabsNode["children"],
+        children: parseChildren(input.children, path, "tabs", issues),
       } satisfies TabsNode;
     case "sidebar": {
       const accessibleLabel = parseOptionalText(input.accessibleLabel, `${path}.accessibleLabel`, "sidebar.label_invalid", "Sidebar navigation label must not be blank", issues);
       if (input.accessibleLabel === undefined) issues.push(issue(`${path}.accessibleLabel`, "sidebar.label_required", "Sidebar navigation label is required"));
-      return { ...base, type: "sidebar", accessibleLabel: accessibleLabel ?? "Sidebar navigation", navigationWidth: parseClampedNumber(input.navigationWidth, `${path}.navigationWidth`, 160, 360, "sidebar.width_invalid", "Sidebar width must be between 160 and 360 pixels", issues), children: parseChildren(input.children, path, "sidebar", issues) as SidebarNode["children"] } satisfies SidebarNode;
+      return { ...base, type: "sidebar", accessibleLabel: accessibleLabel ?? "Sidebar navigation", navigationWidth: parseClampedNumber(input.navigationWidth, `${path}.navigationWidth`, 160, 360, "sidebar.width_invalid", "Sidebar width must be between 160 and 360 pixels", issues), children: parseChildren(input.children, path, "sidebar", issues) } satisfies SidebarNode;
     }
     case "infinite-slider": {
       const accessibleLabel = parseOptionalText(input.accessibleLabel, `${path}.accessibleLabel`, "slider.label_invalid", "Slider accessible label must not be blank", issues);
@@ -384,7 +384,7 @@ function parseNode(input: unknown, path: string, parentType: NodeType | null, is
         sceneLayout,
         showProgress: input.showProgress === true,
         ...(accessibleLabel === undefined ? {} : { accessibleLabel }),
-        children: parseChildren(input.children, path, "scroll-story", issues) as ScrollStoryNode["children"],
+        children: parseChildren(input.children, path, "scroll-story", issues),
       } satisfies ScrollStoryNode;
     }
     case "scroll-scene": {
@@ -395,7 +395,7 @@ function parseNode(input: unknown, path: string, parentType: NodeType | null, is
         type: "scroll-scene",
         length,
         media: parseScrollSceneMedia(input.media, `${path}.media`, issues),
-        children: parseChildren(input.children, path, "scroll-scene", issues) as ScrollSceneNode["children"],
+        children: parseChildren(input.children, path, "scroll-scene", issues),
       } satisfies ScrollSceneNode;
     }
     case "repeater":
@@ -405,7 +405,7 @@ function parseNode(input: unknown, path: string, parentType: NodeType | null, is
         source: parseCollectionSource(input.source, `${path}.source`, issues),
         itemAlias: parseIdentifier(input.itemAlias, `${path}.itemAlias`, "repeater.alias_invalid", issues),
         ...(input.itemsLayout === undefined ? {} : { itemsLayout: parseRepeaterItemsLayout(input.itemsLayout, `${path}.itemsLayout`, issues) }),
-        children: parseChildren(input.children, path, "repeater", issues) as RepeaterNode["children"],
+        children: parseChildren(input.children, path, "repeater", issues),
       } satisfies RepeaterNode;
     case "card": {
       const element = input.element === "div" || input.element === "article" ? input.element : "article";
@@ -1323,7 +1323,7 @@ function parseGradient(input: Record<string, unknown>, path: string, issues: Val
     rejectUnknownKeys(stop, ["color", "position"], `${path}.stops[${index}]`, "paint.stop_key_unknown", issues);
     const position = typeof stop.position === "number" ? stop.position : -1;
     if (!Number.isFinite(position) || position < 0 || position > 100) issues.push(issue(`${path}.stops[${index}].position`, "paint.stop_position_invalid", "Gradient stop position must be from 0 to 100"));
-    if (index > 0 && position < stops[index - 1]!.position) issues.push(issue(`${path}.stops[${index}].position`, "paint.stop_order_invalid", "Gradient stops must be ordered by position"));
+    if (index > 0 && position < stops[index - 1].position) issues.push(issue(`${path}.stops[${index}].position`, "paint.stop_order_invalid", "Gradient stops must be ordered by position"));
     const color = isRecord(stop.color) ? parseColorValue(stop.color, `${path}.stops[${index}].color`, issues) : { kind: "token" as const, value: "text" as const };
     stops.push({ color, position });
   });
@@ -1448,7 +1448,7 @@ function parseStyleIntoIssues(input: unknown, path: string, issues: ValidationIs
       rejectUnknownKeys(input.transform, ["rotate"], `${path}.transform`, "style.key_unknown", issues);
       const rotate = input.transform.rotate;
       if (rotate !== undefined && (typeof rotate !== "number" || !Number.isFinite(rotate) || rotate < -180 || rotate > 180)) issues.push(issue(`${path}.transform.rotate`, "style.rotation_invalid", "Rotation must be between -180 and 180 degrees"));
-      else transform = rotate === undefined ? {} : { rotate: rotate as number };
+      else transform = rotate === undefined ? {} : { rotate: rotate };
     }
   }
   return {

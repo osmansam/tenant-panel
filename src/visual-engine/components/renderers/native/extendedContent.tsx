@@ -55,7 +55,7 @@ function renderTable(node: TableNode, context: SemanticRendererContext) {
           <tbody>
             {node.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className={rowIndex % 2 === 1 ? "bg-black/[0.03]" : undefined}>
-                {row.map((cell, cellIndex) => {
+                {row.map((_cell, cellIndex) => {
                   const lastCell = cellIndex === row.length - 1;
                   return (
                     <td key={cellIndex} className={`border-b border-current/10 px-3 py-2${lastCell && showControls ? " vb-table-last-cell" : ""}`}>
@@ -345,6 +345,12 @@ export const extendedContentRenderers = {
     />
   ),
   embed: (node, context) => {
+    // Authored content must never inherit the panel's origin or execute a URL scheme.
+    if (!/^https?:\/\/[^\s]+$/i.test(node.src)) return null;
+    try {
+      const url = new URL(node.src);
+      if (url.username || url.password) return null;
+    } catch { return null; }
     const wrapperClassName = [context.className, node.aspectRatio === "square" ? "aspect-square" : node.aspectRatio === "landscape" ? "aspect-[4/3]" : node.aspectRatio === "wide" ? "aspect-video" : node.aspectRatio === "portrait" ? "aspect-[3/4]" : "", "block w-full"].filter(Boolean).join(" ");
     return (
       <iframe
@@ -354,7 +360,8 @@ export const extendedContentRenderers = {
         title={node.title}
         loading={node.loading}
         allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
+        sandbox="allow-scripts"
+        referrerPolicy="no-referrer"
       />
     );
   },
