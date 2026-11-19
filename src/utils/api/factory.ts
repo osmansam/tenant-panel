@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
+import { apiErrorMessage } from "./errorMessage";
 import { UpdatePayload, get, patch, post, remove } from ".";
 
 interface Props<T> {
@@ -28,11 +29,12 @@ export function useGetQuery<T>(
     queryKey: fetchQueryKey,
     queryFn: () => get<T>({ path }),
     enabled: enabled, // Control whether the query should run
-    staleTime: Infinity, // never becomes stale on its own
-    gcTime: Infinity, // never garbage-collected
-    refetchOnWindowFocus: false, // no auto-refetch
-    refetchOnReconnect: false, // no auto-refetch
-    refetchOnMount: false, // no auto-refetch
+    // Bound freshness even if a WebSocket invalidation was missed.
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false, // visibility refresh is handled by useWebSocket
+    refetchOnReconnect: true,
+    refetchOnMount: true,
   });
 }
 
@@ -101,7 +103,7 @@ export function useMutationApi<T extends { _id: number | string }>({
         return { previousItems };
       },
       // If the mutation fails, use the context returned from onMutate to roll back
-      onError: (_err: any, _newTable, context) => {
+      onError: (_err: unknown, _newTable, context) => {
         const previousItemContext = context as {
           previousItems: T[];
         };
@@ -109,19 +111,21 @@ export function useMutationApi<T extends { _id: number | string }>({
           const { previousItems } = previousItemContext;
           queryClient.setQueryData<T[]>(queryKey, previousItems);
         }
-        const errorMessage =
-          _err?.response?.data?.message || "An unexpected error occurred";
+        const errorMessage = apiErrorMessage(
+          _err,
+          "An unexpected error occurred",
+        );
         setTimeout(() => toast.error(t(errorMessage)), 200);
       },
       // Always refetch after error or success:
       onSettled: async () => {
         if (isInvalidate) {
-          queryClient.invalidateQueries({ queryKey });
+          await queryClient.invalidateQueries({ queryKey });
         }
         if (isAdditionalInvalidate) {
-          additionalInvalidates?.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          await Promise.all((additionalInvalidates ?? []).map((key) =>
+            queryClient.invalidateQueries({ queryKey: key }),
+          ));
         }
       },
     });
@@ -151,7 +155,7 @@ export function useMutationApi<T extends { _id: number | string }>({
         return { previousItems };
       },
       // If the mutation fails, use the context returned from onMutate to roll back
-      onError: (_err: any, _newTable, context) => {
+      onError: (_err: unknown, _newTable, context) => {
         const previousItemContext = context as {
           previousItems: T[];
         };
@@ -159,19 +163,21 @@ export function useMutationApi<T extends { _id: number | string }>({
           const { previousItems } = previousItemContext;
           queryClient.setQueryData<T[]>(queryKey, previousItems);
         }
-        const errorMessage =
-          _err?.response?.data?.message || "An unexpected error occurred";
+        const errorMessage = apiErrorMessage(
+          _err,
+          "An unexpected error occurred",
+        );
         setTimeout(() => toast.error(t(errorMessage)), 200);
       },
       // Always refetch after error or success:
       onSettled: async () => {
         if (isInvalidate) {
-          queryClient.invalidateQueries({ queryKey });
+          await queryClient.invalidateQueries({ queryKey });
         }
         if (isAdditionalInvalidate) {
-          additionalInvalidates?.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          await Promise.all((additionalInvalidates ?? []).map((key) =>
+            queryClient.invalidateQueries({ queryKey: key }),
+          ));
         }
       },
     });
@@ -206,7 +212,7 @@ export function useMutationApi<T extends { _id: number | string }>({
         return { previousItems };
       },
       // If the mutation fails, use the context returned from onMutate to roll back
-      onError: (_err: any, _newTable, context) => {
+      onError: (_err: unknown, _newTable, context) => {
         const previousItemContext = context as {
           previousItems: T[];
         };
@@ -214,19 +220,21 @@ export function useMutationApi<T extends { _id: number | string }>({
           const { previousItems } = previousItemContext;
           queryClient.setQueryData<T[]>(queryKey, previousItems);
         }
-        const errorMessage =
-          _err?.response?.data?.message || "An unexpected error occurred";
+        const errorMessage = apiErrorMessage(
+          _err,
+          "An unexpected error occurred",
+        );
         setTimeout(() => toast.error(t(errorMessage)), 200);
       },
       // Always refetch after error or success:
       onSettled: async () => {
         if (isInvalidate) {
-          queryClient.invalidateQueries({ queryKey });
+          await queryClient.invalidateQueries({ queryKey });
         }
         if (isAdditionalInvalidate || additionalInvalidates) {
-          additionalInvalidates?.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          await Promise.all((additionalInvalidates ?? []).map((key) =>
+            queryClient.invalidateQueries({ queryKey: key }),
+          ));
         }
       },
     });

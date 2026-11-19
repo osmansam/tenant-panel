@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "measuredAt": "2026-11-19",
+  "reviewedMonth": "2026-11",
+  "monthlyIncrease": 2,
+  "initial": {
+    "lines": 19.271741642678546,
+    "statements": 19.271640411192763,
+    "functions": 52.99167533818938,
+    "branches": 72.2321497941108
+  },
+  "initialCounts": {
+    "lines": {
+      "total": 190372,
+      "covered": 36688
+    },
+    "statements": {
+      "total": 190373,
+      "covered": 36688
+    },
+    "functions": {
+      "total": 3844,
+      "covered": 2037
+    },
+    "branches": {
+      "total": 12871,
+      "covered": 9297
+    }
+  },
+  "thresholds": {
+    "lines": 21.28,
+    "statements": 21.28,
+    "functions": 55,
+    "branches": 74.24
+  },
+  "provenance": {
+    "command": "corepack yarn vitest run --coverage --maxWorkers=1 --minWorkers=1",
+    "testFiles": 182,
+    "tests": 957,
+    "failures": 1,
+    "note": "Measured before coverage tests were added. One existing keyboard assertion failed and was subsequently corrected. The excluded generated catalog counts below were subtracted from the full-source V8 report to keep the denominator consistent with the final scope. Authored fixtures and vendored effects remain included.",
+    "excludedGenerated": [
+      {
+        "file": "visual-engine/templates/starterCatalog.generated.ts",
+        "metrics": {
+          "lines": {
+            "total": 3708,
+            "covered": 0
+          },
+          "statements": {
+            "total": 3708,
+            "covered": 0
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1
+          },
+          "branches": {
+            "total": 1,
+            "covered": 1
+          }
+        }
+      }
+    ]
+  }
+}

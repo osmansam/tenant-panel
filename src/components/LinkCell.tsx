@@ -3,10 +3,11 @@ import { useCurrentProject } from "../hooks/useCurrentProject";
 import useTenant from "../hooks/useTenant";
 import { Field, Frontend } from "../utils/api/container";
 import { buildLinkUrl, getLinkLabel } from "../utils/linkHelpers";
+import { normalizeLinkUrl } from "../visual-engine/model/urls";
 
 interface LinkCellProps {
   field: Field;
-  row: any;
+  row: Record<string, unknown>;
   linkConfig?: Frontend;
 }
 
@@ -57,11 +58,15 @@ export function LinkCell({ field, row, linkConfig }: LinkCellProps) {
         ? `tel:${url}`
         : url;
 
+  if (!normalizeLinkUrl(href).success) {
+    return <span>{label}</span>;
+  }
+
   // Handle internal navigation using React Router
   if (linkType === "internal") {
     const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();
-      navigate(internalPath);
+      void navigate(internalPath);
     };
 
     return (

@@ -9,6 +9,7 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetList, useGetQuery } from "./factory";
 import { normalizePageRuntimeConfig } from "../pageBindings";
 import type { PageNavigatorConfig } from "../../types/page";
+import { apiErrorMessage } from "./errorMessage";
 import { logger } from "../logger";
 
 // Type definitions based on Go models
@@ -781,12 +782,9 @@ export function useCreatePage() {
       const message = response?.message || "Page created successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Page creation failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to create page";
+      const errorMessage = apiErrorMessage(error, "Failed to create page");
       toast.error(t(errorMessage));
     },
   });
@@ -832,12 +830,9 @@ export function useUpdatePage() {
       const message = response?.message || "Page updated successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Page update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update page";
+      const errorMessage = apiErrorMessage(error, "Failed to update page");
       toast.error(t(errorMessage));
     },
   });
@@ -878,11 +873,8 @@ export function useDeletePage() {
       const message = response?.message || "Page deleted successfully";
       toast.success(t(message));
     },
-    onError: (error: any) => {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to delete page";
+    onError: (error: unknown) => {
+      const errorMessage = apiErrorMessage(error, "Failed to delete page");
       toast.error(t(errorMessage));
     },
   });

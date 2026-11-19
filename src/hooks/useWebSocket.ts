@@ -27,6 +27,7 @@ export function useWebSocket() {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const stateRef = useRef({ userClosed: false, delay: 1000 });
+  const hasConnectedRef = useRef(false);
 
   const [connectTrigger, setConnectTrigger] = useState(0);
 
@@ -39,14 +40,21 @@ export function useWebSocket() {
 
     const WS_URL = toWsUrl(API_URL, "/ws", project?.tenantSlug, project?.slug);
     const state = stateRef.current;
+    state.userClosed = false;
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
     const connect = () => {
+      if (disposed || state.userClosed) return;
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
         logger.debug("WS connected:", WS_URL);
         state.delay = 1000;
+        // Events sent while disconnected may have been missed.
+        if (hasConnectedRef.current) void queryClient.invalidateQueries();
+        hasConnectedRef.current = true;
       };
 
       ws.onmessage = async (evt) => {
@@ -105,9 +113,9 @@ export function useWebSocket() {
 
       ws.onclose = () => {
         logger.debug("WS disconnected. Reconnecting...");
-        if (state.userClosed) return;
+        if (disposed || state.userClosed) return;
         const d = state.delay;
-        setTimeout(connect, d);
+        reconnectTimer = setTimeout(connect, d);
         state.delay = Math.min(d + 1000, 5000);
       };
     };
@@ -115,7 +123,9 @@ export function useWebSocket() {
     connect();
 
     return () => {
+      disposed = true;
       state.userClosed = true;
+      clearTimeout(reconnectTimer);
       try {
         wsRef.current?.close();
       } catch {
@@ -130,7 +140,7 @@ export function useWebSocket() {
       if (document.visibilityState === "visible") {
         logger.debug("Tab became visible, refreshing data and checking WS...");
         // Always invalidate to get fresh data
-        queryClient.invalidateQueries();
+        void queryClient.invalidateQueries();
 
         // Reconnect if not open
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {

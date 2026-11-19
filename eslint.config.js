@@ -34,6 +34,10 @@ export default [
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
+      "jsx-a11y/label-has-associated-control": ["error", {
+        controlComponents: ["Input", "Select", "Textarea", "Checkbox", "ScalarSelect", "FieldPicker", "Switch"],
+        depth: 4,
+      }],
       "react-hooks/rules-of-hooks": "error",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "no-console": "error",

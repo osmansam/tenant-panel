@@ -32,3 +32,12 @@ playwright-report/
 test-results/
 output/bundle-stats.html
 output/playwright/
+
+# Local tool state and generated verification artifacts
+.playwright-cli/
+.superpowers/
+*.tsbuildinfo
+coverage/
+.lighthouseci/
+.vercel/
+output/performance/

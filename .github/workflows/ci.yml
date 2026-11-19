@@ -27,3 +27,13 @@ jobs:
         run: yarn audit:high
       - name: Lint, test, build and enforce bundle budget
         run: yarn release:check
+      - name: Upload measured coverage and lcov
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: |
+            coverage/lcov.info
+            coverage/coverage-summary.json
+          if-no-files-found: error
+          retention-days: 14

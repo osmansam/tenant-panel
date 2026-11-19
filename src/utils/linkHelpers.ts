@@ -1,5 +1,6 @@
 import { Frontend } from "./api/container";
 import { logger } from "./logger";
+import { normalizeLinkUrl } from "../visual-engine/model/urls";
 
 /**
  * Builds a URL from a link template by replacing placeholders with actual values
@@ -16,8 +17,8 @@ import { logger } from "./logger";
  */
 export function buildLinkUrl(
   frontend: Frontend | undefined,
-  fieldValue: any,
-  row: any
+  fieldValue: unknown,
+  row: Record<string, unknown> | undefined
 ): string | null {
   if (!frontend?.linkTemplate) {
     return null;
@@ -51,7 +52,8 @@ export function buildLinkUrl(
       return null;
     }
 
-    return url;
+    const result = normalizeLinkUrl(url);
+    return result.success ? result.value : null;
   } catch (error) {
     logger.error("Error building link URL:", error);
     return null;
@@ -69,8 +71,8 @@ export function buildLinkUrl(
  */
 export function getLinkLabel(
   frontend: Frontend | undefined,
-  fieldValue: any,
-  row: any
+  fieldValue: unknown,
+  row: Record<string, unknown> | undefined
 ): string {
   if (frontend?.linkLabelField && row?.[frontend.linkLabelField]) {
     return String(row[frontend.linkLabelField]);

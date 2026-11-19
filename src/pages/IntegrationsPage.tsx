@@ -142,13 +142,13 @@ function optionsForKind(
   if (!container) return [];
 
   if (kind === "workflow") {
-    return (container.workflows || []).map((item: any) => item.name);
+    return (container.workflows || []).map((item) => item.name);
   }
   if (kind === "api") {
-    return (container.dynamicApis || []).map((item: any) => item.name);
+    return (container.dynamicApis || []).map((item) => item.name);
   }
   if (kind === "pipeline") {
-    return (container.pipelines || []).map((item: any) => item.name);
+    return (container.pipelines || []).map((item) => item.name);
   }
   return dynamicRoutes.map((item) => item.route);
 }

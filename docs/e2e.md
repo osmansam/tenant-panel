@@ -1,6 +1,6 @@
 # Browser smoke suite
 
-`yarn test:e2e` runs ten Chromium journeys against production Go HTTP routes and a real MongoDB replica set. There are no mocked successful API responses. The only browser response injection is an explicit 503 dependency outage. Session expiry removes the browser's real HttpOnly cookies.
+`yarn test:e2e` runs eleven Chromium journeys against production Go HTTP routes and a real MongoDB replica set. There are no mocked successful API responses. The only browser response injection is an explicit 503 dependency outage. Session expiry removes the browser's real HttpOnly cookies.
 
 ## Local setup
 
@@ -31,10 +31,11 @@ For a task-owned Mongo replica set already running on loopback, set `E2E_MONGO_U
 8. Edit page designer metadata, save through the real PATCH route, and verify persisted state after reload.
 9. Hard reload `/projects/<actual project ID>/members` and recover verified permissions and member data.
 10. Open and reload the visual builder deep link and load the saved placed visual component from the real page API.
+11. Run default axe scans on login, projects, pages, the selected designer cell, the component editor, members, and the invitation dialog. Exercise section/cell selection and component open/Escape with the keyboard; scan settled animation states without excluding rules or elements.
 
 The fixture creates bcrypt accounts, tenant/project memberships, an editable page and the collaboration schema-ready marker. Login, cookies, refresh, live membership authorization, acceptance transactions, and page writes use the production implementations. Invitation email capture implements only the transport interface passed to the production outbox delivery worker; token creation, encrypted delivery storage, and delivery processing are real. Fixture controls are loopback-only and protected by a fresh per-run secret. Browser contexts and database seed are reset for each test; one worker prevents shared fixture races.
 
-Playwright retains trace, screenshot and video evidence on failure under `output/playwright/results/`; HTML results are under `output/playwright/report/`. Open a failure trace with `yarn playwright show-trace <trace.zip>`. These artifacts can contain disposable test credentials and invitation tokens; CI retains them for seven days. `output/playwright/fixture.json` is transient and is removed during cleanup.
+The accessibility journey writes `axe-<state>.json` reports under its test result directory and attaches them to the HTML report, including successful scans. Playwright retains trace, screenshot and video evidence on failure under `output/playwright/results/`; HTML results are under `output/playwright/report/`. Open a failure trace with `yarn playwright show-trace <trace.zip>`. These artifacts can contain disposable test credentials and invitation tokens; CI retains them for seven days. `output/playwright/fixture.json` is transient and is removed during cleanup.
 
 ## CI setup
 

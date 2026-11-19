@@ -262,7 +262,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   // Get container options for objectSchemaName selection
   const containerOptions = useMemo(() => {
     return (
-      containers?.map((c: any) => ({
+      containers?.map((c) => ({
         value: c.schemaName,
         label: c.schemaName,
       })) || []
@@ -273,7 +273,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const selectedContainerFields = useMemo(() => {
     if (!fieldData.objectSchemaName || !containers) return [];
     const selectedContainer = containers.find(
-      (c: any) => c.schemaName === fieldData.objectSchemaName
+      (c) => c.schemaName === fieldData.objectSchemaName
     );
     if (!selectedContainer) return [];
     return (
@@ -284,7 +284,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     );
   }, [fieldData.objectSchemaName, containers]);
 
-  const handleFieldChange = (field: string, value: any) => {
+  const handleFieldChange = (field: string, value: unknown) => {
     setFieldData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -301,7 +301,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     setEditingChildFieldIndex(null);
   };
 
-  const handleChildFieldDraftChange = (field: string, value: any) => {
+  const handleChildFieldDraftChange = (field: string, value: unknown) => {
     setChildFieldDraft((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -377,7 +377,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
     ]);
   };
 
-  const updateValidationRule = (index: number, field: string, value: any) => {
+  const updateValidationRule = (index: number, field: string, value: unknown) => {
     setValidationRules((prev) =>
       prev.map((rule, i) => (i === index ? { ...rule, [field]: value } : rule))
     );
@@ -1019,7 +1019,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       )}
                       onChange={(value) => {
                         if (Array.isArray(value)) {
-                          setPopulatedFields(value.map((v: any) => v.value));
+                          setPopulatedFields(value.map((v: { value: string }) => v.value));
                         } else {
                           setPopulatedFields([]);
                         }
@@ -1037,7 +1037,7 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       )}
                       onChange={(value) => {
                         if (Array.isArray(value)) {
-                          setDisplayFields(value.map((v: any) => v.value));
+                          setDisplayFields(value.map((v: { value: string }) => v.value));
                         } else {
                           setDisplayFields([]);
                         }

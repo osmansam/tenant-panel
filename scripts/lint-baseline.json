@@ -16,24 +16,14 @@
     "src/App.tsx": {
       "@typescript-eslint/no-explicit-any": 1
     },
-    "src/common/BreadCrumb.tsx": {
-      "@typescript-eslint/no-floating-promises": 1,
-      "jsx-a11y/click-events-have-key-events": 1,
-      "jsx-a11y/no-static-element-interactions": 1
-    },
     "src/common/RouteErrorBoundary.tsx": {
       "react-refresh/only-export-components": 1
     },
     "src/common/Sidebar.tsx": {
       "@typescript-eslint/no-floating-promises": 1
     },
-    "src/components/branding/BrandingAssetField.tsx": {
-      "jsx-a11y/click-events-have-key-events": 1,
-      "jsx-a11y/no-static-element-interactions": 1
-    },
     "src/components/branding/BrandingEditor.tsx": {
-      "@typescript-eslint/no-explicit-any": 1,
-      "jsx-a11y/label-has-associated-control": 1
+      "@typescript-eslint/no-explicit-any": 1
     },
     "src/components/FieldPermissions.tsx": {
       "react-hooks/exhaustive-deps": 1
@@ -47,10 +37,6 @@
     "src/components/integrations/SharedCredentialForm.test.tsx": {
       "@typescript-eslint/no-explicit-any": 1
     },
-    "src/components/LinkCell.tsx": {
-      "@typescript-eslint/no-explicit-any": 1,
-      "@typescript-eslint/no-floating-promises": 1
-    },
     "src/components/localization/ProjectLocalizationSection.test.tsx": {
       "@typescript-eslint/no-explicit-any": 3
     },
@@ -61,30 +47,9 @@
     },
     "src/components/PageDesigner/CellExcelUploadModal.tsx": {
       "@typescript-eslint/await-thenable": 1,
-      "@typescript-eslint/no-misused-promises": 1,
-      "jsx-a11y/click-events-have-key-events": 1,
-      "jsx-a11y/no-static-element-interactions": 1
-    },
-    "src/components/PageDesigner/ExcelUploadModal.tsx": {
-      "jsx-a11y/click-events-have-key-events": 1,
-      "jsx-a11y/no-static-element-interactions": 1
-    },
-    "src/components/PageDesigner/FormComponentEditor.tsx": {
-      "jsx-a11y/label-has-associated-control": 13
-    },
-    "src/components/PageDesigner/PageDesigner.tsx": {
-      "@typescript-eslint/no-explicit-any": 9,
-      "@typescript-eslint/no-misused-promises": 1,
-      "jsx-a11y/click-events-have-key-events": 4,
-      "jsx-a11y/label-has-associated-control": 176,
-      "jsx-a11y/no-static-element-interactions": 4,
-      "react-hooks/exhaustive-deps": 8
-    },
-    "src/components/PageDesigner/PageFilterModal.tsx": {
-      "jsx-a11y/label-has-associated-control": 10
+      "@typescript-eslint/no-misused-promises": 1
     },
     "src/components/PageDesigner/PageNavigatorEditor.tsx": {
-      "jsx-a11y/label-has-associated-control": 4,
       "react-hooks/exhaustive-deps": 2
     },
     "src/components/PageDesigner/PageRequestConnectionEditor.tsx": {
@@ -99,12 +64,6 @@
     "src/components/PageDesigner/PageRequestValuesEditor.tsx": {
       "no-restricted-syntax": 5
     },
-    "src/components/PageDesigner/ParameterBindingsEditor.tsx": {
-      "jsx-a11y/label-has-associated-control": 2
-    },
-    "src/components/PageDesigner/RelationMatrixRowFilterEditor.tsx": {
-      "jsx-a11y/label-has-associated-control": 16
-    },
     "src/components/PagePermissions.tsx": {
       "@typescript-eslint/no-unused-vars": 4,
       "react-hooks/exhaustive-deps": 4
@@ -112,7 +71,6 @@
     "src/components/panelComponents/common/ContainersSection.tsx": {
       "jsx-a11y/click-events-have-key-events": 2,
       "jsx-a11y/no-noninteractive-element-interactions": 1,
-      "jsx-a11y/no-redundant-roles": 1,
       "jsx-a11y/no-static-element-interactions": 1
     },
     "src/components/panelComponents/common/PagesSection.tsx": {
@@ -123,15 +81,8 @@
       "jsx-a11y/interactive-supports-focus": 1,
       "jsx-a11y/no-static-element-interactions": 2
     },
-    "src/components/panelComponents/FormElements/ConfirmationDialog.tsx": {
-      "jsx-a11y/click-events-have-key-events": 1,
-      "jsx-a11y/no-static-element-interactions": 1
-    },
     "src/components/panelComponents/FormElements/DateInput.tsx": {
       "@typescript-eslint/no-explicit-any": 2
-    },
-    "src/components/panelComponents/FormElements/GenericAddComponent.tsx": {
-      "jsx-a11y/img-redundant-alt": 1
     },
     "src/components/panelComponents/FormElements/TabInputScreen.tsx": {
       "jsx-a11y/no-autofocus": 1
@@ -144,7 +95,6 @@
       "react-hooks/exhaustive-deps": 1
     },
     "src/components/panelComponents/Modals/AddFieldModal.tsx": {
-      "@typescript-eslint/no-explicit-any": 7,
       "@typescript-eslint/no-misused-promises": 1,
       "react-refresh/only-export-components": 1
     },
@@ -159,8 +109,7 @@
       "@typescript-eslint/no-misused-promises": 1
     },
     "src/components/panelComponents/Modals/CreatePageModal.tsx": {
-      "@typescript-eslint/no-misused-promises": 1,
-      "jsx-a11y/label-has-associated-control": 1
+      "@typescript-eslint/no-misused-promises": 1
     },
     "src/components/panelComponents/Modals/CreateWithJsonModal.tsx": {
       "@typescript-eslint/no-misused-promises": 1
@@ -176,17 +125,11 @@
       "jsx-a11y/click-events-have-key-events": 1,
       "jsx-a11y/no-static-element-interactions": 1
     },
-    "src/components/route-access/RouteAccessPolicyEditor.tsx": {
-      "jsx-a11y/label-has-associated-control": 1
-    },
     "src/components/RoutePermissions.test.tsx": {
       "@typescript-eslint/no-explicit-any": 12
     },
     "src/components/RoutePermissions.tsx": {
       "@typescript-eslint/no-explicit-any": 1
-    },
-    "src/components/ui/label.tsx": {
-      "jsx-a11y/label-has-associated-control": 1
     },
     "src/components/ui/phase1-primitives.test.tsx": {
       "no-restricted-syntax": 2
@@ -211,16 +154,12 @@
       "@typescript-eslint/no-explicit-any": 1
     },
     "src/hooks/useAuth.ts": {
-      "@typescript-eslint/no-explicit-any": 1,
       "@typescript-eslint/no-floating-promises": 2,
       "@typescript-eslint/no-misused-promises": 4,
       "react-hooks/exhaustive-deps": 1
     },
     "src/hooks/useCurrentProject.ts": {
       "react-hooks/exhaustive-deps": 2
-    },
-    "src/hooks/useWebSocket.ts": {
-      "@typescript-eslint/no-floating-promises": 1
     },
     "src/navigation/PrivateRoutes.navigation.test.tsx": {
       "@typescript-eslint/no-floating-promises": 1
@@ -243,33 +182,21 @@
       "@typescript-eslint/no-explicit-any": 3
     },
     "src/pages/IntegrationsPage.tsx": {
-      "@typescript-eslint/no-explicit-any": 3,
       "@typescript-eslint/no-floating-promises": 2,
-      "@typescript-eslint/no-misused-promises": 4,
-      "jsx-a11y/label-has-associated-control": 7
+      "@typescript-eslint/no-misused-promises": 4
     },
     "src/pages/LoginPage.tsx": {
-      "@typescript-eslint/no-explicit-any": 1,
-      "jsx-a11y/anchor-is-valid": 2
+      "@typescript-eslint/no-explicit-any": 1
     },
     "src/pages/PageDesignerPage.tsx": {
       "@typescript-eslint/no-floating-promises": 1,
-      "@typescript-eslint/no-misused-promises": 1,
-      "jsx-a11y/label-has-associated-control": 1
+      "@typescript-eslint/no-misused-promises": 1
     },
     "src/pages/ProjectMembersPage.tsx": {
       "@typescript-eslint/no-misused-promises": 1
     },
-    "src/pages/ProjectsPage.test.tsx": {
-      "@typescript-eslint/no-explicit-any": 7
-    },
-    "src/pages/ProjectsPage.tsx": {
-      "@typescript-eslint/no-misused-promises": 2,
-      "jsx-a11y/label-has-associated-control": 1
-    },
     "src/pages/RegisterPage.tsx": {
-      "@typescript-eslint/no-explicit-any": 1,
-      "jsx-a11y/anchor-is-valid": 2
+      "@typescript-eslint/no-explicit-any": 1
     },
     "src/types/index.ts": {
       "@typescript-eslint/no-explicit-any": 1
@@ -288,9 +215,6 @@
       "@typescript-eslint/no-explicit-any": 1,
       "@typescript-eslint/no-floating-promises": 9
     },
-    "src/utils/api/axiosClient.ts": {
-      "@typescript-eslint/no-explicit-any": 5
-    },
     "src/utils/api/branding.ts": {
       "@typescript-eslint/no-floating-promises": 2
     },
@@ -301,30 +225,20 @@
       "@typescript-eslint/no-explicit-any": 2
     },
     "src/utils/api/container.ts": {
-      "@typescript-eslint/no-explicit-any": 24,
       "@typescript-eslint/no-floating-promises": 16
     },
-    "src/utils/api/factory.ts": {
-      "@typescript-eslint/no-explicit-any": 3,
-      "@typescript-eslint/no-floating-promises": 6
-    },
     "src/utils/api/integration.ts": {
-      "@typescript-eslint/no-explicit-any": 4,
       "@typescript-eslint/no-floating-promises": 6
     },
     "src/utils/api/localization.test.ts": {
       "@typescript-eslint/no-explicit-any": 4
     },
     "src/utils/api/page.ts": {
-      "@typescript-eslint/no-explicit-any": 4,
+      "@typescript-eslint/no-explicit-any": 1,
       "@typescript-eslint/no-floating-promises": 7
     },
     "src/utils/api/project.ts": {
-      "@typescript-eslint/no-explicit-any": 6,
       "@typescript-eslint/no-floating-promises": 4
-    },
-    "src/utils/api/roleInfo.ts": {
-      "@typescript-eslint/no-explicit-any": 1
     },
     "src/utils/api/tenantExternalAPI.test.tsx": {
       "@typescript-eslint/no-explicit-any": 4
@@ -332,22 +246,8 @@
     "src/utils/containerFieldNormalization.ts": {
       "@typescript-eslint/no-explicit-any": 2
     },
-    "src/utils/containerRoutes.ts": {
-      "@typescript-eslint/no-explicit-any": 6
-    },
     "src/utils/dynamic.ts": {
       "@typescript-eslint/no-floating-promises": 2
-    },
-    "src/utils/i18n.ts": {
-      "@typescript-eslint/no-floating-promises": 1
-    },
-    "src/utils/linkHelpers.ts": {
-      "@typescript-eslint/no-explicit-any": 4
-    },
-    "src/utils/linkSupport.tsx": {
-      "@typescript-eslint/no-explicit-any": 4,
-      "@typescript-eslint/no-floating-promises": 1,
-      "react-refresh/only-export-components": 1
     },
     "src/utils/managementSession.test.ts": {
       "@typescript-eslint/no-explicit-any": 1
@@ -355,11 +255,7 @@
     "src/utils/mockDataGenerator.ts": {
       "no-case-declarations": 1
     },
-    "src/utils/roleUtils.ts": {
-      "@typescript-eslint/no-explicit-any": 2
-    },
     "src/utils/validationHelper.ts": {
-      "@typescript-eslint/no-explicit-any": 1,
       "no-useless-escape": 5,
       "prefer-const": 1
     },
@@ -406,9 +302,6 @@
     },
     "src/visual-engine/editor/DocumentToolsDrawer.tsx": {
       "no-restricted-syntax": 1
-    },
-    "src/visual-engine/editor/EditorToolbar.tsx": {
-      "jsx-a11y/no-redundant-roles": 1
     },
     "src/visual-engine/editor/EffectInspector.tsx": {
       "no-restricted-syntax": 1
@@ -704,9 +597,6 @@
     },
     "src/visualBuilder/PlacedVisualBuilderPage.tsx": {
       "react-hooks/exhaustive-deps": 3
-    },
-    "src/visualBuilder/VisualActionTools.tsx": {
-      "jsx-a11y/label-has-associated-control": 2
     },
     "src/visualBuilder/VisualBuilderPage.test.tsx": {
       "@typescript-eslint/no-misused-promises": 1,

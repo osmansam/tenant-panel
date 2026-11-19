@@ -62,7 +62,7 @@ const useAuth = () => {
           verification.current = undefined;
           setReady(false);
           setError(true);
-          const status = (err as any)?.response?.status;
+          const status = (err as { response?: { status?: number } })?.response?.status;
           if (status !== 503) latest.current.navigate('/login', {
             replace: true,
             state: {

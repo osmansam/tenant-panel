@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { exportTemplate } from "../persistence/importExport";
 import type { VisualTemplate } from "../templates/types";
 import type { ComponentDocument } from "../model";
-import { ALL_CURATED_STARTERS } from "../fixtures/templateStarters";
+import { STARTER_CATALOG, loadStarter, type StarterCatalogEntry } from "../templates/starterCatalog";
 import { getBlankStarterDocument } from "../fixtures/blankStarters";
 
 export interface TemplatePanelProps {
@@ -27,11 +27,12 @@ interface UnifiedTemplateItem {
   kind: "saved" | "starter";
   savedTemplate?: VisualTemplate;
   starterDoc?: ComponentDocument;
+  starterEntry?: StarterCatalogEntry;
 }
 
 export function TemplatePanel({
   templates,
-  starters = ALL_CURATED_STARTERS,
+  starters,
   onSaveAsTemplate,
   onImportTemplate,
   onUseTemplate,
@@ -45,8 +46,17 @@ export function TemplatePanel({
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const availableStarters = starters ?? STARTER_CATALOG;
 
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const pendingLoad = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const createSavedTemplate = () => {
     const name = templateName.trim();
@@ -80,7 +90,7 @@ export function TemplatePanel({
     }
 
     // Built-in starters
-    for (const doc of starters) {
+    for (const doc of availableStarters) {
       const lowerId = doc.id.toLowerCase();
       const lowerName = doc.name.toLowerCase();
       const lowerTags = (doc as { tags?: readonly string[] }).tags ?? [];
@@ -125,12 +135,13 @@ export function TemplatePanel({
         badge,
         badgeClass,
         kind: "starter",
-        starterDoc: doc,
+        starterDoc: "root" in doc ? doc : undefined,
+        starterEntry: "root" in doc ? undefined : doc,
       });
     }
 
     return items;
-  }, [templates, starters]);
+  }, [templates, availableStarters]);
 
   // Counts
   const counts = useMemo(() => {
@@ -165,20 +176,29 @@ export function TemplatePanel({
 
   const applyItem = useCallback(
     (item: UnifiedTemplateItem) => {
+      if (pendingLoad.current) return;
       if (item.kind === "saved" && item.savedTemplate) {
         onUseTemplate(item.savedTemplate);
-      } else if (item.kind === "starter" && item.starterDoc) {
-        if (onSelectStarter) {
-          onSelectStarter(item.starterDoc);
-        } else {
-          onUseTemplate({
-            version: 1,
-            id: item.starterDoc.id,
-            name: item.starterDoc.name,
-            scope: "project",
-            snapshot: item.starterDoc,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+      } else if (item.kind === "starter") {
+        const applyDocument = (doc: ComponentDocument) => {
+          if (onSelectStarter) onSelectStarter(doc);
+          else onUseTemplate({
+            version: 1, id: doc.id, name: doc.name, scope: "project", snapshot: doc,
+            createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          });
+        };
+        if (item.starterDoc) applyDocument(item.starterDoc);
+        else if (item.starterEntry) {
+          pendingLoad.current = true;
+          setLoadError("");
+          setLoadingId(item.id);
+          void loadStarter(item.starterEntry).then(doc => {
+            if (mounted.current) applyDocument(doc);
+          }).catch(() => {
+            if (mounted.current) setLoadError("Unable to load this template. Check your connection and try again.");
+          }).finally(() => {
+            pendingLoad.current = false;
+            if (mounted.current) setLoadingId(null);
           });
         }
       }
@@ -187,6 +207,7 @@ export function TemplatePanel({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (loadingId !== null) return;
     const total = filteredItems.length;
     if (total === 0) return;
 
@@ -208,10 +229,6 @@ export function TemplatePanel({
         next = total - 1;
         e.preventDefault();
         break;
-      case "Enter":
-        e.preventDefault();
-        applyItem(filteredItems[index]);
-        return;
       default:
         return;
     }
@@ -277,6 +294,7 @@ export function TemplatePanel({
           type="button"
           className="vb-templates__scratch-btn"
           aria-label="Start from scratch, Blank canvas"
+          disabled={loadingId !== null}
           onClick={() => {
             const blankDoc = getBlankStarterDocument();
             if (onSelectStarter) {
@@ -353,50 +371,42 @@ export function TemplatePanel({
         </p>
       </div>
 
+      {loadError ? <p role="alert">{loadError}</p> : null}
+      {loadingId ? <p role="status">Loading template…</p> : null}
       {filteredItems.length === 0 ? (
         <p className="vb-hint">
           {searchQuery ? `No templates found matching "${searchQuery}".` : "No templates in this category."}
         </p>
       ) : (
-        <ul className="vb-templates__list" role="listbox" aria-label="Template list">
+        <ul className="vb-templates__list" aria-label="Template list">
           {filteredItems.map((item, index) => {
             const isFocused = focusedIndex === index;
             return (
               <li key={`${item.kind}-${item.id}`}>
-                <div
+                <button
+                  type="button"
                   ref={(el) => {
                     itemRefs.current[index] = el;
                   }}
-                  role="option"
-                  aria-selected={isFocused}
                   tabIndex={isFocused ? 0 : -1}
+                  disabled={loadingId !== null}
                   onKeyDown={(e) => handleKeyDown(e, index)}
+                  onFocus={() => setFocusedIndex(index)}
                   onClick={() => {
                     setFocusedIndex(index);
-                    itemRefs.current[index]?.focus();
+                    applyItem(item);
                   }}
                   className={`vb-templates__item-card ${isFocused ? "vb-templates__item-card--focused" : ""}`}
                   style={{ width: "100%", cursor: "pointer" }}
                 >
-                  <div className="vb-templates__item-info">
-                    <span className={`vb-templates__badge ${item.badgeClass}`}>{item.badge}</span>
+                  <span className="vb-button vb-button--small" style={{ order: 2 }}>Use</span>{" "}
+                  <span className="vb-templates__item-info" style={{ order: 1 }}>
+                    <span aria-hidden="true" className={`vb-templates__badge ${item.badgeClass}`}>{item.badge}</span>
                     <span className="vb-templates__name" title={item.name}>
                       {item.name}
                     </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="vb-button vb-button--small"
-                    aria-label={`Use ${item.name}`}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      applyItem(item);
-                    }}
-                  >
-                    Use
-                  </button>
-                </div>
+                  </span>
+                </button>
               </li>
             );
           })}
@@ -418,7 +428,7 @@ export function TemplatePanel({
         <button
           type="button"
           className="vb-button vb-button--small"
-          disabled={templateJson.trim().length === 0}
+          disabled={loadingId !== null || templateJson.trim().length === 0}
           onClick={() => onImportTemplate(templateJson)}
         >
           Import template

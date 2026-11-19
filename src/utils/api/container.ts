@@ -8,6 +8,7 @@ import { normalizeContainerField } from "../containerFieldNormalization";
 import { normalizeContainerRoutes } from "../containerRoutes";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetQuery } from "./factory";
+import { apiErrorMessage } from "./errorMessage";
 import { logger } from "../logger";
 
 // If you prefer using mongodb's ObjectId type, import it and replace string with ObjectId
@@ -132,7 +133,7 @@ export interface WorkflowStep {
   order?: number;
   isActive?: boolean;
   targetSchema?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   steps?: WorkflowStep[];
   elseSteps?: WorkflowStep[];
   branches?: { name?: string; steps?: WorkflowStep[] }[];
@@ -151,7 +152,7 @@ export interface DynamicWorkflow {
   isAuthorized?: boolean;
   authorizeRole?: string[];
   description?: string;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
   conditions?: WorkflowCondition[];
   steps?: WorkflowStep[];
   stopOnError?: boolean;
@@ -166,7 +167,7 @@ export interface DynamicWorkflow {
 export interface WorkflowCondition {
   field?: string;
   operator: string;
-  value?: any;
+  value?: unknown;
   conditions?: WorkflowCondition[];
 }
 
@@ -222,7 +223,7 @@ export interface Index {
 export interface Condition {
   field: string;
   operator: string; // "=", ">", "<", "in", etc.
-  value: any; // can support "{{user.id}}" etc.
+  value: unknown; // can support "{{user.id}}" etc.
   extractFilter?: boolean;
   roles?: string[];
 }
@@ -354,21 +355,21 @@ export interface CreateContainerRawRouteSpec {
 // Raw payload types matching Go backend struct tags (PascalCase)
 export interface CreateContainerRawPayload {
   SchemaName: string;
-  Fields: any[]; // Empty array initially
+  Fields: unknown[]; // Empty array initially
   Routes: Record<string, CreateContainerRawRouteSpec>;
   Redis: {
     IsRedisCached: boolean;
     CacheTime: number;
     TriggeredRedisCaches: string[];
   };
-  Pipelines: any[];
-  DynamicFunctions: any[];
-  DynamicApis: any[];
+  Pipelines: unknown[];
+  DynamicFunctions: unknown[];
+  DynamicApis: unknown[];
   IsAuthContainer: boolean;
   IsRegisterActive?: boolean;
   PopulatedRoutes: string[];
-  Indexes: any;
-  RowAccess: any;
+  Indexes: unknown;
+  RowAccess: unknown;
 }
 
 // Helper function to build container API paths
@@ -401,7 +402,21 @@ function useContainerContext(required = true) {
   };
 }
 
-export function normalizeDynamicApiModel(api: any): DynamicApiModel {
+type RawDynamicApiModel = Partial<DynamicApiModel> & {
+  Name?: string;
+  Url?: string;
+  URL?: string;
+  Method?: DynamicApiModel["method"];
+  Dependencies?: string[];
+  IsAuthenticated?: boolean;
+  IsAuthorized?: boolean;
+  AuthorizeRole?: string[];
+  IsActive?: boolean;
+  IsRedisCached?: boolean;
+  CacheTime?: number;
+};
+
+export function normalizeDynamicApiModel(api: RawDynamicApiModel): DynamicApiModel {
   return {
     name: api.Name || api.name || "",
     url: api.Url || api.URL || api.url || "",
@@ -417,7 +432,32 @@ export function normalizeDynamicApiModel(api: any): DynamicApiModel {
   };
 }
 
-export function normalizeDynamicWorkflow(workflow: any): DynamicWorkflow {
+type RawDynamicWorkflow = Partial<DynamicWorkflow> & {
+  ID?: string;
+  Name?: string;
+  Version?: number;
+  Trigger?: DynamicWorkflow["trigger"];
+  Schedule?: string;
+  Timezone?: string;
+  Mode?: DynamicWorkflow["mode"];
+  IsActive?: boolean;
+  IsAuthenticated?: boolean;
+  IsAuthorized?: boolean;
+  AuthorizeRole?: string[];
+  Description?: string;
+  Payload?: DynamicWorkflow["payload"];
+  Conditions?: DynamicWorkflow["conditions"];
+  Steps?: DynamicWorkflow["steps"];
+  StopOnError?: boolean;
+  TimeoutSec?: number;
+  ReturnStep?: string;
+  OutputFields?: string[];
+  RunInTransaction?: boolean;
+  IsRedisCached?: boolean;
+  CacheTime?: number;
+};
+
+export function normalizeDynamicWorkflow(workflow: RawDynamicWorkflow): DynamicWorkflow {
   return {
     id: workflow.ID || workflow.id,
     name: workflow.Name || workflow.name || "",
@@ -471,20 +511,43 @@ export function useContainersQuery(enabled = true) {
   return { ...response, data: normalizeContainerList(response.data) };
 }
 
-function normalizeContainerList(response: ContainerModel[] | undefined) {
-  // The API returns an array of containers directly
-  // Handle the response which might be PascalCase from Go backend
-  const containers = response || [];
+type RawContainerRecord = Partial<ContainerModel> & {
+  ID?: string;
+  SchemaName?: string;
+  Fields?: Field[];
+  Routes?: Record<string, unknown>;
+  Redis?: ContainerModel["redis"];
+  Pipelines?: PipelineStage[];
+  Workflows?: RawDynamicWorkflow[];
+  DynamicFunctions?: DynamicFunction[];
+  DynamicApis?: RawDynamicApiModel[];
+  IsAuthContainer?: boolean;
+  IsRegisterActive?: boolean;
+  IsGoogleLoginActive?: boolean;
+  PopulatedRoutes?: ContainerModel["populatedRoutes"];
+  Indexes?: ContainerModel["indexes"];
+  RowAccess?: ContainerModel["rowAccess"];
+  Frontend?: ContainerModel["frontend"];
+  CollectionName?: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+};
 
-  return containers.map((container: any) => ({
-    id: container.ID || container.id,
-    _id: container.ID || container.id,
-    schemaName: container.SchemaName || container.schemaName,
+type RawContainerEnvelope =
+  | RawContainerRecord
+  | { data?: RawContainerRecord | { data?: RawContainerRecord } };
+
+function normalizeContainerRecord(container: RawContainerRecord): ContainerModel {
+  const id = container.ID || container.id || "";
+  return {
+    id,
+    _id: id,
+    schemaName: container.SchemaName || container.schemaName || "",
     fields: (container.Fields || container.fields || []).map(
       normalizeContainerField,
     ),
     routes: normalizeContainerRoutes(container.Routes || container.routes || {}),
-    redis: container.Redis || container.redis,
+    redis: (container.Redis || container.redis) as ContainerModel["redis"],
     pipelines: container.Pipelines || container.pipelines || [],
     workflows: (container.Workflows || container.workflows || []).map(
       normalizeDynamicWorkflow
@@ -508,7 +571,29 @@ function normalizeContainerList(response: ContainerModel[] | undefined) {
     collectionName: container.CollectionName || container.collectionName,
     createdAt: container.CreatedAt || container.createdAt,
     updatedAt: container.UpdatedAt || container.updatedAt,
-  }));
+  };
+}
+
+function unwrapContainerEnvelope(
+  response: RawContainerEnvelope | undefined,
+): RawContainerRecord | undefined {
+  if (!response || typeof response !== "object") return undefined;
+  if ("data" in response && response.data && typeof response.data === "object") {
+    const inner = response.data;
+    if ("data" in inner && inner.data && typeof inner.data === "object") {
+      return inner.data;
+    }
+    return inner as RawContainerRecord;
+  }
+  return response as RawContainerRecord;
+}
+
+function normalizeContainerList(response: RawContainerRecord[] | undefined) {
+  // The API returns an array of containers directly
+  // Handle the response which might be PascalCase from Go backend
+  const containers = response || [];
+
+  return containers.map(normalizeContainerRecord);
 }
 
 export function useContainer(id: string, enabled: boolean = true) {
@@ -516,51 +601,18 @@ export function useContainer(id: string, enabled: boolean = true) {
   const path = buildContainerPath(tenantSlug, projectSlug, `/${id}`);
   const projectSpecificQueryKey = ["container", tenantSlug, projectSlug, id];
 
-  const response = useGet<any>(path, projectSpecificQueryKey, enabled && !!id);
+  const response = useGet<RawContainerEnvelope>(path, projectSpecificQueryKey, enabled && !!id);
 
   logger.debug("useContainer raw response:", { id, response, path });
 
   // Extract the actual data from the nested structure
   // The API returns: { data: { data: {...}, message: "...", status: 200 } }
-  const actualData = response?.data?.data || response?.data || response;
+  const actualData = unwrapContainerEnvelope(response);
 
   // Normalize the response from PascalCase (Go backend) to camelCase
   if (!actualData) return undefined;
 
-  const container: any = actualData;
-  const normalized = {
-    id: container.ID || container.id,
-    _id: container.ID || container.id,
-    schemaName: container.SchemaName || container.schemaName,
-    fields: (container.Fields || container.fields || []).map(
-      normalizeContainerField,
-    ),
-    routes: normalizeContainerRoutes(container.Routes || container.routes || {}),
-    redis: container.Redis || container.redis,
-    pipelines: container.Pipelines || container.pipelines || [],
-    workflows: (container.Workflows || container.workflows || []).map(
-      normalizeDynamicWorkflow
-    ),
-    dynamicFunctions:
-      container.DynamicFunctions || container.dynamicFunctions || [],
-    dynamicApis: (container.DynamicApis || container.dynamicApis || []).map(
-      normalizeDynamicApiModel
-    ),
-    isAuthContainer:
-      container.IsAuthContainer ?? container.isAuthContainer ?? false,
-    isRegisterActive:
-      container.IsRegisterActive ?? container.isRegisterActive ?? false,
-    isGoogleLoginActive:
-      container.IsGoogleLoginActive ?? container.isGoogleLoginActive ?? false,
-    populatedRoutes:
-      container.PopulatedRoutes || container.populatedRoutes || [],
-    indexes: container.Indexes || container.indexes,
-    rowAccess: container.RowAccess || container.rowAccess,
-    frontend: container.Frontend || container.frontend,
-    collectionName: container.CollectionName || container.collectionName,
-    createdAt: container.CreatedAt || container.createdAt,
-    updatedAt: container.UpdatedAt || container.updatedAt,
-  } as ContainerModel;
+  const normalized = normalizeContainerRecord(actualData);
 
   logger.debug("useContainer normalized:", normalized);
   return normalized;
@@ -617,12 +669,9 @@ export function useCreateContainer() {
       const message = response?.message || "Collection created successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Container creation failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to create container";
+      const errorMessage = apiErrorMessage(error, "Failed to create container");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -669,12 +718,9 @@ export function useUpdateContainer() {
       const message = response?.message || "Collection updated successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Container update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update container";
+      const errorMessage = apiErrorMessage(error, "Failed to update container");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -720,12 +766,12 @@ export function useCreateProjectAuthUser() {
       });
       toast.success(t("Auth user created successfully"));
     },
-    onError: (error: any) => {
-      const errorMessage =
-        error?.response?.data?.data?.error ||
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to create auth user";
+    onError: (error: unknown) => {
+      const errorMessage = apiErrorMessage(error, "Failed to create auth user", [
+        ["response", "data", "data", "error"],
+        ["response", "data", "message"],
+        ["message"],
+      ]);
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -758,12 +804,9 @@ export function useDeleteContainer() {
       const message = response?.message || "Collection deleted successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Container deletion failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to delete container";
+      const errorMessage = apiErrorMessage(error, "Failed to delete container");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -865,12 +908,9 @@ export function useUpdateDynamicApis() {
       const message = response?.message || "Dynamic APIs updated successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Dynamic APIs update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update dynamic APIs";
+      const errorMessage = apiErrorMessage(error, "Failed to update dynamic APIs");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -919,12 +959,9 @@ export function useUpdatePipelines() {
       const message = response?.message || "Pipelines updated successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Pipelines update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update pipelines";
+      const errorMessage = apiErrorMessage(error, "Failed to update pipelines");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -973,12 +1010,9 @@ export function useUpdateWorkflows() {
       const message = response?.message || "Workflows updated successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Workflows update failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to update workflows";
+      const errorMessage = apiErrorMessage(error, "Failed to update workflows");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -1016,12 +1050,9 @@ export function useResetRedis() {
       const message = response?.message || "Redis cache reset successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error("Redis reset failed:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to reset Redis cache";
+      const errorMessage = apiErrorMessage(error, "Failed to reset Redis cache");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });
@@ -1173,11 +1204,8 @@ export function useUploadExcel() {
         "Excel file uploaded and collection created successfully";
       toast.success(t(toCollectionTerminology(message)));
     },
-    onError: (error: any) => {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to upload Excel file";
+    onError: (error: unknown) => {
+      const errorMessage = apiErrorMessage(error, "Failed to upload Excel file");
       toast.error(t(toCollectionTerminology(errorMessage)));
     },
   });

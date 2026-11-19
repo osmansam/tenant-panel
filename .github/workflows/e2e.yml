@@ -57,9 +57,22 @@ jobs:
           exit 1
       - name: Install disposable Redis runtime
         run: sudo apt-get update && sudo apt-get install -y redis-server
-      - name: Run ten real-backend journeys
+      - name: Run real-backend and axe journeys
         working-directory: panel
         run: yarn test:e2e
+      - name: Enforce Lighthouse and interaction budgets
+        working-directory: panel
+        run: yarn test:performance
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-${{ github.sha }}
+          path: |
+            panel/output/performance
+            panel/.lighthouseci
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload browser failure evidence
         if: failure()
         uses: actions/upload-artifact@v4

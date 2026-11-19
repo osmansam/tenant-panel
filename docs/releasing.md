@@ -11,13 +11,18 @@ yarn install --immutable
 yarn release:check
 ```
 
-The release command runs `yarn test:lint`, `yarn lint`, `yarn test`, `yarn build`
-and `yarn check:bundle` in sequence: lint-ratchet regression tests, lint, Vitest,
-TypeScript/Vite production build and compressed JavaScript budgets. The CI
-**Release checks** job also runs `yarn audit:high` as a separate step. The release
-command does not replace the real-backend browser smoke job. `yarn lint` permits
-only the measured legacy findings recorded in
-`scripts/lint-baseline.json`; new debt fails. Follow
+The release command runs `yarn test:lint`, `yarn test:coverage-gate`,
+`yarn test:server`, `yarn test:performance-gate`, `yarn lint`,
+`yarn test:coverage`, `yarn build`, `yarn templates:check` and
+`yarn check:bundle` in sequence: lint-ratchet, coverage-ratchet, CSP collector
+and performance-gate regression tests, lint, Vitest with V8 coverage floors,
+TypeScript/Vite production build, starter template catalog verification and
+compressed JavaScript budgets. The CI **Release checks** job also runs
+`yarn audit:high` and uploads `coverage/lcov.info` and
+`coverage/coverage-summary.json`. The release command does not replace the
+real-backend browser smoke job (`yarn test:e2e`) or Lighthouse CI performance
+budgets (`yarn test:performance`). `yarn lint` permits only the measured legacy
+findings recorded in `scripts/lint-baseline.json`; new debt fails. Follow
 [the ratchet policy](../scripts/lint-ratchet.md) when reducing that baseline.
 
 Run `yarn analyze` to inspect `output/bundle-stats.html` when a budget fails.
@@ -138,19 +143,21 @@ by that environment. Explicitly list required production origins before turning
 it into an enforcing policy. Keep frame restrictions and the iframe renderer's
 URL validation/sandbox protections in place during CSP rollout.
 
-For CSP reports, configure an operator-owned HTTPS collector and a `report-uri`
-or `Reporting-Endpoints`/`report-to` route supported by the chosen host. The static
-application does not provide a report collector. Minimize stored report fields
-and retention: blocked/document URLs can contain sensitive authored content.
-Start with staging and production report-only observation, exercise supported
-embeds and visual effects, fix or explicitly approve required sources, then
-replace the header with enforcing `Content-Security-Policy` in a reviewed change.
-Keep that header change independently reversible if legitimate content is blocked.
-The committed report-only policy has no report destination: it produces browser
-diagnostics but does not deliver reports to a central service until a collector
-is configured. Its `frame-ancestors 'none'` directive is also report-only;
-the iframe renderer's absolute HTTP(S) URL check and `sandbox="allow-scripts"` are
-enforced independently.
+For CSP reports, the repository includes a bounded `/csp-report` collector
+(`api/csp-report.js` for Vercel and `server/cspReportCollector.mjs` /
+`deploy/Dockerfile.csp` behind `deploy/nginx.conf` for container hosting). The
+report-only policy sends violations to `/csp-report`, and the collector retains
+only aggregate directive, disposition, status and count fields (never blocked
+URLs, payloads or client IPs). `X-Frame-Options: DENY` and
+`X-Robots-Tag: noindex, nofollow` are enforced alongside the report-only CSP,
+and the **Staging container smoke** workflow verifies actual `nginx` headers and
+`/csp-report` handling on every push and pull request. Start with staging and
+production report-only observation, exercise supported embeds and visual
+effects, fix or explicitly approve required sources, then replace the header
+with enforcing `Content-Security-Policy` in a reviewed change. Keep that header
+change independently reversible if legitimate content is blocked. The iframe
+renderer's absolute HTTP(S) URL check and `sandbox="allow-scripts"` are enforced
+independently.
 
 Serve HTTPS, validate API credentialed CORS/cookie behavior, and verify protected
 routes fail closed during session verification failures. Coordinate collaboration

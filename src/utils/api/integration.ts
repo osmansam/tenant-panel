@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./errorMessage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { useCurrentProject } from "../../hooks/useCurrentProject";
@@ -168,11 +169,11 @@ export function useCreateIntegrationCredential() {
       });
       toast.success("Integration credential created");
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Failed to create integration credential";
+    onError: (error: unknown) => {
+      const message = apiErrorMessage(error, "Failed to create integration credential", [
+        ["response", "data", "message"],
+        ["response", "data", "error"],
+      ]);
       toast.error(message);
     },
   });
@@ -197,11 +198,11 @@ export function useRevokeIntegrationCredential() {
       });
       toast.success("Integration credential revoked");
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Failed to revoke integration credential";
+    onError: (error: unknown) => {
+      const message = apiErrorMessage(error, "Failed to revoke integration credential", [
+        ["response", "data", "message"],
+        ["response", "data", "error"],
+      ]);
       toast.error(message);
     },
   });
@@ -243,11 +244,11 @@ export function useCreateExternalAPICredential() {
       });
       toast.success("External API credential created");
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Failed to create external API credential";
+    onError: (error: unknown) => {
+      const message = apiErrorMessage(error, "Failed to create external API credential", [
+        ["response", "data", "message"],
+        ["response", "data", "error"],
+      ]);
       toast.error(message);
     },
   });
@@ -272,11 +273,11 @@ export function useRevokeExternalAPICredential() {
       });
       toast.success("External API credential revoked");
     },
-    onError: (error: any) => {
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Failed to revoke external API credential";
+    onError: (error: unknown) => {
+      const message = apiErrorMessage(error, "Failed to revoke external API credential", [
+        ["response", "data", "message"],
+        ["response", "data", "error"],
+      ]);
       toast.error(message);
     },
   });

@@ -1,5 +1,6 @@
 import { test as base, expect, type Page, type APIRequestContext } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import AxeBuilder from '@axe-core/playwright';
 
 type Seed = { tenantId: string; projectId: string; secondProjectId: string; inactiveProjectId: string; pageId: string; memberId: string };
 const api = 'http://127.0.0.1:4174';
@@ -202,4 +203,54 @@ test('10 visual builder placed-component deep link and reload load the saved doc
   await page.reload();
   await expect(page.getByRole('button', { name: 'Save copy to library', exact: true })).toBeEnabled();
   await expect(page).toHaveURL(new RegExp(`/pages/visual-builder\\?page=${seed.pageId}&component=smoke-visual$`));
+});
+
+test('11 login, projects, pages, designer and members pass accessibility scans', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  async function scan(name: string) {
+    // Measure settled colors, including focus/hover transitions and modal entrances.
+    await page.evaluate(async () => {
+      await Promise.all(document.getAnimations().filter(animation => Number.isFinite(animation.effect?.getComputedTiming().iterations)).map(animation => animation.finished.catch(() => undefined)));
+    });
+    const results = await new AxeBuilder({ page }).analyze();
+    const reportPath = testInfo.outputPath(`axe-${name}.json`);
+    writeFileSync(reportPath, JSON.stringify(results, null, 2));
+    await testInfo.attach(`axe-${name}`, { path: reportPath, contentType: 'application/json' });
+    expect.soft(results.violations, `Accessibility violations in ${name}`).toEqual([]);
+  }
+
+  await page.goto('/login');
+  await expect(page.getByRole('button', { name: 'Login', exact: true })).toBeVisible();
+  await scan('login');
+  await login(page);
+  await page.goto('/projects');
+  await expect(page.getByRole('button', { name: 'Switch to Inventory', exact: true })).toBeVisible();
+  await scan('projects');
+  await openProject(page);
+  await page.goto('/pages');
+  await expect(page.getByRole('button', { name: 'View page details: Smoke Page', exact: true })).toBeVisible();
+  await scan('pages');
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  const section = page.getByRole('button', { name: /^Section 1,/ });
+  await section.focus();
+  await page.keyboard.press('Enter');
+  const selectCell = page.getByRole('button', { name: 'Select cell 1,1', exact: true });
+  await selectCell.focus();
+  await page.keyboard.press('Space');
+  await expect(selectCell).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('spinbutton', { name: 'Row', exact: true })).toBeVisible();
+  await scan('designer');
+  const add = page.getByTitle('Add component', { exact: true });
+  await add.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Add Component', exact: true })).toBeVisible();
+  await scan('component-editor');
+  await page.keyboard.press('Escape');
+  await expect(add).toBeFocused();
+  await page.goto('/members');
+  await expect(page.getByRole('heading', { name: 'Project members', exact: true })).toBeVisible();
+  await scan('members');
+  await page.getByRole('button', { name: 'Invite collaborator', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Queue invitation', exact: true })).toBeVisible();
+  await scan('member-invitation');
 });

@@ -40,13 +40,13 @@ const LoginPage: React.FC = () => {
       footer={
         <>
           {t("By signing in, you agree to our")}{" "}
-          <a href="#" className="font-medium text-ui-primary hover:underline">
+          <span className="font-medium text-ui-primary">
             {t("Terms of Service")}
-          </a>{" "}
+          </span>{" "}
           {t("and")}{" "}
-          <a href="#" className="font-medium text-ui-primary hover:underline">
+          <span className="font-medium text-ui-primary">
             {t("Privacy Policy")}
-          </a>
+          </span>
         </>
       }
     >

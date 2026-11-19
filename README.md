@@ -35,11 +35,13 @@ after changing local environment values; production changes require a rebuild.
 | `yarn dev` | Start the Vite development server. |
 | `yarn lint` | Run the repository lint rules and warning ratchet. |
 | `yarn test` | Run Vitest once. |
+| `yarn test:coverage` | Run Vitest with V8 coverage and enforce coverage floors. |
 | `yarn build` | Type-check and build the production application into `dist/`. |
 | `yarn check:bundle` | Check compressed JavaScript budgets after building. |
-| `yarn release:check` | Test the lint ratchet, then run lint, unit tests, build and bundle budgets. |
+| `yarn release:check` | Run lint/coverage/server/performance-gate tests, lint, coverage, build, template catalog check and bundle budgets. |
 | `yarn analyze` | Build an interactive bundle report in `output/bundle-stats.html`. |
-| `yarn test:e2e` | Run Playwright smoke journeys against an isolated real backend. |
+| `yarn test:e2e` | Run Playwright smoke and axe accessibility journeys against an isolated real backend. |
+| `yarn test:performance` | Run Lighthouse CI navigation and interaction budgets against the isolated backend. |
 | `yarn audit:high` | Audit direct and transitive dependencies for high/critical findings. |
 | `yarn serve` | Preview the production build locally. |
 

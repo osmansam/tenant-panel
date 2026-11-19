@@ -191,6 +191,7 @@ export const inferWorkflowStepFields = (
 
   if (
     typeof step.config?.value === "object" &&
+    step.config.value !== null &&
     !Array.isArray(step.config.value)
   ) {
     const keys = Object.keys(step.config.value).filter((key) => key !== "_id");

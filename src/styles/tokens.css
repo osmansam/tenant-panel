@@ -12,7 +12,7 @@
   --ui-surface-raised: 0 0% 100%;
   --ui-foreground: 240 3% 12%;
   --ui-muted-foreground: 240 3% 43%;
-  --ui-placeholder: 240 4% 62%;
+  --ui-placeholder: 240 4% 43%;
 
   /* Ink — used for primary actions and high-contrast marks. */
   --ui-ink: 240 4% 11%;
@@ -26,7 +26,7 @@
   --ui-border-strong: 240 4% 70%;
 
   /* Accent — Apple system blue. */
-  --ui-primary: 210 100% 44%;
+  --ui-primary: 210 100% 42%;
   --ui-primary-hover: 210 100% 40%;
   --ui-primary-active: 210 100% 35%;
   --ui-primary-foreground: 0 0% 100%;
@@ -41,7 +41,7 @@
   --ui-success-hover: 147 62% 26%;
   --ui-success-active: 147 62% 22%;
   --ui-success-subtle: 145 65% 96%;
-  --ui-info: 210 100% 44%;
+  --ui-info: 210 100% 42%;
   --ui-info-subtle: 208 100% 97%;
   --ui-warning: 32 90% 33%;
   --ui-warning-hover: 32 90% 28%;

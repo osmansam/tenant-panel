@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridSection } from "../../types/page";
 import { PageDesigner } from "./PageDesigner";
 import type { ContainerModel, Field } from "../../utils/api/container";
@@ -26,10 +26,12 @@ const container: ContainerModel = {
   dynamicFunctions: [],
   dynamicApis: [],
 };
+let activeContainer = container;
+beforeEach(() => { activeContainer = container; });
 
 vi.mock("../../utils/api/container", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/api/container")>();
-  return { ...actual, useGetContainers: () => [container] };
+  return { ...actual, useGetContainers: () => [activeContainer] };
 });
 
 vi.mock("./CellExcelUploadModal", () => ({
@@ -70,6 +72,41 @@ const selectAction = async (user: ReturnType<typeof userEvent.setup>, name: stri
 };
 
 describe("PageDesigner actions tab", () => {
+  it("preserves relation group edits and row rules across settings tabs and saves their order", async () => {
+    activeContainer = { ...container, fields: [...fields, { name: "links", type: "array" }, { name: "otherLinks", type: "array" }] };
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const configured = structuredClone(sections);
+    configured[0].cells[0].components[0].table = {
+      generatedRelationColumns: [
+        { id: "first", arrayField: "links", sourceSchemaName: "products", sourceIdField: "_id", sourceLabelField: "title", sourceLimit: 25 },
+        { id: "second", arrayField: "otherLinks", sourceSchemaName: "products", sourceIdField: "_id", sourceLabelField: "title", sourceLimit: 50 },
+      ],
+    };
+    render(<PageDesigner sections={configured} onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: /^Section 1/i }));
+    await user.click(screen.getByTitle("Edit Component"));
+    await user.click(screen.getByRole("button", { name: "Generated Relation Columns" }));
+    const recordLimit = screen.getAllByRole("spinbutton", { name: "Source record limit" })[0];
+    await user.type(recordLimit, "0");
+    expect(recordLimit).toHaveValue(100);
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+    expect(screen.getAllByRole("textbox", { name: "Stable group ID" }).map(input => (input as HTMLInputElement).value)).toEqual(["second", "first"]);
+    await user.click(screen.getByRole("button", { name: "Row Classes" }));
+    await user.click(screen.getByRole("button", { name: "+ Add rule" }));
+    await user.type(screen.getByPlaceholderText("status = 'active'"), "status = 'active'");
+    await user.type(screen.getByPlaceholderText("bg-ui-success-subtle"), "highlight-row");
+    await user.click(screen.getByRole("button", { name: "Generated Relation Columns" }));
+    expect(screen.getAllByRole("spinbutton", { name: "Source record limit" })[1]).toHaveValue(100);
+    await user.click(screen.getByRole("button", { name: "Row Classes" }));
+    expect(screen.getByPlaceholderText("bg-ui-success-subtle")).toHaveValue("highlight-row");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    const saved = onChange.mock.lastCall![0][0].cells[0].components[0].table;
+    expect(saved.generatedRelationColumns.map((group: { id: string }) => group.id)).toEqual(["second", "first"]);
+    expect(saved.generatedRelationColumns[1].sourceLimit).toBe(100);
+    expect(saved.rows.className).toEqual([{ condition: "status = 'active'", className: "highlight-row" }]);
+  });
+
   it("separates component details, source, and outputs while saving edits", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
