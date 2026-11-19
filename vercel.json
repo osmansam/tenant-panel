@@ -9,7 +9,7 @@
       "destination": "/index.html"
     }
   ],
-  "installCommand": "corepack enable && yarn install --immutable",
+  "installCommand": "corepack yarn install --immutable",
   "buildCommand": "corepack yarn build",
   "headers": [
     {
