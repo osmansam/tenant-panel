@@ -5,6 +5,8 @@ added only when a version and its verified commit are actually released.
 
 ## Unreleased
 
+## 0.1.0 — 2026-11-19
+
 ### Added
 
 - Browser smoke coverage against the Go API and an isolated MongoDB replica set,
@@ -40,3 +42,9 @@ added only when a version and its verified commit are actually released.
 - Required measured LCP, CLS and INP results, including strict budget boundaries,
   and strengthened deployment header checks and PR commit-history secret scans.
 - Extracted typed table and collection tabs while preserving parent-owned editor drafts.
+
+### Release limitations
+
+- Sentry ingestion and source-map resolution require an operator-owned project and credentials.
+- CSP remains report-only pending review of staging reports and supported embeds/effects.
+- Performance budgets use three-run lab medians; individual cold-load outliers remain.

@@ -65,5 +65,6 @@ collections and 3,311 ms for pages, so those routes still need cold-load work.
 - CSP remains report-only. Observe staging reports and exercise legitimate
   embeds/effects before reviewing an enforcing policy; a synthetic collector POST
   is not a substitute for that observation.
-- No `v0.1.0` release tag is claimed here. Tag the exact verified committed SHA
-  after the outstanding release evidence is recorded in the PR/runbook.
+- The `v0.1.0` tag must identify the final committed SHA after its required checks
+  and preview verification pass. The PR records that SHA and the deployment evidence;
+  the monitoring and CSP observation requirements above remain explicit release limitations.
