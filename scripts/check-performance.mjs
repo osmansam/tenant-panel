@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import net from 'node:net';
 import { chromium } from 'playwright-core';
 import prepare from './lighthouse-auth.cjs';
-import { validateNavigationReports } from './performance-results.mjs';
+import { validateInteractionReport, validateNavigationReports } from './performance-results.mjs';
 
 const require = createRequire(import.meta.url);
 const lhciRequire = createRequire(require.resolve('@lhci/cli/package.json'));
@@ -79,10 +79,10 @@ try {
       await flow.endTimespan();
       const result = await flow.createFlowResult();
       await writeFile(`output/performance/${route}-interaction.json`, JSON.stringify(result));
-      const inp = result.steps[0]?.lhr.audits['interaction-to-next-paint'];
-      if (!inp || inp.notApplicable || !Number.isFinite(inp.numericValue)) failures.push(`${route}: INP was not measured`);
-      else if (inp.numericValue >= 200) failures.push(`${route}: INP ${inp.numericValue}ms exceeds the <200ms budget`);
-      else process.stdout.write(`${route}: measured interaction INP ${inp.numericValue}ms (<200ms).\n`);
+      try {
+        const inp = validateInteractionReport(result.steps[0]?.lhr, route);
+        process.stdout.write(`${route}: measured interaction INP ${inp}ms (<200ms).\n`);
+      } catch (error) { failures.push(error.message); }
     } finally { await page.close(); }
   }
   if (failures.length) throw new Error(failures.join('\n'));

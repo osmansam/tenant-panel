@@ -6,6 +6,26 @@ import { useWebSocket } from "./useWebSocket";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); localStorage.clear(); });
 
+it.each([
+  ["/api/v1", "ws://localhost:3000/api/v1/acme/shop/ws?tenantSlug=acme&projectSlug=shop"],
+  ["https://api.example.test/api/v1/", "wss://api.example.test/api/v1/acme/shop/ws?tenantSlug=acme&projectSlug=shop"],
+])("connects to the scoped endpoint using API base %s", async (apiUrl, expectedUrl) => {
+  const connect = vi.fn();
+  class FakeWebSocket { constructor(url: string) { connect(url); } close() {} }
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  vi.stubEnv("VITE_API_URL", apiUrl);
+  localStorage.setItem("currentProject", JSON.stringify({ id: "project-id", name: "Shop", slug: "shop", tenantSlug: "acme" }));
+  vi.resetModules();
+  const { useWebSocket: useSocket } = await import("./useWebSocket");
+  const client = new QueryClient();
+  const { unmount } = renderHook(() => useSocket(), {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  });
+  expect(connect).toHaveBeenCalledWith(expectedUrl);
+  unmount();
+  client.clear();
+});
+
 it("recovers from a corrupted saved project before connecting", () => {
   localStorage.setItem("currentProject", "broken-json");
   const connect = vi.fn();

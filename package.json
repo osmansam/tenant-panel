@@ -13,7 +13,7 @@
     "lint": "node scripts/check-lint.mjs",
     "build:visual-css": "tailwindcss -c visual-builder.tailwind.cjs -i src/visual-engine/host/utilities.input.css -o src/visual-engine/host/utilities.css --minify",
     "check:bundle": "node scripts/check-bundle-size.mjs",
-    "release:check": "yarn test:lint && yarn test:coverage-gate && yarn test:server && yarn test:performance-gate && yarn lint && yarn test:coverage && yarn build && yarn templates:check && yarn check:bundle",
+    "release:check": "yarn test:lint && yarn test:coverage-gate && yarn test:server && yarn test:deployment && yarn test:performance-gate && yarn lint && yarn test:coverage && yarn build && yarn templates:check && yarn check:bundle",
     "lint:report": "eslint .",
     "lint:baseline": "node scripts/check-lint.mjs --update",
     "test:e2e": "playwright test",
@@ -29,7 +29,8 @@
     "test:performance": "node scripts/check-performance.mjs",
     "test:server": "node --test server/*.test.mjs",
     "test:performance-gate": "node --test scripts/performance-results.test.mjs",
-    "verify:live": "node scripts/verify-live-headers.mjs"
+    "verify:live": "node scripts/verify-live-headers.mjs",
+    "test:deployment": "node --test scripts/verify-live-headers.test.mjs scripts/secret-scan-range.test.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

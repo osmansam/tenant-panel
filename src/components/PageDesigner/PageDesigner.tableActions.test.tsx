@@ -389,6 +389,37 @@ describe("PageDesigner actions tab", () => {
     expect(saved.delete).toEqual(expect.objectContaining({ enabled: false, confirmTitle: "Remove selected products", confirmText: "Confirm removal", hiddenCondition: "state.readOnly" }));
   });
 
+  it("retains bulk action and field drafts when leaving table settings", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<PageDesigner sections={sections} onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: /^Section 1/i }));
+    await user.click(screen.getByTitle("Edit Component"));
+    await user.click(screen.getByRole("button", { name: "Bulk Actions" }));
+    await user.click(screen.getByRole("tab", { name: "Form" }));
+    await user.click(screen.getByRole("tab", { name: "Status" }));
+    const fieldLabel = screen.getByRole("textbox", { name: "Field label" });
+    await user.clear(fieldLabel);
+    await user.type(fieldLabel, "Draft status");
+    expect(fieldLabel).toHaveFocus();
+    await user.click(screen.getByRole("tab", { name: "Bulk Delete" }));
+    const confirmTitle = screen.getByPlaceholderText("Confirm title");
+    await user.clear(confirmTitle);
+    await user.type(confirmTitle, "Draft deletion");
+    await user.click(screen.getByRole("button", { name: "Row Classes" }));
+    await user.click(screen.getByRole("button", { name: "Bulk Actions" }));
+    expect(screen.getByRole("tab", { name: "Bulk Delete" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByPlaceholderText("Confirm title")).toHaveValue("Draft deletion");
+    await user.click(screen.getByRole("tab", { name: "Bulk Edit" }));
+    await user.click(screen.getByRole("tab", { name: "Form" }));
+    expect(screen.getByRole("tab", { name: "Draft status" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("textbox", { name: "Field label" })).toHaveValue("Draft status");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    const saved = onChange.mock.lastCall![0][0].cells[0].components[0].table.bulkActions;
+    expect(saved.edit.formFields[1].label).toBe("Draft status");
+    expect(saved.delete.confirmTitle).toBe("Draft deletion");
+  });
+
   it("keeps bulk field selection after adding, moving, and removing fields", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

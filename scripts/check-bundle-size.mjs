@@ -3,7 +3,7 @@ import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const bundleBudgets = Object.freeze({ gzip: 350_000, brotli: 300_000, totalGzip: 11_000_000, totalBrotli: 10_000_000 });
+export const bundleBudgets = Object.freeze({ gzip: 250_000, brotli: 300_000, totalGzip: 8_500_000, totalBrotli: 10_000_000 });
 
 export async function checkBundleSize(directory = "dist", limits = {}) {
   const budgets = { ...bundleBudgets, ...limits };

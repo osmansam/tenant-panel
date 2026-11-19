@@ -12,7 +12,7 @@ type WSInvalidateEvent =
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 function toWsUrl(httpUrl: string, wsPath = "/ws", tenantSlug?: string, projectSlug?: string) {
-  const u = new URL(httpUrl);
+  const u = new URL(httpUrl, window.location.origin);
   u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
   const apiPath = u.pathname.replace(/\/$/, "");
   u.pathname = tenantSlug && projectSlug

@@ -1,3 +1,6 @@
+import { TableBulkActionsTab } from "./TableBulkActionsTab";
+import { TableRelationsTab } from "./TableRelationsTab";
+import { TableRowsTab } from "./TableRowsTab";
 import { TabPanelEditor } from "./TabPanelEditor";
 import { TableActionsTab } from "./TableActionsTab";
 import { DistributionBlocksEditor } from "./DistributionBlocksEditor";
@@ -7,12 +10,10 @@ import { TableTogglesTab } from "./TableTogglesTab";
 import { TableNestedRowsTab } from "./TableNestedRowsTab";
 import { TableColumnsTab } from "./TableColumnsTab";
 import { TableRequestTab } from "./TableRequestTab";
-import { CHART_TYPES, DEFAULT_RELATION_MATRIX, CHART_SPECIFIC_OPTIONS, resizeInfoBlockItems, resizeDistributionBlockItems, createInfoBlockColorRule, EMPTY_GROUP_BY, LINK_TYPES, ACTION_INPUT_TYPES, ACTION_ICON_OPTIONS, getDefaultActionsForSource, TableSettingsTab, TABLE_SETTINGS_TABS } from "./designerConstants";
-import { ActionFormLayoutEditor } from "./ActionFormLayoutEditor";
+import { CHART_TYPES, DEFAULT_RELATION_MATRIX, CHART_SPECIFIC_OPTIONS, resizeInfoBlockItems, resizeDistributionBlockItems, createInfoBlockColorRule, EMPTY_GROUP_BY, LINK_TYPES, getDefaultActionsForSource, TableSettingsTab, TABLE_SETTINGS_TABS } from "./designerConstants";
 import { cleanTableConfig, cleanFormConfig } from "./designerConfigCleaners";
-import { formatSourceRequestFilters, parseSourceRequestFiltersInput } from "./designerCleaners";
 import { inferPipelineOutputFields, extractPipelineParams, extractWorkflowParams, schemaFieldNames, inferWorkflowOutputFields } from "./designerSourceInference";
-import { formKeyTypeForActionInput, buildTableColumnsFromFields, actionInputTypeFromField, flattenFormFields, buildDefaultFormConfig, buildFilterPanelInputsFromFields, buildDefaultCreateAction, buildDefaultBulkEditAction, buildDefaultBulkDeleteAction, hydrateSchemaEditActionFields, hydrateSchemaAddButton, buildTableColumnsFromNames } from "./designerFieldDefaults";
+import { buildTableColumnsFromFields, flattenFormFields, buildDefaultFormConfig, buildFilterPanelInputsFromFields, buildDefaultCreateAction, buildDefaultBulkEditAction, buildDefaultBulkDeleteAction, hydrateSchemaEditActionFields, hydrateSchemaAddButton, buildTableColumnsFromNames } from "./designerFieldDefaults";
 import VisualComponentPicker from "../../visualBuilder/VisualComponentPicker";
 import { copyVisualDesign, type VisualDesignSelection } from "../../visualBuilder/componentLibrary";
 import { readVisualBlock } from "../../visualBuilder/pageAdapter";
@@ -21,9 +22,9 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModalFocus } from "../../hooks/useModalFocus";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiChevronUp, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiPlus, FiTrash2 } from "react-icons/fi";
 import { Input, Select, Textarea } from "../ui";
-import { ComponentBlock, DistributionBlockItemConfig, DistributionBlocksConfig, FormComponentConfig, GroupBy, InfoBlockColorRule, InfoBlockItemConfig, InfoBlocksConfig, InfoBlocksSource, GeneratedRelationColumnsConfig, JsonValue, LinkType, RelationMatrixConfig, RowClassConfig, TabPanelTab, TableActionConfig, TableActionFormFieldConfig, TableActionInputType, TableColumnConfig, TableComponentConfig, TableFilterPanelInputConfig, TableToggleConfig, ToggleRequestEffect } from "../../types/page";
+import { ComponentBlock, DistributionBlockItemConfig, DistributionBlocksConfig, FormComponentConfig, GroupBy, InfoBlockColorRule, InfoBlockItemConfig, InfoBlocksConfig, InfoBlocksSource, GeneratedRelationColumnsConfig, JsonValue, LinkType, RelationMatrixConfig, RowClassConfig, TabPanelTab, TableActionConfig, TableActionFormFieldConfig, TableColumnConfig, TableComponentConfig, TableFilterPanelInputConfig, TableToggleConfig, ToggleRequestEffect } from "../../types/page";
 import { ContainerModel } from "../../utils/api/container";
 import type { ComponentBlock as RuntimeComponentBlock, PageModel as RuntimePageModel, ParameterBinding as RuntimeParameterBinding } from "../../utils/api/page";
 import { createRuntimeId, isSafeRuntimeName, resolveComponentStateKey, uniqueComponentStateKey, validatePageBindings, type PageBindingIssue } from "../../utils/pageBindings";
@@ -31,13 +32,10 @@ import { createDesignerTableToggle, defaultTemplateForDesignerLinkType, ensureDe
 import { eligibleArrayFields, eligibleIdentityFields, cleanArrayTableSource, generateArrayTableDefaults, reconcileArrayTableDefaults } from "../../utils/pageDesignerArraySource";
 import { cleanRelationMatrixConfig, isRelationMatrixConfigComplete, requiresComponentSchemaName } from "../../utils/relationMatrixConfig";
 import { removeTabChild, saveSingleTabChild } from "../../utils/tabChildComponents";
-import ActionConstantValuesEditor from "./ActionConstantValuesEditor";
-import ActionSettingsTabs, { ActionConditionsEditor, TableActionTabs } from "./ActionSettingsTabs";
 import RelationMatrixFilterEditor from "./RelationMatrixRowFilterEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
-import FieldEditorTabs from "./FieldEditorTabs";
 import EditorSectionTabs from "./EditorSectionTabs";
 import ParameterBindingsEditor from "./ParameterBindingsEditor";
 import { validateSelectFilterBindings } from "../../utils/selectFilters";
@@ -3736,58 +3734,12 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
                             )}
 
                             {activeTableSettingsTab === "rows" && (
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="block text-xs font-semibold text-ui-foreground uppercase tracking-wide">
-                                    Row Class Rules
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={addRowRule}
-                                    className="text-xs font-medium text-ui-foreground hover:text-ui-foreground"
-                                  >
-                                    + Add rule
-                                  </button>
-                                </div>
-                                {(tableConfig.rows?.className || []).map(
-                                  (rule, ruleIndex) => (
-                                    <div
-                                      key={ruleIndex}
-                                      className="grid grid-cols-[1fr_1fr_auto] gap-2"
-                                    >
-                                      <Input
-                                        type="text"
-                                        value={rule.condition}
-                                        onChange={(e) =>
-                                          updateRowRule(ruleIndex, {
-                                            condition: e.target.value,
-                                          })
-                                        }
-                                        className="px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                        placeholder="status = 'active'"
-                                      />
-                                      <Input
-                                        type="text"
-                                        value={rule.className}
-                                        onChange={(e) =>
-                                          updateRowRule(ruleIndex, {
-                                            className: e.target.value,
-                                          })
-                                        }
-                                        className="px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                        placeholder="bg-ui-success-subtle"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => removeRowRule(ruleIndex)}
-                                        className="px-2 text-ui-danger bg-ui-danger-subtle hover:bg-ui-danger-subtle rounded-lg"
-                                      >
-                                        <FiTrash2 size={14} />
-                                      </button>
-                                    </div>
-                                  ),
-                                )}
-                              </div>
+                              <TableRowsTab
+                                tableConfig={tableConfig}
+                                addRowRule={addRowRule}
+                                updateRowRule={updateRowRule}
+                                removeRowRule={removeRowRule}
+                              />
                             )}
 
                             {activeTableSettingsTab === "nestedRows" && (
@@ -3795,110 +3747,16 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
                             )}
 
                             {activeTableSettingsTab === "relations" && (
-                              <div className="space-y-3">
-                                <button
-                                  type="button"
-                                  onClick={addGeneratedRelationColumns}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-ui-border bg-ui-active-subtle px-3 py-2 text-sm font-semibold text-ui-foreground hover:bg-ui-active-subtle"
-                                >
-                                  <FiPlus size={14} />
-                                  Add generated relation group
-                                </button>
-                                {(tableConfig.generatedRelationColumns || []).map(
-                                  (group, groupIndex) => {
-                                    const sourceFields = getLookupFieldOptions(
-                                      group.sourceSchemaName,
-                                    );
-                                    const sharesArrayWithAnotherSchema = (
-                                      tableConfig.generatedRelationColumns || []
-                                    ).some(
-                                      (candidate, candidateIndex) =>
-                                        candidateIndex !== groupIndex &&
-                                        candidate.arrayField &&
-                                        candidate.arrayField === group.arrayField &&
-                                        candidate.sourceSchemaName !==
-                                          group.sourceSchemaName,
-                                    );
-                                    return (
-                                      <div
-                                        key={group.id || groupIndex}
-                                        className="space-y-3 rounded-xl border border-ui-border p-4"
-                                      >
-                                        <div className="grid grid-cols-[1fr_auto] gap-3">
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">
-                                              Stable group ID
-                                            </span>
-                                            <Input
-                                              value={group.id}
-                                              onChange={(e) =>
-                                                updateGeneratedRelationColumns(
-                                                  groupIndex,
-                                                  { id: e.target.value },
-                                                )
-                                              }
-                                              className="w-full rounded-lg border border-ui-border px-3 py-2 text-sm"
-                                            />
-                                          </label>
-                                          <div className="flex items-end gap-1">
-                                            <button type="button" disabled={groupIndex === 0} onClick={() => moveGeneratedRelationColumns(groupIndex, -1)} className="rounded-lg bg-ui-surface-subtle p-2 disabled:opacity-40" title="Move up"><FiChevronUp size={15} /></button>
-                                            <button type="button" disabled={groupIndex === (tableConfig.generatedRelationColumns || []).length - 1} onClick={() => moveGeneratedRelationColumns(groupIndex, 1)} className="rounded-lg bg-ui-surface-subtle p-2 disabled:opacity-40" title="Move down"><FiChevronDown size={15} /></button>
-                                            <button type="button" onClick={() => removeGeneratedRelationColumns(groupIndex)} className="rounded-lg bg-ui-danger-subtle p-2 text-ui-danger" title="Remove"><FiTrash2 size={15} /></button>
-                                          </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Row array field</span>
-                                            <Select value={group.arrayField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { arrayField: e.target.value })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm">
-                                              <option value="">Select array field</option>
-                                              {selectedFields.filter((field) => field.type?.toLowerCase().includes("array")).map((field) => <option key={field.name} value={field.name}>{field.frontend?.displayName || field.name}</option>)}
-                                            </Select>
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Source schema</span>
-                                            <Select value={group.sourceSchemaName} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceSchemaName: e.target.value, sourceIdField: "_id", sourceLabelField: "" })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm">
-                                              <option value="">Select schema</option>
-                                              {containerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            </Select>
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Source ID field</span>
-                                            <Select value={group.sourceIdField || "_id"} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceIdField: e.target.value })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm">
-                                              <option value="_id">_id</option>
-                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            </Select>
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Source label field</span>
-                                            <Select value={group.sourceLabelField} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLabelField: e.target.value })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm">
-                                              <option value="">Select label field</option>
-                                              {sourceFields.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            </Select>
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Source record limit</span>
-                                            <Input type="number" min={1} max={100} value={group.sourceLimit || 100} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { sourceLimit: Math.min(100, Math.max(1, Number(e.target.value) || 100)) })} className="w-full rounded-lg border border-ui-border px-3 py-2 text-sm" />
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Boolean edit toggle</span>
-                                            <Select value={group.booleanEditToggle?.toggleId || ""} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: e.target.value ? { toggleId: e.target.value, when: group.booleanEditToggle?.when ?? true } : undefined })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm">
-                                              <option value="">Always editable</option>
-                                              {(tableConfig.toggles || []).map((toggle) => <option key={toggle.id} value={toggle.id}>{toggle.label || toggle.id}</option>)}
-                                            </Select>
-                                          </label>
-                                          <label className="space-y-1">
-                                            <span className="text-[11px] font-medium text-ui-muted">Editable when</span>
-                                            <Select disabled={!group.booleanEditToggle?.toggleId} value={String(group.booleanEditToggle?.when ?? true)} onChange={(e) => updateGeneratedRelationColumns(groupIndex, { booleanEditToggle: group.booleanEditToggle ? { ...group.booleanEditToggle, when: e.target.value === "true" } : undefined })} className="w-full rounded-lg border border-ui-border bg-white px-3 py-2 text-sm disabled:bg-ui-surface-subtle">
-                                              <option value="true">On</option><option value="false">Off</option>
-                                            </Select>
-                                          </label>
-                                        </div>
-                                        {sharesArrayWithAnotherSchema && <p className="text-xs text-ui-warning">Groups sharing this row array field must use compatible, non-overlapping ID namespaces.</p>}
-                                      </div>
-                                    );
-                                  },
-                                )}
-                              </div>
+                              <TableRelationsTab
+                                tableConfig={tableConfig}
+                                selectedFields={selectedFields}
+                                containerOptions={containerOptions}
+                                getLookupFieldOptions={getLookupFieldOptions}
+                                addGeneratedRelationColumns={addGeneratedRelationColumns}
+                                updateGeneratedRelationColumns={updateGeneratedRelationColumns}
+                                moveGeneratedRelationColumns={moveGeneratedRelationColumns}
+                                removeGeneratedRelationColumns={removeGeneratedRelationColumns}
+                              />
                             )}
 
                             {activeTableSettingsTab === "toggles" && (
@@ -3914,670 +3772,26 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
                               )}
 
                             {activeTableSettingsTab === "bulkActions" && (
-                              <TableActionTabs
-                                label="Bulk actions"
-                                value={activeBulkActionEditorId}
-                                onValueChange={setActiveBulkActionEditorId}
-                                tabs={
-                                  [
-                                    {
-                                      key: "edit" as const,
-                                      title: "Bulk Edit",
-                                      description:
-                                        "Controls the selected-row edit operation and the fields users can choose.",
-                                      action: currentBulkEditAction,
-                                    },
-                                    {
-                                      key: "delete" as const,
-                                      title: "Bulk Delete",
-                                      description:
-                                        "Controls the selected-row delete operation.",
-                                      action: currentBulkDeleteAction,
-                                    },
-                                  ].map(({ key, title, description, action }) => ({
-                                    value: key,
-                                    label: title,
-                                    render: (isSelected: boolean) => (
-                                      <div role="group" aria-label={title} className="space-y-4 rounded-xl border border-ui-border bg-ui-surface-subtle/70 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                          <div className="flex flex-1 items-center gap-2 text-left">
-                                            <span>
-                                              <span className="block text-sm font-semibold text-ui-foreground">
-                                                {title}
-                                              </span>
-                                              <span className="block text-xs text-ui-muted">
-                                                {description}
-                                              </span>
-                                            </span>
-                                          </div>
-                                          <label className="flex h-9 items-center gap-2 text-xs text-ui-foreground">
-                                            <Input
-                                              type="checkbox"
-                                              checked={action.enabled !== false}
-                                              onChange={(e) =>
-                                                updateTableBulkAction(key, {
-                                                  enabled: e.target.checked,
-                                                })
-                                              }
-                                            />
-                                            On
-                                          </label>
-                                        </div>
-                                        <ActionSettingsTabs
-                                          expanded={isSelected}
-                                          id={`${tableActionSettingsId}-bulk-${key}`}
-                                          label={`${title} settings`}
-                                          actionContent={
-                                            <>
-                                              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                                <label className="space-y-1">
-                                                  <span className="text-xs font-medium text-ui-muted">
-                                                    Label
-                                                  </span>
-                                                  <Input
-                                                    type="text"
-                                                    value={action.label || ""}
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction(key, {
-                                                        label: e.target.value,
-                                                      })
-                                                    }
-                                                    className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                  />
-                                                </label>
-                                                {key === "delete" && (<label className="space-y-1">
-                                                  <span className="text-xs font-medium text-ui-muted">
-                                                    Button text
-                                                  </span>
-                                                  <Input
-                                                    type="text"
-                                                    value={action.buttonName || ""}
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction(key, {
-                                                        buttonName: e.target.value,
-                                                      })
-                                                    }
-                                                    className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                    placeholder=""
-                                                  />
-                                                </label>)}
-                                                <label className="space-y-1">
-                                                  <span className="text-xs font-medium text-ui-muted">
-                                                    Icon
-                                                  </span>
-                                                  <Select
-                                                    value={
-                                                      action.icon ||
-                                                      (key === "edit"
-                                                        ? "FiEdit"
-                                                        : "HiOutlineTrash")
-                                                    }
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction(key, {
-                                                        icon: e.target.value,
-                                                      })
-                                                    }
-                                                    className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                  >
-                                                    {ACTION_ICON_OPTIONS.map((icon) => (
-                                                      <option
-                                                        key={icon.value}
-                                                        value={icon.value}
-                                                      >
-                                                        {icon.label}
-                                                      </option>
-                                                    ))}
-                                                  </Select>
-                                                </label>
-                                              </div>
-                                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                <label className="space-y-1">
-                                                  <span className="text-xs font-medium text-ui-muted">
-                                                    Workflow
-                                                  </span>
-                                                  <Select
-                                                    value={
-                                                      action.submit?.workflowName
-                                                        ? `${action.submit.workflowSchema || schemaName}::${action.submit.workflowName}`
-                                                        : ""
-                                                    }
-                                                    onChange={(e) => {
-                                                      const [
-                                                        workflowSchema,
-                                                        workflowName,
-                                                      ] = e.target.value.split("::");
-                                                      updateTableBulkAction(key, {
-                                                        submit: {
-                                                          ...action.submit,
-                                                          workflowSchema:
-                                                            workflowSchema || undefined,
-                                                          workflowName:
-                                                            workflowName || undefined,
-                                                        },
-                                                      });
-                                                    }}
-                                                    className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                  >
-                                                    <option value="">
-                                                      Built-in bulk {key}
-                                                    </option>
-                                                    {projectWorkflowOptions.map(
-                                                      ({ schemaName, workflow }) => (
-                                                        <option
-                                                          key={`${key}-workflow-${schemaName}::${workflow.name}`}
-                                                          value={`${schemaName}::${workflow.name}`}
-                                                        >
-                                                          {schemaName} / {workflow.name}
-                                                        </option>
-                                                      ),
-                                                    )}
-                                                  </Select>
-                                                </label>
-                                                {/* Dynamic functions are paused; retain this editor for future use.
-                                                <label className="space-y-1">
-                                                  <span className="text-xs font-medium text-ui-muted">
-                                                    Function
-                                                  </span>
-                                                  <Select
-                                                    value={action.submit?.functionName || ""}
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction(key, {
-                                                        submit: {
-                                                          ...action.submit,
-                                                          functionName:
-                                                            e.target.value || undefined,
-                                                        },
-                                                      })
-                                                    }
-                                                    className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                  >
-                                                    <option value="">
-                                                      No direct function
-                                                    </option>
-                                                    {projectFunctionOptions.map(
-                                                      ({ schemaName, dynamicFunction }) => (
-                                                        <option
-                                                          key={`${key}-function-${schemaName}::${dynamicFunction.name}`}
-                                                          value={dynamicFunction.name}
-                                                        >
-                                                          {schemaName} /{" "}
-                                                          {dynamicFunction.name}
-                                                        </option>
-                                                      ),
-                                                    )}
-                                                  </Select>
-                                                </label>
-                                                */}
-                                              </div>
-                                              {key === "delete" && (
-                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                  <Input
-                                                    type="text"
-                                                    value={action.confirmTitle || ""}
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction("delete", {
-                                                        confirmTitle: e.target.value,
-                                                      })
-                                                    }
-                                                    className="px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                    placeholder="Confirm title"
-                                                  />
-                                                  <Input
-                                                    type="text"
-                                                    value={action.confirmText || ""}
-                                                    onChange={(e) =>
-                                                      updateTableBulkAction("delete", {
-                                                        confirmText: e.target.value,
-                                                      })
-                                                    }
-                                                    className="px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                    placeholder="Confirm text"
-                                                  />
-                                                </div>
-                                              )}
-                                            </>
-                                          }
-                                          formContent={
-                                            key === "edit" ? {
-                                              fields: (
-                                                <div className="space-y-3 rounded-lg border border-ui-border bg-white p-3">
-                                                  <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-semibold text-ui-foreground">
-                                                      Bulk Edit Fields
-                                                    </span>
-                                                    <button
-                                                      type="button"
-                                                      onClick={addBulkEditFormField}
-                                                      className="text-xs font-medium text-ui-foreground hover:text-ui-foreground"
-                                                    >
-                                                      + Add field
-                                                    </button>
-                                                  </div>
-                                                  <FieldEditorTabs
-                                                    fields={currentBulkEditAction.formFields || []}
-                                                    label="Bulk edit form fields"
-                                                    activeIndex={activeBulkEditFieldIndex}
-                                                    onActiveIndexChange={setActiveBulkEditFieldIndex}
-                                                  >
-                                                    {(field, fieldIndex) => (
-                                                      <div
-                                                        key={fieldIndex}
-                                                        className="grid grid-cols-[1fr_150px_1fr_auto] gap-2"
-                                                      >
-                                                        <Select
-                                                          aria-label="Form key" value={field.formKey}
-                                                          onChange={(e) => {
-                                                            const selectedField =
-                                                              selectedFields.find(
-                                                                (candidate) =>
-                                                                  candidate.name ===
-                                                                  e.target.value,
-                                                              );
-                                                            const nextType =
-                                                              selectedField
-                                                                ? actionInputTypeFromField(
-                                                                  selectedField,
-                                                                )
-                                                                : field.type;
-                                                            updateBulkEditFormField(
-                                                              fieldIndex,
-                                                              {
-                                                                formKey: e.target.value,
-                                                                type: nextType,
-                                                                formKeyType:
-                                                                  formKeyTypeForActionInput(
-                                                                    nextType,
-                                                                    field.isMultiple,
-                                                                  ),
-                                                                label:
-                                                                  selectedField?.frontend
-                                                                    ?.displayName ||
-                                                                  e.target.value,
-                                                                placeholder:
-                                                                  selectedField?.frontend
-                                                                    ?.displayName ||
-                                                                  e.target.value,
-                                                              },
-                                                            );
-                                                          }}
-                                                          className="px-3 py-2 text-sm border border-ui-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                        >
-                                                          <option value="">Field</option>
-                                                          {selectedFields
-                                                            .filter(
-                                                              (candidate) =>
-                                                                candidate.name &&
-                                                                !["_id", "id"].includes(
-                                                                  candidate.name,
-                                                                ) &&
-                                                                !candidate.equation,
-                                                            )
-                                                            .map((candidate) => (
-                                                              <option
-                                                                key={candidate.name}
-                                                                value={candidate.name}
-                                                              >
-                                                                {candidate.frontend
-                                                                  ?.displayName ||
-                                                                  candidate.name}
-                                                              </option>
-                                                            ))}
-                                                        </Select>
-                                                        <Select
-                                                          aria-label="Input type" value={field.type}
-                                                          onChange={(e) =>
-                                                            updateBulkEditFormField(
-                                                              fieldIndex,
-                                                              {
-                                                                type: e.target
-                                                                  .value as TableActionInputType,
-                                                                formKeyType:
-                                                                  formKeyTypeForActionInput(
-                                                                    e.target
-                                                                      .value as TableActionInputType,
-                                                                    field.isMultiple,
-                                                                  ),
-                                                              },
-                                                            )
-                                                          }
-                                                          className="px-3 py-2 text-sm border border-ui-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                        >
-                                                          {ACTION_INPUT_TYPES.map(
-                                                            (inputType) => (
-                                                              <option
-                                                                key={inputType.value}
-                                                                value={inputType.value}
-                                                              >
-                                                                {inputType.label}
-                                                              </option>
-                                                            ),
-                                                          )}
-                                                        </Select>
-                                                        <Input
-                                                          type="text"
-                                                          aria-label="Field label" value={field.label || ""}
-                                                          onChange={(e) =>
-                                                            updateBulkEditFormField(
-                                                              fieldIndex,
-                                                              { label: e.target.value },
-                                                            )
-                                                          }
-                                                          className="px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                          placeholder="Label"
-                                                        />
-                                                        <div className="flex items-stretch gap-1">
-                                                          <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                              moveBulkEditFormField(
-                                                                fieldIndex,
-                                                                -1,
-                                                              )
-                                                            }
-                                                            disabled={fieldIndex === 0}
-                                                            className="px-2 text-ui-muted bg-ui-surface-subtle hover:bg-ui-surface-subtle rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
-                                                            aria-label="Move field up"
-                                                            title="Move field up"
-                                                          >
-                                                            <FiChevronUp size={15} />
-                                                          </button>
-                                                          <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                              moveBulkEditFormField(
-                                                                fieldIndex,
-                                                                1,
-                                                              )
-                                                            }
-                                                            disabled={
-                                                              fieldIndex ===
-                                                              (currentBulkEditAction
-                                                                .formFields?.length ||
-                                                                0) -
-                                                              1
-                                                            }
-                                                            className="px-2 text-ui-muted bg-ui-surface-subtle hover:bg-ui-surface-subtle rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
-                                                            aria-label="Move field down"
-                                                            title="Move field down"
-                                                          >
-                                                            <FiChevronDown size={15} />
-                                                          </button>
-                                                          <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                              removeBulkEditFormField(
-                                                                fieldIndex,
-                                                              )
-                                                            }
-                                                            className="px-2 text-ui-danger bg-ui-danger-subtle hover:bg-ui-danger-subtle rounded-lg"
-                                                            aria-label="Remove field"
-                                                            title="Remove field"
-                                                          >
-                                                            <FiTrash2 size={14} />
-                                                          </button>
-                                                        </div>
-                                                        {field.type ===
-                                                          "select" && (
-                                                          <div className="col-span-full space-y-2 rounded-lg border border-ui-border bg-ui-surface-subtle p-3">
-                                                            <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-                                                              <label className="space-y-1">
-                                                                <span className="text-xs font-medium text-ui-muted">
-                                                                  Options source
-                                                                </span>
-                                                                <Select
-                                                                  value={
-                                                                    field.optionsSource ||
-                                                                    "static"
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateBulkEditFormField(
-                                                                      fieldIndex,
-                                                                      {
-                                                                        optionsSource:
-                                                                          e
-                                                                            .target
-                                                                            .value as
-                                                                            | "static"
-                                                                            | "schema",
-                                                                      },
-                                                                    )
-                                                                  }
-                                                                  className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white"
-                                                                >
-                                                                  <option value="static">
-                                                                    Static
-                                                                  </option>
-                                                                  <option value="schema">
-                                                                    Schema
-                                                                  </option>
-                                                                </Select>
-                                                              </label>
-                                                              <label className="space-y-1">
-                                                                <span className="text-xs font-medium text-ui-muted">
-                                                                  Source schema
-                                                                </span>
-                                                                <Select
-                                                                  value={
-                                                                    field.sourceSchemaName ||
-                                                                    ""
-                                                                  }
-                                                                  disabled={
-                                                                    field.optionsSource !==
-                                                                    "schema"
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateBulkEditFormField(
-                                                                      fieldIndex,
-                                                                      {
-                                                                        sourceSchemaName:
-                                                                          e
-                                                                            .target
-                                                                            .value,
-                                                                        sourceValueField:
-                                                                          "_id",
-                                                                        sourceLabelField:
-                                                                          "",
-                                                                      },
-                                                                    )
-                                                                  }
-                                                                  className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg bg-white"
-                                                                >
-                                                                  <option value="">
-                                                                    Source schema...
-                                                                  </option>
-                                                                  {containers.map(
-                                                                    (
-                                                                      container,
-                                                                    ) => (
-                                                                      <option
-                                                                        key={
-                                                                          container.schemaName
-                                                                        }
-                                                                        value={
-                                                                          container.schemaName
-                                                                        }
-                                                                      >
-                                                                        {
-                                                                          container.schemaName
-                                                                        }
-                                                                      </option>
-                                                                    ),
-                                                                  )}
-                                                                </Select>
-                                                              </label>
-                                                              <label className="space-y-1">
-                                                                <span className="text-xs font-medium text-ui-muted">
-                                                                  Value field
-                                                                </span>
-                                                                <Input
-                                                                  value={
-                                                                    field.sourceValueField ||
-                                                                    "_id"
-                                                                  }
-                                                                  disabled={
-                                                                    field.optionsSource !==
-                                                                    "schema"
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateBulkEditFormField(
-                                                                      fieldIndex,
-                                                                      {
-                                                                          sourceValueField:
-                                                                            e
-                                                                              .target
-                                                                              .value,
-                                                                      },
-                                                                    )
-                                                                  }
-                                                                />
-                                                              </label>
-                                                              <label className="space-y-1">
-                                                                <span className="text-xs font-medium text-ui-muted">
-                                                                  Label field
-                                                                </span>
-                                                                <Input
-                                                                  value={
-                                                                    field.sourceLabelField ||
-                                                                    ""
-                                                                  }
-                                                                  disabled={
-                                                                    field.optionsSource !==
-                                                                    "schema"
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateBulkEditFormField(
-                                                                      fieldIndex,
-                                                                      {
-                                                                        sourceLabelField:
-                                                                          e
-                                                                            .target
-                                                                            .value,
-                                                                      },
-                                                                    )
-                                                                  }
-                                                                />
-                                                              </label>
-                                                            </div>
-                                                            <label className="space-y-1">
-                                                              <span className="text-xs font-medium text-ui-muted">
-                                                                Request filters
-                                                              </span>
-                                                              <Textarea
-                                                                defaultValue={formatSourceRequestFilters(
-                                                                  field.sourceRequestFilters,
-                                                                )}
-                                                                disabled={
-                                                                  field.optionsSource !==
-                                                                  "schema"
-                                                                }
-                                                                onChange={(e) => {
-                                                                  const raw =
-                                                                    e.target.value;
-                                                                  const parsed =
-                                                                    parseSourceRequestFiltersInput(
-                                                                      raw,
-                                                                      field,
-                                                                    );
-                                                                  if (
-                                                                    !raw.trim() ||
-                                                                    parsed
-                                                                  ) {
-                                                                    updateBulkEditFormField(
-                                                                      fieldIndex,
-                                                                      {
-                                                                        sourceRequestFilters:
-                                                                          parsed,
-                                                                      },
-                                                                    );
-                                                                  }
-                                                                }}
-                                                                onBlur={(e) =>
-                                                                  updateBulkEditFormField(
-                                                                    fieldIndex,
-                                                                    {
-                                                                      sourceRequestFilters:
-                                                                        parseSourceRequestFiltersInput(
-                                                                          e.target.value,
-                                                                          field,
-                                                                        ),
-                                                                    },
-                                                                  )
-                                                                }
-                                                                className="min-h-[72px] w-full px-3 py-2 text-sm font-mono border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                                placeholder={
-                                                                  '{{product.item._id}}=item._id or {"active": true}'
-                                                                }
-                                                              />
-                                                            </label>
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    )}
-                                                  </FieldEditorTabs>
-                                                </div>
-                                              ),
-                                              layout: (
-                                                <>
-                                                  <label className="space-y-1">
-                                                    <span className="text-xs font-medium text-ui-muted">
-                                                      Button text
-                                                    </span>
-                                                    <Input
-                                                      type="text"
-                                                      value={action.buttonName || ""}
-                                                      onChange={(e) =>
-                                                        updateTableBulkAction(key, {
-                                                          buttonName: e.target.value,
-                                                        })
-                                                      }
-                                                      className="w-full px-3 py-2 text-sm border border-ui-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ui-focus"
-                                                      placeholder={key === "edit" ? "Edit" : ""}
-                                                    />
-                                                  </label>
-                                                  <ActionFormLayoutEditor
-                                                    action={currentBulkEditAction}
-                                                    defaultAllowOverflow
-                                                    onChange={(formLayout) =>
-                                                      updateTableBulkAction("edit", {
-                                                        formLayout,
-                                                      })
-                                                    }
-                                                  />
-                                                </>
-                                              ),
-                                              defaultValues: (
-                                                <ActionConstantValuesEditor
-                                                  values={
-                                                    currentBulkEditAction.constantValues ||
-                                                    {}
-                                                  }
-                                                  onChange={(constantValues) =>
-                                                    updateTableBulkAction("edit", {
-                                                      constantValues,
-                                                    })
-                                                  }
-                                                />
-                                              ),
-                                            } : undefined
-                                          }
-                                          conditionsContent={
-                                            <ActionConditionsEditor action={action} onChange={(updates) => updateTableBulkAction(key, updates)} />
-                                          }
-                                        />
-                                      </div>
-                                    ),
-                                  }))
-                                }
+                              <TableBulkActionsTab
+                                containers={containers}
+                                selectedFields={selectedFields}
+                                schemaName={schemaName}
+                                projectWorkflowOptions={projectWorkflowOptions}
+                                tableActionSettingsId={tableActionSettingsId}
+                                activeBulkActionEditorId={activeBulkActionEditorId}
+                                setActiveBulkActionEditorId={setActiveBulkActionEditorId}
+                                activeBulkEditFieldIndex={activeBulkEditFieldIndex}
+                                setActiveBulkEditFieldIndex={setActiveBulkEditFieldIndex}
+                                currentBulkEditAction={currentBulkEditAction}
+                                currentBulkDeleteAction={currentBulkDeleteAction}
+                                updateTableBulkAction={updateTableBulkAction}
+                                addBulkEditFormField={addBulkEditFormField}
+                                updateBulkEditFormField={updateBulkEditFormField}
+                                moveBulkEditFormField={moveBulkEditFormField}
+                                removeBulkEditFormField={removeBulkEditFormField}
                               />
-                              )}
+                            )}
+
                             </>
                           )}
                       </div>

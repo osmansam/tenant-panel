@@ -12,7 +12,7 @@ yarn release:check
 ```
 
 The release command runs `yarn test:lint`, `yarn test:coverage-gate`,
-`yarn test:server`, `yarn test:performance-gate`, `yarn lint`,
+`yarn test:server`, `yarn test:deployment`, `yarn test:performance-gate`, `yarn lint`,
 `yarn test:coverage`, `yarn build`, `yarn templates:check` and
 `yarn check:bundle` in sequence: lint-ratchet, coverage-ratchet, CSP collector
 and performance-gate regression tests, lint, Vitest with V8 coverage floors,
@@ -31,7 +31,7 @@ limits. It compresses emitted JavaScript with gzip level 9 and brotli quality 5:
 
 | Encoding | Per JavaScript chunk | All JavaScript chunks |
 | --- | ---: | ---: |
-| gzip | 350,000 bytes | 11,000,000 bytes |
+| gzip | 250,000 bytes | 8,500,000 bytes |
 | brotli | 300,000 bytes | 10,000,000 bytes |
 
 Aggregate totals include lazy chunks: they do not represent one page's initial
@@ -69,8 +69,11 @@ On **2026-11-18**, `main` branch protection was configured successfully through
 the GitHub API to require **Release checks** and **browser-smoke**, with strict
 up-to-date checks. Administrator enforcement remains enabled, force pushes and
 branch deletion remain blocked, and the existing review settings were preserved
-(zero required approvals). No test PR has yet exercised this configuration; no
-deployment or release tag has been completed for this change.
+(zero required approvals). [PR #41](https://github.com/osmansam/tenant-panel/pull/41)
+now exercises this configuration and creates a Vercel preview. Check the exact
+head SHA in its checks before release; historical green checks do not establish
+that a later correction passed. See the [verification record](release-verification.md)
+for results and outstanding external monitoring steps.
 
 For maintenance or another release branch, update the branch protection rule in
 **Settings → Branches**, or an equivalent active ruleset in
@@ -144,20 +147,31 @@ it into an enforcing policy. Keep frame restrictions and the iframe renderer's
 URL validation/sandbox protections in place during CSP rollout.
 
 For CSP reports, the repository includes a bounded `/csp-report` collector
-(`api/csp-report.js` for Vercel and `server/cspReportCollector.mjs` /
+(`api/csp-report.js` for Vercel and `server/csp-report.mjs` /
 `deploy/Dockerfile.csp` behind `deploy/nginx.conf` for container hosting). The
 report-only policy sends violations to `/csp-report`, and the collector retains
 only aggregate directive, disposition, status and count fields (never blocked
 URLs, payloads or client IPs). `X-Frame-Options: DENY` and
 `X-Robots-Tag: noindex, nofollow` are enforced alongside the report-only CSP,
-and the **Staging container smoke** workflow verifies actual `nginx` headers and
-`/csp-report` handling on every push and pull request. Start with staging and
+and the **Staging container smoke** workflow verifies actual `nginx` headers,
+`/csp-report` handling, API cookie forwarding and WebSocket upgrades on every
+push and pull request. The container API base can be `/api/v1`; the panel resolves
+its scoped WebSocket endpoint against the page origin, and nginx forwards the
+upgrade to the same private API upstream. Start with staging and
 production report-only observation, exercise supported embeds and visual
 effects, fix or explicitly approve required sources, then replace the header
 with enforcing `Content-Security-Policy` in a reviewed change. Keep that header
 change independently reversible if legitimate content is blocked. The iframe
 renderer's absolute HTTP(S) URL check and `sandbox="allow-scripts"` are enforced
 independently.
+
+Run `yarn verify:live https://<deployment-host>` against the deployed artifact.
+It requires the report-only policy and report endpoint, uncached HTML, immutable
+assets, the full-site robots restriction and security headers. Protected Vercel
+previews can supply `VERCEL_AUTOMATION_BYPASS_SECRET` through the process
+environment; the verifier sends it only as a same-origin request header and never
+follows redirects. Keep that value out of command arguments and release records.
+HTTP targets are accepted only on loopback for local container smoke tests.
 
 Serve HTTPS, validate API credentialed CORS/cookie behavior, and verify protected
 routes fail closed during session verification failures. Coordinate collaboration

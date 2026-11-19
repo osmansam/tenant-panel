@@ -22,7 +22,7 @@
       ]
     },
     {
-      "source": "/index.html",
+      "source": "/((?!assets(?:/|$)|api(?:/|$)|csp-report(?:/|$)).*)",
       "headers": [
         {
           "key": "Cache-Control",

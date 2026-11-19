@@ -15,14 +15,14 @@ The initial measurement before the new coverage tests was:
 
 Each floor is the measured value plus two percentage points, rounded upward to the next hundredth. The first report included the newly generated catalog; its exact counts were subtracted to use the same exclusions as the final configuration. The raw counts and the adjustment are recorded in `scripts/coverage-baseline.json`. That first run had one failing pre-existing keyboard assertion, subsequently corrected; no successful baseline-suite run is implied by these measurements. A complete passing run is required by `test:coverage` before its report can pass the gate.
 
-The verified run on 2026-11-19 passed all 190 test files and 1,094 tests, then passed the gate:
+The verified run on 2026-11-19 passed all 190 test files and 1,108 tests, then passed the gate:
 
 | Metric | Covered / total | Verified coverage | Floor |
 | --- | --- | --- | --- |
-| Lines | 138,135 / 190,383 | 72.55637% | 21.28% |
-| Statements | 138,135 / 190,383 | 72.55637% | 21.28% |
-| Functions | 2,126 / 3,826 | 55.56717% | 55.00% |
-| Branches | 10,609 / 14,148 | 74.98586% | 74.24% |
+| Lines | 138,738 / 190,625 | 72.78059% | 21.28% |
+| Statements | 138,738 / 190,625 | 72.78059% | 21.28% |
+| Functions | 2,157 / 3,853 | 55.98235% | 55.00% |
+| Branches | 10,723 / 14,284 | 75.07001% | 74.24% |
 
 The gate calculates percentages from raw covered/total counts, so its rounded display can differ by 0.01 from V8's truncated summary. The initial and final denominators can also differ when V8 discovers functions and branches in newly executed modules; both sets of raw counts are retained rather than assuming an unchanged denominator.
 

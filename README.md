@@ -50,8 +50,9 @@ an isolated real API and MongoDB replica set; see [release and smoke instruction
 As of **2026-11-18**, `main` branch protection requires **Release checks** and
 **browser-smoke**, with branches required to be up to date before merging.
 Protection applies to administrators; force pushes and branch deletion remain
-blocked. No test PR, deployment or release tag has been completed for this change.
-See the runbook for maintenance instructions and remaining release verification.
+blocked. [PR #41](https://github.com/osmansam/tenant-panel/pull/41) exercises the
+checks and Vercel preview deployment. See the [verification record](docs/release-verification.md)
+for measured results and the remaining monitoring and release steps.
 
 ## Code map and decisions
 
