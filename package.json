@@ -28,7 +28,8 @@
     "templates:check": "node scripts/generate-starter-catalog.mjs --check",
     "test:performance": "node scripts/check-performance.mjs",
     "test:server": "node --test server/*.test.mjs",
-    "test:performance-gate": "node --test scripts/performance-results.test.mjs"
+    "test:performance-gate": "node --test scripts/performance-results.test.mjs",
+    "verify:live": "node scripts/verify-live-headers.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

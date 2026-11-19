@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ContainerModel } from "../../../utils/api/container";
+import { getApiBaseUrl } from "../../../utils/containerRouteEndpoints";
 import { ContainerDetailsModal } from "./ContainerDetailsModal";
 
 vi.mock("react-i18next", () => ({
@@ -277,7 +278,7 @@ describe("ContainerDetailsModal", () => {
     await user.click(screen.getByRole("tab", { name: "Endpoints" }));
 
     expect(
-      screen.getByText("https://api-production.autoapi.org/api/v1/acme/shop/"),
+      screen.getByText(getApiBaseUrl("acme", "shop")),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText("/dynamic?schemaName=stock").length,
