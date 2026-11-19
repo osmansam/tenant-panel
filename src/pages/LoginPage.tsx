@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleCallbackHandler } from "../components/auth/GoogleCallbackHandler";
 import { TenantLoginForm } from "../components/auth/TenantLoginForm";
+import { logger } from "../utils/logger";
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
@@ -16,7 +17,7 @@ const LoginPage: React.FC = () => {
     searchParams.has("code") || searchParams.has("error");
 
   const handleError = (error: unknown) => {
-    console.error("Login error:", error);
+    logger.error("Login error:", error);
     let message = t("Login failed. Please try again.");
 
     if (error && typeof error === "object" && "response" in error) {

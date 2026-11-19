@@ -6,6 +6,7 @@ import { GenericButton } from "../components/panelComponents/FormElements/Generi
 import { Badge, Input } from "../components/ui";
 import { GridSection } from "../types/page";
 import type { PageFilterDefinition } from "../utils/api/page";
+import { logger } from "../utils/logger";
 
 export const PageDesignerPage: React.FC = () => {
   const [sections, setSections] = useState<GridSection[]>([]);
@@ -15,7 +16,7 @@ export const PageDesignerPage: React.FC = () => {
   const handleSave = async () => {
     try {
       // Here you would save to your API
-      console.log("Saving page structure:", { sections, filters });
+      logger.debug("Saving page structure:", { sections, filters });
 
       // Example API call:
       // await savePage({ sections });
@@ -23,7 +24,7 @@ export const PageDesignerPage: React.FC = () => {
       toast.success("Page structure saved successfully!");
     } catch (error) {
       toast.error("Failed to save page structure");
-      console.error(error);
+      logger.error(error);
     }
   };
 

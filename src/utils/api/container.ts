@@ -8,6 +8,7 @@ import { normalizeContainerField } from "../containerFieldNormalization";
 import { normalizeContainerRoutes } from "../containerRoutes";
 import { axiosClient } from "./axiosClient";
 import { useGet, useGetQuery } from "./factory";
+import { logger } from "../logger";
 
 // If you prefer using mongodb's ObjectId type, import it and replace string with ObjectId
 // import { ObjectId } from "mongodb";
@@ -400,16 +401,6 @@ function useContainerContext(required = true) {
   };
 }
 
-// Sort function for containers (by creation date, newest first)
-const containerSortFunction = (
-  a: Partial<ContainerModel>,
-  b: Partial<ContainerModel>
-) => {
-  const dateA = new Date(a.createdAt || 0).getTime();
-  const dateB = new Date(b.createdAt || 0).getTime();
-  return dateB - dateA;
-};
-
 export function normalizeDynamicApiModel(api: any): DynamicApiModel {
   return {
     name: api.Name || api.name || "",
@@ -527,7 +518,7 @@ export function useContainer(id: string, enabled: boolean = true) {
 
   const response = useGet<any>(path, projectSpecificQueryKey, enabled && !!id);
 
-  console.log("useContainer raw response:", { id, response, path });
+  logger.debug("useContainer raw response:", { id, response, path });
 
   // Extract the actual data from the nested structure
   // The API returns: { data: { data: {...}, message: "...", status: 200 } }
@@ -571,7 +562,7 @@ export function useContainer(id: string, enabled: boolean = true) {
     updatedAt: container.UpdatedAt || container.updatedAt,
   } as ContainerModel;
 
-  console.log("useContainer normalized:", normalized);
+  logger.debug("useContainer normalized:", normalized);
   return normalized;
 }
 
@@ -604,13 +595,13 @@ export function useCreateContainer() {
       }
 
       const path = buildContainerPath(tenantSlug, projectSlug);
-      console.log("Creating container with payload:", payload);
+      logger.debug("Creating container with payload:", payload);
       const response = await axiosClient.post(path, payload);
-      console.log("Create container response:", response.data);
+      logger.debug("Create container response:", response.data);
       return response.data;
     },
     onSuccess: (response) => {
-      console.log("Container creation successful:", response);
+      logger.debug("Container creation successful:", response);
       const tenantSlug = currentTenant?.slug;
       const projectSlug = currentProject?.slug;
 
@@ -627,7 +618,7 @@ export function useCreateContainer() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Container creation failed:", error);
+      logger.error("Container creation failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -679,7 +670,7 @@ export function useUpdateContainer() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Container update failed:", error);
+      logger.error("Container update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -768,7 +759,7 @@ export function useDeleteContainer() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Container deletion failed:", error);
+      logger.error("Container deletion failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -821,7 +812,7 @@ export function useDeleteContainer() {
 //       toast.success(t(toCollectionTerminology(message)));
 //     },
 //     onError: (error: any) => {
-//       console.error("Dynamic functions update failed:", error);
+//       logger.error("Dynamic functions update failed:", error);
 //       const errorMessage =
 //         error?.response?.data?.message ||
 //         error?.message ||
@@ -875,7 +866,7 @@ export function useUpdateDynamicApis() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Dynamic APIs update failed:", error);
+      logger.error("Dynamic APIs update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -929,7 +920,7 @@ export function useUpdatePipelines() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Pipelines update failed:", error);
+      logger.error("Pipelines update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -983,7 +974,7 @@ export function useUpdateWorkflows() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Workflows update failed:", error);
+      logger.error("Workflows update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -1011,7 +1002,6 @@ export function useUpdateWorkflows() {
 
 // Redis operations
 export function useResetRedis() {
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const { tenantSlug, projectSlug } = useContainerContext();
 
@@ -1027,7 +1017,7 @@ export function useResetRedis() {
       toast.success(t(toCollectionTerminology(message)));
     },
     onError: (error: any) => {
-      console.error("Redis reset failed:", error);
+      logger.error("Redis reset failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -1050,7 +1040,7 @@ export function useGetContainers() {
     return useContainers();
   } catch (error) {
     // If no tenant/project context, return empty array
-    console.warn("useGetContainers: No tenant/project context available");
+    logger.warn("useGetContainers: No tenant/project context available");
     return [];
   }
 }

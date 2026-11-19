@@ -61,18 +61,18 @@ export function buildLinkUrl(
     }
 
     const rowFieldPattern = /\{\{row\.([a-zA-Z0-9_]+)\}\}/g;
-    url = url.replace(rowFieldPattern, (match, fieldName) => {
+    url = url.replace(rowFieldPattern, (_match, fieldName) => {
       return String(row?.[fieldName] ?? "");
     });
 
     if (url.includes("{{")) {
-      console.warn("Unresolved placeholders in link template:", url);
+      logger.warn("Unresolved placeholders in link template:", url);
       return null;
     }
 
     return url;
   } catch (error) {
-    console.error("Error building link URL:", error);
+    logger.error("Error building link URL:", error);
     return null;
   }
 }
@@ -83,6 +83,7 @@ export function buildLinkUrl(
 
 import React from "react";
 import { useNavigate } from "react-router-dom"; // or Next.js: import { useRouter } from "next/router";
+import { logger } from "./logger";
 
 /**
  * Renders a table cell that can be a clickable link based on field configuration

@@ -240,37 +240,6 @@ function additionalBackgroundEffect(mode: string) {
   return lazyEffect(loader, ({ props }) => ({ ...props }), StaticFallback);
 }
 
-function officialBackgroundComponent(effect: RegisteredEffect): RegisteredEffect["component"] {
-  const slug = effect.id.split(".").at(-1)!;
-  const loader = OFFICIAL_BACKGROUND_LOADERS[slug];
-  if (!loader) throw new Error(`Missing official React Bits background loader: ${slug}`);
-  return lazyEffect(loader, ({ props, context }) => {
-    const mapped: Record<string, unknown> = { ...props };
-    if (slug === "aurora") mapped.colorStops = [String(props.colorA), String(props.colorB), "#5227ff"];
-    if (slug === "dither") {
-      mapped.waveColor = hexTuple(props.waveColor ? String(props.waveColor) : "#808080", [0.5, 0.5, 0.5]);
-      mapped.backgroundColor = hexTuple(props.backgroundColor ? String(props.backgroundColor) : "#000000", [0, 0, 0]);
-      mapped.disableAnimation = context.reducedMotion;
-      mapped.enableMouseInteraction = !context.reducedMotion && props.enableMouseInteraction !== false;
-    }
-    if (slug === "particles") mapped.particleColors = [String(props.particleColor)];
-    if (slug === "color-bends") mapped.colors = [String(props.color1), String(props.color2), String(props.color3)];
-    if (slug === "gradient-blinds") mapped.gradientColors = [String(props.color1), String(props.color2), String(props.color3)];
-    if (slug === "prism") mapped.offset = { x: Number(props.offsetX), y: Number(props.offsetY) };
-    if (slug === "liquid-ether") mapped.colors = [String(props.color1), String(props.color2), String(props.color3)];
-    if (context.reducedMotion) {
-      for (const key of ["speed", "waveSpeed", "spinSpeed", "timeSpeed", "warpSpeed", "rotationSpeed", "autoSpeed"]) {
-        if (key in mapped) mapped[key] = 0;
-      }
-      mapped.autoDemo = false;
-      mapped.pause = true;
-      mapped.paused = true;
-      mapped.disableAnimation = true;
-    }
-    return mapped;
-  }, StaticFallback);
-}
-
 const additionalBackgroundRegistrations: RegisteredEffect[] = additionalBackgrounds.map(([slug, name]) => {
   const id = `reactbits.background.${slug}`;
   const usesWebGL = webglAdditionalBackgrounds.has(slug);

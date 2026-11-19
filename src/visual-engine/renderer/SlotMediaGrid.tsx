@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Breakpoint, GridNode, ImageNode } from "../model";
 import { resolveSlotLayout, type MediaLayoutSpec } from "../model/mediaLayout";

@@ -215,7 +215,7 @@ const SlicedWaves = ({
     ro.observe(container);
     setSize();
 
-    let currentMouse = [0.5, 0.5];
+    const currentMouse = [0.5, 0.5];
     let targetMouse = [0.5, 0.5];
     let currentActive = 0;
     let targetActive = 0;

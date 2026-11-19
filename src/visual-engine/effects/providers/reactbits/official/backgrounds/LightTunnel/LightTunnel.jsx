@@ -252,7 +252,7 @@ const LightTunnel = ({
     ro.observe(container);
     setSize();
 
-    let currentMouse = [0.5, 0.5];
+    const currentMouse = [0.5, 0.5];
     let targetMouse = [0.5, 0.5];
 
     const handleMouseMove = e => {

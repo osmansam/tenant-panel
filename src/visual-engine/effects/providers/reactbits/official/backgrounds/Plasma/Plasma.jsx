@@ -245,7 +245,7 @@ export const Plasma = ({
         mouseUniform[1] = mousePos.current.y;
       }
 
-      let timeValue = (t - t0) * 0.001;
+      const timeValue = (t - t0) * 0.001;
       if (direction === 'pingpong') {
         const pingpongDuration = 10;
         const segmentTime = timeValue % pingpongDuration;

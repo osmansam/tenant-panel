@@ -23,7 +23,7 @@ type ColorBendsProps = {
   bandWidth?: number;
 };
 
-const MAX_COLORS = 8 as const;
+const MAX_COLORS = 8;
 
 const frag = `
 #define MAX_COLORS ${MAX_COLORS}

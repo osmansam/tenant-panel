@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, type ReactNode, type CSSProperties } from "react";
-import type { EffectAttachment, JsonObject } from "../../model/effects";
+import type { EffectAttachment } from "../../model/effects";
 import type { NodeType } from "../../model/nodes";
 import { DEFAULT_SITE_THEME, useOptionalActiveTheme, type ResolvedThemePalette } from "../../theme";
 import { resolveNodeEffects, type EffectDiagnostic, type ResolvedEffect } from "./resolver";
@@ -65,7 +65,7 @@ function renderEffect(effect: ResolvedEffect, children: ReactNode, nodeId: strin
   if (!registration) return children ?? null;
   const Component = effect.status === "ready" ? registration.component : registration.fallback;
   if (!Component) return children ?? null;
-  const sourceProps = effect.validatedProps ?? effect.attachment.props as JsonObject;
+  const sourceProps = effect.validatedProps ?? effect.attachment.props;
   const props: EffectComponentProps = { props: resolveEffectColorProps(registration, sourceProps, palette), context: { nodeId, nodeType, layer: registration.layer, reducedMotion }, children };
   const Fallback = registration.fallback;
   const fallback = Fallback && Component !== Fallback ? <Fallback {...props} /> : (children ?? null);

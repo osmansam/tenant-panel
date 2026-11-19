@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Label } from '../ui';
-import { GenericButton } from '../panelComponents/FormElements/GenericButton';
+import { Input, Label } from '../../components/ui';
+import { GenericButton } from '../../components/panelComponents/FormElements/GenericButton';
 export function InvitationAccountForm({
   mode,
   busy,

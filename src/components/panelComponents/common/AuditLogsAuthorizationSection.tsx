@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FiSave, FiShield } from "react-icons/fi";
+import { FiSave } from "react-icons/fi";
 import { CheckSwitch } from "../../../common/CheckSwitch";
 import { useUserContext } from "../../../context/User.context";
 import { OptionType } from "../../../types";

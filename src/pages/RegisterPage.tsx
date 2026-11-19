@@ -4,12 +4,13 @@ import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthShell } from "../components/auth/AuthShell";
 import { TenantRegisterForm } from "../components/auth/TenantRegisterForm";
+import { logger } from "../utils/logger";
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
 
   const handleError = (error: unknown) => {
-    console.error("Registration error:", error);
+    logger.error("Registration error:", error);
     let message = t("Registration failed. Please try again.");
 
     if (error && typeof error === "object" && "response" in error) {

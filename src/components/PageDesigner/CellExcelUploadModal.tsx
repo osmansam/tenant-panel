@@ -6,6 +6,7 @@ import { useUploadExcel } from "../../utils/api/container";
 import { createRuntimeId } from "../../utils/pageBindings";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
 import { Input } from "../ui";
+import { logger } from "../../utils/logger";
 
 interface CellExcelUploadModalProps {
   isOpen: boolean;
@@ -117,7 +118,7 @@ export function CellExcelUploadModal({
       setSchemaName("");
       onClose();
     } catch (error) {
-      console.error("Excel upload failed:", error);
+      logger.error("Excel upload failed:", error);
       alert(t("Failed to upload Excel file. Please try again."));
     }
   };

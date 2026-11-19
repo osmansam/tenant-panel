@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { GenericButton } from '../panelComponents/FormElements/GenericButton';
+import { GenericButton } from '../../components/panelComponents/FormElements/GenericButton';
 import type { InvitationSummary } from '../../types/collaboration';
 export function ProjectInvitationsList({
   items,

@@ -70,8 +70,8 @@ function enforceConflicts(all: ResolvedEffect[]): ResolvedEffect[] {
   const ready = all.filter((effect) => effect.status === "ready" && effect.attachment.enabled && effect.registration);
   for (let left = 0; left < ready.length; left += 1) {
     for (let right = left + 1; right < ready.length; right += 1) {
-      const a = ready[left]!;
-      const b = ready[right]!;
+      const a = ready[left];
+      const b = ready[right];
       if (a.registration!.conflictsWith?.includes(b.attachment.effectId) || b.registration!.conflictsWith?.includes(a.attachment.effectId)) {
         conflicted.add(a.attachment.attachmentId);
         conflicted.add(b.attachment.attachmentId);

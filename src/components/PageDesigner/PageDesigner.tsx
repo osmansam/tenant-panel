@@ -1,3 +1,36 @@
+import {
+  cleanTableConfig,
+  cleanFormConfig,
+} from "./designerConfigCleaners";
+import {
+  parseJsonObject,
+  formatSourceRequestFilters,
+  parseSourceRequestFiltersInput,
+} from "./designerCleaners";
+import {
+  inferPipelineOutputFields,
+  extractPipelineParams,
+  extractWorkflowParams,
+  schemaFieldNames,
+  inferWorkflowOutputFields,
+} from "./designerSourceInference";
+import {
+  formKeyTypeForActionInput,
+  isActionNumberInput,
+  buildTableColumnsFromFields,
+  actionInputTypeFromField,
+  buildActionFormFieldsFromFields,
+  flattenFormFields,
+  buildDefaultFormConfig,
+  buildFilterPanelInputsFromFields,
+  buildDefaultSchemaActions,
+  buildDefaultCreateAction,
+  buildDefaultBulkEditAction,
+  buildDefaultBulkDeleteAction,
+  hydrateSchemaEditActionFields,
+  hydrateSchemaAddButton,
+  buildTableColumnsFromNames,
+} from "./designerFieldDefaults";
 import { SectionOrderControls } from "./SectionOrderControls";
 import { movePageSection, orderedPageSections } from "../../visualBuilder/gridSections";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui";
@@ -29,7 +62,6 @@ import {
   DistributionBlockItemConfig,
   DistributionBlocksConfig,
   FormComponentConfig,
-  FormFieldConfig,
   GridCell,
   GridSection,
   GroupBy,
@@ -46,7 +78,6 @@ import {
   TableActionConfig,
   TableActionFormLayoutConfig,
   TableActionFormFieldConfig,
-  TableActionFormKeyType,
   TableActionInputType,
   TableActionModalType,
   TableActionOptionsSource,
@@ -58,10 +89,7 @@ import {
 } from "../../types/page";
 import {
   ContainerModel,
-  DynamicWorkflow,
   Field,
-  PipelineStage,
-  WorkflowStep,
   useGetContainers,
 } from "../../utils/api/container";
 import type {
@@ -86,14 +114,7 @@ import {
   TABLE_DATE_FORMAT_OPTIONS,
   TABLE_NESTED_COLUMN_TYPE_OPTIONS,
   TABLE_ROW_ACTION_KIND_OPTIONS,
-  cleanDesignerActionFormLayout,
-  cleanDesignerGeneratedRelationColumns,
-  cleanDesignerTableColumnTemplate,
-  cleanDesignerTableDataFields,
   cleanDesignerTableDataMode,
-  cleanDesignerTableDrag,
-  cleanDesignerTableToggles,
-  cleanDesignerToggleBinding,
   createDesignerTableToggle,
   defaultTemplateForDesignerLinkType,
   ensureDesignerTableBulkActions,
@@ -105,7 +126,6 @@ import {
   isIntegerTableOrderField,
   mergeDesignerTableColumnsFromNames,
   moveArrayItem,
-  normalizeDesignerTableColumnLink,
   shouldHydrateEmptyDesignerTableColumns,
   setDesignerToggleVisibilityTargets,
   type DesignerVisibilityTarget,
@@ -113,7 +133,6 @@ import {
 import {
   eligibleArrayFields,
   eligibleIdentityFields,
-  cleanArrayTableDataMode,
   cleanArrayTableSource,
   generateArrayTableDefaults,
   reconcileArrayTableDefaults,
@@ -136,7 +155,6 @@ import ActionSettingsTabs, {
 } from "./ActionSettingsTabs";
 import RelationMatrixFilterEditor from "./RelationMatrixRowFilterEditor";
 import { CellExcelUploadModal } from "./CellExcelUploadModal";
-import { normalizeDesignerCalculations } from "./formCalculationEditor";
 import { commitDesignerComponent } from "./componentCommit";
 import ComponentOutputsEditor from "./ComponentOutputsEditor";
 import FormComponentEditor from "./FormComponentEditor";
@@ -144,15 +162,9 @@ import FieldEditorTabs from "./FieldEditorTabs";
 import EditorSectionTabs from "./EditorSectionTabs";
 import PageFilterModal from "./PageFilterModal";
 import ParameterBindingsEditor from "./ParameterBindingsEditor";
-import type { SelectFilterBinding } from "../../types/selectFilters";
-import {
-  cleanSourceRequestFilters,
-  formatRequestFiltersInput,
-  parseRequestFiltersInput,
-  type RequestFilterFieldContext,
-} from "../../utils/requestFilterTemplates";
 import { validateSelectFilterBindings } from "../../utils/selectFilters";
 import { GenericButton } from "../panelComponents/FormElements/GenericButton";
+import { logger } from "../../utils/logger";
 
 const VisualSectionPreview = lazy(() => import("../../visualBuilder/VisualSectionPreview"));
 
@@ -508,28 +520,6 @@ const ACTION_INPUT_TYPES: { value: TableActionInputType; label: string }[] = [
   { value: "monthYear", label: "Month Year" },
 ];
 
-const formKeyTypeForActionInput = (
-  type: TableActionInputType,
-  isMultiple?: boolean,
-): TableActionFormKeyType => {
-  if (isMultiple) return "stringArray";
-  if (type === "number") return "number";
-  if (
-    type === "date" ||
-    type === "time" ||
-    type === "hour" ||
-    type === "monthYear"
-  ) {
-    return "date";
-  }
-  if (type === "checkbox") return "boolean";
-  if (type === "color") return "color";
-  return "string";
-};
-
-const isActionNumberInput = (type?: string) =>
-  (type || "").toLowerCase() === "number";
-
 const ACTION_OPTIONS_SOURCES: {
   value: TableActionOptionsSource;
   label: string;
@@ -593,1285 +583,6 @@ const TABLE_SETTINGS_TABS: { value: TableSettingsTab; label: string }[] = [
   { value: "relations", label: "Generated Relation Columns" },
   { value: "toggles", label: "Display Toggles" },
 ];
-
-const buildTableColumnsFromFields = (fields: Field[]): TableColumnConfig[] =>
-  fields
-    .filter((field) => field.name && !["_id", "id"].includes(field.name))
-    .map((field) => ({
-      field: field.name,
-      type: "field" as const,
-      displayName: field.frontend?.displayName || "",
-      cellClassName: field.frontend?.rowKeyClassName || [],
-      link: field.frontend?.linkTemplate
-        ? {
-            template: field.frontend.linkTemplate,
-            labelField: field.frontend.linkLabelField,
-            type: field.frontend.linkType || "external",
-          }
-        : undefined,
-    }));
-
-const actionInputTypeFromField = (field: Field): TableActionInputType => {
-  const fieldType = (field.type || "").toLowerCase();
-  if (fieldType.includes("image")) return "image";
-  if (fieldType.includes("date")) return "date";
-  if (
-    fieldType.includes("number") ||
-    fieldType.includes("int") ||
-    fieldType.includes("float") ||
-    fieldType.includes("double")
-  ) {
-    return "number";
-  }
-  if (fieldType.includes("bool")) return "checkbox";
-  if (
-    fieldType === "objectid" ||
-    fieldType === "autoincrementid" ||
-    fieldType === "objectidarray" ||
-    (field.enumList && field.enumList.length > 0)
-  ) {
-    return "select";
-  }
-  return "text";
-};
-
-const buildActionFormFieldsFromFields = (
-  fields: Field[],
-): TableActionFormFieldConfig[] =>
-  fields
-    .filter((field) => field.name && !["_id", "id"].includes(field.name))
-    .filter((field) => !field.equation)
-    .map((field) => {
-      const inputType = actionInputTypeFromField(field);
-      const fieldType = (field.type || "").toLowerCase();
-      const isMultiple = fieldType === "objectidarray";
-      return {
-        formKey: field.name,
-        type: inputType,
-        formKeyType: formKeyTypeForActionInput(inputType, isMultiple),
-        label: field.frontend?.displayName || field.name,
-        placeholder: field.frontend?.displayName || field.name,
-        required: field.tag?.includes("required") || false,
-        disabledCondition: "",
-        requiredCondition: "",
-        isMultiple,
-        optionsSource:
-          inputType === "select" && field.objectSchemaName
-            ? "schema"
-            : "static",
-        staticOptionsJson:
-          field.enumList && field.enumList.length > 0
-            ? JSON.stringify(
-                field.enumList.map((value) => ({
-                  value,
-                  label: String(value),
-                })),
-                null,
-                2,
-              )
-            : "[]",
-        sourceSchemaName: field.objectSchemaName || "",
-        sourceValueField: "_id",
-        sourceLabelField: field.populationSettings?.inputSelectionField || "",
-        sourceFilterCondition: "",
-      };
-    });
-
-const flattenFormFields = (fields: Field[]): Field[] =>
-  fields.flatMap((field) =>
-    field.children?.length ? flattenFormFields(field.children) : [field],
-  );
-
-const buildFormFieldsFromFields = (fields: Field[]): FormFieldConfig[] =>
-  buildActionFormFieldsFromFields(flattenFormFields(fields)).map(
-    (field, index) => ({
-      ...field,
-      area: "left",
-      order: index + 1,
-      width: "full",
-    }),
-  );
-
-const buildDefaultFormConfig = (
-  schemaName: string,
-  fields: Field[],
-): FormComponentConfig => ({
-  title: "",
-  schemaName,
-  layout: {
-    variant: "page",
-    columns: 2,
-    areas: [
-      { key: "left", title: "Details", order: 1 },
-      { key: "right", title: "Items", order: 2 },
-    ],
-  },
-  fields: buildFormFieldsFromFields(fields),
-  objectLists: [],
-  actions: [
-    {
-      kind: "submit",
-      buttonName: "Save",
-      area: "right",
-      enabled: true,
-      order: 1,
-    },
-  ],
-  submit: { mode: "create" },
-});
-
-const buildFilterPanelInputsFromFields = (
-  fields: Field[],
-): TableFilterPanelInputConfig[] =>
-  fields
-    .filter((field) => field.name && !["_id", "id"].includes(field.name))
-    .filter((field) => !field.equation)
-    .filter((field) => {
-      const fieldType = (field.type || "").toLowerCase();
-      return fieldType !== "image" && fieldType !== "img";
-    })
-    .map((field) => {
-      const fieldType = (field.type || "").toLowerCase();
-      const baseInputType = actionInputTypeFromField(field);
-      const isBoolean = fieldType.includes("bool");
-      const inputType: TableActionInputType = isBoolean
-        ? "select"
-        : baseInputType;
-      const isMultiple =
-        fieldType === "objectidarray" ||
-        fieldType === "stringarray" ||
-        fieldType === "intarray" ||
-        fieldType === "numberarray" ||
-        fieldType === "string[]" ||
-        fieldType === "int[]" ||
-        fieldType === "number[]";
-      const staticOptions =
-        field.enumList && field.enumList.length > 0
-          ? field.enumList.map((value) => ({ value, label: String(value) }))
-          : isBoolean
-            ? [
-                { value: "true", label: "True" },
-                { value: "false", label: "False" },
-              ]
-            : [];
-
-      return {
-        formKey: field.name,
-        type: inputType,
-        formKeyType: formKeyTypeForActionInput(inputType, isMultiple),
-        label: field.frontend?.displayName || field.name,
-        placeholder: field.frontend?.displayName || field.name,
-        required: false,
-        disabledCondition: "",
-        requiredCondition: "",
-        isDisabled: false,
-        isMultiple,
-        optionsSource:
-          inputType === "select" && field.objectSchemaName
-            ? "schema"
-            : "static",
-        staticOptionsJson: JSON.stringify(staticOptions, null, 2),
-        sourceSchemaName: field.objectSchemaName || "",
-        sourceValueField: "_id",
-        sourceLabelField: field.populationSettings?.inputSelectionField || "",
-        sourceFilterCondition: "",
-      };
-    });
-
-const buildDefaultSchemaActions = (fields: Field[]): TableActionConfig[] => [
-  {
-    id: "default-edit",
-    key: "default-edit",
-    kind: "edit",
-    label: "Edit",
-    icon: "FiEdit",
-    order: 1,
-    enabled: true,
-    modalType: "form",
-    formFields: buildActionFormFieldsFromFields(fields),
-  },
-  {
-    id: "default-delete",
-    key: "default-delete",
-    kind: "delete",
-    label: "Delete",
-    icon: "HiOutlineTrash",
-    order: 2,
-    enabled: true,
-    modalType: "confirm",
-    confirmText: "GeneralDeleteMessage",
-  },
-];
-
-const buildDefaultCreateAction = (fields: Field[]): TableActionConfig => ({
-  id: "default-create",
-  key: "default-create",
-  kind: "create",
-  label: "Add",
-  buttonName: "Create",
-  icon: "FiPlus",
-  order: 1,
-  enabled: true,
-  modalType: "form",
-  formFields: buildActionFormFieldsFromFields(fields),
-});
-
-const buildDefaultBulkEditAction = (fields: Field[]): TableActionConfig => ({
-  id: "bulk-edit",
-  key: "bulk-edit",
-  kind: "update",
-  label: "Edit Selected",
-  buttonName: "Edit",
-  icon: "FiEdit",
-  order: 1,
-  enabled: true,
-  modalType: "form",
-  formFields: buildActionFormFieldsFromFields(fields),
-});
-
-const buildDefaultBulkDeleteAction = (): TableActionConfig => ({
-  id: "bulk-delete",
-  key: "bulk-delete",
-  kind: "delete",
-  label: "Delete Selected",
-  icon: "HiOutlineTrash",
-  order: 2,
-  enabled: true,
-  modalType: "confirm",
-  confirmTitle: "Delete Selected",
-  confirmText: "Are you sure you want to delete the selected items?",
-});
-
-const hydrateSchemaEditActionFields = (
-  actions: TableActionConfig[],
-  fields: Field[],
-): TableActionConfig[] =>
-  actions
-    .filter((action) => action.kind !== "create")
-    .map((action) =>
-      action.kind === "edit" && action.formFields === undefined
-        ? { ...action, formFields: buildActionFormFieldsFromFields(fields) }
-        : action,
-    );
-
-const hydrateSchemaAddButton = (
-  addButton: TableActionConfig | undefined,
-  actions: TableActionConfig[] | undefined,
-  fields: Field[],
-): TableActionConfig =>
-  addButton ||
-  actions?.find((action) => action.kind === "create") ||
-  buildDefaultCreateAction(fields);
-
-const buildTableColumnsFromNames = (fields: string[]): TableColumnConfig[] =>
-  fields
-    .map((field) => field.trim())
-    .filter(
-      (field, index, all) =>
-        field && !["_id", "id"].includes(field) && all.indexOf(field) === index,
-    )
-    .map((field) => ({ field, type: "field", displayName: "" }));
-
-const normalizeOutputFields = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter((item, index, all) => item && all.indexOf(item) === index);
-};
-
-const pipelineJson = (pipeline: PipelineStage): string =>
-  (pipeline as any).pipelineJson || (pipeline as any).PipelineJSON || "";
-
-const inferFieldsFromProjectStage = (stage: Record<string, any>): string[] => {
-  const project = stage.$project || stage.project;
-  if (!project || typeof project !== "object" || Array.isArray(project)) {
-    return [];
-  }
-
-  return Object.entries(project)
-    .filter(([field, value]) => {
-      if (field === "_id") return false;
-      if (value === 0 || value === false) return false;
-      return true;
-    })
-    .map(([field]) => field);
-};
-
-const inferFieldsFromPipelineStage = (stage: Record<string, any>): string[] => {
-  const projected = inferFieldsFromProjectStage(stage);
-  if (projected.length > 0) return projected;
-
-  if (typeof stage.$count === "string" && stage.$count.trim()) {
-    return [stage.$count.trim()];
-  }
-
-  const group = stage.$group || stage.group;
-  if (group && typeof group === "object" && !Array.isArray(group)) {
-    return Object.keys(group).filter((field) => field !== "_id");
-  }
-
-  return [];
-};
-
-const inferPipelineOutputFields = (
-  pipeline: PipelineStage,
-  fallbackFields: Field[],
-): string[] => {
-  const explicit = normalizeOutputFields((pipeline as any).outputFields);
-  if (explicit.length > 0) return explicit;
-
-  try {
-    const parsed = JSON.parse(pipelineJson(pipeline));
-    if (Array.isArray(parsed)) {
-      const lastStage = parsed[parsed.length - 1];
-      if (lastStage?.$out || lastStage?.$merge) {
-        return [];
-      }
-      for (let index = parsed.length - 1; index >= 0; index -= 1) {
-        const stage = parsed[index];
-        if (stage && typeof stage === "object" && !Array.isArray(stage)) {
-          const projected = inferFieldsFromPipelineStage(stage);
-          if (projected.length > 0) return projected;
-        }
-      }
-    }
-  } catch {
-    return [];
-  }
-
-  return fallbackFields.map((field) => field.name).filter(Boolean);
-};
-
-const extractPipelineParams = (pipeline: PipelineStage | null): string[] => {
-  if (!pipeline) return [];
-  const jsonStr = pipeline.pipelineJson || (pipeline as any).pipelineJSON || "";
-  if (!jsonStr) return [];
-
-  const paramsSet = new Set<string>();
-
-  // 1. Match {{paramName}}
-  const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
-  let match;
-  while ((match = rePlaceholders.exec(jsonStr)) !== null) {
-    const p = match[1];
-    if (
-      !["tenantID", "projectID"].includes(p) &&
-      !p.startsWith("projectCollection:") &&
-      !p.startsWith("collection:")
-    ) {
-      paramsSet.add(p);
-    }
-  }
-
-  // 2. Match {"$param": "paramName"}
-  const reDollarParam = /\{\s*"\$param"\s*:\s*"([A-Za-z0-9_-]+)"\s*\}/g;
-  while ((match = reDollarParam.exec(jsonStr)) !== null) {
-    paramsSet.add(match[1]);
-  }
-
-  return Array.from(paramsSet);
-};
-
-const extractWorkflowParams = (workflow: any | null): string[] => {
-  if (!workflow) return [];
-  try {
-    const jsonStr = JSON.stringify(workflow);
-    const paramsSet = new Set<string>();
-
-    // Match {{placeholder}}
-    const rePlaceholders = /\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g;
-    let match;
-    while ((match = rePlaceholders.exec(jsonStr)) !== null) {
-      const p = match[1];
-      if (
-        !["tenantID", "projectID"].includes(p) &&
-        !p.startsWith("projectCollection:") &&
-        !p.startsWith("collection:")
-      ) {
-        paramsSet.add(p);
-      }
-    }
-    return Array.from(paramsSet);
-  } catch {
-    return [];
-  }
-};
-
-const flattenWorkflowSteps = (steps: WorkflowStep[] = []): WorkflowStep[] =>
-  steps.flatMap((step) => [
-    step,
-    ...flattenWorkflowSteps(step.steps || []),
-    ...flattenWorkflowSteps(step.elseSteps || []),
-    ...(step.branches || []).flatMap((branch) =>
-      flattenWorkflowSteps(branch.steps || []),
-    ),
-  ]);
-
-const workflowStepId = (step: WorkflowStep): string =>
-  step.name || (step as any).id || "";
-
-const configOutputFields = (
-  config: Record<string, any> | undefined,
-): string[] =>
-  normalizeOutputFields(
-    config?.outputFields || config?.returnFields || config?.fields,
-  );
-
-const schemaFieldNames = (
-  containers: ContainerModel[],
-  schemaName: string | undefined,
-): string[] =>
-  (
-    containers.find((container) => container.schemaName === schemaName)
-      ?.fields || []
-  )
-    .map((field) => field.name)
-    .filter(Boolean);
-
-const inferWorkflowStepFields = (
-  step: WorkflowStep | undefined,
-  containers: ContainerModel[],
-  fallbackSchemaName: string,
-): string[] => {
-  if (!step) return [];
-  const explicit = configOutputFields(step.config);
-  if (explicit.length > 0) return explicit;
-
-  if (step.config?.projection && typeof step.config.projection === "object") {
-    const projected = inferFieldsFromProjectStage({
-      $project: step.config.projection,
-    });
-    if (projected.length > 0) return projected;
-  }
-
-  if (Array.isArray(step.config?.pipeline)) {
-    for (let index = step.config.pipeline.length - 1; index >= 0; index -= 1) {
-      const projected = inferFieldsFromPipelineStage(
-        step.config.pipeline[index],
-      );
-      if (projected.length > 0) return projected;
-    }
-  }
-
-  if (
-    typeof step.config?.value === "object" &&
-    !Array.isArray(step.config.value)
-  ) {
-    const keys = Object.keys(step.config.value).filter((key) => key !== "_id");
-    if (keys.length > 0) return keys;
-  }
-
-  if (["find_records", "get_record"].includes(step.type)) {
-    return schemaFieldNames(
-      containers,
-      step.targetSchema || fallbackSchemaName,
-    );
-  }
-
-  return [];
-};
-
-const inferWorkflowOutputFields = (
-  workflow: DynamicWorkflow,
-  containers: ContainerModel[],
-  fallbackSchemaName: string,
-): string[] => {
-  const explicit = normalizeOutputFields(
-    (workflow as any).outputFields || (workflow as any).returnFields,
-  );
-  if (explicit.length > 0) return explicit;
-
-  const steps = flattenWorkflowSteps(workflow.steps || []);
-  const returnStep = steps.find(
-    (step) => step.type === "return" && step.isActive !== false,
-  );
-  if (returnStep) {
-    const fromReturn = inferWorkflowStepFields(
-      returnStep,
-      containers,
-      fallbackSchemaName,
-    );
-    if (fromReturn.length > 0) return fromReturn;
-
-    const value = returnStep.config?.value;
-    if (typeof value === "string") {
-      const match = value.match(/^\{\{\s*([^.}]+)(?:\.items)?\s*\}\}$/);
-      if (match) {
-        const referenced = steps.find(
-          (step) => workflowStepId(step) === match[1],
-        );
-        const inferred = inferWorkflowStepFields(
-          referenced,
-          containers,
-          fallbackSchemaName,
-        );
-        if (inferred.length > 0) return inferred;
-      }
-    }
-  }
-
-  if (workflow.returnStep) {
-    const referenced = steps.find(
-      (step) => workflowStepId(step) === workflow.returnStep,
-    );
-    return inferWorkflowStepFields(referenced, containers, fallbackSchemaName);
-  }
-
-  return [];
-};
-
-const cleanRules = (rules: RowClassConfig[] = []): RowClassConfig[] =>
-  rules.filter((rule) => rule.condition.trim() || rule.className.trim());
-
-const parseJsonObject = (
-  value?: string,
-): Record<string, unknown> | undefined => {
-  if (!value?.trim()) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const cleanTableActions = (
-  actions: TableActionConfig[] = [],
-): TableActionConfig[] =>
-  actions
-    .filter((action) => action.kind)
-    .map((action, index) => {
-      const constantValues =
-        action.constantValues || parseJsonObject(action.constantValuesJson);
-      const actionId =
-        action.id?.trim() ||
-        action.key?.trim() ||
-        `${action.kind}-${index + 1}`;
-      return {
-        kind: action.kind,
-        id: actionId,
-        key: action.key?.trim() || actionId,
-        ...(action.label?.trim() ? { label: action.label.trim() } : {}),
-        ...(action.buttonName?.trim()
-          ? { buttonName: action.buttonName.trim() }
-          : {}),
-        ...(action.icon?.trim() ? { icon: action.icon.trim() } : {}),
-        order: Number(action.order ?? index + 1),
-        enabled: action.enabled !== false,
-        modalType: action.modalType || "none",
-        ...(cleanDesignerActionFormLayout(action.formLayout)
-          ? { formLayout: cleanDesignerActionFormLayout(action.formLayout) }
-          : {}),
-        ...(action.formFields !== undefined
-          ? {
-              formFields: action.formFields
-                .filter((field) => field.formKey.trim())
-                .map((field) => ({
-                  formKey: field.formKey.trim(),
-                  type: field.type || "text",
-                  formKeyType: field.formKeyType || "string",
-                  ...(field.label?.trim() ? { label: field.label.trim() } : {}),
-                  ...(field.placeholder?.trim()
-                    ? { placeholder: field.placeholder.trim() }
-                    : {}),
-                  ...(field.required ? { required: true } : {}),
-                  ...(field.isDisabled ? { isDisabled: true } : {}),
-                  ...(field.disabledCondition?.trim()
-                    ? { disabledCondition: field.disabledCondition.trim() }
-                    : {}),
-                  ...(field.requiredCondition?.trim()
-                    ? { requiredCondition: field.requiredCondition.trim() }
-                    : {}),
-                  ...(field.isMultiple ? { isMultiple: true } : {}),
-                  ...(isActionNumberInput(field.type) &&
-                  field.isNumberButtonsActive
-                    ? { isNumberButtonsActive: true }
-                    : {}),
-                  ...(field.optionsSource
-                    ? { optionsSource: field.optionsSource }
-                    : {}),
-                  ...(field.staticOptionsJson?.trim()
-                    ? { staticOptionsJson: field.staticOptionsJson.trim() }
-                    : {}),
-                  ...(field.sourceSchemaName?.trim()
-                    ? { sourceSchemaName: field.sourceSchemaName.trim() }
-                    : {}),
-                  ...(field.sourceValueField?.trim()
-                    ? { sourceValueField: field.sourceValueField.trim() }
-                    : {}),
-                  ...(field.sourceLabelField?.trim()
-                    ? { sourceLabelField: field.sourceLabelField.trim() }
-                    : {}),
-                  ...(field.sourceDataFields?.filter((key) => key.trim()).length
-                    ? {
-                        sourceDataFields: field.sourceDataFields
-                          .map((key) => key.trim())
-                          .filter(Boolean),
-                      }
-                    : {}),
-                  ...(field.optionDisplay &&
-                  (field.optionDisplay.leftTemplate?.trim() ||
-                    field.optionDisplay.rightTemplate?.trim())
-                    ? {
-                        optionDisplay: {
-                          leftTemplate:
-                            field.optionDisplay.leftTemplate?.trim() || "",
-                          rightTemplate:
-                            field.optionDisplay.rightTemplate?.trim() || "",
-                        },
-                      }
-                    : {}),
-                  ...(cleanConstantFilters(field.sourceRequestFilters, field)
-                    ? {
-                        sourceRequestFilters: cleanConstantFilters(
-                          field.sourceRequestFilters,
-                          field,
-                        ),
-                      }
-                    : {}),
-                  ...(cleanSelectFilterBindings(field.sourceFilterBindings)
-                    ? {
-                        sourceFilterBindings: cleanSelectFilterBindings(
-                          field.sourceFilterBindings,
-                        ),
-                      }
-                    : {}),
-                  ...(field.sourceFilterCondition?.trim()
-                    ? {
-                        sourceFilterCondition:
-                          field.sourceFilterCondition.trim(),
-                      }
-                    : {}),
-                  ...(field.invalidateKeys?.filter((key) => key.trim()).length
-                    ? {
-                        invalidateKeys: field.invalidateKeys
-                          .map((key) => key.trim())
-                          .filter(Boolean),
-                      }
-                    : {}),
-                  ...(field.defaultValue !== undefined &&
-                  field.defaultValue !== ""
-                    ? { defaultValue: field.defaultValue }
-                    : {}),
-                  ...(field.min !== undefined ? { min: field.min } : {}),
-                  ...(field.max !== undefined ? { max: field.max } : {}),
-                  ...(field.minLength !== undefined
-                    ? { minLength: field.minLength }
-                    : {}),
-                  ...(field.maxLength !== undefined
-                    ? { maxLength: field.maxLength }
-                    : {}),
-                  ...(field.pattern?.trim()
-                    ? { pattern: field.pattern.trim() }
-                    : {}),
-                  ...(field.validationMessage?.trim()
-                    ? { validationMessage: field.validationMessage.trim() }
-                    : {}),
-                })),
-            }
-          : {}),
-
-        ...(action.fieldOverrides?.filter((override) => override.field.trim())
-          .length
-          ? {
-              fieldOverrides: action.fieldOverrides
-                .filter((override) => override.field.trim())
-                .map((override) => ({
-                  field: override.field.trim(),
-                  ...(override.required !== undefined
-                    ? { required: override.required }
-                    : {}),
-                  ...(override.disabledCondition?.trim()
-                    ? { disabledCondition: override.disabledCondition.trim() }
-                    : {}),
-                })),
-            }
-          : {}),
-        ...(constantValues ? { constantValues } : {}),
-        ...(action.disabledCondition?.trim()
-          ? { disabledCondition: action.disabledCondition.trim() }
-          : {}),
-        ...(action.hiddenCondition?.trim()
-          ? { hiddenCondition: action.hiddenCondition.trim() }
-          : {}),
-        ...(action.requiredCondition?.trim()
-          ? { requiredCondition: action.requiredCondition.trim() }
-          : {}),
-        ...(action.confirmTitle?.trim()
-          ? { confirmTitle: action.confirmTitle.trim() }
-          : {}),
-        ...(action.confirmText?.trim()
-          ? { confirmText: action.confirmText.trim() }
-          : {}),
-        // Preserve legacy function metadata when saving existing pages. The
-        // function picker and runtime forwarding remain commented out.
-        ...(action.submit?.workflowName?.trim() ||
-        action.submit?.functionName?.trim()
-          ? {
-              submit: {
-                ...(action.submit.workflowName?.trim()
-                  ? {
-                      workflowName: action.submit.workflowName.trim(),
-                      ...(action.submit.workflowSchema?.trim()
-                        ? { workflowSchema: action.submit.workflowSchema.trim() }
-                        : {}),
-                    }
-                  : {}),
-                ...(action.submit.functionName?.trim()
-                  ? { functionName: action.submit.functionName.trim() }
-                  : {}),
-              },
-            }
-          : {}),
-        ...(action.path?.trim() ? { path: action.path.trim() } : {}),
-        ...(action.linkTemplate?.trim()
-          ? { linkTemplate: action.linkTemplate.trim() }
-          : {}),
-        ...(action.fields?.filter((f) => f.trim()).length
-          ? { fields: action.fields.map((f) => f.trim()).filter(Boolean) }
-          : {}),
-        ...(action.excludeFields?.filter((f) => f.trim()).length
-          ? {
-              excludeFields: action.excludeFields
-                .map((f) => f.trim())
-                .filter(Boolean),
-            }
-          : {}),
-        ...(action.linkType ? { linkType: action.linkType } : {}),
-        ...(action.className?.trim()
-          ? { className: action.className.trim() }
-          : {}),
-        ...(action.buttonClassName?.trim()
-          ? { buttonClassName: action.buttonClassName.trim() }
-          : {}),
-        ...(action.isButton ? { isButton: true } : {}),
-      };
-    });
-
-const cleanFilterPanelInputs = (
-  inputs: TableFilterPanelInputConfig[] = [],
-): TableFilterPanelInputConfig[] =>
-  inputs
-    .filter((field) => field.formKey.trim())
-    .map((field) => ({
-      ...(field.id ? { id: field.id } : {}),
-      formKey: field.formKey.trim(),
-      type: field.type || "text",
-      formKeyType: field.formKeyType || "string",
-      ...(field.label?.trim() ? { label: field.label.trim() } : {}),
-      ...(field.placeholder?.trim()
-        ? { placeholder: field.placeholder.trim() }
-        : {}),
-      ...(field.required ? { required: true } : {}),
-      ...(field.isDisabled ? { isDisabled: true } : {}),
-      ...(field.disabledCondition?.trim()
-        ? { disabledCondition: field.disabledCondition.trim() }
-        : {}),
-      ...(field.requiredCondition?.trim()
-        ? { requiredCondition: field.requiredCondition.trim() }
-        : {}),
-      ...(field.isMultiple ? { isMultiple: true } : {}),
-      ...(isActionNumberInput(field.type) && field.isNumberButtonsActive
-        ? { isNumberButtonsActive: true }
-        : {}),
-      ...(field.optionsSource ? { optionsSource: field.optionsSource } : {}),
-      ...(field.staticOptionsJson?.trim()
-        ? { staticOptionsJson: field.staticOptionsJson.trim() }
-        : {}),
-      ...(field.sourceSchemaName?.trim()
-        ? { sourceSchemaName: field.sourceSchemaName.trim() }
-        : {}),
-      ...(field.sourceValueField?.trim()
-        ? { sourceValueField: field.sourceValueField.trim() }
-        : {}),
-      ...(field.sourceLabelField?.trim()
-        ? { sourceLabelField: field.sourceLabelField.trim() }
-        : {}),
-      ...(field.sourceDataFields?.filter((key) => key.trim()).length
-        ? {
-            sourceDataFields: field.sourceDataFields
-              .map((key) => key.trim())
-              .filter(Boolean),
-          }
-        : {}),
-      ...(field.optionDisplay &&
-      (field.optionDisplay.leftTemplate?.trim() ||
-        field.optionDisplay.rightTemplate?.trim())
-        ? {
-            optionDisplay: {
-              leftTemplate: field.optionDisplay.leftTemplate?.trim() || "",
-              rightTemplate: field.optionDisplay.rightTemplate?.trim() || "",
-            },
-          }
-        : {}),
-      ...(cleanConstantFilters(field.sourceRequestFilters, field)
-        ? {
-            sourceRequestFilters: cleanConstantFilters(
-              field.sourceRequestFilters,
-              field,
-            ),
-          }
-        : {}),
-      ...(cleanSelectFilterBindings(field.sourceFilterBindings)
-        ? {
-            sourceFilterBindings: cleanSelectFilterBindings(
-              field.sourceFilterBindings,
-            ),
-          }
-        : {}),
-      ...(field.sourceFilterCondition?.trim()
-        ? { sourceFilterCondition: field.sourceFilterCondition.trim() }
-        : {}),
-      ...(field.invalidateKeys?.filter((key) => key.trim()).length
-        ? {
-            invalidateKeys: field.invalidateKeys
-              .map((key) => key.trim())
-              .filter(Boolean),
-          }
-        : {}),
-      ...(field.defaultValue !== undefined && field.defaultValue !== ""
-        ? { defaultValue: field.defaultValue }
-        : {}),
-      ...(field.min !== undefined ? { min: field.min } : {}),
-      ...(field.max !== undefined ? { max: field.max } : {}),
-      ...(field.minLength !== undefined ? { minLength: field.minLength } : {}),
-      ...(field.maxLength !== undefined ? { maxLength: field.maxLength } : {}),
-      ...(field.pattern?.trim() ? { pattern: field.pattern.trim() } : {}),
-      ...(field.validationMessage?.trim()
-        ? { validationMessage: field.validationMessage.trim() }
-        : {}),
-    }));
-
-const cleanSelectFilterBindings = (
-  bindings?: SelectFilterBinding[],
-): SelectFilterBinding[] | undefined => {
-  if (!Array.isArray(bindings)) return undefined;
-  const cleaned = bindings
-    .filter((rule) => rule && rule.id?.trim() && rule.field?.trim())
-    .map((rule) => {
-      const value = rule.value;
-      const cleanedValue: SelectFilterBinding["value"] =
-        value.source === "literal"
-          ? { source: "literal", value: value.value }
-          : value.source === "record"
-            ? {
-                source: "record",
-                fieldKey: value.fieldKey.trim(),
-                path: (value.path || []).map((part) => part.trim()).filter(Boolean),
-              }
-            : { source: "field", fieldKey: value.fieldKey.trim() };
-      return {
-        id: rule.id.trim(),
-        field: rule.field.trim(),
-        operator: rule.operator === "in" ? ("in" as const) : ("eq" as const),
-        value: cleanedValue,
-      };
-    });
-  return cleaned.length ? cleaned : undefined;
-};
-
-const cleanConstantFilters = (
-  filters?: Record<string, unknown>,
-  context?: RequestFilterFieldContext,
-): Record<string, unknown> | undefined =>
-  cleanSourceRequestFilters(filters, context);
-
-const formatSourceRequestFilters = (filters?: Record<string, unknown>) =>
-  formatRequestFiltersInput(filters);
-
-const parseSourceRequestFiltersInput = (
-  value: string,
-  context?: RequestFilterFieldContext,
-) => parseRequestFiltersInput(value, context);
-
-const cleanConstantSort = (
-  sort?: TableComponentConfig["constantSort"],
-): TableComponentConfig["constantSort"] | undefined => {
-  const sortField = typeof sort?.sort === "string" ? sort.sort.trim() : "";
-  if (!sortField) return undefined;
-  return {
-    sort: sortField,
-    asc: sort?.asc ?? 1,
-  };
-};
-
-export const cleanTableConfig = (
-  tableConfig: TableComponentConfig,
-): TableComponentConfig => ({
-  dataMode: cleanDesignerTableDataMode(
-    cleanArrayTableDataMode(tableConfig.dataMode, tableConfig.arraySource),
-  ),
-  ...(cleanDesignerTableDataFields(tableConfig.dataFields)
-    ? { dataFields: cleanDesignerTableDataFields(tableConfig.dataFields) }
-    : {}),
-  ...(tableConfig.actionsColumnLabel?.trim() ? { actionsColumnLabel: tableConfig.actionsColumnLabel } : {}),
-  ...(tableConfig.searchPlaceholder?.trim() ? { searchPlaceholder: tableConfig.searchPlaceholder } : {}),
-  ...(tableConfig.enableSearch === false ? { enableSearch: false } : {}),
-  columns: (tableConfig.columns || [])
-    .filter((column) => column.field.trim())
-    .map((column) => ({
-      field: column.field.trim(),
-      ...(column.type && column.type !== "field" ? { type: column.type } : {}),
-      ...(column.displayName?.trim()
-        ? { displayName: column.displayName.trim() }
-        : {}),
-      ...(column.type === "date" && column.dateFormat
-        ? { dateFormat: column.dateFormat }
-        : {}),
-      ...(column.type === "lookupLabel" &&
-      column.lookup?.schemaName?.trim() &&
-      column.lookup?.labelField?.trim()
-        ? {
-            lookup: {
-              schemaName: column.lookup.schemaName.trim(),
-              matchField: column.lookup.matchField?.trim() || "_id",
-              labelField: column.lookup.labelField.trim(),
-            },
-          }
-        : {}),
-      ...(column.type === "lookupLabel" && column.fallbackValue?.trim()
-        ? { fallbackValue: column.fallbackValue.trim() }
-        : {}),
-      ...(column.type === "computedLabel" &&
-      (column.computedLabelRules || []).some(
-        (rule) => rule.condition?.trim() || rule.value?.trim(),
-      )
-        ? {
-            computedLabelRules: (column.computedLabelRules || [])
-              .filter((rule) => rule.condition?.trim() || rule.value?.trim())
-              .map((rule) => ({
-                condition: rule.condition?.trim() || "",
-                value: rule.value?.trim() || "",
-              })),
-          }
-        : {}),
-      ...(column.type === "computedLabel" && column.fallbackValue?.trim()
-        ? { fallbackValue: column.fallbackValue.trim() }
-        : {}),
-      ...(cleanDesignerTableColumnTemplate(column)
-        ? { template: cleanDesignerTableColumnTemplate(column) }
-        : {}),
-      ...(column.type === "progressBar"
-        ? {
-            progressBar: {
-              sourceField:
-                column.progressBar?.sourceField?.trim() || column.field.trim(),
-              max: Number(column.progressBar?.max ?? 8),
-              ...(column.progressBar?.maxField?.trim()
-                ? { maxField: column.progressBar.maxField.trim() }
-                : {}),
-              color: column.progressBar?.color?.trim() || "#4d9f24",
-              trackColor: column.progressBar?.trackColor?.trim() || "#e7e5df",
-              height: Number(column.progressBar?.height ?? 12),
-              width: Number(column.progressBar?.width ?? 260),
-              showValue: column.progressBar?.showValue !== false,
-              ...(column.progressBar?.colorRules?.some(
-                (rule) => rule.condition?.trim() || rule.color?.trim(),
-              )
-                ? {
-                    colorRules: column.progressBar.colorRules
-                      .filter(
-                        (rule) => rule.condition?.trim() || rule.color?.trim(),
-                      )
-                      .map((rule) => ({
-                        condition: rule.condition?.trim() || "",
-                        color: rule.color?.trim() || "",
-                      })),
-                  }
-                : {}),
-            },
-          }
-        : {}),
-      ...(cleanRules(column.cellClassName).length > 0
-        ? { cellClassName: cleanRules(column.cellClassName) }
-        : {}),
-      ...(() => {
-        const link = normalizeDesignerTableColumnLink(column.link);
-        return link ? { link } : {};
-      })(),
-      ...(() => {
-        const visibilityToggle = cleanDesignerToggleBinding(
-          column.visibilityToggle,
-        );
-        return visibilityToggle ? { visibilityToggle } : {};
-      })(),
-      ...(() => {
-        const booleanEditToggle = cleanDesignerToggleBinding(
-          column.booleanEditToggle,
-        );
-        return booleanEditToggle ? { booleanEditToggle } : {};
-      })(),
-      ...(() => {
-        const booleanDisplayToggle = cleanDesignerToggleBinding(
-          column.booleanDisplayToggle,
-        );
-        return booleanDisplayToggle ? { booleanDisplayToggle } : {};
-      })(),
-    })),
-  ...(cleanRules(tableConfig.rows?.className).length > 0
-    ? { rows: { className: cleanRules(tableConfig.rows?.className) } }
-    : {}),
-  ...(tableConfig.nestedRows?.enabled &&
-  tableConfig.nestedRows.field?.trim() &&
-  (tableConfig.nestedRows.columns || []).some((column) => column.field?.trim())
-    ? {
-        nestedRows: {
-          enabled: true,
-          field: tableConfig.nestedRows.field.trim(),
-          ...(tableConfig.nestedRows.header?.trim()
-            ? { header: tableConfig.nestedRows.header.trim() }
-            : {}),
-          columns: (tableConfig.nestedRows.columns || [])
-            .filter((column) => column.field?.trim())
-            .map((column) => ({
-              field: column.field.trim(),
-              ...(column.displayName?.trim()
-                ? { displayName: column.displayName.trim() }
-                : {}),
-              ...(column.type && column.type !== "field"
-                ? { type: column.type }
-                : {}),
-              ...(column.type === "date" && column.dateFormat
-                ? { dateFormat: column.dateFormat }
-                : {}),
-              ...(column.type === "lookupLabel" &&
-              column.lookup?.schemaName?.trim() &&
-              column.lookup?.labelField?.trim()
-                ? {
-                    lookup: {
-                      schemaName: column.lookup.schemaName.trim(),
-                      matchField: column.lookup.matchField?.trim() || "_id",
-                      labelField: column.lookup.labelField.trim(),
-                    },
-                  }
-                : {}),
-              ...(column.type === "lookupLabel" && column.fallbackValue?.trim()
-                ? { fallbackValue: column.fallbackValue.trim() }
-                : {}),
-            })),
-        },
-      }
-    : {}),
-  ...(cleanArrayTableSource(tableConfig.arraySource)
-    ? { arraySource: cleanArrayTableSource(tableConfig.arraySource) }
-    : {}),
-  ...(tableConfig.cache?.invalidateKeys?.filter((key) => key.trim()).length
-    ? {
-        cache: {
-          invalidateKeys: tableConfig.cache.invalidateKeys
-            .map((key) => key.trim())
-            .filter(Boolean),
-        },
-      }
-    : {}),
-  ...(cleanConstantFilters(tableConfig.constantFilters)
-    ? { constantFilters: cleanConstantFilters(tableConfig.constantFilters) }
-    : {}),
-  ...(cleanConstantSort(tableConfig.constantSort)
-    ? { constantSort: cleanConstantSort(tableConfig.constantSort) }
-    : {}),
-  ...(cleanDesignerTableDrag(tableConfig.drag)
-    ? { drag: cleanDesignerTableDrag(tableConfig.drag) }
-    : {}),
-  ...(cleanTableActions(
-    tableConfig.addButton ? [{ ...tableConfig.addButton, kind: "create" }] : [],
-  )[0]
-    ? {
-        addButton: cleanTableActions(
-          tableConfig.addButton
-            ? [{ ...tableConfig.addButton, kind: "create" }]
-            : [],
-        )[0],
-      }
-    : {}),
-  ...(cleanTableActions(
-    (tableConfig.actions || []).filter((action) => action.kind !== "create"),
-  ).length > 0
-    ? {
-        actions: cleanTableActions(
-          (tableConfig.actions || []).filter(
-            (action) => action.kind !== "create",
-          ),
-        ),
-      }
-    : {}),
-  ...(tableConfig.bulkActions !== undefined
-    ? {
-        bulkActions: {
-          ...(cleanTableActions(
-            tableConfig.bulkActions.edit
-              ? [{ ...tableConfig.bulkActions.edit, kind: "update" }]
-              : [],
-          )[0]
-            ? {
-                edit: cleanTableActions(
-                  tableConfig.bulkActions.edit
-                    ? [{ ...tableConfig.bulkActions.edit, kind: "update" }]
-                    : [],
-                )[0],
-              }
-            : {}),
-          ...(cleanTableActions(
-            tableConfig.bulkActions.delete
-              ? [{ ...tableConfig.bulkActions.delete, kind: "delete" }]
-              : [],
-          )[0]
-            ? {
-                delete: cleanTableActions(
-                  tableConfig.bulkActions.delete
-                    ? [{ ...tableConfig.bulkActions.delete, kind: "delete" }]
-                    : [],
-                )[0],
-              }
-            : {}),
-        },
-      }
-    : {}),
-  ...(tableConfig.filterPanel !== undefined
-    ? {
-        filterPanel: {
-          inputs: cleanFilterPanelInputs(tableConfig.filterPanel.inputs || []),
-        },
-      }
-    : {}),
-  ...(cleanDesignerTableToggles(tableConfig.toggles).length
-    ? { toggles: cleanDesignerTableToggles(tableConfig.toggles) }
-    : {}),
-  ...(cleanDesignerGeneratedRelationColumns(
-    tableConfig.generatedRelationColumns,
-  ).length
-    ? {
-        generatedRelationColumns: cleanDesignerGeneratedRelationColumns(
-          tableConfig.generatedRelationColumns,
-        ),
-      }
-    : {}),
-});
-
-// Exported for a save-boundary regression test; this remains a pure serializer.
-// eslint-disable-next-line react-refresh/only-export-components
-export const cleanFormConfig = (input: FormComponentConfig): FormComponentConfig => {
-  const form = normalizeDesignerCalculations(input);
-  return {
-  title: form.title?.trim() || "",
-  schemaName: form.schemaName.trim(),
-  layout: {
-    variant: form.layout?.variant || "page",
-    columns: form.layout?.columns || 2,
-    areas: (form.layout?.areas || [])
-      .filter((area) => area.key)
-      .map((area) => ({
-        ...area,
-        title: area.title?.trim() || "",
-        className: area.className?.trim() || "",
-      })),
-  },
-  fields: (form.fields || [])
-    .filter((field) => field.formKey.trim() && field.type)
-    .map((field, index) => ({
-      ...field,
-      formKey: field.formKey.trim(),
-      label: field.label?.trim() || field.formKey.trim(),
-      placeholder: field.placeholder?.trim() || "",
-      area: field.area || "main",
-      width: field.width || "full",
-      order: Number(field.order ?? index + 1),
-      sourceRequestFilters: cleanConstantFilters(
-        field.sourceRequestFilters,
-        field,
-      ),
-      sourceFilterBindings: cleanSelectFilterBindings(field.sourceFilterBindings),
-      invalidateKeys: field.invalidateKeys
-        ?.map((key) => key.trim())
-        .filter(Boolean),
-      sourceDataFields: Array.from(new Set(
-        (field.sourceDataFields || []).map((key) => key.trim()).filter(Boolean),
-      )),
-      optionDisplay: field.optionDisplay && (
-        field.optionDisplay.leftTemplate?.trim() ||
-        field.optionDisplay.rightTemplate?.trim()
-      ) ? {
-          leftTemplate: field.optionDisplay.leftTemplate?.trim() || "",
-          rightTemplate: field.optionDisplay.rightTemplate?.trim() || "",
-        } : undefined,
-    })),
-  objectLists: (form.objectLists || [])
-    .filter((objectList) => objectList.key.trim())
-    .map((objectList) => ({
-      ...objectList,
-      key: objectList.key.trim(),
-      title: objectList.title?.trim() || objectList.key.trim(),
-      area: objectList.area || "right",
-      source: "embedded",
-      itemFields: (objectList.itemFields || []).filter(Boolean),
-      display: {
-        primaryField: objectList.display?.primaryField?.trim() || "",
-        primaryTemplate: objectList.display?.primaryTemplate?.trim() || "",
-        secondaryField: objectList.display?.secondaryField?.trim() || "",
-        secondaryTemplate: objectList.display?.secondaryTemplate?.trim() || "",
-        rightTemplate: objectList.display?.rightTemplate?.trim() || "",
-        imageField: objectList.display?.imageField?.trim() || "",
-        priceComparison: objectList.display?.priceComparison,
-      },
-      addAction: objectList.addAction
-        ? {
-            ...objectList.addAction,
-            kind: "addObject",
-            label: objectList.addAction.label?.trim() || "Add Item",
-            area: objectList.addAction.area || "left",
-            targetObjectList: objectList.key.trim(),
-            sourceFields: (objectList.addAction.sourceFields || []).filter(
-              Boolean,
-            ),
-            clearSourceFields: (
-              objectList.addAction.clearSourceFields || []
-            ).filter(Boolean),
-            preserveSourceFields: (
-              objectList.addAction.preserveSourceFields || []
-            ).filter(Boolean),
-            enabled: objectList.addAction.enabled !== false,
-          }
-        : undefined,
-      actions: (objectList.actions || []).map((action) => ({
-        ...action,
-        label: action.label?.trim() || "",
-        icon: action.icon?.trim() || "",
-        position: action.position || "end",
-        field: action.field?.trim() || "",
-      })),
-    })),
-  summaries: form.summaries,
-  actions: (form.actions || []).map((action, index) => ({
-    ...action,
-    label: action.label?.trim() || "",
-    buttonName: action.buttonName?.trim() || "",
-    area: action.area || (action.kind === "submit" ? "right" : "left"),
-    targetObjectList: action.targetObjectList?.trim() || "",
-    sourceFields: (action.sourceFields || []).filter(Boolean),
-    clearSourceFields: (action.clearSourceFields || []).filter(Boolean),
-    preserveSourceFields: (action.preserveSourceFields || []).filter(Boolean),
-    enabled: action.enabled !== false,
-    order: Number(action.order ?? index + 1),
-  })),
-  submit: {
-    ...(form.submit || {}),
-    mode: form.submit?.mode || "create",
-    buttonName: form.submit?.buttonName?.trim() || "",
-    ...(form.submit?.mode === "createMany"
-      ? { bulkObjectListKey: form.submit.bulkObjectListKey?.trim() || "" }
-      : {}),
-    ...(form.submit?.mode === "workflow"
-      ? {
-          bulkObjectListKey: form.submit.bulkObjectListKey?.trim() || "",
-          workflowSchema: form.submit.workflowSchema?.trim() || "",
-          workflowName: form.submit.workflowName?.trim() || "",
-        }
-      : {}),
-  },
-  };
-};
 
 const ActionFormLayoutEditor = ({
   action,
@@ -2006,9 +717,6 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
   const selectedVisual = structure.find(item => item.kind === "visual" && item.component.id === selectedVisualId);
   const visual = selectedVisual?.kind === "visual" ? selectedVisual.component : null;
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
-  const [showComponentModal, setShowComponentModal] = useState(false);
-  const [editingComponent, setEditingComponent] =
-    useState<ComponentBlock | null>(null);
   const [isComponentEditorOpen, setIsComponentEditorOpen] = useState(false);
   const [showExcelUploadModal, setShowExcelUploadModal] = useState(false);
   const [excelTargetSectionIndex, setExcelTargetSectionIndex] = useState<
@@ -2157,7 +865,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({
 
   // Handle Excel upload success for cells
   const handleCellExcelUploadSuccess = (
-    schemaName: string,
+    _schemaName: string,
     component: ComponentBlock,
   ) => {
     if (excelTargetSectionIndex === null) return;
@@ -2661,7 +1369,6 @@ interface CellEditorProps {
 const CellEditor: React.FC<CellEditorProps> = ({
   cell,
   filters,
-  schemas,
   isSelected,
   onSelect,
   onUpdate,
@@ -4015,10 +2722,10 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         const components = editingComponent
           ? (cell.components || []).map((candidate) =>
               candidate.id === editingComponent.id
-                ? runtimeComponent!
+                ? runtimeComponent
                 : candidate,
             )
-          : [...(cell.components || []), runtimeComponent!];
+          : [...(cell.components || []), runtimeComponent];
         return { ...cell, components };
       }),
     }));
@@ -4078,7 +2785,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         try {
           parsedParams = JSON.parse(params);
         } catch (e) {
-          console.error("Invalid params JSON:", e);
+          logger.error("Invalid params JSON:", e);
         }
       }
 
@@ -4191,7 +2898,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         try {
           parsedParams = JSON.parse(params);
         } catch (e) {
-          console.error("Invalid params JSON:", e);
+          logger.error("Invalid params JSON:", e);
         }
       }
 
@@ -4220,7 +2927,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         try {
           parsedParams = JSON.parse(params);
         } catch (e) {
-          console.error("Invalid params JSON:", e);
+          logger.error("Invalid params JSON:", e);
         }
       }
 
@@ -4248,9 +2955,9 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
       if (params.trim()) {
         try {
           parsedParams = JSON.parse(params);
-          console.log("✅ Parsed params:", parsedParams);
+          logger.debug("✅ Parsed params:", parsedParams);
         } catch (e) {
-          console.error("Invalid params JSON:", e);
+          logger.error("Invalid params JSON:", e);
         }
       }
 
@@ -4259,7 +2966,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         try {
           parsedCustomOptions = JSON.parse(customChartOptions);
         } catch (e) {
-          console.error("Invalid custom chart options JSON:", e);
+          logger.error("Invalid custom chart options JSON:", e);
         }
       }
 
@@ -4300,7 +3007,7 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
         chartOptions: compiledChartOptions,
       };
 
-      console.log("📊 Chart component created with props:", component);
+      logger.debug("📊 Chart component created with props:", component);
     }
 
     component = applyRuntimeBindings(component);
@@ -5047,8 +3754,6 @@ const ComponentModal: React.FC<ComponentModalProps> = ({
     );
 
   const addTableAction = () => {
-    const actions = tableConfig.actions || [];
-    const nextOrder = actions.length + 1;
     const actionId = `action-${Date.now()}`;
     setActiveActionEditorId(`row-${actionId}`);
     setTableConfig((current) => {

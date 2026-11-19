@@ -3,7 +3,6 @@ import type {
   BackgroundToken,
   BorderWidthToken,
   Breakpoint,
-  ColorToken,
   ComponentNode,
   GradientToken,
   HeightToken,

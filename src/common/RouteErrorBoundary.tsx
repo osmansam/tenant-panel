@@ -2,6 +2,7 @@ import { Component, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertCircle } from "react-icons/fi";
 import { Button, PageShell } from "../components/ui";
+import { logger } from "../utils/logger";
 
 function PageError({ onRetry, requiresReload }: { onRetry: () => void; requiresReload: boolean }) {
   const { t } = useTranslation();
@@ -30,6 +31,9 @@ export class RouteErrorBoundary extends Component<
     if (this.state.requiresReload) window.location.reload();
     else this.setState({ failed: false });
   };
+  componentDidCatch(error: Error) {
+    logger.error(error);
+  }
   componentDidUpdate(previous: { resetKey: string }) {
     if (previous.resetKey !== this.props.resetKey && this.state.failed) this.setState({ failed: false });
   }

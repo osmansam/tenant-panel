@@ -13,8 +13,8 @@ it("adds a named request and connects a table without duplicating its source", (
  fireEvent.click(screen.getByRole("button", { name: "Add request" }));
  fireEvent.change(screen.getByLabelText("Request name"), { target: { value: "Product list" } });
  fireEvent.change(screen.getByLabelText("Schema"), { target: { value: "products" } });
- const state = JSON.parse(screen.getByTestId("saved").textContent!);
+ const state = JSON.parse(screen.getByTestId("saved").textContent);
  fireEvent.change(screen.getByLabelText("Products table · Data request"), { target: { value: state.requests[0].id } });
- expect(JSON.parse(screen.getByTestId("saved").textContent!).sections[0].component.requestBindings.data.requestId).toBe(state.requests[0].id);
+ expect(JSON.parse(screen.getByTestId("saved").textContent).sections[0].component.requestBindings.data.requestId).toBe(state.requests[0].id);
  expect(screen.getByRole("button", { name: "Delete request" })).toBeDisabled();
 });

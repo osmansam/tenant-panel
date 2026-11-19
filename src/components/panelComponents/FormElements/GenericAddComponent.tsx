@@ -27,6 +27,7 @@ import {
 import DateInput from "./DateInput";
 import SelectInput from "./SelectInput";
 import TextInput from "./TextInput";
+import { logger } from "../../../utils/logger";
 
 type Props<T> = {
   inputs: GenericInputType[];
@@ -134,7 +135,7 @@ const GenericAddComponent = <T,>({
       setFormElements((prev) => ({ ...prev, [imageFormKey]: data.url }));
     },
     onError: (error: Error) => {
-      console.error("Error uploading file:", error);
+      logger.error("Error uploading file:", error);
     },
   });
 
@@ -182,7 +183,7 @@ const GenericAddComponent = <T,>({
       setTextInputKey((prev) => prev + 1);
       additionalSubmitFunction?.();
     } catch (error) {
-      console.error("Failed to execute submit item:", error);
+      logger.error("Failed to execute submit item:", error);
     }
   };
   const handleInputClear = (input: GenericInputType) => {

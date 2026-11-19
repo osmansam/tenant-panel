@@ -70,7 +70,7 @@ export function readRecordAction(input: HostActionSpec): RecordActionConfig {
   }
   const constants = action.constantValues ?? (action.constantValuesJson?.trim() ? JSON.parse(action.constantValuesJson) : {});
   if (!object(constants) || Object.keys(constants).some(key => !safeField(key))) throw new Error("Constant values must be an object with valid field names.");
-  return { schemaName: config.schemaName as string, action: { ...structuredClone(action), modalType, formFields: structuredClone(formFields), constantValues: structuredClone(constants) }, ...(config.valueBindings ? { valueBindings: structuredClone(config.valueBindings) as Record<string, string[]> } : {}) };
+  return { schemaName: config.schemaName, action: { ...structuredClone(action), modalType, formFields: structuredClone(formFields), constantValues: structuredClone(constants) }, ...(config.valueBindings ? { valueBindings: structuredClone(config.valueBindings) as Record<string, string[]> } : {}) };
 }
 
 export function prepareRecordAction(config: RecordActionConfig, item?: Record<string, unknown>): PreparedRecordAction {

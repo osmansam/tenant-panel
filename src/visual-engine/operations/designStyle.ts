@@ -132,7 +132,7 @@ export function applyConfiguredDesign(document: ComponentDocument, preset: Desig
           style.spacing = { ...style.spacing, padding };
           if (node.responsive?.spacing) {
             const spacing = { ...node.responsive.spacing };
-            for (const breakpoint of ["mobile", "tablet", "desktop"] as const) if (spacing[breakpoint]) spacing[breakpoint] = clearPadding(spacing[breakpoint]!);
+            for (const breakpoint of ["mobile", "tablet", "desktop"] as const) if (spacing[breakpoint]) spacing[breakpoint] = clearPadding(spacing[breakpoint]);
             result.responsive = { ...node.responsive, spacing };
           }
         }

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WorkspaceDialog, Input, Label, Select } from '../ui';
-import { GenericButton } from '../panelComponents/FormElements/GenericButton';
+import { WorkspaceDialog, Input, Label, Select } from '../../components/ui';
+import { GenericButton } from '../../components/panelComponents/FormElements/GenericButton';
 import { collaborationRoles } from '../../types/collaboration';
 export function InviteCollaboratorDialog({
   onClose,

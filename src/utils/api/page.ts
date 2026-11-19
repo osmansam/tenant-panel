@@ -9,6 +9,7 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetList, useGetQuery } from "./factory";
 import { normalizePageRuntimeConfig } from "../pageBindings";
 import type { PageNavigatorConfig } from "../../types/page";
+import { logger } from "../logger";
 
 // Type definitions based on Go models
 export type BindingKind =
@@ -781,7 +782,7 @@ export function useCreatePage() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Page creation failed:", error);
+      logger.error("Page creation failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -832,7 +833,7 @@ export function useUpdatePage() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Page update failed:", error);
+      logger.error("Page update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||

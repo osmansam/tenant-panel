@@ -23,5 +23,7 @@ jobs:
         run: corepack enable
       - name: Install locked dependencies
         run: yarn install --immutable
+      - name: Audit high-severity dependencies
+        run: yarn audit:high
       - name: Lint, test, build and enforce bundle budget
         run: yarn release:check

@@ -91,7 +91,7 @@ export function useMutationApi<T extends { _id: number | string }>({
         // Snapshot the previous value
         const previousItems = queryClient.getQueryData<T[]>(queryKey);
         if (!previousItems) return;
-        const updatedItems = [...(previousItems as T[]), itemDetails];
+        const updatedItems = [...(previousItems), itemDetails];
         if (sortFunction) {
           updatedItems.sort(sortFunction);
         }

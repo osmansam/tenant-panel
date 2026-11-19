@@ -1,4 +1,5 @@
 import { Frontend } from "./api/container";
+import { logger } from "./logger";
 
 /**
  * Builds a URL from a link template by replacing placeholders with actual values
@@ -35,7 +36,7 @@ export function buildLinkUrl(
 
     // Replace {{row.FIELD_NAME}} with corresponding field values
     const rowFieldPattern = /\{\{row\.([a-zA-Z0-9_]+)\}\}/g;
-    url = url.replace(rowFieldPattern, (match, fieldName) => {
+    url = url.replace(rowFieldPattern, (_match, fieldName) => {
       return String(row?.[fieldName] ?? "");
     });
 
@@ -46,13 +47,13 @@ export function buildLinkUrl(
 
     // Check if there are still unresolved placeholders
     if (url.includes("{{")) {
-      console.warn("Unresolved placeholders in link template:", url);
+      logger.warn("Unresolved placeholders in link template:", url);
       return null;
     }
 
     return url;
   } catch (error) {
-    console.error("Error building link URL:", error);
+    logger.error("Error building link URL:", error);
     return null;
   }
 }

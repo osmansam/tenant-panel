@@ -5,6 +5,7 @@ import { axiosClient } from "./axiosClient";
 import { useGet, useGetQuery, useMutationApi } from "./factory";
 import { readStoredUser } from "../persistedContext";
 import type { BrandingOverrides } from "../../types/branding";
+import { logger } from "../logger";
 
 // Project types - Updated to match API response
 export interface Project {
@@ -151,7 +152,7 @@ export function useCreateProject() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Project creation failed:", error);
+      logger.error("Project creation failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -193,7 +194,7 @@ export function useUpdateProjectTemplate() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Project template update failed:", error);
+      logger.error("Project template update failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -229,7 +230,7 @@ export function useCreateProjectFactory() {
   };
 }
 
-export function useUpdateProject(onError?: (error: unknown) => void) {
+export function useUpdateProject(_onError?: (error: unknown) => void) {
   const { updateItem, updateMutation } = useProjectMutations();
 
   return {
@@ -262,7 +263,7 @@ export function useDeleteProject() {
       toast.success(t(message));
     },
     onError: (error: any) => {
-      console.error("Project deletion failed:", error);
+      logger.error("Project deletion failed:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||

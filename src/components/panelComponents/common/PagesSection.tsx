@@ -55,6 +55,7 @@ import {
 } from "../../../components/ui";
 import { cn } from "../../../utils/cn";
 import { hasManagementPermission } from "../../../utils/managementPermissions";
+import { logger } from "../../../utils/logger";
 
 const pageEditorSnapshot = (page: PageModel) => JSON.stringify({
   name: page.name,
@@ -301,7 +302,7 @@ const PagesSectionWorkspace: React.FC = () => {
       });
     } catch (error) {
       setSaveError(t("Your page could not be saved. Your changes are still here. Please try again."));
-      console.error("Failed to save page structure:", error);
+      logger.error("Failed to save page structure:", error);
       throw error;
     } finally {
       savingPageRef.current = false;

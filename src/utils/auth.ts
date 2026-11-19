@@ -1,4 +1,5 @@
 import { toast } from "react-toastify";
+import { logger } from "./logger";
 
 /**
  * Centralized logout utility that can be used from anywhere in the app
@@ -8,7 +9,7 @@ export const logout = (
   showMessage: boolean = false,
   reason: string = "Session expired"
 ) => {
-  console.log("Logout triggered:", {
+  logger.debug("Logout triggered:", {
     showMessage,
     reason,
     timestamp: new Date().toISOString(),

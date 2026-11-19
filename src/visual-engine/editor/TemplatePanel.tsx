@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { exportTemplate } from "../persistence/importExport";
 import type { VisualTemplate } from "../templates/types";
 import type { ComponentDocument } from "../model";
-import { ALL_CURATED_STARTERS, VISUAL_TEMPLATE_STARTERS } from "../fixtures/templateStarters";
+import { ALL_CURATED_STARTERS } from "../fixtures/templateStarters";
 import { getBlankStarterDocument } from "../fixtures/blankStarters";
 
 export interface TemplatePanelProps {

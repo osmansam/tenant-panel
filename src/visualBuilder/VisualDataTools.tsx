@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, WorkspaceDialog } from "../components/ui";
-import type { ComponentDocument, RepeaterNode } from "../visual-engine/model";
+import type { ComponentDocument } from "../visual-engine/model";
 import type { VisualDataSchema } from "../visual-engine/host/DataContext";
 import { findAncestors, findNode } from "../visual-engine/operations/queryNode";
 import { VisualRenderer } from "../visual-engine/renderer";
@@ -14,7 +14,7 @@ const examples = Array.from({ length: 5 }, (_, index) => ({ _id: `example-${inde
 export default function VisualDataTools({ document, selectedId, onReplace, onSelect, schemas, theme }: { document: ComponentDocument; selectedId: string | null; onReplace: (doc: ComponentDocument) => void; onSelect: (id: string) => void; schemas: readonly VisualDataSchema[]; theme?: SiteTheme }) {
  const selected = selectedId ? findNode(document.root, selectedId) : undefined;
  const canRepeat = !!selected && ["card", "stack", "flex"].includes(selected.type);
- const repeater = (selected?.type === "repeater" ? selected : selectedId ? findAncestors(document.root, selectedId).reverse().find(node => node.type === "repeater") : undefined) as RepeaterNode | undefined;
+ const repeater = (selected?.type === "repeater" ? selected : selectedId ? findAncestors(document.root, selectedId).reverse().find(node => node.type === "repeater") : undefined);
  const [open, setOpen] = useState(false), [preview, setPreview] = useState(false), [error, setError] = useState("");
  const [samples, setSamples] = useState<Record<string, { text: string; source: string }>>({});
  const key = repeater ? collectionSourceKey(repeater.source) : "";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import { useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "motion/react";
 import { resolveComponentRenderer } from "../components/renderers/registry";
 import { heightScale } from "../model/proportionalSizing";
 import { nodeClassNames, nodeWrapperClassName, structuralChildPresentation, combineNodeStyles, withoutBackground } from "./nodePresentation";
@@ -18,7 +18,7 @@ import { EffectHost, type EffectDiagnostic, type EffectRegistry } from "../effec
 import { DisclosureRuntime, type DisclosurePreviewState } from "./DisclosureRuntime";
 import { TabsRuntime } from "./TabsRuntime";
 import { SidebarRuntime } from "./SidebarRuntime";
-import { isStructuralNode, type NodePatch } from "../operations";
+import { type NodePatch } from "../operations";
 import { conditionalColorPresentation } from "./conditionalColors";
 import { bindNode } from "./bindings";
 import { repeaterGridStyle } from "./repeaterLayout";
@@ -28,7 +28,6 @@ import { inlineTextValue, type InlineEditTarget } from "./InlineTextEditor";
 import { buildResponsiveSpacingCss, hasResponsiveChildGap, responsiveChildGapClassName, responsiveSpacingClassName } from "./responsiveSpacing";
 import "./visual-renderer.css";
 import {
-  gridPlacementClassNames,
   HEADING_BASE_CLASSES,
 
   TEXT_BASE_CLASSES,

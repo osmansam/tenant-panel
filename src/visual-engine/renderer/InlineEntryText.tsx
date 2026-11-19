@@ -26,7 +26,7 @@ export function InlineEntryText({ node, context, target, className, render }: In
   if (value === null) return null;
   const renderValue = render ?? ((text) => text);
   if (context.mode !== "canvas" || context.onInlineTextCommit === undefined || context.onInlineTextCancel === undefined || !isInlineTargetEditable(node, target)) {
-    return renderValue(value) as ReactNode;
+    return renderValue(value);
   }
   const active = context.inlineEditingNodeId === node.id && targetMatches(context.inlineEditingTarget, target);
   if (active) {

@@ -667,7 +667,7 @@ export function VisualBuilder({ renderDataTools, initialDocument, initialSidebar
               documentRoot={state.document.root}
               target={insertTarget}
               idFactory={idFactory}
-              onDragStart={(_nodeType, event) => layerDrag.startDrag({ kind: "library", nodeType: _nodeType })}
+              onDragStart={(_nodeType) => layerDrag.startDrag({ kind: "library", nodeType: _nodeType })}
               onAdd={(node) => {
                 if (insertTarget !== null) actions.addNode(insertTarget.parent.id, node, insertTarget.index);
               }}

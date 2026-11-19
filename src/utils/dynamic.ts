@@ -7,6 +7,7 @@ import { useTenant } from "../hooks/useTenant";
 import { useGet, useMutationApi } from "../utils/api/factory";
 import { axiosClient } from "./api/axiosClient";
 import { getSelectionQueryConfig } from "./selectionQuery";
+import { logger } from "./logger";
 
 export interface DynamicPayload<T> {
   items: T[];
@@ -203,7 +204,7 @@ export function useDynamicCrud<T extends { _id: string | number }>(
       const errorMessage =
         err?.response?.data?.message || "An unexpected error occurred";
       // setTimeout(() => toast.error(t(errorMessage)), 200);
-      console.log("Error creating multiple items:", errorMessage);
+      logger.debug("Error creating multiple items:", errorMessage);
     },
     onSettled: async () => {
       invalidateSchemaQueries();
@@ -656,7 +657,7 @@ export function useGetSelection<T>(
 
   const data = useGet<T>(path, queryKey, enabled);
 
-  return (data ?? ([] as T)) as T;
+  return (data ?? ([] as T));
 }
 
 
@@ -688,5 +689,5 @@ export function useGetPipeline<T>(
 
   const data = useGet<T>(path, queryKey, enabled);
 
-  return (data ?? ([] as T)) as T;
+  return (data ?? ([] as T));
 }

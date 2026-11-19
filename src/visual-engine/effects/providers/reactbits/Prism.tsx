@@ -438,7 +438,7 @@ const Prism: React.FC<PrismProps> = ({
         window.removeEventListener('blur', onBlur);
       }
       if (suspendWhenOffscreen) {
-        const io = (container as PrismContainer).__prismIO as IntersectionObserver | undefined;
+        const io = (container as PrismContainer).__prismIO;
         if (io) io.disconnect();
         delete (container as PrismContainer).__prismIO;
       }

@@ -1,6 +1,6 @@
 import { tr } from "date-fns/locale";
-import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
+import { addDays, format } from "date-fns";
+import { parseCalendarDate } from "../../../utils/calendarDate";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DayPicker } from "react-day-picker";
@@ -12,7 +12,6 @@ import { Button, Input } from "../../ui";
 import { H6 } from "../Typography";
 import { GenericButton } from "./GenericButton";
 import { getDatePickerPopupPosition } from "../../../utils/datePickerPosition";
-dayjs.extend(customParseFormat);
 
 type DateInputProps = {
   label?: string;
@@ -65,14 +64,14 @@ export default function DateInput({
   const popupRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [popupPosition, setPopupPosition] = useState({ left: 0, top: 0 });
-  const todayYear = String(dayjs().year());
+  const todayYear = String(new Date().getFullYear());
 
   useEffect(() => {
     if (value) {
-      const p = dayjs(value, "YYYY-MM-DD", true);
-      if (p.isValid()) {
-        setInputText(p.format("MM/DD/YYYY"));
-        setMonth(p.toDate());
+      const p = parseCalendarDate(value, "yyyy-MM-dd");
+      if (p !== undefined) {
+        setInputText(format(p, "MM/dd/yyyy"));
+        setMonth(p);
       }
     } else {
       setInputText("");
@@ -129,9 +128,9 @@ export default function DateInput({
     const d = digits.slice(2, 4);
     const y = digits.slice(4, 8) || todayYear;
     const str = `${m}/${d}/${y}`;
-    const p = dayjs(str, "MM/DD/YYYY", true);
-    if (p.isValid()) {
-      onChange(p.format("YYYY-MM-DD"));
+    const p = parseCalendarDate(str, "MM/dd/yyyy");
+    if (p !== undefined) {
+      onChange(format(p, "yyyy-MM-dd"));
     }
   };
 
@@ -151,10 +150,10 @@ export default function DateInput({
 
   const handleSelect = (date?: Date) => {
     if (date) {
-      const p = dayjs(date);
-      const txt = p.format("MM/DD/YYYY");
+      const p = date;
+      const txt = format(p, "MM/dd/yyyy");
       setInputText(txt);
-      onChange(p.format("YYYY-MM-DD"));
+      onChange(format(p, "yyyy-MM-dd"));
       setMonth(date);
       setShowCalendar(false);
     }
@@ -168,11 +167,11 @@ export default function DateInput({
   };
 
   const selectedDate = (() => {
-    const fromText = dayjs(inputText, "MM/DD/YYYY", true);
-    if (fromText.isValid()) return fromText.toDate();
+    const fromText = parseCalendarDate(inputText, "MM/dd/yyyy");
+    if (fromText !== undefined) return fromText;
     if (value) {
-      const fromVal = dayjs(value, "YYYY-MM-DD", true);
-      if (fromVal.isValid()) return fromVal.toDate();
+      const fromVal = parseCalendarDate(value, "yyyy-MM-dd");
+      if (fromVal !== undefined) return fromVal;
     }
     return undefined;
   })();
@@ -181,11 +180,11 @@ export default function DateInput({
     if (disabled || isReadOnly) return;
     const base =
       selectedDate ??
-      (value ? dayjs(value, "YYYY-MM-DD", true).toDate() : new Date());
-    const next = dayjs(base).add(delta, "day");
-    setInputText(next.format("MM/DD/YYYY"));
-    onChange(next.format("YYYY-MM-DD"));
-    setMonth(next.toDate());
+      (value ? parseCalendarDate(value, "yyyy-MM-dd") : undefined) ?? new Date();
+    const next = addDays(base, delta);
+    setInputText(format(next, "MM/dd/yyyy"));
+    onChange(format(next, "yyyy-MM-dd"));
+    setMonth(next);
   };
 
   return (

@@ -25,7 +25,7 @@ interface PageRow {
   icon?: string;
 }
 
-const PagePermissions = ({ projectId, pageId, readOnly = false }: PagePermissionsProps) => {
+const PagePermissions = ({ pageId, readOnly = false }: PagePermissionsProps) => {
   const { t } = useTranslation();
   const [isEnableEdit, setIsEnableEdit] = useState(false);
 

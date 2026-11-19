@@ -44,7 +44,7 @@ export function moveEffect(document: ComponentDocument, nodeId: string, attachme
   if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= target.effects.length) return failure("effect.index_invalid", "Effect destination index is invalid");
   const effects = [...target.effects];
   const [moved] = effects.splice(effects.findIndex((effect) => effect.attachmentId === attachmentId), 1);
-  effects.splice(toIndex, 0, moved!);
+  effects.splice(toIndex, 0, moved);
   return replace(document, nodeId, effects);
 }
 

@@ -487,8 +487,8 @@ export const AddFieldModal: React.FC<AddFieldModalProps> = ({
 
     // Build the field object
     const newField: Field = {
-      name: fieldData.name!,
-      type: fieldData.type!,
+      name: fieldData.name,
+      type: fieldData.type,
       tag: buildTagString(),
       unique: fieldData.unique || false,
       isSearchable: fieldData.isSearchable || false,

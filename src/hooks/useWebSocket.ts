@@ -2,6 +2,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { readStoredProject } from "../utils/persistedContext";
+import { logger } from "../utils/logger";
 
 type WSInvalidateEvent =
   | { type: "invalidate"; schema: string; ts?: number }
@@ -32,7 +33,7 @@ export function useWebSocket() {
   useEffect(() => {
     const project = readStoredProject();
     if (!API_URL) {
-      console.warn("VITE_API_URL is not set; WebSocket will not connect.");
+      logger.warn("VITE_API_URL is not set; WebSocket will not connect.");
       return;
     }
 
@@ -44,18 +45,18 @@ export function useWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WS connected:", WS_URL);
+        logger.debug("WS connected:", WS_URL);
         state.delay = 1000;
       };
 
       ws.onmessage = async (evt) => {
         try {
           const msg: WSInvalidateEvent = JSON.parse(evt.data);
-          console.log("WS message received:", msg);
+          logger.debug("WS message received:", msg);
 
           // Handle pageChanged event
           if (msg?.type === "pageChanged") {
-            console.log("WS: Page data changed, invalidating page queries");
+            logger.debug("WS: Page data changed, invalidating page queries");
             await queryClient.invalidateQueries({
               queryKey: ["page"],
               type: "all",
@@ -66,7 +67,7 @@ export function useWebSocket() {
 
           // Handle containerChanged event
           if (msg?.type === "containerChanged") {
-            console.log(
+            logger.debug(
               "WS: Container data changed, invalidating container queries"
             );
             await queryClient.invalidateQueries({
@@ -79,7 +80,7 @@ export function useWebSocket() {
 
           // Handle schema invalidate event
           if (msg?.type !== "invalidate" || !msg?.schema) return;
-          console.log("WS invalidating queries for schema:", msg.schema);
+          logger.debug("WS invalidating queries for schema:", msg.schema);
           await queryClient.invalidateQueries({
             queryKey: ["dynamic", msg.schema],
             type: "all",
@@ -103,7 +104,7 @@ export function useWebSocket() {
       };
 
       ws.onclose = () => {
-        console.log("WS disconnected. Reconnecting...");
+        logger.debug("WS disconnected. Reconnecting...");
         if (state.userClosed) return;
         const d = state.delay;
         setTimeout(connect, d);
@@ -127,13 +128,13 @@ export function useWebSocket() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("Tab became visible, refreshing data and checking WS...");
+        logger.debug("Tab became visible, refreshing data and checking WS...");
         // Always invalidate to get fresh data
         queryClient.invalidateQueries();
 
         // Reconnect if not open
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          console.log("WS not open, forcing reconnect...");
+          logger.debug("WS not open, forcing reconnect...");
           setConnectTrigger((prev: number) => prev + 1);
         }
       }
