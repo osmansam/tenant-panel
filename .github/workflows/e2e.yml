@@ -18,10 +18,10 @@ jobs:
       E2E_BACKEND_DIR: ${{ github.workspace }}/backend
       E2E_MONGO_URI: mongodb://127.0.0.1:27018/?replicaSet=panel-e2e
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: panel
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: osmansam/autotable-Go
           ref: ${{ vars.BACKEND_REF || '9d297229a248200040229ac9c7b83de4fc602f6d' }}
